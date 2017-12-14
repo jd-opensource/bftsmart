@@ -38,7 +38,7 @@ public class TOMConfiguration extends Configuration {
 	protected int outQueueSize;
 	protected boolean shutdownHookEnabled;
 	protected boolean useSenderThread;
-	protected KeyLoader rsaLoader;
+	protected RsaKeyLoader rsaLoader;
 	private int debug;
 	private int numNIOThreads;
 	private int useMACs;
@@ -80,6 +80,16 @@ public class TOMConfiguration extends Configuration {
 		super(processId, systemConfigs, hostConfig);
 		//init the rsaloader after another initialization was completed;
 		rsaLoader = new FileSystemBasedRSAKeyLoader(configHome, defaultKeys);
+	}
+	
+	/** Creates a new instance of TOMConfiguration */
+	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig) {
+		super(processId, systemConfigs, hostConfig);
+		this.rsaLoader = new DefaultRSAKeyLoader();
+	}
+	
+	public void setRsaLoader(RsaKeyLoader rsaLoader) {
+		this.rsaLoader = rsaLoader;
 	}
 
 	// @Override

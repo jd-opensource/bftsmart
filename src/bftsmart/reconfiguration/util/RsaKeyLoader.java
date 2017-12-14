@@ -3,7 +3,7 @@ package bftsmart.reconfiguration.util;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-public interface KeyLoader {
+public interface RsaKeyLoader {
 
 	/**
 	 * Loads the public key of some processes from configuration files
