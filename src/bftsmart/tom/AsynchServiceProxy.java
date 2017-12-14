@@ -33,7 +33,7 @@ public class AsynchServiceProxy extends ServiceProxy {
      */
     public AsynchServiceProxy(int processId) {
         this(processId, null);
-        init();
+//        init();
     }
 
     /**

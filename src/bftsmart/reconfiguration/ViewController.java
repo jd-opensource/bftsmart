@@ -41,6 +41,10 @@ public class ViewController {
     public ViewController(int procId, String configHome) {
         this.staticConf = new TOMConfiguration(procId, configHome);
     }
+    
+    public ViewController(TOMConfiguration config) {
+    	this.staticConf = config;
+    }
 
     
     public final ViewStorage getViewStore() {
