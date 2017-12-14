@@ -1,6 +1,7 @@
 package bftsmart.tom;
 
 import bftsmart.communication.client.ReplyListener;
+import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
@@ -44,6 +45,16 @@ public class AsynchServiceProxy extends ServiceProxy {
     public AsynchServiceProxy(int processId, String configHome) {
         super(processId, configHome);
         init();
+    }
+    
+    /**
+     *
+     * @param processId Replica id
+     * @param configHome Configuration folder
+     */
+    public AsynchServiceProxy(TOMConfiguration config) {
+    	super(config, null, null);
+    	init();
     }
 
     public AsynchServiceProxy(int processId, String configHome,

@@ -24,6 +24,7 @@ import bftsmart.communication.client.CommunicationSystemClientSide;
 import bftsmart.communication.client.CommunicationSystemClientSideFactory;
 import bftsmart.communication.client.ReplyReceiver;
 import bftsmart.reconfiguration.ClientViewController;
+import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import java.io.Closeable;
@@ -81,6 +82,11 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 	public void init(int processId, String configHome) {
 		this.viewController = new ClientViewController(processId,configHome);
 		startsCS(processId);
+	}
+	
+	public void init(TOMConfiguration config) {
+		this.viewController = new ClientViewController(config);
+		startsCS(viewController.getStaticConf().getProcessId());
 	}
 
 	private void startsCS(int clientId) {
