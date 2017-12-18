@@ -24,6 +24,8 @@ import bftsmart.tom.util.Logger;
 
 public class TOMConfiguration extends Configuration {
 
+	private static final long serialVersionUID = 5498353004407888963L;
+	
 	protected int n;
 	protected int f;
 	protected int requestTimeout;

@@ -45,6 +45,11 @@ public class ViewController {
     public ViewController(TOMConfiguration config) {
     	this.staticConf = config;
     }
+    
+    public ViewController(TOMConfiguration config, ViewStorage viewSotrage) {
+    	this.staticConf = config;
+    	this.viewStore = viewSotrage;
+    }
 
     
     public final ViewStorage getViewStore() {

@@ -18,13 +18,16 @@ package bftsmart.reconfiguration.util;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-public class Configuration {
+public class Configuration implements Serializable{
 
+	private static final long serialVersionUID = -719578198150380571L;
+	
 	protected int processId;
 	protected boolean channelsBlocking;
 	protected BigInteger DH_P;

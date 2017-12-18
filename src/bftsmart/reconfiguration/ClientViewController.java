@@ -19,6 +19,7 @@ import java.net.InetSocketAddress;
 
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
+import bftsmart.reconfiguration.views.ViewStorage;
 
 /**
  *
@@ -54,6 +55,11 @@ public class ClientViewController extends ViewController {
     
     public ClientViewController(TOMConfiguration config) {
     	super(config);
+    	init();
+    }
+    
+    public ClientViewController(TOMConfiguration config, ViewStorage viewSotrage) {
+    	super(config, viewSotrage);
     	init();
     }
     

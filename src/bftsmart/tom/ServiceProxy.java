@@ -25,6 +25,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import bftsmart.reconfiguration.ReconfigureReply;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
+import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
@@ -116,9 +117,13 @@ public class ServiceProxy extends TOMSender {
 //			}
 //		};
 	}
-
+	
 	public ServiceProxy(TOMConfiguration config, Comparator<byte[]> replyComparator, Extractor replyExtractor) {
-		init(config);
+		this(config, null, replyComparator, replyExtractor);
+	}
+
+	public ServiceProxy(TOMConfiguration config, ViewStorage viewStorage, Comparator<byte[]> replyComparator, Extractor replyExtractor) {
+		init(config, viewStorage);
 
 		replies = new TOMMessage[getViewManager().getCurrentViewN()];
 
