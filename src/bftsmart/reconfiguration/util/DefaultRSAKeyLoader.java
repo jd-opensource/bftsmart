@@ -15,20 +15,17 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
-import java.security.KeyFactory;
+import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.EncodedKeySpec;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-
-import org.apache.commons.codec.binary.Base64;
 
 /**
  * Used to load JCA public and private keys from conf/keys/publickey<id> and
  * conf/keys/privatekey<id>
  */
-public class DefaultRSAKeyLoader implements RsaKeyLoader {
+public class DefaultRSAKeyLoader implements RsaKeyLoader, Serializable {
+
+	private static final long serialVersionUID = -5646242505670887069L;
 
 	private static String DEFAULT_UKEY = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCwuoTWbSFDnVjohwdZftoAwv3oCxUPnUiiNNH9\n"
 			+ "\npXryEW8kSFRGVJ7zJCwxJnt3YZGnpPGxnC3hAI4XkG26hO7+TxkgaYmv5GbamL946uZISxv0aNX3\n"

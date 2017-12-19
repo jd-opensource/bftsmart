@@ -17,6 +17,7 @@ package bftsmart.reconfiguration.util;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
@@ -24,7 +25,9 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class HostsConfig {
+public class HostsConfig implements Serializable {
+
+	private static final long serialVersionUID = -5947185919560079460L;
 
 	private Map<Integer, Config> servers = new ConcurrentHashMap<>();
 
@@ -146,7 +149,9 @@ public class HostsConfig {
 		return null;
 	}
 
-	private static class Config {
+	private static class Config implements Serializable {
+		private static final long serialVersionUID = -7986629371931246948L;
+
 		public int id;
 		public String host;
 		public int port;

@@ -17,6 +17,7 @@ package bftsmart.reconfiguration.util;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.Serializable;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -29,8 +30,10 @@ import org.apache.commons.codec.binary.Base64;
  * Used to load JCA public and private keys from conf/keys/publickey<id> and
  * conf/keys/privatekey<id>
  */
-public class FileSystemBasedRSAKeyLoader implements RsaKeyLoader {
+public class FileSystemBasedRSAKeyLoader implements RsaKeyLoader, Serializable {
 
+	private static final long serialVersionUID = 8312748557539494376L;
+	
 	private String path;
 	// private int id;
 	private PrivateKey priKey;
