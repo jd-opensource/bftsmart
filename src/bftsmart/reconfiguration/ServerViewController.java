@@ -21,7 +21,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.StringTokenizer;
 
+import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
+import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
@@ -55,17 +57,36 @@ public class ServerViewController extends ViewController {
 
     public ServerViewController(int procId, String configHome) {
         super(procId, configHome);
-        View cv = getViewStore().readView();
-        if(cv == null){
-            
-            System.out.println("-- Creating current view from configuration file");
-            reconfigureTo(new View(0, getStaticConf().getInitialView(), 
-                getStaticConf().getF(), getInitAdddresses()));
-        }else{
-            System.out.println("-- Using view stored on disk");
-            reconfigureTo(cv);
-        }
-       
+//        View cv = getViewStore().readView();
+//        if(cv == null){
+//            
+//            System.out.println("-- Creating current view from configuration file");
+//            reconfigureTo(new View(0, getStaticConf().getInitialView(), 
+//                getStaticConf().getF(), getInitAdddresses()));
+//        }else{
+//            System.out.println("-- Using view stored on disk");
+//            reconfigureTo(cv);
+//        }
+        
+        init();
+    }
+    
+    public ServerViewController(TOMConfiguration config, ViewStorage viewSotrage) {
+    	super(config, viewSotrage);
+    	init();
+    }
+    
+    private void init() {
+    	 View cv = getViewStore().readView();
+         if(cv == null){
+             
+             System.out.println("-- Creating current view from configuration file");
+             reconfigureTo(new View(0, getStaticConf().getInitialView(), 
+                 getStaticConf().getF(), getInitAdddresses()));
+         }else{
+             System.out.println("-- Using view stored on disk");
+             reconfigureTo(cv);
+         }
     }
 
     private InetSocketAddress[] getInitAdddresses() {
