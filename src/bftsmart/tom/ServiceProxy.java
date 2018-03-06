@@ -64,7 +64,7 @@ public class ServiceProxy extends TOMSender {
 	 * @see bellow
 	 */
 	public ServiceProxy(int processId) {
-		this(processId, null, null, null);
+		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
 	}
 
 	/**
@@ -73,7 +73,7 @@ public class ServiceProxy extends TOMSender {
 	 * @see bellow
 	 */
 	public ServiceProxy(int processId, String configHome) {
-		this(processId, configHome, null, null);
+		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
 	}
 
 	/**
@@ -90,9 +90,9 @@ public class ServiceProxy extends TOMSender {
 	 *            used for extracting the response from the matching quorum of
 	 *            replies
 	 */
-	public ServiceProxy(int processId, String configHome, Comparator<byte[]> replyComparator,
+	public ServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
 			Extractor replyExtractor) {
-		this(new TOMConfiguration(processId, configHome), replyComparator, replyExtractor);
+		this(new TOMConfiguration(processId,systemConfigFile, hostsConfigFile, keystoreHome), replyComparator, replyExtractor);
 		
 //		if (configHome == null) {
 //			init(processId);

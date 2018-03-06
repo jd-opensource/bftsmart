@@ -27,63 +27,62 @@ import bftsmart.reconfiguration.views.ViewStorage;
  */
 public class ClientViewController extends ViewController {
 
-    public ClientViewController(int procId) {
-        super(procId);
-        init();
-        
-//        View cv = getViewStore().readView();
-//        if(cv == null){
-//            reconfigureTo(new View(0, getStaticConf().getInitialView(), 
-//                getStaticConf().getF(), getInitAdddresses()));
-//        }else{
-//            reconfigureTo(cv);
-//        }
-    }
+	public ClientViewController(int procId) {
+		this(new TOMConfiguration(procId, "config/system.config", "config/hosts.config", "config"));
+		init();
 
-    public ClientViewController(int procId, String configHome) {
-        super(procId, configHome);
-        init();
-        
-//        View cv = getViewStore().readView();
-//        if(cv == null){
-//            reconfigureTo(new View(0, getStaticConf().getInitialView(), 
-//                getStaticConf().getF(), getInitAdddresses()));
-//        }else{
-//            reconfigureTo(cv);
-//        }
-    }
-    
-    public ClientViewController(TOMConfiguration config) {
-    	super(config);
-    	init();
-    }
-    
-    public ClientViewController(TOMConfiguration config, ViewStorage viewSotrage) {
-    	super(config, viewSotrage);
-    	init();
-    }
-    
-    private void init() {
-    	View cv = getViewStore().readView();
-    	if(cv == null){
-    		reconfigureTo(new View(0, getStaticConf().getInitialView(), 
-    				getStaticConf().getF(), getInitAdddresses()));
-    	}else{
-    		reconfigureTo(cv);
-    	}
-    }
+		// View cv = getViewStore().readView();
+		// if(cv == null){
+		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
+		// getStaticConf().getF(), getInitAdddresses()));
+		// }else{
+		// reconfigureTo(cv);
+		// }
+	}
 
-    public void updateCurrentViewFromRepository(){
-         this.currentView = getViewStore().readView();
-    }
-    
-    private InetSocketAddress[] getInitAdddresses() {
-        int nextV[] = getStaticConf().getInitialView();
-        InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
-        for (int i = 0; i < nextV.length; i++) {
-            addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
-        }
+	public ClientViewController(int procId, String configHome) {
+		this(new TOMConfiguration(procId, configHome + "/system.config", configHome + "/hosts.config", configHome));
+		init();
 
-        return addresses;
-    }
+		// View cv = getViewStore().readView();
+		// if(cv == null){
+		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
+		// getStaticConf().getF(), getInitAdddresses()));
+		// }else{
+		// reconfigureTo(cv);
+		// }
+	}
+
+	public ClientViewController(TOMConfiguration config) {
+		super(config);
+		init();
+	}
+
+	public ClientViewController(TOMConfiguration config, ViewStorage viewSotrage) {
+		super(config, viewSotrage);
+		init();
+	}
+
+	private void init() {
+		View cv = getViewStore().readView();
+		if (cv == null) {
+			reconfigureTo(new View(0, getStaticConf().getInitialView(), getStaticConf().getF(), getInitAdddresses()));
+		} else {
+			reconfigureTo(cv);
+		}
+	}
+
+	public void updateCurrentViewFromRepository() {
+		this.currentView = getViewStore().readView();
+	}
+
+	private InetSocketAddress[] getInitAdddresses() {
+		int nextV[] = getStaticConf().getInitialView();
+		InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
+		for (int i = 0; i < nextV.length; i++) {
+			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+		}
+
+		return addresses;
+	}
 }

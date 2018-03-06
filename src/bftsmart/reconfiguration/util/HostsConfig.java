@@ -32,26 +32,31 @@ public class HostsConfig implements Serializable {
 	private Map<Integer, Config> servers = new ConcurrentHashMap<>();
 
 	/** Creates a new instance of ServersConfig */
-	public HostsConfig(String configHome, String fileName) {
-		loadConfig(configHome, fileName);
+//	public HostsConfig(String configHome, String fileName) {
+//		loadConfig(configHome, fileName);
+//	}
+	
+	public HostsConfig(String hostsConfigFile) {
+		loadConfig(hostsConfigFile);
 	}
 
-	private void loadConfig(String configHome, String fileName) {
+//	private void loadConfig(String configHome, String fileName) {
+	private void loadConfig(String hostsConfigFile) {
 		try {
-			String path = "";
-			String sep = System.getProperty("file.separator");
-			if (configHome.equals("")) {
-				if (fileName.equals(""))
-					path = "config" + sep + "hosts.config";
-				else
-					path = "config" + sep + fileName;
-			} else {
-				if (fileName.equals(""))
-					path = configHome + sep + "hosts.config";
-				else
-					path = configHome + sep + fileName;
-			}
-			FileReader fr = new FileReader(path);
+//			String path = "";
+//			String sep = System.getProperty("file.separator");
+//			if (configHome.equals("")) {
+//				if (fileName.equals(""))
+//					path = "config" + sep + "hosts.config";
+//				else
+//					path = "config" + sep + fileName;
+//			} else {
+//				if (fileName.equals(""))
+//					path = configHome + sep + "hosts.config";
+//				else
+//					path = configHome + sep + fileName;
+//			}
+			FileReader fr = new FileReader(hostsConfigFile);
 			BufferedReader rd = new BufferedReader(fr);
 			String line = null;
 			while ((line = rd.readLine()) != null) {

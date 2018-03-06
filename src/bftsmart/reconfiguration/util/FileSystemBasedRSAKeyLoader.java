@@ -71,13 +71,13 @@ public class FileSystemBasedRSAKeyLoader implements RsaKeyLoader, Serializable {
 	// }
 	// }
 
-	public FileSystemBasedRSAKeyLoader(String configHome, boolean defaultKeys) {
+	public FileSystemBasedRSAKeyLoader(String keystoreHome, boolean defaultKeys) {
 		this.defaultKeys = defaultKeys;
 		this.defRSAKeyLoader = new DefaultRSAKeyLoader();
-		if (configHome.equals("")) {
+		if (keystoreHome.equals("")) {
 			path = "config" + System.getProperty("file.separator") + "keys" + System.getProperty("file.separator");
 		} else {
-			path = configHome + System.getProperty("file.separator") + "keys" + System.getProperty("file.separator");
+			path = keystoreHome + System.getProperty("file.separator") + "keys" + System.getProperty("file.separator");
 		}
 	}
 

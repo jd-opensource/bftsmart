@@ -33,14 +33,14 @@ public class ViewController {
     private TOMConfiguration staticConf;
     private ViewStorage viewStore;
 
-    public ViewController(int procId) {
-        this(new TOMConfiguration(procId));
-    }
+//    public ViewController(int procId) {
+//        this(new TOMConfiguration(procId));
+//    }
 
     
-    public ViewController(int procId, String configHome) {
-        this(new TOMConfiguration(procId, configHome));
-    }
+//    public ViewController(int procId, String configHome) {
+//        this(new TOMConfiguration(procId, configHome));
+//    }
     
     public ViewController(TOMConfiguration config) {
     	this.staticConf = config;

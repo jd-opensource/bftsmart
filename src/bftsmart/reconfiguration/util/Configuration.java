@@ -33,8 +33,8 @@ public class Configuration implements Serializable{
 	protected BigInteger DH_P;
 	protected BigInteger DH_G;
 	protected int autoConnectLimit;
-	protected Properties configs;
-	protected HostsConfig hosts;
+	protected Properties systemConfig;
+	protected HostsConfig hostsConfig;
 
 	private String hmacAlgorithm = "HmacSha1";
 	private int hmacSize = 160;
@@ -46,17 +46,14 @@ public class Configuration implements Serializable{
 	protected boolean defaultKeys = false;
 
 	public Configuration(int procId) {
-		this(procId, "", "");
+		this(procId, "config/system.config", "config/hosts.config");
 //		processId = procId;
 //		init();
 	}
 
-	public Configuration(int processId, String configHomeParam) {
-		this(processId, configHomeParam, "");
-//		this.processId = processId;
-//		configHome = configHomeParam;
-//		init();
-	}
+//	public Configuration(int processId, String configHomeParam) {
+//		this(processId, configHomeParam, "");
+//	}
 
 	public Configuration(int processId, String configHomeParam, String hostsFileNameParam) {
 		this.processId = processId;
@@ -66,11 +63,11 @@ public class Configuration implements Serializable{
 //		init();
 	}
 
-	public Configuration(int processId, Properties systemConfigs, HostsConfig hostConfig) {
+	public Configuration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
 		this.processId = processId;
-		this.configs = systemConfigs;
-		this.hosts = hostConfig;
-		init(hostConfig, systemConfigs);
+		this.systemConfig = systemConfigs;
+		this.hostsConfig = hostsConfig;
+		init(hostsConfig, systemConfigs);
 	}
 
 	// protected void init() {
@@ -79,11 +76,11 @@ public class Configuration implements Serializable{
 	// init(hosts, configs);
 	// }
 
-	protected void init(String configHome, String hostsFileName) {
-		hosts = new HostsConfig(configHome, hostsFileName);
-		configs = loadSystemConfig(configHome);
+	protected void init(String systemConfigFile, String hostsConfigFile) {
+		hostsConfig = new HostsConfig(hostsConfigFile);
+		systemConfig = loadSystemConfig(systemConfigFile);
 //		loadConfig(hostsFileName);
-		init(hosts, configs);
+		init(hostsConfig, systemConfig);
 	}
 
 	protected void init(HostsConfig hosts, Properties configs) {
@@ -142,7 +139,7 @@ public class Configuration implements Serializable{
 	}
 
 	public final boolean isHostSetted(int id) {
-		if (hosts.getHost(id) == null) {
+		if (hostsConfig.getHost(id) == null) {
 			return false;
 		}
 		return true;
@@ -173,7 +170,7 @@ public class Configuration implements Serializable{
 	}
 
 	public final String getProperty(String key) {
-		Object o = configs.get(key);
+		Object o = systemConfig.get(key);
 		if (o != null) {
 			return o.toString();
 		}
@@ -181,31 +178,31 @@ public class Configuration implements Serializable{
 	}
 
 	public final Properties getProperties() {
-		return configs;
+		return systemConfig;
 	}
 
 	public final InetSocketAddress getRemoteAddress(int id) {
-		return hosts.getRemoteAddress(id);
+		return hostsConfig.getRemoteAddress(id);
 	}
 
 	public final InetSocketAddress getServerToServerRemoteAddress(int id) {
-		return hosts.getServerToServerRemoteAddress(id);
+		return hostsConfig.getServerToServerRemoteAddress(id);
 	}
 
 	public final InetSocketAddress getLocalAddress(int id) {
-		return hosts.getLocalAddress(id);
+		return hostsConfig.getLocalAddress(id);
 	}
 
 	public final String getHost(int id) {
-		return hosts.getHost(id);
+		return hostsConfig.getHost(id);
 	}
 
 	public final int getPort(int id) {
-		return hosts.getPort(id);
+		return hostsConfig.getPort(id);
 	}
 
 	public final int getServerToServerPort(int id) {
-		return hosts.getServerToServerPort(id);
+		return hostsConfig.getServerToServerPort(id);
 	}
 
 	public final int getProcessId() {
@@ -217,19 +214,21 @@ public class Configuration implements Serializable{
 	}
 
 	public final void addHostInfo(int id, String host, int port) {
-		this.hosts.add(id, host, port);
+		this.hostsConfig.add(id, host, port);
 	}
 
-
-	private Properties loadSystemConfig(String configHome) {
+	
+//	private Properties loadSystemConfig(String configHome) {
+	
+	private Properties loadSystemConfig(String systemConfigFile) {
 		try {
 			Properties systemConfig = new Properties();
-			if (configHome == null || configHome.equals("")) {
-				configHome = "config";
-			}
-			String sep = System.getProperty("file.separator");
-			String path = configHome + sep + "system.config";
-			try (FileReader fr = new FileReader(path); BufferedReader rd = new BufferedReader(fr);) {
+//			if (configHome == null || configHome.equals("")) {
+//				configHome = "config";
+//			}
+//			String sep = System.getProperty("file.separator");
+//			String path = configHome + sep + "system.config";
+			try (FileReader fr = new FileReader(systemConfigFile); BufferedReader rd = new BufferedReader(fr);) {
 				String line = null;
 				while ((line = rd.readLine()) != null) {
 					if (!line.startsWith("#")) {

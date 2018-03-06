@@ -38,6 +38,10 @@ public class FileSystemViewStorage implements ViewStorage {
 	private File storageFile;
 
 	private View view;
+	
+	public FileSystemViewStorage(View initView, String viewStorageDir) {
+		this(initView, new File(viewStorageDir));
+	}
 
 	public FileSystemViewStorage(View initView, File viewStorageDir) {
 		if (viewStorageDir.isFile()) {

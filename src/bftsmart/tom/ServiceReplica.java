@@ -169,14 +169,21 @@ public class ServiceReplica {
 		// this.replier.setReplicaContext(replicaCtx);
 	}
 
-	protected ServiceReplica(TOMConfiguration config, View view, String runtimeDir, Executable executor,
-			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(config, new FileSystemViewStorage(view, new File(runtimeDir, "view"))), executor,
-				recoverer, verifier, replier);
+	public ServiceReplica(int id, String systemConfig, String hostsConfig, String keystoreHome, String runtimeDir,
+			View initView, Executable executor, Recoverable recoverer) {
+		this(new ServerViewController(new TOMConfiguration(id, systemConfig, hostsConfig, keystoreHome),
+				new FileSystemViewStorage(initView, new File(runtimeDir, "view"))), executor, recoverer, null,
+				new DefaultReplier());
 	}
 
-	protected ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor,
+	public ServiceReplica(TOMConfiguration config, View initView, String runtimeDir, Executable executor,
 			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
+		this(new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),
+				executor, recoverer, verifier, replier);
+	}
+
+	public ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor, Recoverable recoverer,
+			RequestVerifier verifier, Replier replier) {
 		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier);
 	}
 

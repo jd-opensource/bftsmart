@@ -35,7 +35,7 @@ public class AsynchServiceProxy extends ServiceProxy {
 	 *            Replica id
 	 */
 	public AsynchServiceProxy(int processId) {
-		this(processId, null);
+		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
 		// init();
 	}
 
@@ -47,7 +47,7 @@ public class AsynchServiceProxy extends ServiceProxy {
 	 *            Configuration folder
 	 */
 	public AsynchServiceProxy(int processId, String configHome) {
-		super(processId, configHome);
+		this(processId, configHome + "/system.config", configHome + "/hosts.config", configHome, null, null);
 		init();
 	}
 
@@ -63,9 +63,9 @@ public class AsynchServiceProxy extends ServiceProxy {
 		init();
 	}
 
-	public AsynchServiceProxy(int processId, String configHome, Comparator<byte[]> replyComparator,
+	public AsynchServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
 			Extractor replyExtractor) {
-		super(processId, configHome, replyComparator, replyExtractor);
+		super(processId, systemConfigFile, hostsConfigFile,  keystoreHome, replyComparator, replyExtractor);
 		init();
 	}
 

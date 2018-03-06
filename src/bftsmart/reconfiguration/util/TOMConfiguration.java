@@ -61,27 +61,27 @@ public class TOMConfiguration extends Configuration {
 	private int numRepliers;
 	private int numNettyWorkers;
 
-	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId) {
-		this(processId, "", "");
-	}
+//	/** Creates a new instance of TOMConfiguration */
+//	public TOMConfiguration(int processId) {
+//		this(processId, "", "");
+//	}
+//
+//	/** Creates a new instance of TOMConfiguration */
+//	public TOMConfiguration(int processId, String configHome) {
+//		this(processId, configHome, "");
+//	}
 
 	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, String configHome) {
-		this(processId, configHome, "");
-	}
-
-	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, String configHome, String hostsFileName) {
-		super(processId, configHome, hostsFileName);
-		rsaLoader = new FileSystemBasedRSAKeyLoader(configHome, defaultKeys);
+	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome) {
+		super(processId, systemConfigFile, hostsConfigFile);
+		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
 	}
 	
 	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, String configHome, Properties systemConfigs, HostsConfig hostConfig) {
+	public TOMConfiguration(int processId, String keystoreHome, Properties systemConfigs, HostsConfig hostConfig) {
 		super(processId, systemConfigs, hostConfig);
 		//init the rsaloader after another initialization was completed;
-		rsaLoader = new FileSystemBasedRSAKeyLoader(configHome, defaultKeys);
+		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
 	}
 	
 	/** Creates a new instance of TOMConfiguration */
@@ -358,7 +358,7 @@ public class TOMConfiguration extends Configuration {
 	}
 
 	public String getViewStoreClass() {
-		String s = (String) configs.remove("view.storage.handler");
+		String s = (String) systemConfig.remove("view.storage.handler");
 		if (s == null) {
 			return "bftsmart.reconfiguration.views.DefaultViewStorage";
 		} else {
