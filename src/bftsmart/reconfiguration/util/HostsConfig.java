@@ -78,9 +78,10 @@ public class HostsConfig implements Serializable {
 	}
 
 	public void add(int id, String host, int port) {
-		if (this.servers.get(id) == null) {
-			this.servers.put(id, new Config(id, host, port));
-		}
+//		if (this.servers.get(id) == null) {
+//			this.servers.put(id, new Config(id, host, port));
+//		}
+		this.servers.put(id, new Config(id, host, port));
 	}
 
 	public int getNum() {
@@ -154,12 +155,12 @@ public class HostsConfig implements Serializable {
 		return null;
 	}
 
-	private static class Config implements Serializable {
+	public static class Config implements Serializable {
 		private static final long serialVersionUID = -7986629371931246948L;
 
-		public int id;
-		public String host;
-		public int port;
+		private int id;
+		private String host;
+		private int port;
 
 		public Config(int id, String host, int port) {
 			this.id = id;

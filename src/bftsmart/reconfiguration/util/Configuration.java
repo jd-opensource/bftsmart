@@ -129,9 +129,28 @@ public class Configuration implements Serializable{
 			}
 
 		} catch (Exception e) {
-			System.err.println("Wrong system.config file format.");
-			e.printStackTrace(System.out);
+//			System.err.println("Wrong system.config file format.");
+//			e.printStackTrace(System.out);
+			
+			throw new IllegalArgumentException("Wrong system.config file format! --" + e.getMessage(), e);
 		}
+	}
+	
+	
+	public Properties getConfigProperties() {
+		Properties configs = new Properties();
+		
+		configs.setProperty("system.autoconnect", autoConnectLimit+"");
+		
+		configs.setProperty("system.channels.blocking", Boolean.toString(channelsBlocking));
+		
+		configs.setProperty("system.communication.defaultkeys",  Boolean.toString(defaultKeys));
+		
+		configs.setProperty("system.diffie-hellman.p", DH_P.toString(16));
+		
+		configs.setProperty("system.diffie-hellman.g", DH_G.toString());
+		
+		return configs;
 	}
 
 	public boolean useDefaultKeys() {
@@ -169,17 +188,17 @@ public class Configuration implements Serializable{
 		return hmacSize;
 	}
 
-	public final String getProperty(String key) {
-		Object o = systemConfig.get(key);
-		if (o != null) {
-			return o.toString();
-		}
-		return null;
-	}
+//	public final String getProperty(String key) {
+//		Object o = systemConfig.get(key);
+//		if (o != null) {
+//			return o.toString();
+//		}
+//		return null;
+//	}
 
-	public final Properties getProperties() {
-		return systemConfig;
-	}
+//	public final Properties getProperties() {
+//		return systemConfig;
+//	}
 
 	public final InetSocketAddress getRemoteAddress(int id) {
 		return hostsConfig.getRemoteAddress(id);

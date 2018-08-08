@@ -176,6 +176,11 @@ public class ServiceReplica {
 				new DefaultReplier());
 	}
 
+	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor,
+			Recoverable recoverer ) {
+		this(new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))),
+				executor, recoverer, null, new DefaultReplier());
+	}
 	public ServiceReplica(TOMConfiguration config, View initView, String runtimeDir, Executable executor,
 			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
 		this(new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),

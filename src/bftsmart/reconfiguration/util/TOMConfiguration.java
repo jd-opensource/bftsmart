@@ -72,6 +72,12 @@ public class TOMConfiguration extends Configuration {
 //	}
 
 	/** Creates a new instance of TOMConfiguration */
+	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile) {
+		super(processId, systemConfigFile, hostsConfigFile);
+		rsaLoader = new DefaultRSAKeyLoader();
+	}
+	
+	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome) {
 		super(processId, systemConfigFile, hostsConfigFile);
 		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
