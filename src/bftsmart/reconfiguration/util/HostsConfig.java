@@ -39,6 +39,12 @@ public class HostsConfig implements Serializable {
 	public HostsConfig(String hostsConfigFile) {
 		loadConfig(hostsConfigFile);
 	}
+    //create constructor according to consensus realm nodes
+	public HostsConfig(Config[] nodesConfig) {
+		for (Config node : nodesConfig) {
+			add(node.id, node.host, node.port);
+		}
+	}
 
 //	private void loadConfig(String configHome, String fileName) {
 	private void loadConfig(String hostsConfigFile) {
