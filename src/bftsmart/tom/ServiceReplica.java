@@ -33,6 +33,7 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.FileSystemViewStorage;
+import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.ExecutionManager;
@@ -174,6 +175,11 @@ public class ServiceReplica {
 		this(new ServerViewController(new TOMConfiguration(id, systemConfig, hostsConfig, keystoreHome),
 				new FileSystemViewStorage(initView, new File(runtimeDir, "view"))), executor, recoverer, null,
 				new DefaultReplier());
+	}
+
+	public ServiceReplica(TOMConfiguration config,  Executable executor, Recoverable recoverer ) {
+		this(new ServerViewController(config, new MemoryBasedViewStorage()),
+				executor, recoverer, null, new DefaultReplier());
 	}
 
 	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor,
