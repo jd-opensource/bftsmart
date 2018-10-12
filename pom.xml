@@ -17,11 +17,11 @@
 			<version>4.1.9.Final</version>
 		</dependency>
 
-		<dependency>
+		<!--<dependency>
 			<groupId>com.yahoo.ycsb</groupId>
 			<artifactId>core</artifactId>
 			<version>0.1.4</version>
-		</dependency>
+		</dependency>-->
 
 		<dependency>
 			<groupId>io.netty</groupId>
