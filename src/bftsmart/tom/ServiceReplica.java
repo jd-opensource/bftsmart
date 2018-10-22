@@ -237,7 +237,7 @@ public class ServiceReplica {
 			cs = new ServerCommunicationSystem(this.SVController, this);
 		} catch (Exception ex) {
 			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
-			throw new RuntimeException("Unable to build a communication system.");
+			throw new RuntimeException("Unable to build a communication system.", ex);
 		}
 
 		if (this.SVController.isInCurrentView()) {
