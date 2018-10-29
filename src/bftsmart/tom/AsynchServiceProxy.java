@@ -1,5 +1,10 @@
 package bftsmart.tom;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import bftsmart.communication.client.ReplyListener;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
@@ -9,9 +14,6 @@ import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
 
 /**
  * This class is an extension of 'ServiceProxy' that can waits for replies
@@ -25,9 +27,9 @@ public class AsynchServiceProxy extends ServiceProxy {
 	/**
 	 *
 	 */
-	private HashMap<Integer, RequestContext> requestsContext;
-	private HashMap<Integer, TOMMessage[]> requestsReplies;
-	private HashMap<Integer, Integer> requestsAlias;
+	private Map<Integer, RequestContext> requestsContext;
+	private Map<Integer, TOMMessage[]> requestsReplies;
+	private Map<Integer, Integer> requestsAlias;
 
 	/**
 	 *
@@ -70,9 +72,9 @@ public class AsynchServiceProxy extends ServiceProxy {
 	}
 
 	private void init() {
-		requestsContext = new HashMap<>();
-		requestsReplies = new HashMap<>();
-		requestsAlias = new HashMap<>();
+		requestsContext = new ConcurrentHashMap<>();
+		requestsReplies = new ConcurrentHashMap<>();
+		requestsAlias = new ConcurrentHashMap<>();
 	}
 
 	private View newView(byte[] bytes) {

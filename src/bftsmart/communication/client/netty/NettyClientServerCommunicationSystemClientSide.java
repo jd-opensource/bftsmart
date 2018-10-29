@@ -43,6 +43,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.Arrays;
@@ -75,7 +76,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     //******* EDUARDO BEGIN **************//
     private ClientViewController controller;
     //******* EDUARDO END **************//
-    private Map<Integer,NettyClientServerSession> sessionTable = new HashMap<>();
+    private Map<Integer,NettyClientServerSession> sessionTable = new ConcurrentHashMap<>();
     private ReentrantReadWriteLock rl;
     //the signature engine used in the system
     private Signature signatureEngine;
