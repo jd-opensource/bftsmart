@@ -31,14 +31,14 @@ public class HostsConfig implements Serializable {
 
 	private Map<Integer, Config> servers = new ConcurrentHashMap<>();
 
-	/** Creates a new instance of ServersConfig */
-//	public HostsConfig(String configHome, String fileName) {
-//		loadConfig(configHome, fileName);
-//	}
+	
+	public HostsConfig() {
+	}
 	
 	public HostsConfig(String hostsConfigFile) {
 		loadConfig(hostsConfigFile);
 	}
+	
     //create constructor according to consensus realm nodes
 	public HostsConfig(Config[] nodesConfig) {
 		for (Config node : nodesConfig) {

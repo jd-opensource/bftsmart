@@ -15,25 +15,24 @@ limitations under the License.
 */
 package bftsmart.communication.client.netty;
 
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import bftsmart.reconfiguration.ServerViewController;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 
-import java.util.HashMap;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import bftsmart.reconfiguration.ServerViewController;
-
 public class NettyServerPipelineFactory{
 
     NettyClientServerCommunicationSystemServerSide ncs;
-    HashMap sessionTable;
+    Map sessionTable;
     int macLength;
     int signatureLength;
     ServerViewController controller;
     ReentrantReadWriteLock rl;
 
-    public NettyServerPipelineFactory(NettyClientServerCommunicationSystemServerSide ncs, HashMap sessionTable, int macLength, ServerViewController controller, ReentrantReadWriteLock rl, int signatureLength) {
+    public NettyServerPipelineFactory(NettyClientServerCommunicationSystemServerSide ncs, Map sessionTable, int macLength, ServerViewController controller, ReentrantReadWriteLock rl, int signatureLength) {
         this.ncs = ncs;
         this.sessionTable = sessionTable;
         this.macLength = macLength;
