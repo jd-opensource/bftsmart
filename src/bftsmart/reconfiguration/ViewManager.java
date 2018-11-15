@@ -15,20 +15,16 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import bftsmart.communication.server.ServerConnection;
+import bftsmart.reconfiguration.views.View;
+
+import java.io.*;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import bftsmart.communication.server.ServerConnection;
-import bftsmart.reconfiguration.views.View;
 
 /**
  *

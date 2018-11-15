@@ -15,11 +15,11 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
-import java.net.InetSocketAddress;
-
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
+
+import java.net.InetSocketAddress;
 
 /**
  *

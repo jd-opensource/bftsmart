@@ -16,6 +16,9 @@ limitations under the License.
 package bftsmart.tom.server;
 
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplyContextMessage;
+
+import java.util.List;
 
 /**
  * 
@@ -34,5 +37,8 @@ public interface BatchExecutable extends Executable {
 	 * @return
 	 */
     public byte[][] executeBatch(byte[][] command, MessageContext[] msgCtx);
+
+
+    public byte[][] executeBatch(byte[][] command, MessageContext[] msgCtx, List<ReplyContextMessage> replyContextMessages);
 
 }

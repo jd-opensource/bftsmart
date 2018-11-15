@@ -15,16 +15,14 @@ limitations under the License.
 */
 package bftsmart.demo.random;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.math.BigInteger;
-
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+
+import java.io.*;
+import java.math.BigInteger;
+import java.util.List;
 
 /**
  *
@@ -187,6 +185,11 @@ public final class RandomServer extends DefaultRecoverable {
             replies[i] = execute(commands[i], msgCtxs[i]);
         }
         return replies;
+    }
+
+    @Override
+    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
+        return appExecuteBatch(commands, msgCtxs, fromConsensus);
     }
 
 }

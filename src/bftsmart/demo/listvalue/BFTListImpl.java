@@ -15,23 +15,16 @@ limitations under the License.
 */
 package bftsmart.demo.listvalue;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
+import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplyContextMessage;
+import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import bftsmart.tom.MessageContext;
-import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 
 
 /**
@@ -301,6 +294,11 @@ public class BFTListImpl extends DefaultRecoverable {
                 }
         }
         return replies;
+    }
+
+    @Override
+    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
+        return appExecuteBatch(commands, msgCtxs, fromConsensus);
     }
 
     @SuppressWarnings("static-access")

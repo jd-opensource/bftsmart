@@ -1,10 +1,5 @@
 package bftsmart.tom;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import bftsmart.communication.client.ReplyListener;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
@@ -14,6 +9,11 @@ import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class is an extension of 'ServiceProxy' that can waits for replies

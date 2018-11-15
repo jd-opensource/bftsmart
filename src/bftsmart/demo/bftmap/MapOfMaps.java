@@ -15,10 +15,9 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
-import java.util.TreeMap;
-import java.util.Map;
-
 import java.io.Serializable;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  *

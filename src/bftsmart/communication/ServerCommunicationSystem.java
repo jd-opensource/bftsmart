@@ -15,10 +15,6 @@ limitations under the License.
 */
 package bftsmart.communication;
 
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-
 import bftsmart.communication.client.CommunicationSystemServerSide;
 import bftsmart.communication.client.CommunicationSystemServerSideFactory;
 import bftsmart.communication.client.RequestReceiver;
@@ -29,6 +25,10 @@ import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.Logger;
+
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 /**
  *

@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.tom.leaderchange;
 
 import bftsmart.consensus.messages.ConsensusMessage;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;

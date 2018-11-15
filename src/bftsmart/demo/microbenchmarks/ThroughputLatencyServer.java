@@ -16,9 +16,12 @@ limitations under the License.
 package bftsmart.demo.microbenchmarks;
 
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.Storage;
+
+import java.util.List;
 
 /**
  * Simple server that just acknowledge the reception of a request.
@@ -79,13 +82,18 @@ public final class ThroughputLatencyServer extends DefaultRecoverable{
         
         return replies;
     }
-    
+
+    @Override
+    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
+        return appExecuteBatch(commands, msgCtxs, fromConsensus);
+    }
+
     @Override
     public byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx) {
         return execute(command,msgCtx);
     }
     
-    public byte[] execute(byte[] command, MessageContext msgCtx) {        
+    public byte[] execute(byte[] command, MessageContext msgCtx) {
         boolean readOnly = false;
         
         iterations++;
@@ -181,7 +189,7 @@ public final class ThroughputLatencyServer extends DefaultRecoverable{
         int stateSize = Integer.parseInt(args[3]);
         boolean context = Boolean.parseBoolean(args[4]);
 
-        new ThroughputLatencyServer(processId,interval,replySize, stateSize, context);        
+        new ThroughputLatencyServer(processId,interval,replySize, stateSize, context);
     }
 
     @Override

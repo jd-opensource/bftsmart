@@ -15,12 +15,13 @@ limitations under the License.
 */
 package bftsmart.demo.microbenchmarks;
 
-import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.MessageContext;
-import bftsmart.tom.ReplicaContext;
+import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.Storage;
+
+import java.util.List;
 
 /**
  * Simple server that just acknowledge the reception of a request.
@@ -73,8 +74,13 @@ public class LatencyServer extends DefaultRecoverable{
         
         return replies;
     }
-    
-    public byte[] execute(byte[] command, MessageContext msgCtx) {        
+
+    @Override
+    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
+        return appExecuteBatch(commands, msgCtxs, fromConsensus);
+    }
+
+    public byte[] execute(byte[] command, MessageContext msgCtx) {
         boolean readOnly = false;
         
         iterations++;

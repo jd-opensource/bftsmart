@@ -6,9 +6,9 @@
 package bftsmart.tom.core;
 
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Decision;
 import bftsmart.consensus.Epoch;
-import bftsmart.consensus.Consensus;
 import bftsmart.consensus.TimestampValuePair;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
@@ -16,29 +16,18 @@ import bftsmart.consensus.roles.Acceptor;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.leaderchange.RequestsTimer;
-import bftsmart.tom.leaderchange.CollectData;
-import bftsmart.tom.leaderchange.LCManager;
-import bftsmart.tom.leaderchange.LCMessage;
-import bftsmart.tom.leaderchange.CertifiedDecision;
+import bftsmart.tom.leaderchange.*;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.apache.commons.codec.binary.Base64;
+
+import java.io.*;
 import java.security.MessageDigest;
 import java.security.SignedObject;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
-import org.apache.commons.codec.binary.Base64;
 
 /**
  *

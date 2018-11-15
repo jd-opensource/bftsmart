@@ -15,13 +15,13 @@ limitations under the License.
 */
 package bftsmart.statemanagement.strategy;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-
 import bftsmart.reconfiguration.views.View;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.SMMessage;
+
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 
 /**
  * 

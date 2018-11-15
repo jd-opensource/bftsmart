@@ -15,6 +15,19 @@ limitations under the License.
  */
 package bftsmart.statemanagement.strategy.durability;
 
+import bftsmart.consensus.messages.ConsensusMessage;
+import bftsmart.reconfiguration.views.View;
+import bftsmart.statemanagement.ApplicationState;
+import bftsmart.statemanagement.SMMessage;
+import bftsmart.statemanagement.strategy.BaseStateManager;
+import bftsmart.tom.core.DeliveryThread;
+import bftsmart.tom.core.ExecutionManager;
+import bftsmart.tom.core.TOMLayer;
+import bftsmart.tom.server.defaultservices.CommandsInfo;
+import bftsmart.tom.server.defaultservices.durability.DurabilityCoordinator;
+import bftsmart.tom.util.Logger;
+import bftsmart.tom.util.TOMUtil;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
@@ -25,23 +38,6 @@ import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantLock;
-
-import bftsmart.consensus.Consensus;
-import bftsmart.consensus.Epoch;
-import bftsmart.tom.core.ExecutionManager;
-import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.consensus.messages.MessageFactory;
-import bftsmart.reconfiguration.views.View;
-import bftsmart.statemanagement.ApplicationState;
-import bftsmart.statemanagement.SMMessage;
-import bftsmart.statemanagement.strategy.BaseStateManager;
-import bftsmart.tom.core.DeliveryThread;
-import bftsmart.tom.core.TOMLayer;
-import bftsmart.tom.leaderchange.CertifiedDecision;
-import bftsmart.tom.server.defaultservices.CommandsInfo;
-import bftsmart.tom.server.defaultservices.durability.DurabilityCoordinator;
-import bftsmart.tom.util.Logger;
-import bftsmart.tom.util.TOMUtil;
 
 public class DurableStateManager extends BaseStateManager {
 

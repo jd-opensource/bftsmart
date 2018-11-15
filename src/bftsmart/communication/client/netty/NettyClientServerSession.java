@@ -17,10 +17,9 @@ package bftsmart.communication.client.netty;
 
 import io.netty.channel.Channel;
 
+import javax.crypto.Mac;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import javax.crypto.Mac;
 
 
 /**

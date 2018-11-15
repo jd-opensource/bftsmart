@@ -15,6 +15,21 @@ limitations under the License.
  */
 package bftsmart.communication.client.netty;
 
+import bftsmart.communication.client.CommunicationSystemServerSide;
+import bftsmart.communication.client.RequestReceiver;
+import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.util.Logger;
+import bftsmart.tom.util.TOMUtil;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.*;
+import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.slf4j.LoggerFactory;
+
+import javax.crypto.Mac;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -30,29 +45,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
-
-import javax.crypto.Mac;
-
-import org.slf4j.LoggerFactory;
-
-import bftsmart.communication.client.CommunicationSystemServerSide;
-import bftsmart.communication.client.RequestReceiver;
-import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.util.Logger;
-import bftsmart.tom.util.TOMUtil;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler.Sharable;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 /**
  *

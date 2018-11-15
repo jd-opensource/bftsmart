@@ -15,18 +15,10 @@ limitations under the License.
 */
 package bftsmart.demo.counter;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-
-import java.io.InputStreamReader;
-
 import bftsmart.tom.ServiceProxy;
 import bftsmart.tom.util.Logger;
-import java.util.logging.Level;
+
+import java.io.*;
 
 /**
  * Example client that updates a BFT replicated service (a counter).

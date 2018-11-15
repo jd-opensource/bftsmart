@@ -16,32 +16,22 @@ limitations under the License.
 package bftsmart.tom.leaderchange;
 
 import bftsmart.communication.server.ServerConnection;
-import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.SignedObject;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import bftsmart.consensus.TimestampValuePair;
-import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.util.LinkedList;
+
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.security.*;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -83,7 +73,7 @@ public class LCManager {
      * @param reconfManager The reconfiguration manager from TOM layer
      * @param md The message digest engine from TOM layer
      */
-    public LCManager(TOMLayer tomLayer,ServerViewController SVController, MessageDigest md) {
+    public LCManager(TOMLayer tomLayer, ServerViewController SVController, MessageDigest md) {
         this.tomLayer = tomLayer;
         this.lastreg = 0;
         this.nextreg = 0;

@@ -15,11 +15,11 @@ limitations under the License.
 */
 package bftsmart.clientsmanagement;
 
+import bftsmart.tom.core.messages.TOMMessage;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.ListIterator;
-
-import bftsmart.tom.core.messages.TOMMessage;
 
 /**
  * Extended LinkedList used to store pending requests issued by a client.

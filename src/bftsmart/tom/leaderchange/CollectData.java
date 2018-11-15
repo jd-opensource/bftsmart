@@ -15,13 +15,13 @@ limitations under the License.
 */
 package bftsmart.tom.leaderchange;
 
+import bftsmart.consensus.TimestampValuePair;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.HashSet;
-
-import bftsmart.consensus.TimestampValuePair;
 
 /**
  * This class represents a COLLECT object with the information about the running consensus

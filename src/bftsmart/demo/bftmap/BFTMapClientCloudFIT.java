@@ -16,8 +16,8 @@ limitations under the License.
 package bftsmart.demo.bftmap;
 
 import java.io.IOException;
-import java.util.TreeMap;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
@@ -43,7 +43,7 @@ public class BFTMapClientCloudFIT {
 		initLog();
 
 		//create the BFTMapInteractiveClient threads
-		KVClientInstance [] list = new KVClientInstance[numberClients]; 
+		KVClientInstance[] list = new KVClientInstance[numberClients];
 
 		for(int i = 0 ; i < list.length ; i ++)
 		{

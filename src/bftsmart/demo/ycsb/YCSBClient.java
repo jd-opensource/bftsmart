@@ -15,17 +15,12 @@ limitations under the License.
 */
 package bftsmart.demo.ycsb;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Vector;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import bftsmart.tom.ServiceProxy;
-
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 

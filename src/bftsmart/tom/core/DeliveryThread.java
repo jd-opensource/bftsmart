@@ -15,14 +15,6 @@ limitations under the License.
 */
 package bftsmart.tom.core;
 
-import java.util.ArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
-
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-
 import bftsmart.consensus.Decision;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.statemanagement.ApplicationState;
@@ -34,6 +26,13 @@ import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
+
+import java.util.ArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 
 /**
  * This class implements a thread which will deliver totally ordered requests to the application

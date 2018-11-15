@@ -15,23 +15,17 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
+import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplyContextMessage;
+import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+
+import java.io.*;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import bftsmart.tom.MessageContext;
-import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 
 
 /**
@@ -190,7 +184,12 @@ public class BFTMapBatchServer extends DefaultRecoverable {
         return replies;
     }
 
-    @Override
+	@Override
+	public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
+		return appExecuteBatch(commands, msgCtxs, fromConsensus);
+	}
+
+	@Override
     public byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx) {
     	try {
 	        ByteArrayInputStream in = new ByteArrayInputStream(command);

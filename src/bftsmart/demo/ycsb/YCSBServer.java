@@ -15,18 +15,15 @@ limitations under the License.
 */
 package bftsmart.demo.ycsb;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.util.TreeMap;
-
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+
+import java.io.*;
+import java.util.List;
+import java.util.TreeMap;
+
 /**
  * 
  * @author Marcel Santos
@@ -114,6 +111,11 @@ public class YCSBServer extends DefaultRecoverable {
 		}
 //		System.out.println("RETURNING REPLY");
 		return replies;
+	}
+
+	@Override
+	public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
+		return appExecuteBatch(commands, msgCtxs, fromConsensus);
 	}
 
 	@Override

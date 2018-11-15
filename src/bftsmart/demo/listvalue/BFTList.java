@@ -14,23 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 package bftsmart.demo.listvalue;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Set;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.List;
-import java.util.Map;
 
 import bftsmart.tom.ServiceProxy;
+
+import java.io.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *

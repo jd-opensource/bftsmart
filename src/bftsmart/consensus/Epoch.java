@@ -15,17 +15,16 @@ limitations under the License.
 */
 package bftsmart.consensus;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
-import org.apache.commons.codec.binary.Base64;
-
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.messages.TOMMessage;
+import org.apache.commons.codec.binary.Base64;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 
 /**

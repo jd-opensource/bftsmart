@@ -15,13 +15,13 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
-import java.util.concurrent.LinkedBlockingQueue;
-
 import bftsmart.communication.SystemMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Storage;
+
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class Test {
 

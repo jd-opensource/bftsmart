@@ -15,15 +15,15 @@
  */
 package bftsmart.demo.microbenchmarks;
 
-import java.io.IOException;
-import java.util.Arrays;
-
 import bftsmart.communication.client.ReplyListener;
 import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.RequestContext;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Storage;
+
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;

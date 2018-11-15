@@ -16,8 +16,8 @@ limitations under the License.
 package bftsmart.reconfiguration;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 

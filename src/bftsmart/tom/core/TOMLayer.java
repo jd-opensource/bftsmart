@@ -16,15 +16,6 @@
  */
 package bftsmart.tom.core;
 
-import java.io.Serializable;
-import java.security.MessageDigest;
-import java.security.PrivateKey;
-import java.security.Signature;
-import java.security.SignedObject;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-
 import bftsmart.clientsmanagement.ClientsManager;
 import bftsmart.clientsmanagement.RequestList;
 import bftsmart.communication.ServerCommunicationSystem;
@@ -45,6 +36,15 @@ import bftsmart.tom.server.RequestVerifier;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
+
+import java.io.Serializable;
+import java.security.MessageDigest;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.SignedObject;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 
 /**
  * This class implements the state machine replication protocol described in

@@ -15,14 +15,13 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.core.messages.TOMMessageType;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.core.messages.TOMMessageType;
-
 
 
 public class TestSerialization {

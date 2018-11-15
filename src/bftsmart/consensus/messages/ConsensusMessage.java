@@ -15,12 +15,11 @@ limitations under the License.
 */
 package bftsmart.consensus.messages;
 
+import bftsmart.communication.SystemMessage;
+
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-
-import bftsmart.communication.SystemMessage;
-
 
 
 /**

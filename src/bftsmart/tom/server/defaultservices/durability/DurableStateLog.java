@@ -15,18 +15,6 @@ limitations under the License.
 */
 package bftsmart.tom.server.defaultservices.durability;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
-
 import bftsmart.statemanagement.strategy.durability.CSTRequest;
 import bftsmart.statemanagement.strategy.durability.CSTRequestF1;
 import bftsmart.statemanagement.strategy.durability.CSTState;
@@ -35,6 +23,13 @@ import bftsmart.tom.server.defaultservices.CommandsInfo;
 import bftsmart.tom.server.defaultservices.FileRecoverer;
 import bftsmart.tom.server.defaultservices.StateLog;
 import bftsmart.tom.util.TOMUtil;
+
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DurableStateLog extends StateLog {
 

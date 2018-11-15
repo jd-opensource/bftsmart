@@ -15,12 +15,12 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
+import bftsmart.tom.util.Logger;
+
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Properties;
 import java.util.StringTokenizer;
-
-import bftsmart.tom.util.Logger;
 
 public class TOMConfiguration extends Configuration {
 

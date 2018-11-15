@@ -15,13 +15,11 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
-import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.Consensus;
-import bftsmart.tom.core.ExecutionManager;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.TimestampValuePair;
-import bftsmart.consensus.roles.Acceptor;
 import bftsmart.tom.core.TOMLayer;
+
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.Date;

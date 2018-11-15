@@ -25,6 +25,7 @@ import bftsmart.tom.util.BatchBuilder;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Set;
+
 /**
  * This class represents a state transfered from a replica to another. The state associated with the last
  * checkpoint together with all the batches of messages received do far, comprises the sender's

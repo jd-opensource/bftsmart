@@ -15,12 +15,12 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
+import bftsmart.reconfiguration.views.View;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-
-import bftsmart.reconfiguration.views.View;
 
 /**
  *

@@ -15,13 +15,13 @@ limitations under the License.
 */
 package bftsmart.communication.client.netty;
 
-import java.util.Map;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import bftsmart.reconfiguration.ServerViewController;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
+
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class NettyServerPipelineFactory{
 
@@ -42,11 +42,11 @@ public class NettyServerPipelineFactory{
     }
 
     public ByteToMessageDecoder getDecoder(){
-    	return new NettyTOMMessageDecoder(false, sessionTable,macLength,controller,rl,signatureLength,controller.getStaticConf().getUseMACs()==1?true:false);	
+    	return new NettyTOMMessageDecoder(false, sessionTable,macLength,controller,rl,signatureLength,controller.getStaticConf().getUseMACs()==1?true:false);
     }
     
     public MessageToByteEncoder getEncoder(){
-    	return new NettyTOMMessageEncoder(false, sessionTable, macLength,rl,signatureLength, controller.getStaticConf().getUseMACs()==1?true:false);	
+    	return new NettyTOMMessageEncoder(false, sessionTable, macLength,rl,signatureLength, controller.getStaticConf().getUseMACs()==1?true:false);
     }
     
     public SimpleChannelInboundHandler getHandler(){

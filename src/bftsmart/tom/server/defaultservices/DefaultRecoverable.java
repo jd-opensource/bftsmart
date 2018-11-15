@@ -18,12 +18,6 @@
  */
 package bftsmart.tom.server.defaultservices;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
@@ -31,9 +25,17 @@ import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.StandardStateManager;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
+import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.server.BatchExecutable;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.util.Logger;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 
 /**
  *
@@ -65,10 +67,15 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
 
     @Override
     public byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs) {
-        return executeBatch(commands, msgCtxs, false);
+        return executeBatch(commands, msgCtxs, false, null);
     }
 
-    private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, boolean noop) {
+    @Override
+    public byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, List<ReplyContextMessage> replyContextMessages) {
+        return executeBatch(commands, msgCtxs, false, replyContextMessages);
+    }
+
+    private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, boolean noop, List<ReplyContextMessage> replyContextMessages) {
 
         int cid = msgCtxs[msgCtxs.length-1].getConsensusId();
 
@@ -84,7 +91,11 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
             if (!noop) {
 
                 stateLock.lock();
-                replies = appExecuteBatch(commands, msgCtxs, true);
+                if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
+                    replies = appExecuteBatch(commands, msgCtxs, true, replyContextMessages);
+                } else {
+                    replies = appExecuteBatch(commands, msgCtxs, true);
+                }
                 stateLock.unlock();
 
             }
@@ -425,7 +436,7 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
     @Override
     public void noOp(int CID, byte[][] operations, MessageContext[] msgCtxs) {
         
-        executeBatch(operations, msgCtxs, true);
+        executeBatch(operations, msgCtxs, true, null);
 
     }
     
@@ -434,7 +445,10 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
     public abstract byte[] getSnapshot();
     
     public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus);
-    
+
+    public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus,
+                                             List<ReplyContextMessage> replyContextMessages);
+
     public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
 
 }

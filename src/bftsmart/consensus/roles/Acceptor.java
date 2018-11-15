@@ -16,30 +16,30 @@ limitations under the License.
 package bftsmart.consensus.roles;
 
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.Consensus;
-import bftsmart.tom.core.ExecutionManager;
 import bftsmart.consensus.Epoch;
-import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.messages.ConsensusMessage;
+import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.util.Arrays;
 import java.util.HashMap;
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
 
 /**
  * This class represents the acceptor role in the consensus protocol.
@@ -126,7 +126,7 @@ public final class Acceptor {
         Consensus consensus = executionManager.getConsensus(msg.getNumber());
 
         consensus.lock.lock();
-        Epoch epoch = consensus.getEpoch(msg.getEpoch(), controller);       
+        Epoch epoch = consensus.getEpoch(msg.getEpoch(), controller);
         switch (msg.getType()){
             case MessageFactory.PROPOSE:{
                     proposeReceived(epoch, msg);
@@ -410,7 +410,7 @@ public final class Acceptor {
      * This is the method invoked when a value is decided by this process
      * @param epoch Epoch at which the decision is made
      */
-    private void decide(Epoch epoch) {        
+    private void decide(Epoch epoch) {
         if (epoch.getConsensus().getDecision().firstMessageProposed != null)
             epoch.getConsensus().getDecision().firstMessageProposed.decisionTime = System.nanoTime();
 

@@ -15,14 +15,11 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
+import org.apache.commons.codec.binary.Base64;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
-import java.security.Key;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import org.apache.commons.codec.binary.Base64;
+import java.security.*;
 
 /**
  * Utility class used to generate a key pair for some process id on

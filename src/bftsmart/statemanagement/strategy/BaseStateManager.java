@@ -16,11 +16,6 @@
  */
 package bftsmart.statemanagement.strategy;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Arrays;
-import java.util.Set;
-
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.views.View;
@@ -29,10 +24,15 @@ import bftsmart.statemanagement.SMMessage;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.TOMLayer;
-import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.leaderchange.CertifiedDecision;
+import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Set;
 
 /**
  *

@@ -15,12 +15,12 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
+import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.tom.core.messages.TOMMessage;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
-
-import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.tom.core.messages.TOMMessage;
 
 /**
  * Batch format: TIMESTAMP(long) + N_NONCES(int) + SEED(long) +

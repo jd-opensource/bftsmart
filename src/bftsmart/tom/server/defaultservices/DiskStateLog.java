@@ -15,20 +15,15 @@ limitations under the License.
 */
 package bftsmart.tom.server.defaultservices;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.RandomAccessFile;
+import bftsmart.statemanagement.ApplicationState;
+import bftsmart.tom.MessageContext;
+
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
-
-import bftsmart.statemanagement.ApplicationState;
-import bftsmart.tom.MessageContext;
 
 public class DiskStateLog extends StateLog {
 

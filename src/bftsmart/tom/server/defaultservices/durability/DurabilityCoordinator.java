@@ -15,12 +15,6 @@ limitations under the License.
  */
 package bftsmart.tom.server.defaultservices.durability;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
@@ -34,6 +28,12 @@ import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.defaultservices.CommandsInfo;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 
 /**
  * Implements the Collaborative State Transfer protocol. In this protocol, instead of

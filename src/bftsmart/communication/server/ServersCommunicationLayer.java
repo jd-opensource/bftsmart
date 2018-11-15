@@ -15,6 +15,13 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
+import bftsmart.communication.SystemMessage;
+import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.tom.ServiceReplica;
+
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -32,14 +39,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import bftsmart.communication.SystemMessage;
-import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.tom.ServiceReplica;
-
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
 
 
 /**
@@ -63,7 +62,7 @@ public class ServersCommunicationLayer extends Thread {
     private static final String PASSWORD = "commsyst";
 
     public ServersCommunicationLayer(ServerViewController controller,
-            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) throws Exception {
+                                     LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) throws Exception {
 
         this.controller = controller;
         this.inQueue = inQueue;

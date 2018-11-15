@@ -15,17 +15,10 @@ limitations under the License.
 */
 package bftsmart.tom.core.messages;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
-import java.io.DataInputStream;
-import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.Externalizable;
-import java.io.IOException;
-
 import bftsmart.communication.SystemMessage;
 import bftsmart.tom.util.DebugInfo;
+
+import java.io.*;
 
 /**
  * This class represents a total ordered message

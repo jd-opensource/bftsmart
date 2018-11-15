@@ -16,17 +16,14 @@ limitations under the License.
 package bftsmart.communication.client.netty;
 
 
+import bftsmart.tom.core.messages.TOMMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 
-import java.nio.channels.Channels;
+import javax.crypto.Mac;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import javax.crypto.Mac;
-
-import bftsmart.tom.core.messages.TOMMessage;
 
 
 public class NettyTOMMessageEncoder extends MessageToByteEncoder<TOMMessage> {

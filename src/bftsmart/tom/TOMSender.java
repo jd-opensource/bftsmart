@@ -15,11 +15,6 @@ limitations under the License.
 */
 package bftsmart.tom;
 
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 import bftsmart.communication.client.CommunicationSystemClientSide;
 import bftsmart.communication.client.CommunicationSystemClientSideFactory;
 import bftsmart.communication.client.ReplyReceiver;
@@ -28,7 +23,12 @@ import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
+
 import java.io.Closeable;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class is used to multicast messages to replicas and receive replies.

@@ -15,10 +15,9 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
+import java.io.Console;
 import java.io.IOException;
 import java.util.Scanner;
-
-import java.io.Console;
 import java.util.TreeMap;
 
 /**

@@ -15,20 +15,11 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.util.Arrays;
-
 import bftsmart.reconfiguration.ViewController;
+
+import java.io.*;
+import java.security.*;
+import java.util.Arrays;
 
 public class TOMUtil {
 

@@ -15,35 +15,30 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-
 import bftsmart.communication.SystemMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import java.io.*;
 import java.math.BigInteger;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class represents a connection with other server.
@@ -77,7 +72,7 @@ public class ServerConnection {
     private boolean doWork = true;
 
     public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
-            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
+                            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
 
         this.controller = controller;
 

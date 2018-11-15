@@ -16,14 +16,6 @@
  */
 package bftsmart.tom;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -42,16 +34,18 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.CertifiedDecision;
-import bftsmart.tom.server.BatchExecutable;
-import bftsmart.tom.server.Executable;
-import bftsmart.tom.server.FIFOExecutable;
-import bftsmart.tom.server.Recoverable;
-import bftsmart.tom.server.Replier;
-import bftsmart.tom.server.RequestVerifier;
-import bftsmart.tom.server.SingleExecutable;
+import bftsmart.tom.server.*;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This class receives messages from DeliveryThread and manages the execution
@@ -136,7 +130,7 @@ public class ServiceReplica {
 	 *            Replier
 	 */
 	public ServiceReplica(int id, Executable executor, Recoverable recoverer, RequestVerifier verifier,
-			Replier replier) {
+                          Replier replier) {
 		this(id, "", executor, recoverer, verifier, replier);
 	}
 
@@ -157,7 +151,7 @@ public class ServiceReplica {
 	 *            Replier
 	 */
 	public ServiceReplica(int id, String configHome, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier) {
+                          RequestVerifier verifier, Replier replier) {
 		this(new ServerViewController(id, configHome), executor, recoverer, verifier, replier);
 		// this.id = id;
 		// this.SVController = new ServerViewController(id, configHome);
@@ -171,30 +165,30 @@ public class ServiceReplica {
 	}
 
 	public ServiceReplica(int id, String systemConfig, String hostsConfig, String keystoreHome, String runtimeDir,
-			View initView, Executable executor, Recoverable recoverer) {
+                          View initView, Executable executor, Recoverable recoverer) {
 		this(new ServerViewController(new TOMConfiguration(id, systemConfig, hostsConfig, keystoreHome),
 				new FileSystemViewStorage(initView, new File(runtimeDir, "view"))), executor, recoverer, null,
 				new DefaultReplier());
 	}
 
-	public ServiceReplica(TOMConfiguration config,  Executable executor, Recoverable recoverer ) {
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer ) {
 		this(new ServerViewController(config, new MemoryBasedViewStorage()),
 				executor, recoverer, null, new DefaultReplier());
 	}
 
 	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor,
-			Recoverable recoverer ) {
+                          Recoverable recoverer ) {
 		this(new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))),
 				executor, recoverer, null, new DefaultReplier());
 	}
 	public ServiceReplica(TOMConfiguration config, View initView, String runtimeDir, Executable executor,
-			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
+                          Recoverable recoverer, RequestVerifier verifier, Replier replier) {
 		this(new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),
 				executor, recoverer, verifier, replier);
 	}
 
 	public ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier) {
+                          RequestVerifier verifier, Replier replier) {
 		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier);
 	}
 
@@ -215,7 +209,7 @@ public class ServiceReplica {
 	 *            Replier
 	 */
 	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier) {
+                             RequestVerifier verifier, Replier replier) {
 		this.id = viewController.getStaticConf().getProcessId();
 		this.SVController = viewController;
 		this.executor = executor;
@@ -557,9 +551,19 @@ public class ServiceReplica {
 			// Make new batch to deliver
 			byte[][] batch = new byte[numRequests][];
 
+			ReplyContext replyContext = new ReplyContext()
+					.buildId(id)
+					.buildCurrentViewId(SVController.getCurrentViewId())
+					.buildNumRepliers(SVController.getStaticConf().getNumRepliers())
+					.buildRepMan(repMan)
+					.buildReplier(replier);
+
+			List<ReplyContextMessage> replyContextMessages = new ArrayList<>();
+
 			// Put messages in the batch
 			int line = 0;
 			for (TOMMessage m : toBatch) {
+                replyContextMessages.add(new ReplyContextMessage(replyContext, m));
 				batch[line] = m.getContent();
 				line++;
 			}
@@ -568,28 +572,28 @@ public class ServiceReplica {
 			msgContexts = msgCtxts.toArray(msgContexts);
 
 			// Deliver the batch and wait for replies
-			byte[][] replies = ((BatchExecutable) executor).executeBatch(batch, msgContexts);
+			byte[][] replies = ((BatchExecutable) executor).executeBatch(batch, msgContexts, replyContextMessages);
 
-			// Send the replies back to the client
-			for (int index = 0; index < toBatch.size(); index++) {
-				TOMMessage request = toBatch.get(index);
-				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-						request.getOperationId(), replies[index], SVController.getCurrentViewId(),
-						request.getReqType());
-
-				if (SVController.getStaticConf().getNumRepliers() > 0) {
-					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-							+ request.getSender() + " with sequence number " + request.getSequence()
-							+ " and operation ID " + request.getOperationId() + " via ReplyManager");
-					repMan.send(request);
-				} else {
-					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-							+ request.getSender() + " with sequence number " + request.getSequence()
-							+ " and operation ID " + request.getOperationId());
-					replier.manageReply(request, msgContexts[index]);
-					// cs.send(new int[]{request.getSender()}, request.reply);
-				}
-			}
+//			 Send the replies back to the client
+//			for (int index = 0; index < toBatch.size(); index++) {
+//				TOMMessage request = toBatch.get(index);
+//				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
+//						request.getOperationId(), replies[index], SVController.getCurrentViewId(),
+//						request.getReqType());
+//
+//				if (SVController.getStaticConf().getNumRepliers() > 0) {
+//					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+//							+ request.getSender() + " with sequence number " + request.getSequence()
+//							+ " and operation ID " + request.getOperationId() + " via ReplyManager");
+//					repMan.send(request);
+//				} else {
+//					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+//							+ request.getSender() + " with sequence number " + request.getSequence()
+//							+ " and operation ID " + request.getOperationId());
+//					replier.manageReply(request, msgContexts[index]);
+//					// cs.send(new int[]{request.getSender()}, request.reply);
+//				}
+//			}
 			// DEBUG
 			bftsmart.tom.util.Logger.println("BATCHEXECUTOR END");
 		}

@@ -15,8 +15,8 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
-import java.util.TreeMap;
 import java.util.Random;
+import java.util.TreeMap;
 
 public class BFTMapClient {
 	

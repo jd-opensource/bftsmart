@@ -15,27 +15,24 @@ limitations under the License.
 */
 package bftsmart.communication.client.netty;
 
+import bftsmart.reconfiguration.ViewController;
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.util.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import org.slf4j.LoggerFactory;
 
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-
-import org.slf4j.LoggerFactory;
-
-import bftsmart.reconfiguration.ViewController;
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.util.Logger;
 
 /**
  *

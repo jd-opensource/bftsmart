@@ -15,13 +15,13 @@ limitations under the License.
 */
 package bftsmart.statemanagement;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-
 import bftsmart.communication.SystemMessage;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.util.TOMUtil;
+
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 
 /**
  * This class represents a message used in the state transfer protocol

@@ -15,10 +15,10 @@ limitations under the License.
 */
 package bftsmart.demo.microbenchmarks;
 
-import java.io.IOException;
-
 import bftsmart.tom.ServiceProxy;
 import bftsmart.tom.util.Storage;
+
+import java.io.IOException;
 
 /**
  * Example client that updates a BFT replicated service (a counter).

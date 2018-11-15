@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.jd.blockchain</groupId>
   <artifactId>bft-smart</artifactId>
-  <version>0.0.2-SNAPSHOT</version>
+  <version>0.0.3.RELEASE</version>
   
   <dependencies>
 		<dependency>
@@ -12,16 +12,10 @@
 		</dependency>
 
 		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty-all</artifactId>
-			<version>4.1.9.Final</version>
-		</dependency>
-
-		<!--<dependency>
 			<groupId>com.yahoo.ycsb</groupId>
 			<artifactId>core</artifactId>
 			<version>0.1.4</version>
-		</dependency>-->
+		</dependency>
 
 		<dependency>
 			<groupId>io.netty</groupId>

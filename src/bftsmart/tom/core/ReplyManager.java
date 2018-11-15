@@ -5,8 +5,8 @@
 package bftsmart.tom.core;
 
 import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.communication.SystemMessage;
 import bftsmart.tom.core.messages.TOMMessage;
+
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +41,7 @@ public class ReplyManager {
 
     }
 }
+
 class ReplyThread extends Thread {
     
     private static final long POOL_TIME = 5000;

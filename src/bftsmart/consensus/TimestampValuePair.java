@@ -15,14 +15,14 @@ limitations under the License.
 */
 package bftsmart.consensus;
 
+import org.apache.commons.codec.binary.Base64;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.math.BigInteger;
 import java.util.Arrays;
-
-import org.apache.commons.codec.binary.Base64;
 
 /**
  * This class associates a timestamp to a value

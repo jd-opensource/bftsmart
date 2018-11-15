@@ -15,19 +15,19 @@ limitations under the License.
 */
 package bftsmart.clientsmanagement;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.Map.Entry;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.RequestVerifier;
 import bftsmart.tom.util.Logger;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 
 
 /**

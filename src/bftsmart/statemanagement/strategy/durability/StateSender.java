@@ -15,12 +15,12 @@ limitations under the License.
 */
 package bftsmart.statemanagement.strategy.durability;
 
+import bftsmart.statemanagement.ApplicationState;
+
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-
-import bftsmart.statemanagement.ApplicationState;
 
 public class StateSender implements Runnable {
 

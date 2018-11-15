@@ -15,16 +15,15 @@ limitations under the License.
 */
 package bftsmart.consensus;
 
+import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.tom.core.ExecutionManager;
+import bftsmart.tom.util.Logger;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
-
-import bftsmart.tom.core.ExecutionManager;
-import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.tom.util.Logger;
-
 
 
 /**

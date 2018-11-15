@@ -15,22 +15,15 @@ limitations under the License.
 */
 package bftsmart.tom.leaderchange;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.ListIterator;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.TreeSet;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.Hashtable;
-import java.util.Set;
-import java.util.logging.Level;
-
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
+
+import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Level;
 
 /**
  * This thread serves as a manager for all timers of pending requests.

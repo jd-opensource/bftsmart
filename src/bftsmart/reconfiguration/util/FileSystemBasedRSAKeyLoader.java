@@ -18,13 +18,8 @@ package bftsmart.reconfiguration.util;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Serializable;
-import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.EncodedKeySpec;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-import org.apache.commons.codec.binary.Base64;
 
 /**
  * Used to load JCA public and private keys from conf/keys/publickey<id> and

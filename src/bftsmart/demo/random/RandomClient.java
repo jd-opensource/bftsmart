@@ -15,14 +15,10 @@ limitations under the License.
 */
 package bftsmart.demo.random;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.Random;
-
 import bftsmart.tom.ServiceProxy;
+
+import java.io.*;
+import java.util.Random;
 
 /**
  *

@@ -15,17 +15,17 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
+import bftsmart.communication.SystemMessage;
+
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-
-import bftsmart.communication.SystemMessage;
 
 /**
  *
  * @author eduardo
  */
-public class VMMessage extends SystemMessage{
+public class VMMessage extends SystemMessage {
     private ReconfigureReply reply;
     
     public VMMessage(){}

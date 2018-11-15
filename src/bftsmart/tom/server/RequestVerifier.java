@@ -18,6 +18,6 @@ package bftsmart.tom.server;
  */
 public interface RequestVerifier {
     
-    public boolean isValidRequest(byte[]request);
+    public boolean isValidRequest(byte[] request);
     
 }

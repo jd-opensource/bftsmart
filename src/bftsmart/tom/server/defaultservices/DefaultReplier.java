@@ -19,6 +19,7 @@ import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.server.Replier;
+
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
