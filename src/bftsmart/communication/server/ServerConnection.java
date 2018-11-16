@@ -15,6 +15,26 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
 import bftsmart.communication.SystemMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
@@ -70,6 +90,7 @@ public class ServerConnection {
     /** Only used when there is no sender Thread */
     private Lock sendLock;
     private boolean doWork = true;
+    private CountDownLatch latch = new CountDownLatch(1);
 
     public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
                             LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
@@ -116,7 +137,7 @@ public class ServerConnection {
         this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
 
         if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
-            new SenderThread().start();
+            new SenderThread(latch).start();
         } else {
             sendLock = new ReentrantLock();
         }
@@ -395,6 +416,7 @@ public class ServerConnection {
             macReceive = Mac.getInstance(MAC_ALGORITHM);
             macReceive.init(authKey);
             macSize = macSend.getMacLength();
+            latch.countDown();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -434,14 +456,21 @@ public class ServerConnection {
      */
     private class SenderThread extends Thread {
 
-        public SenderThread() {
+        private CountDownLatch countDownLatch;
+
+        public SenderThread(CountDownLatch countDownLatch) {
             super("Sender for " + remoteId);
+            this.countDownLatch = countDownLatch;
         }
 
         @Override
         public void run() {
             byte[] data = null;
-
+            try {
+                countDownLatch.await();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             while (doWork) {
                 //get a message to be sent
                 try {
