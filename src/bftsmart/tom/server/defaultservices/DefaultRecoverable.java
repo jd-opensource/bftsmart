@@ -240,7 +240,7 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
         //TODO: I should always make sure to have a log with proofs, since this is a result
         // of not storing anything after a checkpoint and before logging more requests        
         if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) ret = new DefaultApplicationState();
-        
+
         logLock.unlock();
         return ret;
     }
