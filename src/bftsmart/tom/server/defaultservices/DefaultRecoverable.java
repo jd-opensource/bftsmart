@@ -129,7 +129,11 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
 
             if (!noop) {
                 stateLock.lock();
-                firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true);
+                if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
+                    firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true, replyContextMessages);
+                } else {
+                    firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true);
+                }
                 stateLock.unlock();
             }
 
@@ -139,7 +143,7 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
             stateLock.unlock();
             saveState(snapshot, cid);
 
-            System.arraycopy(firstHalfReplies, 0, replies, 0, firstHalfReplies.length);
+//            System.arraycopy(firstHalfReplies, 0, replies, 0, firstHalfReplies.length);
 
             // execute the second half if it exists
             if (secondHalf.length > 0) {
@@ -148,14 +152,18 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
 
                 if (!noop) {
                     stateLock.lock();
-                    secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true);
+                    if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
+                        secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true, replyContextMessages);
+                    } else {
+                        secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true);
+                    }
                     stateLock.unlock();
                 }
 
                 Logger.println("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus " + cid);
                 saveCommands(secondHalf, secondHalfMsgCtx);
 
-                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
+//                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
             }
 
         }
