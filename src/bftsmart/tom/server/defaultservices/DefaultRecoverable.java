@@ -127,10 +127,16 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
             // execute the first half
             cid = msgCtxs[checkpointIndex].getConsensusId();
 
+            // add by zs
+            List<ReplyContextMessage> firstHalfReply = new ArrayList<>();
+            for (int i = 0, length = firstHalf.length; i < length; i++) {
+                firstHalfReply.add(replyContextMessages.get(i));
+            }
+
             if (!noop) {
                 stateLock.lock();
-                if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
-                    firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true, replyContextMessages);
+                if (firstHalfReply != null && !firstHalfReply.isEmpty()) {
+                    firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true, firstHalfReply);
                 } else {
                     firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true);
                 }
@@ -150,10 +156,16 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
 //	        	System.out.println("----THERE IS A SECOND HALF----");
                 cid = msgCtxs[msgCtxs.length - 1].getConsensusId();
 
+                // add by zs
+                List<ReplyContextMessage> secondHalfReply = new ArrayList<>();
+                for (int i = firstHalf.length; i < replyContextMessages.size(); i++) {
+                    secondHalfReply.add(replyContextMessages.get(i));
+                }
+
                 if (!noop) {
                     stateLock.lock();
-                    if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
-                        secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true, replyContextMessages);
+                    if (secondHalfReply != null && !secondHalfReply.isEmpty()) {
+                        secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true, secondHalfReply);
                     } else {
                         secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true);
                     }
