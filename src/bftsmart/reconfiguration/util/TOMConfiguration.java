@@ -115,6 +115,10 @@ public class TOMConfiguration extends Configuration {
 				f = (int) Math.ceil((n - 1) / 3);
 			} else {
 				f = Integer.parseInt(s);
+				//add verify by zhangshuang
+				if (f != ((int) Math.ceil((n - 1) / 3))) {
+					f = (int) Math.ceil((n - 1) / 3);
+				}
 			}
 
 			s = (String) configs.remove("system.shutdownhook");
@@ -255,11 +259,42 @@ public class TOMConfiguration extends Configuration {
 				for (int i = 0; i < n; i++) {
 					initialView[i] = i;
 				}
-			} else {
+			}
+			//bftsmart origin code
+//			else {
+//				StringTokenizer str = new StringTokenizer(s, ",");
+//				initialView = new int[str.countTokens()];
+//				for (int i = 0; i < initialView.length; i++) {
+//					initialView[i] = Integer.parseInt(str.nextToken());
+//				}
+//			}
+			//add verify by zhangshuang
+			else {
 				StringTokenizer str = new StringTokenizer(s, ",");
-				initialView = new int[str.countTokens()];
-				for (int i = 0; i < initialView.length; i++) {
-					initialView[i] = Integer.parseInt(str.nextToken());
+				initialView = new int[n];
+
+				if (str.countTokens() != n) {
+					for (int i = 0; i < n; i++) {
+						initialView[i] = i;
+					}
+
+				} else {
+					for (int i = 0; i < n; i++) {
+						initialView[i] = Integer.parseInt(str.nextToken());
+					}
+				}
+
+				boolean viewErr = false;
+				for (int i = 0; i < n - 1; i++) {
+					if (initialView[i] + 1 != initialView[i + 1]) {
+						viewErr = true;
+						break;
+					}
+				}
+				if (viewErr) {
+					for (int i = 0; i < n; i++) {
+						initialView[i] = i;
+					}
 				}
 			}
 
