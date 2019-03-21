@@ -212,7 +212,9 @@ public class StandardStateManager extends BaseStateManager {
                     System.out.println("haveState: " + haveState);
                                             
                     if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
-                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
+                            //此行将导致currentProof==null时无法进行下面的处理；
+//                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
+                            currentLeader > -1 && currentView != null ) {
 
                     	System.out.println("Received state. Will install it");
                     	

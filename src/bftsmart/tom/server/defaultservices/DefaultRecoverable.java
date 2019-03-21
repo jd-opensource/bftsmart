@@ -259,8 +259,12 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
         
         // Only will send a state if I have a proof for the last logged decision/consensus
         //TODO: I should always make sure to have a log with proofs, since this is a result
-        // of not storing anything after a checkpoint and before logging more requests        
-        if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) ret = new DefaultApplicationState();
+        // of not storing anything after a checkpoint and before logging more requests
+        //当cid==lastcheckpoint时，ret.getCertifiedDecision(this.controller) == null成立，未考虑我想获得的状态正好是最近的检查点的情况
+//        if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
+        if (ret == null || (config.isBFT() && cid != ((DefaultApplicationState) ret).getLastCheckpointCID() && ret.getCertifiedDecision(this.controller) == null)) {
+            ret = new DefaultApplicationState();
+        }
 
         logLock.unlock();
         return ret;
