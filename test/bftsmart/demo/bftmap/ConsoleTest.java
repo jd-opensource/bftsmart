@@ -15,18 +15,15 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.util.HashMap;
-
-
+import bftsmart.ConsoleLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import bftsmart.ConsoleLogger;
-import bftsmart.demo.bftmap.BFTMap;
+import java.io.IOException;
+import java.util.HashMap;
+
+import static org.junit.Assert.*;
 
 /**
  * 
