@@ -15,6 +15,8 @@ limitations under the License.
  */
 package bftsmart.demo.bftmap;
 
+import bftsmart.tom.util.BytesUtils;
+
 import java.io.IOException;
 import java.util.Random;
 import java.util.TreeMap;
@@ -167,7 +169,9 @@ class KVClientInstance extends Thread {
 	{
 		String key = "Key"+rand.nextInt();
 		String value = Integer.toString(new Random().nextInt());
-		byte[] valueBytes = value.getBytes();
+//		byte[] valueBytes = value.getBytes();
+
+		byte[] valueBytes = BytesUtils.getBytes(value);
 
 		byte[] resultBytes = bftMap.putEntry(nameTable, key, valueBytes);
 		if(resultBytes== null)

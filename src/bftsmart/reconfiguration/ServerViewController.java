@@ -20,6 +20,7 @@ import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.util.BytesUtils;
 import bftsmart.tom.util.TOMUtil;
 
 import java.net.InetSocketAddress;
@@ -122,7 +123,7 @@ public class ServerViewController extends ViewController {
 
 	public void enqueueUpdate(TOMMessage up) {
 		ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(up.getContent());
-		if (TOMUtil.verifySignature(getStaticConf().getRSAPublicKey(request.getSender()), request.toString().getBytes(),
+		if (TOMUtil.verifySignature(getStaticConf().getRSAPublicKey(request.getSender()), BytesUtils.getBytes(request.toString()),
 				request.getSignature())) {
 			if (request.getSender() == getStaticConf().getTTPId()) {
 				this.updates.add(up);
