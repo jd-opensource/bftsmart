@@ -29,6 +29,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -58,6 +59,7 @@ public final class Acceptor {
     private ServerViewController controller;
     //private Cipher cipher;
     private Mac mac;
+    private static org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Acceptor.class);
 
     /**
      * Creates a new instance of Acceptor.
@@ -108,10 +110,12 @@ public final class Acceptor {
      */
     public final void deliver(ConsensusMessage msg) {
         if (executionManager.checkLimits(msg)) {
-            Logger.println("processing paxos msg with id " + msg.getNumber());
+//            Logger.println("processing paxos msg with id " + msg.getNumber());
+            LOGGER.debug("processing paxos msg with id {}",msg.getNumber());
             processMessage(msg);
         } else {
-            Logger.println("out of context msg with id " + msg.getNumber());
+//            Logger.println("out of context msg with id " + msg.getNumber());
+            LOGGER.debug("out of context msg with id {}",msg.getNumber());
             tomLayer.processOutOfContext();
         }
     }
@@ -151,12 +155,15 @@ public final class Acceptor {
         int cid = epoch.getConsensus().getId();
         int ts = epoch.getConsensus().getEts();
         int ets = executionManager.getConsensus(msg.getNumber()).getEts();
-    	Logger.println("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
+//    	Logger.println("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
+
+    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus {} ", cid);
     	if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
                 && epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
     		executePropose(epoch, msg.getValue());
     	} else {
-    		Logger.println("Propose received is not from the expected leader");
+//    		Logger.println("Propose received is not from the expected leader");
+    		LOGGER.debug("Propose received is not from the expected leader");
     	}
     }
 
@@ -401,7 +408,8 @@ public final class Acceptor {
                 " ACCEPTs for " + cid + "," + epoch.getTimestamp());
 
         if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
-            Logger.println("(Acceptor.computeAccept) Deciding " + cid);
+//            Logger.println("(Acceptor.computeAccept) Deciding " + cid);
+            LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
             decide(epoch);
         }
     }
