@@ -226,6 +226,18 @@ public class ServiceReplica {
 		this.replier = replier;
 	}
 
+	public Executable getExecutor() {
+		return executor;
+	}
+
+	public Replier getReplier() {
+		return replier;
+	}
+
+	public ReplyManager getRepMan() {
+		return repMan;
+	}
+
 	// this method initializes the object
 	private void init() {
 		try {
@@ -361,7 +373,7 @@ public class ServiceReplica {
 	}
 
 	public void receiveMessages(int consId[], int regencies[], int leaders[], CertifiedDecision[] cDecs,
-			TOMMessage[][] requests) {
+			TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList) {
 		int numRequests = 0;
 		int consensusCount = 0;
 		List<TOMMessage> toBatch = new ArrayList<>();
@@ -572,29 +584,30 @@ public class ServiceReplica {
 			MessageContext[] msgContexts = new MessageContext[msgCtxts.size()];
 			msgContexts = msgCtxts.toArray(msgContexts);
 
-			// Deliver the batch and wait for replies
+			//Deliver the batch and wait for replies
 			byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts, replyContextMessages);
 
-//			 Send the replies back to the client
-//			for (int index = 0; index < toBatch.size(); index++) {
-//				TOMMessage request = toBatch.get(index);
-//				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-//						request.getOperationId(), replies[index], SVController.getCurrentViewId(),
-//						request.getReqType());
-//
-//				if (SVController.getStaticConf().getNumRepliers() > 0) {
-//					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-//							+ request.getSender() + " with sequence number " + request.getSequence()
-//							+ " and operation ID " + request.getOperationId() + " via ReplyManager");
-//					repMan.send(request);
-//				} else {
-//					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-//							+ request.getSender() + " with sequence number " + request.getSequence()
-//							+ " and operation ID " + request.getOperationId());
-//					replier.manageReply(request, msgContexts[index]);
-//					// cs.send(new int[]{request.getSender()}, request.reply);
-//				}
-//			}
+			//Send the replies back to the client
+			for (int index = 0; index < toBatch.size(); index++) {
+				TOMMessage request = toBatch.get(index);
+				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
+						request.getOperationId(), asyncResponseLinkedList.get(index), SVController.getCurrentViewId(),
+						request.getReqType());
+
+				if (SVController.getStaticConf().getNumRepliers() > 0) {
+					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+							+ request.getSender() + " with sequence number " + request.getSequence()
+							+ " and operation ID " + request.getOperationId() + " via ReplyManager");
+					repMan.send(request);
+				} else {
+					bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+							+ request.getSender() + " with sequence number " + request.getSequence()
+							+ " and operation ID " + request.getOperationId());
+					replier.manageReply(request, msgContexts[index]);
+					// cs.send(new int[]{request.getSender()}, request.reply);
+				}
+			}
+
 			// DEBUG
 			bftsmart.tom.util.Logger.println("BATCHEXECUTOR END");
 		}

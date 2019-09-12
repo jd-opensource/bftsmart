@@ -20,13 +20,17 @@ import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
+import bftsmart.consensus.app.BatchAppResult;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.ExecutionManager;
+import bftsmart.tom.core.ReplyManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
+import bftsmart.tom.server.Replier;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
@@ -41,6 +45,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * This class represents the acceptor role in the consensus protocol.
@@ -79,6 +84,18 @@ public final class Acceptor {
         } catch (NoSuchAlgorithmException /*| NoSuchPaddingException*/ ex) {
             ex.printStackTrace();
         }
+    }
+
+    public DefaultRecoverable getDefaultExecutor() {
+        return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
+    }
+
+    public Replier getBatchReplier() {
+        return tomLayer.getDeliveryThread().getReceiver().getReplier();
+    }
+
+    public ReplyManager getReplyManager() {
+        return tomLayer.getDeliveryThread().getReceiver().getRepMan();
     }
 
     public MessageFactory getFactory() {
@@ -254,6 +271,19 @@ public final class Acceptor {
     }
 
     /**
+     * merge byte array
+     * @param prop serialized prop value
+     * @param appHash app hash vaule
+     * @return
+     */
+    public byte[] MergeByte(byte[] prop, byte[] appHash){
+        byte[] result = new byte[prop.length + appHash.length];
+        System.arraycopy(prop, 0, result, 0, prop.length);
+        System.arraycopy(appHash, 0, result, prop.length, appHash.length);
+        return result;
+    }
+
+    /**
      * Computes WRITE values according to Byzantine consensus specification
      * values received).
      *
@@ -270,34 +300,73 @@ public final class Acceptor {
         if (writeAccepted > controller.getQuorum() && Arrays.equals(value, epoch.propValueHash)) {
                         
             if (!epoch.isAcceptSetted(me)) {
-                
+
                 Logger.println("(Acceptor.computeWrite) sending WRITE for " + cid);
 
                 /**** LEADER CHANGE CODE! ******/
                 Logger.println("(Acceptor.computeWrite) Setting consensus " + cid + " QuorumWrite tiemstamp to " + epoch.getConsensus().getEts() + " and value " + Arrays.toString(value));
                 epoch.getConsensus().setQuorumWrites(value);
                 /*****************************************/
-                
-                epoch.setAccept(me, value);
 
                 if(epoch.getConsensus().getDecision().firstMessageProposed!=null) {
 
                         epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
                 }
-                        
-                ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), value);
 
-                // Create a cryptographic proof for this ACCEPT message
-                Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
-                insertProof(cm, epoch);
-                
-                int[] targets = this.controller.getCurrentViewOtherAcceptors();
-                communication.getServersConn().send(targets, cm, true);
-                
-                //communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
-                        //factory.createStrong(cid, epoch.getNumber(), value));
-                epoch.addToProof(cm);
-                computeAccept(cid, epoch, value);
+                // add to implement application consistency
+                if(controller.getStaticConf().isBFT()){
+
+                    DefaultRecoverable defaultExecutor = getDefaultExecutor();
+                    byte[][] commands = new byte[epoch.deserializedPropValue.length][];
+
+                    for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
+                        commands[i] = epoch.deserializedPropValue[i].getContent();
+                    }
+
+                    BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands);
+
+                    byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+
+                    epoch.propAndAppValue = result;
+
+                    epoch.propAndAppValueHash = tomLayer.computeHash(result);
+
+                    epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
+
+                    epoch.batchId = appHashResult.getBatchId();
+
+                    epoch.setAccept(me, epoch.propAndAppValueHash);
+
+                    ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
+
+                    // Create a cryptographic proof for this ACCEPT message
+                    Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
+                    insertProof(cm, epoch);
+
+                    int[] targets = this.controller.getCurrentViewOtherAcceptors();
+                    communication.getServersConn().send(targets, cm, true);
+
+                    epoch.addToProof(cm);
+                    computeAccept(cid, epoch, epoch.propAndAppValueHash);
+                }
+                else {
+                    epoch.setAccept(me, value);
+
+                    ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), value);
+
+                    // Create a cryptographic proof for this ACCEPT message
+                    Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
+                    insertProof(cm, epoch);
+
+                    int[] targets = this.controller.getCurrentViewOtherAcceptors();
+                    communication.getServersConn().send(targets, cm, true);
+
+                    //communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
+                    //factory.createStrong(cid, epoch.getNumber(), value));
+                    epoch.addToProof(cm);
+                    computeAccept(cid, epoch, value);
+
+                }
             }
         }
     }
@@ -408,9 +477,58 @@ public final class Acceptor {
                 " ACCEPTs for " + cid + "," + epoch.getTimestamp());
 
         if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
-//            Logger.println("(Acceptor.computeAccept) Deciding " + cid);
-            LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
-            decide(epoch);
+            if (Arrays.equals(value, epoch.propAndAppValueHash)) {
+
+                LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
+                decide(epoch);
+
+            }
+            else {
+                //Leader does evil
+                //do nothing
+            }
+            return;
+        }
+
+        // rollback
+        if (((epoch.countAcceptSetted() == controller.getCurrentViewN()) && (epoch.countAccept(value) < controller.getQuorum() + 1))
+                || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1))) {
+            TOMMessage[] requests = epoch.deserializedPropValue;
+
+            tomLayer.clientsManager.requestsOrdered(requests);
+
+
+            List<byte[]> updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+
+            // reply
+            Replier replier = getBatchReplier();
+
+            ReplyManager repMan = getReplyManager();
+
+            for (int index = 0; index < requests.length; index++) {
+                TOMMessage request = requests[index];
+                request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
+                        request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
+                        request.getReqType());
+
+                if (controller.getStaticConf().getNumRepliers() > 0) {
+                    bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                            + request.getSender() + " with sequence number " + request.getSequence()
+                            + " and operation ID " + request.getOperationId() + " via ReplyManager");
+                    repMan.send(request);
+                } else {
+                    bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                            + request.getSender() + " with sequence number " + request.getSequence()
+                            + " and operation ID " + request.getOperationId());
+                    replier.manageReply(request, null);
+                    // cs.send(new int[]{request.getSender()}, request.reply);
+                }
+            }
+
+            // rollback
+            getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+
+            tomLayer.setInExec(-1);
         }
     }
 
