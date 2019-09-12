@@ -18,6 +18,9 @@
  */
 package bftsmart.tom.server.defaultservices;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
@@ -26,7 +29,6 @@ import bftsmart.statemanagement.strategy.StandardStateManager;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.ReplyContextMessage;
-import bftsmart.tom.server.BatchExecutable;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.util.Logger;
 
@@ -45,7 +47,7 @@ import java.util.logging.Level;
  * 
  * @author Joao Sousa
  */
-public abstract class DefaultRecoverable implements Recoverable, BatchExecutable {
+public abstract class DefaultRecoverable implements Recoverable, PreComputeBatchExecutable {
 
     private int checkpointPeriod;
     private ReentrantLock logLock = new ReentrantLock();
@@ -67,9 +69,30 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
     }
 
     @Override
-    public byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs) {
-        return executeBatch(commands, msgCtxs, false, null);
+    public BatchAppResultImpl preComputeHash(byte[][] commands) {
+        return preComputeAppHash(commands);
     }
+
+    @Override
+    public void preComputeCommit(String batchId) {
+        preComputeAppCommit(batchId);
+    }
+
+    @Override
+    public void preComputeRollback(String batchId) {
+        preComputeAppRollback(batchId);
+    }
+
+
+    @Override
+    public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList) {
+        return updateAppResponses(asyncResponseLinkedList);
+    }
+
+//    @Override
+//    public byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs) {
+//        return executeBatch(commands, msgCtxs, false, null);
+//    }
 
     @Override
     public byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, List<ReplyContextMessage> replyContextMessages) {
@@ -468,6 +491,14 @@ public abstract class DefaultRecoverable implements Recoverable, BatchExecutable
     public abstract void installSnapshot(byte[] state);
     
     public abstract byte[] getSnapshot();
+
+    public abstract BatchAppResultImpl preComputeAppHash(byte[][] commands);
+
+    public abstract List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList);
+
+    public abstract void preComputeAppCommit(String batchId);
+
+    public abstract void preComputeAppRollback(String batchId);
     
     public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus);
 

@@ -15,6 +15,8 @@ limitations under the License.
  */
 package bftsmart.tom.server.defaultservices.durability;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
@@ -23,7 +25,6 @@ import bftsmart.statemanagement.strategy.durability.CSTState;
 import bftsmart.statemanagement.strategy.durability.DurableStateManager;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
-import bftsmart.tom.server.BatchExecutable;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.defaultservices.CommandsInfo;
 import bftsmart.tom.util.Logger;
@@ -32,6 +33,7 @@ import bftsmart.tom.util.TOMUtil;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
@@ -47,7 +49,7 @@ import java.util.logging.Level;
  *
  * @author Marcel Santos
  */
-public abstract class DurabilityCoordinator implements Recoverable, BatchExecutable {
+public abstract class DurabilityCoordinator implements Recoverable, PreComputeBatchExecutable {
 
 	private ReentrantLock logLock = new ReentrantLock();
 	private ReentrantLock hashLock = new ReentrantLock();
@@ -74,10 +76,26 @@ public abstract class DurabilityCoordinator implements Recoverable, BatchExecuta
 		}
 	}
 
-        @Override
-        public byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs) {
-            return executeBatch(commands, msgCtxs, false);
-        }
+		@Override
+		public BatchAppResultImpl preComputeHash(byte[][] commands) {
+			return preComputeAppHash(commands);
+		}
+
+		@Override
+		public void preComputeCommit(String batchId) {
+			preComputeAppCommit(batchId);
+		}
+
+		@Override
+		public void preComputeRollback(String batchId) {
+			preComputeAppRollback(batchId);
+		}
+
+
+		@Override
+		public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList) {
+			return updateAppResponses(asyncResponseLinkedList);
+		}
     
         private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtx, boolean noop) {
 		int cid = msgCtx[msgCtx.length-1].getConsensusId();
@@ -432,11 +450,28 @@ public abstract class DurabilityCoordinator implements Recoverable, BatchExecuta
 
     }
         
-        public abstract void installSnapshot(byte[] state);
+    public abstract void installSnapshot(byte[] state);
         
 	public abstract byte[] getSnapshot();
         
 	public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs);
         
-        public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
+	public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
+
+	public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+		return null;
+	}
+
+	public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+		return null;
+	}
+
+	public void preComputeAppCommit(String batchId) {
+
+	}
+
+	public void preComputeAppRollback(String batchId) {
+
+	}
+
 }

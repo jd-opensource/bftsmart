@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.demo.counter;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
@@ -145,4 +147,24 @@ public final class CounterServer extends DefaultRecoverable {
             return BytesUtils.getBytes("ERROR");
 		}
 	}
+
+    @Override
+    public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+        return null;
+    }
+
+    @Override
+    public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+        return null;
+    }
+
+    @Override
+    public void preComputeAppCommit(String batchId) {
+
+    }
+
+    @Override
+    public void preComputeAppRollback(String batchId) {
+
+    }
 }

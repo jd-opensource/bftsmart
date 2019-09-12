@@ -17,6 +17,7 @@
 package bftsmart.tom;
 
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.consensus.roles.Proposer;
@@ -397,7 +398,7 @@ public class ServiceReplica {
 							msgCtx.setLastInBatch();
 						}
 						request.deliveryTime = System.nanoTime();
-						if (executor instanceof BatchExecutable) {
+						if (executor instanceof PreComputeBatchExecutable) {
 
 							bftsmart.tom.util.Logger.println(
 									"(ServiceReplica.receiveMessages) Batching request from " + request.getSender());
@@ -547,7 +548,7 @@ public class ServiceReplica {
 			consensusCount++;
 		}
 
-		if (executor instanceof BatchExecutable && numRequests > 0) {
+		if (executor instanceof PreComputeBatchExecutable && numRequests > 0) {
 			// Make new batch to deliver
 			byte[][] batch = new byte[numRequests][];
 
@@ -572,7 +573,7 @@ public class ServiceReplica {
 			msgContexts = msgCtxts.toArray(msgContexts);
 
 			// Deliver the batch and wait for replies
-			byte[][] replies = ((BatchExecutable) executor).executeBatch(batch, msgContexts, replyContextMessages);
+			byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts, replyContextMessages);
 
 //			 Send the replies back to the client
 //			for (int index = 0; index < toBatch.size(); index++) {
