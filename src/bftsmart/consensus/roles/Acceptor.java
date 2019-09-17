@@ -495,40 +495,41 @@ public final class Acceptor {
                 || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1))) {
             TOMMessage[] requests = epoch.deserializedPropValue;
 
-            tomLayer.clientsManager.requestsOrdered(requests);
+            try {
+                // reply
+                List<byte[]> updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
 
+                Replier replier = getBatchReplier();
 
-            List<byte[]> updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+                ReplyManager repMan = getReplyManager();
 
-            // reply
-            Replier replier = getBatchReplier();
+                for (int index = 0; index < requests.length; index++) {
+                    TOMMessage request = requests[index];
+                    request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
+                            request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
+                            request.getReqType());
 
-            ReplyManager repMan = getReplyManager();
-
-            for (int index = 0; index < requests.length; index++) {
-                TOMMessage request = requests[index];
-                request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
-                        request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
-                        request.getReqType());
-
-                if (controller.getStaticConf().getNumRepliers() > 0) {
-                    bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-                            + request.getSender() + " with sequence number " + request.getSequence()
-                            + " and operation ID " + request.getOperationId() + " via ReplyManager");
-                    repMan.send(request);
-                } else {
-                    bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-                            + request.getSender() + " with sequence number " + request.getSequence()
-                            + " and operation ID " + request.getOperationId());
-                    replier.manageReply(request, null);
-                    // cs.send(new int[]{request.getSender()}, request.reply);
+                    if (controller.getStaticConf().getNumRepliers() > 0) {
+                        bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                                + request.getSender() + " with sequence number " + request.getSequence()
+                                + " and operation ID " + request.getOperationId() + " via ReplyManager");
+                        repMan.send(request);
+                    } else {
+                        bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                                + request.getSender() + " with sequence number " + request.getSequence()
+                                + " and operation ID " + request.getOperationId());
+                        replier.manageReply(request, null);
+                        // cs.send(new int[]{request.getSender()}, request.reply);
+                    }
                 }
+            } finally {
+                tomLayer.clientsManager.requestsOrdered(requests);
+
+                // rollback
+                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+
+                tomLayer.setInExec(-1);
             }
-
-            // rollback
-            getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-
-            tomLayer.setInExec(-1);
         }
     }
 

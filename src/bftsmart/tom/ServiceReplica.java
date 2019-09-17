@@ -41,6 +41,7 @@ import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
 
 import java.io.File;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
@@ -312,7 +313,11 @@ public class ServiceReplica {
 		}
 
 		if (message.getReqType() == TOMMessageType.UNORDERED_HASHED_REQUEST && message.getReplyServer() != this.id) {
-			response = TOMUtil.computeHash(response);
+			try {
+				response = TOMUtil.computeHash(response);
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			}
 		}
 
 		// Generate the messages to send back to the clients

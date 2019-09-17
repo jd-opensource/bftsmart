@@ -25,6 +25,7 @@ import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
@@ -469,7 +470,11 @@ public class ServiceProxy extends TOMSender {
 
 			if (replyServerPos == pos) {
 				reply = tomMessage;
-				hashReplies[pos] = TOMUtil.computeHash(tomMessage.getContent());
+				try {
+					hashReplies[pos] = TOMUtil.computeHash(tomMessage.getContent());
+				} catch (NoSuchAlgorithmException e) {
+					e.printStackTrace();
+				}
 			} else {
 				hashReplies[pos] = tomMessage.getContent();
 			}

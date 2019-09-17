@@ -33,6 +33,7 @@ import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Queue;
 import java.util.Timer;
@@ -259,8 +260,15 @@ public class DurableStateManager extends BaseStateManager {
 					System.out.println("Log upper bytes size: "
 							+ upperbytes.length);
 
-					byte[] lowerLogHash = TOMUtil.computeHash(lowerbytes);
-					byte[] upperLogHash = TOMUtil.computeHash(upperbytes);
+					byte[] lowerLogHash = new byte[0];
+					byte[] upperLogHash = new byte[0];
+
+					try {
+						lowerLogHash = TOMUtil.computeHash(lowerbytes);
+						upperLogHash = TOMUtil.computeHash(upperbytes);
+					} catch (NoSuchAlgorithmException e) {
+						e.printStackTrace();
+					}
 
 					// validate lower log
 					if (Arrays.equals(stateCkp.getHashLogLower(), lowerLogHash))

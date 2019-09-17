@@ -10,6 +10,7 @@ import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Decision;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.TimestampValuePair;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -57,7 +58,7 @@ public class Synchronizer {
     private final ServerCommunicationSystem communication;
     private final StateManager stateManager;
     private final Acceptor acceptor;
-    private final MessageDigest md;
+    private SHA256Utils md = new SHA256Utils();
             
     // Attributes to temporarely store synchronization info
     // if state transfer is required for synchronization

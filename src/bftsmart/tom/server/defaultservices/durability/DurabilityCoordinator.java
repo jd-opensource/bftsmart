@@ -17,6 +17,7 @@ package bftsmart.tom.server.defaultservices.durability;
 
 import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.consensus.app.PreComputeBatchExecutable;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
@@ -57,7 +58,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 
 	private TOMConfiguration config;
 
-	private MessageDigest md;
+	private SHA256Utils md = new SHA256Utils();
 
 	private DurableStateLog log;
 
@@ -69,11 +70,11 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	private int replicaCkpIndex;
 
 	public DurabilityCoordinator() {
-		try {
-			md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
-		} catch (NoSuchAlgorithmException ex) {
-			java.util.logging.Logger.getLogger(DurabilityCoordinator.class.getName()).log(Level.SEVERE, null, ex);
-		}
+//		try {
+//			md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
+//		} catch (NoSuchAlgorithmException ex) {
+//			java.util.logging.Logger.getLogger(DurabilityCoordinator.class.getName()).log(Level.SEVERE, null, ex);
+//		}
 	}
 
 		@Override
@@ -302,8 +303,11 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	private final byte[] computeHash(byte[] data) {
 		byte[] ret = null;
 		hashLock.lock();
-		ret = md.digest(data);
-		hashLock.unlock();
+		try {
+			ret = md.hash(data);
+		} finally {
+			hashLock.unlock();
+		}
 		return ret;
 	}
 
@@ -426,7 +430,12 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 
 	public byte[] getCurrentStateHash() {
 		byte[] currentState = getSnapshot();
-		byte[] currentStateHash = TOMUtil.computeHash(currentState);
+		byte[] currentStateHash = new byte[0];
+		try {
+			currentStateHash = TOMUtil.computeHash(currentState);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
 		System.out.println("--- State size: " + currentState.length + " Current state Hash: " + Arrays.toString(currentStateHash));
 		return currentStateHash;
 	}

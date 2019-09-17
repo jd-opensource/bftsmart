@@ -18,6 +18,7 @@ package bftsmart.tom.util;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.TimestampValuePair;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.tom.core.TOMLayer;
 
 import java.security.MessageDigest;
@@ -31,7 +32,7 @@ import java.util.Date;
 public class ShutdownHookThread extends Thread {
 
     private final TOMLayer tomLayer;
-    private final MessageDigest md;
+    private SHA256Utils md = new SHA256Utils();
 
     public ShutdownHookThread(TOMLayer tomLayer) {
 
@@ -61,7 +62,7 @@ public class ShutdownHookThread extends Thread {
             
             for (TimestampValuePair rv : c.getWriteSet()) {
                 if  (rv.getValue() != null && rv.getValue().length > 0)
-                    rv.setHashedValue(md.digest(rv.getValue()));
+                    rv.setHashedValue(md.hash(rv.getValue()));
             }
             
             buffer.append("\n\n\t -- Consensus state: \n\n\t\tETS=" + c.getEts() + " \n\t\tWriteSet=["+ c.getWriteSet()
@@ -82,7 +83,7 @@ public class ShutdownHookThread extends Thread {
             
             for (TimestampValuePair rv : c.getWriteSet()) {
                 if  (rv.getValue() != null && rv.getValue().length > 0)
-                    rv.setHashedValue(md.digest(rv.getValue()));
+                    rv.setHashedValue(md.hash(rv.getValue()));
             }
             
             buffer.append("\n\n\t -- Consensus state: \n\n\t\tETS=" + c.getEts() + " \n\t\tWriteSet=["+ c.getWriteSet()

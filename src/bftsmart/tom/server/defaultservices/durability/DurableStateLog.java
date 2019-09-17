@@ -27,6 +27,7 @@ import bftsmart.tom.util.TOMUtil;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -196,12 +197,18 @@ public class DurableStateLog extends StateLog {
 	    		System.out.println("--- sending checkpoint: " + ckpState.length);
 	    		CommandsInfo[] logLower = fr.getLogState(requestF1.getLogLowerSize(), logPath);
 	    		CommandsInfo[] logUpper = fr.getLogState(logPointers.get(requestF1.getLogUpper()), 0, requestF1.getLogUpperSize(), logPath);
-	    		byte[] logLowerBytes = TOMUtil.getBytes(logLower);
-	    		System.out.println(logLower.length + " Log lower bytes size: " + logLowerBytes.length);
-	    		byte[] logLowerHash = TOMUtil.computeHash(logLowerBytes);
-	    		byte[] logUpperBytes = TOMUtil.getBytes(logUpper);
-	    		System.out.println(logUpper.length + " Log upper bytes size: " + logUpperBytes.length);
-	    		byte[] logUpperHash = TOMUtil.computeHash(logUpperBytes);
+				byte[] logLowerHash = new byte[0];
+				byte[] logUpperHash = new byte[0];
+	    		try {
+					byte[] logLowerBytes = TOMUtil.getBytes(logLower);
+					System.out.println(logLower.length + " Log lower bytes size: " + logLowerBytes.length);
+					logLowerHash = TOMUtil.computeHash(logLowerBytes);
+					byte[] logUpperBytes = TOMUtil.getBytes(logUpper);
+					System.out.println(logUpper.length + " Log upper bytes size: " + logUpperBytes.length);
+					logUpperHash = TOMUtil.computeHash(logUpperBytes);
+				} catch (NoSuchAlgorithmException e) {
+	    			e.printStackTrace();
+				}
 	    		CSTState cstState = new CSTState(ckpState, null, null, logLowerHash, null, logUpperHash, lastCheckpointCID, lastCID, this.id);
 	    		return cstState;
 			} else if(id == requestF1.getLogLower()) {

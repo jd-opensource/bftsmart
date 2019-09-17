@@ -21,6 +21,7 @@ package bftsmart.tom.server.defaultservices;
 import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.consensus.app.PreComputeBatchExecutable;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
@@ -55,17 +56,17 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     private ReentrantLock stateLock = new ReentrantLock();
     private TOMConfiguration config;
     private ServerViewController controller;
-    private MessageDigest md;
+    private SHA256Utils md = new SHA256Utils();
     private StateLog log;
     private StateManager stateManager;
 
     public DefaultRecoverable() {
 
-        try {
-            md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
-        } catch (NoSuchAlgorithmException ex) {
-            java.util.logging.Logger.getLogger(DefaultRecoverable.class.getName()).log(Level.SEVERE, null, ex);
-        }
+//        try {
+//            md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
+//        } catch (NoSuchAlgorithmException ex) {
+//            java.util.logging.Logger.getLogger(DefaultRecoverable.class.getName()).log(Level.SEVERE, null, ex);
+//        }
     }
 
     @Override
@@ -213,9 +214,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     public final byte[] computeHash(byte[] data) {
         byte[] ret = null;
         hashLock.lock();
-        ret = md.digest(data);
-        hashLock.unlock();
-
+        try {
+            ret = md.hash(data);
+        } finally {
+            hashLock.unlock();
+        }
         return ret;
     }
 

@@ -16,9 +16,11 @@ limitations under the License.
 package bftsmart.tom.leaderchange;
 
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.consensus.Epoch;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.TOMUtil;
 
 import java.util.*;
@@ -139,11 +141,25 @@ public class RequestsTimer {
         }
         rwLock.writeLock().unlock();
     }
-    
+
+    public DefaultRecoverable getDefaultExecutor() {
+        return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
+    }
+
+    public Epoch getEpoch() {
+        return tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).getLastEpoch();
+    }
+
     public void run_lc_protocol() {
         
         long t = (shortTimeout > -1 ? shortTimeout : timeout);
-        
+
+        //When a timeout occurs, rollback pre compute hash operation
+        if (getEpoch().getBatchId() != null) {
+            System.out.println("Requests timeout occurs, rollback precompute hash operation!");
+            getDefaultExecutor().preComputeAppRollback(getEpoch().getBatchId());
+        }
+
         //System.out.println("(RequestTimerTask.run) I SOULD NEVER RUN WHEN THERE IS NO TIMEOUT");
 
         LinkedList<TOMMessage> pendingRequests = new LinkedList<TOMMessage>();
