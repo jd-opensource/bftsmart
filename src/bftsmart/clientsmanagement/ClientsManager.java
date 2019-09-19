@@ -358,6 +358,46 @@ public class ClientsManager {
         clientData.clientLock.unlock();
     }
 
+    /**
+     * Notifies the ClientsManager that these requests were abnormal, will be removed from pending requests
+     *
+     * @param requests the array of requests will be removed
+     */
+    public void requestsPending(TOMMessage[] requests) {
+        clientsLock.lock();
+        Logger.println("(ClientsManager.requestOrdered) Updating client manager");
+        for (TOMMessage request : requests) {
+            requestPending(request);
+        }
+        Logger.println("(ClientsManager.requestOrdered) Finished updating client manager");
+        clientsLock.unlock();
+    }
+
+    /**
+     * Cleans all state for this request (e.g., removes it from the pending
+     * requests queue and stop any timer for it).
+     *
+     * @param request the request ordered by the consensus
+     */
+    private void requestPending(TOMMessage request) {
+        //stops the timer associated with this message
+        if (timer != null) {
+            timer.unwatch(request);
+        }
+
+        ClientData clientData = getClientData(request.getSender());
+
+        clientData.clientLock.lock();
+        /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
+        if (!clientData.removePendingRequest(request)) {
+            Logger.println("(ClientsManager.requestPending) Request "
+                    + request + " does not exist in pending requests");
+        }
+
+        /******* END CLIENTDATA CRITICAL SECTION ******/
+        clientData.clientLock.unlock();
+    }
+
     public ReentrantLock getClientsLock() {
         return clientsLock;
     }

@@ -308,6 +308,28 @@ public final class ExecutionManager {
     }
 
     /**
+     * Removes a consensus from this manager, use when rolling back
+     * @param id ID of the consensus to be removed
+     * @return void
+     */
+    public void removeSingleConsensus(int id) {
+
+        consensusesLock.lock();
+        consensuses.remove(id);
+        consensusesLock.unlock();
+
+        outOfContextLock.lock();
+
+        /******* BEGIN OUTOFCONTEXT CRITICAL SECTION *******/
+        outOfContextProposes.remove(id);
+        outOfContext.remove(id);
+
+        /******* END OUTOFCONTEXT CRITICAL SECTION *******/
+        outOfContextLock.unlock();
+
+    }
+
+    /**
      * Removes a consensus from this manager
      * @param id ID of the consensus to be removed
      * @return The consensus that was removed

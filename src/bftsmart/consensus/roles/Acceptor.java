@@ -495,6 +495,10 @@ public final class Acceptor {
                 || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1))) {
             TOMMessage[] requests = epoch.deserializedPropValue;
 
+            tomLayer.clientsManager.requestsPending(requests);
+
+            System.out.println("Pre compute rollback branch!");
+
             try {
                 // reply
                 List<byte[]> updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
@@ -522,11 +526,15 @@ public final class Acceptor {
                         // cs.send(new int[]{request.getSender()}, request.reply);
                     }
                 }
+
             } finally {
-                tomLayer.clientsManager.requestsOrdered(requests);
 
                 // rollback
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+
+                tomLayer.setLastExec(tomLayer.getInExec());
+
+//                tomLayer.execManager.removeSingleConsensus(tomLayer.getInExec());
 
                 tomLayer.setInExec(-1);
             }
@@ -543,4 +551,5 @@ public final class Acceptor {
 
         epoch.getConsensus().decided(epoch, true);
     }
+
 }
