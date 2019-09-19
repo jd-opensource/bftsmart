@@ -485,6 +485,9 @@ public final class Acceptor {
             }
             else {
                 //Leader does evil to me only, need to roll back
+
+                System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
+
                 TOMMessage[] requests = epoch.deserializedPropValue;
 
                 tomLayer.clientsManager.requestsPending(requests);
@@ -493,6 +496,9 @@ public final class Acceptor {
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
 
                 tomLayer.setLastExec(tomLayer.getInExec());
+
+                //This round of consensus has been rolled back, mark it
+                tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
                 tomLayer.setInExec(-1);
 
@@ -503,11 +509,12 @@ public final class Acceptor {
         // rollback
         if (((epoch.countAcceptSetted() == controller.getCurrentViewN()) && (epoch.countAccept(value) < controller.getQuorum() + 1))
                 || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1))) {
+
             TOMMessage[] requests = epoch.deserializedPropValue;
 
             tomLayer.clientsManager.requestsPending(requests);
 
-            System.out.println("Pre compute rollback branch!");
+            System.out.println("Quorum is not satisfied,, will goto pre compute rollback branch!");
 
             try {
                 // reply
@@ -543,6 +550,9 @@ public final class Acceptor {
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
 
                 tomLayer.setLastExec(tomLayer.getInExec());
+
+                //This round of consensus has been rolled back, mark it
+                tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
                 tomLayer.setInExec(-1);
             }

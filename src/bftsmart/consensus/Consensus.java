@@ -47,6 +47,8 @@ public class Consensus {
     private TimestampValuePair quorumWrites = null;
     private HashSet<TimestampValuePair> writeSet = new HashSet<TimestampValuePair>();
 
+    private boolean rollHappened = false;
+
     public ReentrantLock lock = new ReentrantLock(); //this consensus lock (called by other classes)
     
     /**
@@ -71,6 +73,22 @@ public class Consensus {
      */
     public int getId() {
         return decision.getConsensusId();
+    }
+
+    /**
+     * Has there been a rollback?
+     * @return false/true
+     */
+    public boolean getRollHappened() {
+        return rollHappened;
+    }
+
+    /**
+     * set roll happened
+     * @return void
+     */
+    public void setRollHappened() {
+        rollHappened = true;
     }
 
     /**
