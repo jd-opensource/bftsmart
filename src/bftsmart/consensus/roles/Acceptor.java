@@ -484,8 +484,18 @@ public final class Acceptor {
 
             }
             else {
-                //Leader does evil
-                //do nothing
+                //Leader does evil to me only, need to roll back
+                TOMMessage[] requests = epoch.deserializedPropValue;
+
+                tomLayer.clientsManager.requestsPending(requests);
+
+                // rollback
+                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+
+                tomLayer.setLastExec(tomLayer.getInExec());
+
+                tomLayer.setInExec(-1);
+
             }
             return;
         }
@@ -533,8 +543,6 @@ public final class Acceptor {
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
 
                 tomLayer.setLastExec(tomLayer.getInExec());
-
-//                tomLayer.execManager.removeSingleConsensus(tomLayer.getInExec());
 
                 tomLayer.setInExec(-1);
             }
