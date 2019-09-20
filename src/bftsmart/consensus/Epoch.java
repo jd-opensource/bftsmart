@@ -370,6 +370,35 @@ public class Epoch implements Serializable {
         return 0;
     }
 
+    private int settedSameCount(boolean[] arraySetted, byte[][] array) {
+
+        int maxCount = 0;
+        int temp = 0;
+
+        for (int i = 0; i < accept.length; i++) {
+
+            for (int j = 0; j < accept.length; j++) {
+                if (acceptSetted[i] && acceptSetted[j]) {
+                    if (Arrays.equals(accept[i], accept[j])) {
+                        temp++;
+                    }
+                }
+            }
+            if (temp > maxCount) {
+                maxCount = temp;
+            }
+        }
+        return maxCount;
+    }
+
+    /**
+     * Retrieves the max count of same value
+     * @return
+     */
+    public int maxSameValueCount() {
+        return settedSameCount(acceptSetted, accept);
+    }
+
     /**
      * Retrieves the amount of accept setted
      * @return

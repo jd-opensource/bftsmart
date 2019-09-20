@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.tom.leaderchange;
 
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
@@ -146,8 +147,8 @@ public class RequestsTimer {
         return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
     }
 
-    public Epoch getEpoch() {
-        return tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).getLastEpoch();
+    public Consensus getCurrConsensus() {
+        return tomLayer.getExecManager().getConsensus(tomLayer.getInExec());
     }
 
     public void run_lc_protocol() {
@@ -155,9 +156,12 @@ public class RequestsTimer {
         long t = (shortTimeout > -1 ? shortTimeout : timeout);
 
         //When a timeout occurs, rollback pre compute hash operation
-        if (getEpoch().getBatchId() != null) {
-            System.out.println("Requests timeout occurs, rollback precompute hash operation!");
-            getDefaultExecutor().preComputeAppRollback(getEpoch().getBatchId());
+        if (getCurrConsensus() != null) {
+            Epoch epoch = getCurrConsensus().getLastEpoch();
+            if (epoch != null && epoch.getBatchId() != null) {
+                System.out.println("Requests timeout occurs, rollback precompute hash operation!");
+                getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+            }
         }
 
         //System.out.println("(RequestTimerTask.run) I SOULD NEVER RUN WHEN THERE IS NO TIMEOUT");

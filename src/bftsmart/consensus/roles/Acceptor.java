@@ -502,13 +502,21 @@ public final class Acceptor {
 
                 tomLayer.setInExec(-1);
 
+                //Pause processing of new messages, Waiting for trigger state transfer
+                tomLayer.requestsTimer.Enabled(false);
+                tomLayer.requestsTimer.stopTimer();
+
+                if (!tomLayer.execManager.stopped()) {
+                    tomLayer.execManager.stop();
+                }
             }
             return;
         }
 
         // rollback
         if (((epoch.countAcceptSetted() == controller.getCurrentViewN()) && (epoch.countAccept(value) < controller.getQuorum() + 1))
-                || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1))) {
+                || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1)
+                     && (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
 
             TOMMessage[] requests = epoch.deserializedPropValue;
 
