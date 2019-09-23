@@ -560,7 +560,7 @@ public final class Acceptor {
                 tomLayer.setLastExec(tomLayer.getInExec());
 
                 //This round of consensus has been rolled back, mark it
-                tomLayer.execManager.updateConsensus(tomLayer.getInExec());
+//                tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
                 tomLayer.setInExec(-1);
             }

@@ -736,12 +736,19 @@ public class Synchronizer {
                             System.out.println("No decision epoch for cid " + last);
                         } else {
                             System.out.println("epoch for cid: " + last + ": " + cons.getDecisionEpoch().toString());
+
+                            if (cons.getDecisionEpoch().propValue == null) {
+                                System.out.println("No propose for cid " + last);
+                            } else {
+                                System.out.println("Propose hash for cid " + last + ": " + Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
+                            }
                         }
-                        if (cons.getDecisionEpoch().propValue == null) {
-                            System.out.println("No propose for cid " + last);
-                        } else {
-                            System.out.println("Propose hash for cid " + last + ": " + Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
-                        }
+                        //maybe occur null pointer exception
+//                        if (cons.getDecisionEpoch().propValue == null) {
+//                            System.out.println("No propose for cid " + last);
+//                        } else {
+//                            System.out.println("Propose hash for cid " + last + ": " + Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
+//                        }
                     }
                     
                 }
