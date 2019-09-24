@@ -148,7 +148,11 @@ public class RequestsTimer {
     }
 
     public Consensus getCurrConsensus() {
-        return tomLayer.getExecManager().getConsensus(tomLayer.getInExec());
+        if (tomLayer.getInExec() == -1) {
+            return tomLayer.getExecManager().getConsensus(tomLayer.getLastExec());
+        } else {
+            return tomLayer.getExecManager().getConsensus(tomLayer.getInExec());
+        }
     }
 
     public void run_lc_protocol() {
