@@ -159,20 +159,6 @@ public class RequestsTimer {
         
         long t = (shortTimeout > -1 ? shortTimeout : timeout);
 
-        //When a timeout occurs, rollback pre compute hash operation
-        if (getCurrConsensus() != null) {
-            Epoch epoch = getCurrConsensus().getLastEpoch();
-
-            if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
-                if (epoch != null && epoch.getBatchId() != null) {
-                    System.out.println("Requests timeout occurs, rollback precompute hash operation!");
-                    getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
-                    getCurrConsensus().setPrecomputeCommited(false);
-                    getCurrConsensus().setPrecomputed(false);
-                }
-            }
-        }
-
         //System.out.println("(RequestTimerTask.run) I SOULD NEVER RUN WHEN THERE IS NO TIMEOUT");
 
         LinkedList<TOMMessage> pendingRequests = new LinkedList<TOMMessage>();
@@ -191,6 +177,7 @@ public class RequestsTimer {
         rwLock.readLock().unlock();
                 
         if (!pendingRequests.isEmpty()) {
+            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message
             for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
                 TOMMessage request = li.next();
                 if (!request.timeout) {
@@ -204,6 +191,20 @@ public class RequestsTimer {
 
             if (!pendingRequests.isEmpty()) {
                 System.out.println("Timeout for messages: " + pendingRequests);
+
+                //When the second timeout occurs, need to roll back pre compute hash operation
+                if (getCurrConsensus() != null) {
+                    Epoch epoch = getCurrConsensus().getLastEpoch();
+
+                    if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
+                        if (epoch != null && epoch.getBatchId() != null) {
+                            System.out.println("The second time requests timeout occurs, roll back precompute hash operation!");
+                            getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+                            getCurrConsensus().setPrecomputeCommited(false);
+                            getCurrConsensus().setPrecomputed(false);
+                        }
+                    }
+                }
                 //Logger.debug = true;
                 //tomLayer.requestTimeout(pendingRequests);
                 //if (reconfManager.getStaticConf().getProcessId() == 4) Logger.debug = true;
