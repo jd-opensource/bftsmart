@@ -331,6 +331,8 @@ public final class Acceptor {
 
                     epoch.propAndAppValueHash = tomLayer.computeHash(result);
 
+                    tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
+
                     epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
 
                     epoch.batchId = appHashResult.getBatchId();

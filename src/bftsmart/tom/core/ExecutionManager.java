@@ -212,7 +212,7 @@ public final class ExecutionManager {
         int inExec = tomLayer.getInExec();
 
         // If rollback occurs, this node no longer processes new messages, wait state transfer
-        boolean rollHappend = tomLayer.execManager.getConsensus(lastConsId).getRollHappened();
+        boolean rollHappend = tomLayer.execManager.getConsensus(lastConsId).getPrecomputeRolled();
         
         Logger.println("(ExecutionManager.checkLimits) Received message  " + msg);
         Logger.println("(ExecutionManager.checkLimits) I'm at consensus " + 
@@ -425,7 +425,7 @@ public final class ExecutionManager {
 
        Consensus consensus =  consensuses.get(cid);
 
-       consensus.setRollHappened();
+       consensus.setPrecomputeRolled();
 
        consensuses.remove(cid);
 

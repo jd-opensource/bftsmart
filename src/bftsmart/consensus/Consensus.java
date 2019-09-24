@@ -47,7 +47,11 @@ public class Consensus {
     private TimestampValuePair quorumWrites = null;
     private HashSet<TimestampValuePair> writeSet = new HashSet<TimestampValuePair>();
 
-    private boolean rollHappened = false;
+    private boolean precomputeRolled = false;
+
+    private boolean precomputed = false;
+
+    private boolean precomputeCommited = false;
 
     public ReentrantLock lock = new ReentrantLock(); //this consensus lock (called by other classes)
     
@@ -76,19 +80,51 @@ public class Consensus {
     }
 
     /**
-     * Has there been a rollback?
+     * Has there been a precompute rollback happen?
      * @return false/true
      */
-    public boolean getRollHappened() {
-        return rollHappened;
+    public boolean getPrecomputeRolled() {
+        return precomputeRolled;
     }
 
     /**
-     * set roll happened
+     * Has there been a precompute happen?
+     * @return false/true
+     */
+    public boolean getPrecomputed() {
+        return precomputed;
+    }
+
+    /**
+     * Has there been a precompute commit happen?
+     * @return false/true
+     */
+    public boolean getPrecomputeCommited() {
+        return precomputeCommited;
+    }
+
+    /**
+     * set precompute roll happened
      * @return void
      */
-    public void setRollHappened() {
-        rollHappened = true;
+    public void setPrecomputeRolled() {
+        precomputeRolled = true;
+    }
+
+    /**
+     * set precompute happened
+     * @return void
+     */
+    public void setPrecomputed(boolean precomputed) {
+        this.precomputed = precomputed;
+    }
+
+    /**
+     * set precompute commit happened
+     * @return void
+     */
+    public void setPrecomputeCommited(boolean precomputeCommited) {
+        this.precomputeCommited = precomputeCommited;
     }
 
     /**

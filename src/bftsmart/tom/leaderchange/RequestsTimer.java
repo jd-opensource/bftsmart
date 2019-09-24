@@ -158,9 +158,14 @@ public class RequestsTimer {
         //When a timeout occurs, rollback pre compute hash operation
         if (getCurrConsensus() != null) {
             Epoch epoch = getCurrConsensus().getLastEpoch();
-            if (epoch != null && epoch.getBatchId() != null) {
-                System.out.println("Requests timeout occurs, rollback precompute hash operation!");
-                getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+
+            if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
+                if (epoch != null && epoch.getBatchId() != null) {
+                    System.out.println("Requests timeout occurs, rollback precompute hash operation!");
+                    getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+                    getCurrConsensus().setPrecomputeCommited(false);
+                    getCurrConsensus().setPrecomputed(false);
+                }
             }
         }
 
