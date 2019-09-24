@@ -53,6 +53,8 @@ public class Consensus {
 
     private boolean precomputeCommited = false;
 
+    private boolean secondTimeout = false;
+
     public ReentrantLock lock = new ReentrantLock(); //this consensus lock (called by other classes)
     
     /**
@@ -104,6 +106,14 @@ public class Consensus {
     }
 
     /**
+     * Has there been the second timeout happen?
+     * @return false/true
+     */
+    public boolean getSecondTimeout() {
+        return secondTimeout;
+    }
+
+    /**
      * set precompute roll happened
      * @return void
      */
@@ -125,6 +135,14 @@ public class Consensus {
      */
     public void setPrecomputeCommited(boolean precomputeCommited) {
         this.precomputeCommited = precomputeCommited;
+    }
+
+    /**
+     * The second timeout happened
+     * @return void
+     */
+    public void setSecondTimeout(boolean secondTimeout) {
+        this.secondTimeout = secondTimeout;
     }
 
     /**

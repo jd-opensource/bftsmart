@@ -202,6 +202,7 @@ public class RequestsTimer {
                             getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
                             getCurrConsensus().setPrecomputeCommited(false);
                             getCurrConsensus().setPrecomputed(false);
+                            getCurrConsensus().setSecondTimeout(true);
                         }
                     }
                 }

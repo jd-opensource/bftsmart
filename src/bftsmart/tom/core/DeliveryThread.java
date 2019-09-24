@@ -89,8 +89,11 @@ public final class DeliveryThread extends Thread {
             //define that end of this execution
             tomLayer.setInExec(-1);
 //            System.out.println("will delivery commit!");
-            ((DefaultRecoverable)this.getReceiver().getExecutor()).preComputeCommit(dec.getDecisionEpoch().getBatchId());
-            tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
+
+            if (!tomLayer.getExecManager().getConsensus(dec.getConsensusId()).getSecondTimeout()) {
+                ((DefaultRecoverable) this.getReceiver().getExecutor()).preComputeCommit(dec.getDecisionEpoch().getBatchId());
+                tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
+            }
         } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
         try {
             decidedLock.lock();
