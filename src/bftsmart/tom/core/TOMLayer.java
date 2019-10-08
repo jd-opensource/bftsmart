@@ -23,6 +23,7 @@ import bftsmart.communication.client.RequestReceiver;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Decision;
 import bftsmart.consensus.Epoch;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.statemanagement.StateManager;
@@ -77,7 +78,7 @@ public final class TOMLayer extends Thread implements RequestReceiver {
     private int inExecution = -1;
     private int lastExecuted = -1;
 
-    public MessageDigest md;
+    public SHA256Utils md = new SHA256Utils();
     private Signature engine;
 
     private ReentrantLock hashLock = new ReentrantLock();
@@ -133,11 +134,11 @@ public final class TOMLayer extends Thread implements RequestReceiver {
             this.requestsTimer = new RequestsTimer(this, communication, this.controller); // Create requests timers manager (a thread)
         }
 
-        try {
-            this.md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
-        } catch (Exception e) {
-            e.printStackTrace(System.out);
-        }
+//        try {
+//            this.md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
+//        } catch (Exception e) {
+//            e.printStackTrace(System.out);
+//        }
 
         try {
             this.engine = Signature.getInstance("SHA1withRSA");
@@ -173,8 +174,11 @@ public final class TOMLayer extends Thread implements RequestReceiver {
     public final byte[] computeHash(byte[] data) {
         byte[] ret = null;
         hashLock.lock();
-        ret = md.digest(data);
-        hashLock.unlock();
+        try {
+            ret = md.hash(data);
+        } finally {
+            hashLock.unlock();
+        }
 
         return ret;
     }
@@ -535,6 +539,10 @@ public final class TOMLayer extends Thread implements RequestReceiver {
     
     public DeliveryThread getDeliveryThread() {
         return dt;
+    }
+
+    public ExecutionManager getExecManager() {
+        return execManager;
     }
     
     public void shutdown() {

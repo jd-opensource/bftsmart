@@ -16,9 +16,12 @@ limitations under the License.
 package bftsmart.tom.leaderchange;
 
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.consensus.Consensus;
+import bftsmart.consensus.Epoch;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.TOMUtil;
 
 import java.util.*;
@@ -139,11 +142,23 @@ public class RequestsTimer {
         }
         rwLock.writeLock().unlock();
     }
-    
+
+    public DefaultRecoverable getDefaultExecutor() {
+        return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
+    }
+
+    public Consensus getCurrConsensus() {
+        if (tomLayer.getInExec() == -1) {
+            return tomLayer.getExecManager().getConsensus(tomLayer.getLastExec());
+        } else {
+            return tomLayer.getExecManager().getConsensus(tomLayer.getInExec());
+        }
+    }
+
     public void run_lc_protocol() {
         
         long t = (shortTimeout > -1 ? shortTimeout : timeout);
-        
+
         //System.out.println("(RequestTimerTask.run) I SOULD NEVER RUN WHEN THERE IS NO TIMEOUT");
 
         LinkedList<TOMMessage> pendingRequests = new LinkedList<TOMMessage>();
@@ -162,6 +177,7 @@ public class RequestsTimer {
         rwLock.readLock().unlock();
                 
         if (!pendingRequests.isEmpty()) {
+            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message
             for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
                 TOMMessage request = li.next();
                 if (!request.timeout) {
@@ -175,6 +191,21 @@ public class RequestsTimer {
 
             if (!pendingRequests.isEmpty()) {
                 System.out.println("Timeout for messages: " + pendingRequests);
+
+                //When the second timeout occurs, need to roll back pre compute hash operation
+                if (getCurrConsensus() != null) {
+                    Epoch epoch = getCurrConsensus().getLastEpoch();
+
+                    if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
+                        if (epoch != null && epoch.getBatchId() != null) {
+                            System.out.println("The second time requests timeout occurs, roll back precompute hash operation!");
+                            getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+                            getCurrConsensus().setPrecomputeCommited(false);
+                            getCurrConsensus().setPrecomputed(false);
+                            getCurrConsensus().setSecondTimeout(true);
+                        }
+                    }
+                }
                 //Logger.debug = true;
                 //tomLayer.requestTimeout(pendingRequests);
                 //if (reconfManager.getStaticConf().getProcessId() == 4) Logger.debug = true;

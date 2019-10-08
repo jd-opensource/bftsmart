@@ -130,6 +130,13 @@ public class ClientData {
         return false;
     }
 
+    public boolean removePendingRequest(TOMMessage request) {
+        if(pendingRequests.remove(request)) {
+            return true;
+        }
+        return false;
+    }
+
     public boolean removeRequest(TOMMessage request) {
 	lastMessageExecuted = request.getSequence();
 	boolean result = pendingRequests.remove(request);

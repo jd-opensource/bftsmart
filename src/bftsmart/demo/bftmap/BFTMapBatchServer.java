@@ -15,10 +15,12 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+import bftsmart.tom.util.BytesUtils;
 
 import java.io.*;
 import java.util.List;
@@ -77,7 +79,8 @@ public class BFTMapBatchServer extends DefaultRecoverable {
 	                    String tableName = new DataInputStream(in).readUTF();
 	                    String key = new DataInputStream(in).readUTF();
 	                    String value = new DataInputStream(in).readUTF();
-	                    byte[] valueBytes = value.getBytes();
+//	                    byte[] valueBytes = value.getBytes();
+						byte[] valueBytes = BytesUtils.getBytes(value);
 	//                    System.out.println("Key received: " + key);
 	                    byte[] ret = tableMap.addData(tableName, key, valueBytes);
 	                    if (ret != null) {
@@ -269,6 +272,26 @@ public class BFTMapBatchServer extends DefaultRecoverable {
             return new byte[0];
         }   
     }
+
+	@Override
+	public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+		return null;
+	}
+
+	@Override
+	public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+		return null;
+	}
+
+	@Override
+	public void preComputeAppCommit(String batchId) {
+
+	}
+
+	@Override
+	public void preComputeAppRollback(String batchId) {
+
+	}
 
     @Override
     public void installSnapshot(byte[] state) {

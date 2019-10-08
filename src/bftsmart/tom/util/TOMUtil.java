@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ViewController;
 
 import java.io.*;
@@ -48,7 +49,7 @@ public class TOMUtil {
         }
 
         byte[] signature = signMessage(controller.getStaticConf().getRSAPrivateKey(),
-                "a".getBytes());
+                BytesUtils.getBytes("a"));
 
         if (signature != null) {
             signatureSize = signature.length;
@@ -172,18 +173,13 @@ public class TOMUtil {
         return Arrays.equals(h2, h2);
     }
 
-    public static final byte[] computeHash(byte[] data) {
+    public static final byte[] computeHash(byte[] data) throws NoSuchAlgorithmException {
         
         byte[] result = null;
-        
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            result = md.digest(data);
-            
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } // TODO: shouldn't it be SHA?
-                
+
+        SHA256Utils md = new SHA256Utils();
+        result = md.hash(data);
+
         return result;
     }
     

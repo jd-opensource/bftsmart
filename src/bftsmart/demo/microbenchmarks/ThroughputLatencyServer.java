@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.demo.microbenchmarks;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
@@ -68,7 +69,27 @@ public final class ThroughputLatencyServer extends DefaultRecoverable{
 
         replica = new ServiceReplica(id, this, this);
     }
-    
+
+    @Override
+    public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+        return null;
+    }
+
+    @Override
+    public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+        return null;
+    }
+
+    @Override
+    public void preComputeAppCommit(String batchId) {
+
+    }
+
+    @Override
+    public void preComputeAppRollback(String batchId) {
+
+    }
+
     @Override
     public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus) {
         

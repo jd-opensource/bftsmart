@@ -10,6 +10,7 @@ import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Decision;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.TimestampValuePair;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -57,7 +58,7 @@ public class Synchronizer {
     private final ServerCommunicationSystem communication;
     private final StateManager stateManager;
     private final Acceptor acceptor;
-    private final MessageDigest md;
+    private SHA256Utils md = new SHA256Utils();
             
     // Attributes to temporarely store synchronization info
     // if state transfer is required for synchronization
@@ -735,12 +736,19 @@ public class Synchronizer {
                             System.out.println("No decision epoch for cid " + last);
                         } else {
                             System.out.println("epoch for cid: " + last + ": " + cons.getDecisionEpoch().toString());
+
+                            if (cons.getDecisionEpoch().propValue == null) {
+                                System.out.println("No propose for cid " + last);
+                            } else {
+                                System.out.println("Propose hash for cid " + last + ": " + Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
+                            }
                         }
-                        if (cons.getDecisionEpoch().propValue == null) {
-                            System.out.println("No propose for cid " + last);
-                        } else {
-                            System.out.println("Propose hash for cid " + last + ": " + Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
-                        }
+                        //maybe occur null pointer exception
+//                        if (cons.getDecisionEpoch().propValue == null) {
+//                            System.out.println("No propose for cid " + last);
+//                        } else {
+//                            System.out.println("Propose hash for cid " + last + ": " + Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
+//                        }
                     }
                     
                 }

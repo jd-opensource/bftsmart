@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.demo.ycsb;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
@@ -149,6 +150,26 @@ public class YCSBServer extends DefaultRecoverable {
 		if (_debug)
 			System.out.println("[INFO] Sending reply");
 		return reply.getBytes();
+	}
+
+	@Override
+	public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+		return null;
+	}
+
+	@Override
+	public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+		return null;
+	}
+
+	@Override
+	public void preComputeAppCommit(String batchId) {
+
+	}
+
+	@Override
+	public void preComputeAppRollback(String batchId) {
+
 	}
 
 	@SuppressWarnings("unchecked")

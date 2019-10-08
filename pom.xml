@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.jd.blockchain</groupId>
   <artifactId>bft-smart</artifactId>
-  <version>0.0.8.RELEASE</version>
+  <version>0.2.0.RELEASE</version>
 
 	<!--采用sonatype的parent-->
 	<parent>
@@ -34,6 +34,12 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 			<version>1.5.8</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk15on</artifactId>
+			<version>1.61</version>
 		</dependency>
 
 		<dependency>

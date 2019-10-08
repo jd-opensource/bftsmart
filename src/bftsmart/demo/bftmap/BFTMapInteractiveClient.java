@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.demo.bftmap;
 
+import bftsmart.tom.util.BytesUtils;
+
 import java.io.Console;
 import java.io.IOException;
 import java.util.Scanner;
@@ -103,7 +105,8 @@ public class BFTMapInteractiveClient {
 				if(tableExists) {
 					while(key.length() < 4)
 						key = "0" + key;
-					byte[] byteArray = value.getBytes();
+//					byte[] byteArray = value.getBytes();
+					byte[] byteArray = BytesUtils.getBytes(value);
 					resultBytes = bftMap.putEntry(tableName, key, byteArray);
 				} else
 					System.out.println("Table not found");

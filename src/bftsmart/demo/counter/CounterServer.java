@@ -15,10 +15,13 @@ limitations under the License.
 */
 package bftsmart.demo.counter;
 
+import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+import bftsmart.tom.util.BytesUtils;
 
 import java.io.*;
 import java.util.List;
@@ -140,7 +143,28 @@ public final class CounterServer extends DefaultRecoverable {
 		} catch (IOException ioe) {
 			System.err.println("[ERROR] Error serializing state: "
 					+ ioe.getMessage());
-			return "ERROR".getBytes();
+//			return "ERROR".getBytes();
+            return BytesUtils.getBytes("ERROR");
 		}
 	}
+
+    @Override
+    public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+        return null;
+    }
+
+    @Override
+    public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+        return null;
+    }
+
+    @Override
+    public void preComputeAppCommit(String batchId) {
+
+    }
+
+    @Override
+    public void preComputeAppRollback(String batchId) {
+
+    }
 }

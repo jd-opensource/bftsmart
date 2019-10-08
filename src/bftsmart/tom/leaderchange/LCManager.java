@@ -17,6 +17,7 @@ package bftsmart.tom.leaderchange;
 
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.TimestampValuePair;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
@@ -60,7 +61,7 @@ public class LCManager {
 
     //stuff from the TOM layer that this object needss
     private ServerViewController SVController;
-    private MessageDigest md;
+    private SHA256Utils md = new SHA256Utils();
     private TOMLayer tomLayer;
     
     private int currentLeader;
@@ -73,7 +74,7 @@ public class LCManager {
      * @param reconfManager The reconfiguration manager from TOM layer
      * @param md The message digest engine from TOM layer
      */
-    public LCManager(TOMLayer tomLayer, ServerViewController SVController, MessageDigest md) {
+    public LCManager(TOMLayer tomLayer, ServerViewController SVController, SHA256Utils md) {
         this.tomLayer = tomLayer;
         this.lastreg = 0;
         this.nextreg = 0;
@@ -756,7 +757,7 @@ public class LCManager {
             for (TimestampValuePair rv : c.getWriteSet()) {
 
                 if  (rv.getValue() != null && rv.getValue().length > 0)
-                    rv.setHashedValue(md.digest(rv.getValue()));
+                    rv.setHashedValue(md.hash(rv.getValue()));
                 else rv.setHashedValue(new byte[0]);
             }
         }
@@ -798,7 +799,7 @@ public class LCManager {
                                              // did not complete any consensus and cannot have
                                              // any proof
         
-        byte[] hashedValue = md.digest(cDec.getDecision());
+        byte[] hashedValue = md.hash(cDec.getDecision());
         Set<ConsensusMessage> ConsensusMessages = cDec.getConsMessages();
         int myId = tomLayer.controller.getStaticConf().getProcessId();
         int certificateCurrentView = (2*tomLayer.controller.getCurrentViewF()) + 1;

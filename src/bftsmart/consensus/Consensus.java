@@ -47,6 +47,14 @@ public class Consensus {
     private TimestampValuePair quorumWrites = null;
     private HashSet<TimestampValuePair> writeSet = new HashSet<TimestampValuePair>();
 
+    private boolean precomputeRolled = false;
+
+    private boolean precomputed = false;
+
+    private boolean precomputeCommited = false;
+
+    private boolean secondTimeout = false;
+
     public ReentrantLock lock = new ReentrantLock(); //this consensus lock (called by other classes)
     
     /**
@@ -71,6 +79,70 @@ public class Consensus {
      */
     public int getId() {
         return decision.getConsensusId();
+    }
+
+    /**
+     * Has there been a precompute rollback happen?
+     * @return false/true
+     */
+    public boolean getPrecomputeRolled() {
+        return precomputeRolled;
+    }
+
+    /**
+     * Has there been a precompute happen?
+     * @return false/true
+     */
+    public boolean getPrecomputed() {
+        return precomputed;
+    }
+
+    /**
+     * Has there been a precompute commit happen?
+     * @return false/true
+     */
+    public boolean getPrecomputeCommited() {
+        return precomputeCommited;
+    }
+
+    /**
+     * Has there been the second timeout happen?
+     * @return false/true
+     */
+    public boolean getSecondTimeout() {
+        return secondTimeout;
+    }
+
+    /**
+     * set precompute roll happened
+     * @return void
+     */
+    public void setPrecomputeRolled() {
+        precomputeRolled = true;
+    }
+
+    /**
+     * set precompute happened
+     * @return void
+     */
+    public void setPrecomputed(boolean precomputed) {
+        this.precomputed = precomputed;
+    }
+
+    /**
+     * set precompute commit happened
+     * @return void
+     */
+    public void setPrecomputeCommited(boolean precomputeCommited) {
+        this.precomputeCommited = precomputeCommited;
+    }
+
+    /**
+     * The second timeout happened
+     * @return void
+     */
+    public void setSecondTimeout(boolean secondTimeout) {
+        this.secondTimeout = secondTimeout;
     }
 
     /**

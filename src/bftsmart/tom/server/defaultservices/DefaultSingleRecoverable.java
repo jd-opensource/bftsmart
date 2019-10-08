@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.tom.server.defaultservices;
 
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
@@ -50,7 +51,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     private ReentrantLock hashLock = new ReentrantLock();
     private ReentrantLock stateLock = new ReentrantLock();
     
-    private MessageDigest md;
+    private SHA256Utils md = new SHA256Utils();
         
     private StateLog log;
     private List<byte[]> commands = new ArrayList<>();
@@ -60,11 +61,11 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     
     public DefaultSingleRecoverable() {
 
-        try {
-            md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
-        } catch (NoSuchAlgorithmException ex) {
-            java.util.logging.Logger.getLogger(DefaultSingleRecoverable.class.getName()).log(Level.SEVERE, null, ex);
-        }
+//        try {
+//            md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
+//        } catch (NoSuchAlgorithmException ex) {
+//            java.util.logging.Logger.getLogger(DefaultSingleRecoverable.class.getName()).log(Level.SEVERE, null, ex);
+//        }
     }
     
     @Override
@@ -109,9 +110,11 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     public final byte[] computeHash(byte[] data) {
         byte[] ret = null;
         hashLock.lock();
-        ret = md.digest(data);
-        hashLock.unlock();
-
+        try {
+            ret = md.hash(data);
+        } finally {
+            hashLock.unlock();
+        }
         return ret;
     }
     

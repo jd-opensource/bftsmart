@@ -18,6 +18,7 @@ package bftsmart.demo.bftmap;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultSingleRecoverable;
+import bftsmart.tom.util.BytesUtils;
 
 import java.io.*;
 import java.util.Map;
@@ -65,7 +66,8 @@ public class BFTMapServer extends DefaultSingleRecoverable {
                     String tableName = new DataInputStream(in).readUTF();
                     String key = new DataInputStream(in).readUTF();
                     String value = new DataInputStream(in).readUTF();
-                    byte[] valueBytes = value.getBytes();
+//                    byte[] valueBytes = value.getBytes();
+                    byte[] valueBytes = BytesUtils.getBytes(value);
                     System.out.println("Key received: " + key);
                     byte[] ret = tableMap.addData(tableName, key, valueBytes);
                     if (ret == null) {

@@ -22,9 +22,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import org.apache.commons.codec.binary.Base64;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -48,6 +46,13 @@ public class Epoch implements Serializable {
     public byte[] propValue = null; // proposed value
     public TOMMessage[] deserializedPropValue = null; //utility var
     public byte[] propValueHash = null; // proposed value hash
+
+    public byte[] propAndAppValue = null; // proposed value and new app batch hash value content
+    public byte[] propAndAppValueHash = null; // Calculate the hash value with proposed value and new app batch hash
+
+    public List<byte[]> asyncResponseLinkedList = new ArrayList<>(); // pre compute responses of proposed values
+    public String batchId; // pre compute batchid
+
     public HashSet<ConsensusMessage> proof; // proof from other processes
 
     private View lastView = null;
@@ -182,6 +187,27 @@ public class Epoch implements Serializable {
      */
     public Consensus getConsensus() {
         return consensus;
+    }
+
+    /**
+     * pre compute response result of proposed value
+     * @return response list
+     */
+    public List<byte[]> getAsyncResponseLinkedList() {
+        return asyncResponseLinkedList;
+    }
+
+    public void setAsyncResponseLinkedList(List<byte[]> responseLinkedList) {
+        for (int i = 0; i< responseLinkedList.size(); i++) {
+            asyncResponseLinkedList.add(responseLinkedList.get(i));
+        }
+    }
+    /**
+     * pre compute batchId
+     * @return batchId
+     */
+    public String getBatchId() {
+        return batchId;
     }
 
     /**
@@ -328,6 +354,57 @@ public class Epoch implements Serializable {
      */
     public int countAccept(byte[] value) {
         return count(acceptSetted,accept, value);
+    }
+
+    private int settedCount(boolean[] arraySetted) {
+
+        if (arraySetted != null) {
+            int counter = 0;
+            for (int i = 0; i < arraySetted.length; i++) {
+                if (arraySetted[i]) {
+                    counter++;
+                }
+            }
+            return counter;
+        }
+        return 0;
+    }
+
+    private int settedSameCount(boolean[] arraySetted, byte[][] array) {
+
+        int maxCount = 0;
+        int temp = 0;
+
+        for (int i = 0; i < accept.length; i++) {
+
+            for (int j = 0; j < accept.length; j++) {
+                if (acceptSetted[i] && acceptSetted[j]) {
+                    if (Arrays.equals(accept[i], accept[j])) {
+                        temp++;
+                    }
+                }
+            }
+            if (temp > maxCount) {
+                maxCount = temp;
+            }
+        }
+        return maxCount;
+    }
+
+    /**
+     * Retrieves the max count of same value
+     * @return
+     */
+    public int maxSameValueCount() {
+        return settedSameCount(acceptSetted, accept);
+    }
+
+    /**
+     * Retrieves the amount of accept setted
+     * @return
+     */
+    public int countAcceptSetted() {
+        return settedCount(acceptSetted);
     }
 
     /**

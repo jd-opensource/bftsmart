@@ -24,10 +24,12 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.server.Recoverable;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -70,7 +72,10 @@ public final class DeliveryThread extends Thread {
    public Recoverable getRecoverer() {
         return recoverer;
     }
-   
+
+    public ServiceReplica getReceiver() {
+        return receiver;
+    }
     /**
      * Invoked by the TOM layer, to deliver a decision
      * @param dec Decision established from the consensus
@@ -83,6 +88,12 @@ public final class DeliveryThread extends Thread {
             tomLayer.setLastExec(dec.getConsensusId());
             //define that end of this execution
             tomLayer.setInExec(-1);
+//            System.out.println("will delivery commit!");
+
+            if (!tomLayer.getExecManager().getConsensus(dec.getConsensusId()).getSecondTimeout()) {
+                ((DefaultRecoverable) this.getReceiver().getExecutor()).preComputeCommit(dec.getDecisionEpoch().getBatchId());
+                tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
+            }
         } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
         try {
             decidedLock.lock();
@@ -191,6 +202,7 @@ public final class DeliveryThread extends Thread {
                     int[] consensusIds = new int[requests.length];
                     int[] leadersIds = new int[requests.length];
                     int[] regenciesIds = new int[requests.length];
+                    List<byte[]> asyncResponseLinkedList = new ArrayList<>();
                     CertifiedDecision[] cDecs;
                     cDecs = new CertifiedDecision[requests.length];
                     int count = 0;
@@ -199,6 +211,10 @@ public final class DeliveryThread extends Thread {
                         consensusIds[count] = d.getConsensusId();
                         leadersIds[count] = d.getLeader();
                         regenciesIds[count] = d.getRegency();
+
+                        for (int i = 0; i < d.getDecisionEpoch().getAsyncResponseLinkedList().size(); i++) {
+                            asyncResponseLinkedList.add(d.getDecisionEpoch().getAsyncResponseLinkedList().get(i));
+                        }
 
                         CertifiedDecision cDec = new CertifiedDecision(this.controller.getStaticConf().getProcessId(),
                                 d.getConsensusId(), d.getValue(), d.getDecisionEpoch().proof);
@@ -221,7 +237,7 @@ public final class DeliveryThread extends Thread {
                     Decision lastDecision = decisions.get(decisions.size() - 1);
 
                     if (requests != null && requests.length > 0) {
-                        deliverMessages(consensusIds, regenciesIds, leadersIds, cDecs, requests);
+                        deliverMessages(consensusIds, regenciesIds, leadersIds, cDecs, requests, asyncResponseLinkedList);
 
                         // ******* EDUARDO BEGIN ***********//
                         if (controller.hasUpdates()) {
@@ -289,8 +305,8 @@ public final class DeliveryThread extends Thread {
         receiver.receiveReadonlyMessage(request, msgCtx);
     }
 
-    private void deliverMessages(int consId[], int regencies[], int leaders[], CertifiedDecision[] cDecs, TOMMessage[][] requests) {
-        receiver.receiveMessages(consId, regencies, leaders, cDecs, requests);
+    private void deliverMessages(int consId[], int regencies[], int leaders[], CertifiedDecision[] cDecs, TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList) {
+        receiver.receiveMessages(consId, regencies, leaders, cDecs, requests, asyncResponseLinkedList);
     }
 
     private void processReconfigMessages(int consId) {

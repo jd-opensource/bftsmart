@@ -210,6 +210,9 @@ public final class ExecutionManager {
         int lastConsId = tomLayer.getLastExec();
         
         int inExec = tomLayer.getInExec();
+
+        // If rollback occurs, this node no longer processes new messages, wait state transfer
+        boolean rollHappend = tomLayer.execManager.getConsensus(lastConsId).getPrecomputeRolled();
         
         Logger.println("(ExecutionManager.checkLimits) Received message  " + msg);
         Logger.println("(ExecutionManager.checkLimits) I'm at consensus " + 
@@ -254,7 +257,7 @@ public final class ExecutionManager {
                     
                     
                     addOutOfContextMessage(msg);
-                } else { //can process!
+                } else if (!rollHappend){ //can process!
                     Logger.println("(ExecutionManager.checkLimits) message for consensus " + 
                             msg.getNumber() + " can be processed");
             
@@ -305,6 +308,28 @@ public final class ExecutionManager {
         outOfContextLock.unlock();
 
         return result;
+    }
+
+    /**
+     * Removes a consensus from this manager, use when rolling back
+     * @param id ID of the consensus to be removed
+     * @return void
+     */
+    public void removeSingleConsensus(int id) {
+
+        consensusesLock.lock();
+        consensuses.remove(id);
+        consensusesLock.unlock();
+
+        outOfContextLock.lock();
+
+        /******* BEGIN OUTOFCONTEXT CRITICAL SECTION *******/
+        outOfContextProposes.remove(id);
+        outOfContext.remove(id);
+
+        /******* END OUTOFCONTEXT CRITICAL SECTION *******/
+        outOfContextLock.unlock();
+
     }
 
     /**
@@ -388,7 +413,28 @@ public final class ExecutionManager {
 
         return consensus;
     }
-    
+
+    /**
+     * update consensus roll field
+     *
+     * @param cid ID of the consensus to be update
+     * @return void
+     */
+    public void updateConsensus(int cid) {
+        consensusesLock.lock();
+
+       Consensus consensus =  consensuses.get(cid);
+
+       consensus.setPrecomputeRolled();
+
+       consensuses.remove(cid);
+
+       consensuses.put(cid, consensus);
+
+       consensusesLock.unlock();
+
+    }
+
     public boolean isDecidable(int cid) {
         if (receivedOutOfContextPropose(cid)) {
             Consensus cons = getConsensus(cid);
