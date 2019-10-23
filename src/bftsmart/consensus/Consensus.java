@@ -109,9 +109,9 @@ public class Consensus {
      * Has there been the second timeout happen?
      * @return false/true
      */
-    public boolean getSecondTimeout() {
-        return secondTimeout;
-    }
+//    public boolean getSecondTimeout() {
+//        return secondTimeout;
+//    }
 
     /**
      * set precompute roll happened
@@ -141,9 +141,9 @@ public class Consensus {
      * The second timeout happened
      * @return void
      */
-    public void setSecondTimeout(boolean secondTimeout) {
-        this.secondTimeout = secondTimeout;
-    }
+//    public void setSecondTimeout(boolean secondTimeout) {
+//        this.secondTimeout = secondTimeout;
+//    }
 
     /**
      * This is the execution manager for this replica's consensus instances

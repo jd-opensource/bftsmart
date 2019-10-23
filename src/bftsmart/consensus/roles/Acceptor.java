@@ -341,6 +341,9 @@ public final class Acceptor {
 
                     ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
 
+                    //add origin propose hash for accept type consensus msg
+                    cm.setOrigPropValue(epoch.propValueHash);
+
                     // Create a cryptographic proof for this ACCEPT message
                     Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
                     insertProof(cm, epoch);

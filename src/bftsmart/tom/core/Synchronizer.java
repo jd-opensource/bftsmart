@@ -1131,9 +1131,12 @@ public class Synchronizer {
         Logger.println("(Synchronizer.finalise) Trying to find a binded value");
 
         // If such value does not exist, obtain the value written by the new leader
-        if (tmpval == null && lcManager.unbound(selectedColls)) {
+        if (tmpval == null && lcManager.unbound(selectedColls) && batchSize > 0) {
             Logger.println("(Synchronizer.finalise) did not found a value that might have already been decided");
+            System.out.println("(Synchronizer.finalise) did not found a value that might have already been decided, so use new propose!");
             tmpval = propose;
+        } else if (tmpval == null && batchSize == 0) {
+            System.out.println("(Synchronizer.finalise) not found a value that might have been decided,and propose is null");
         } else {
             Logger.println("(Synchronizer.finalise) found a value that might have been decided");
         }
@@ -1236,6 +1239,24 @@ public class Synchronizer {
                 communication.send(this.controller.getCurrentViewOtherAcceptors(),
                         acceptor.getFactory().createAccept(currentCID, e.getTimestamp(), e.propValueHash));
             }
+            //all peers' inexecid is -1, and peer's pending request queue is null
+        } else if (batchSize == 0) {
+            lcManager.removeCollects(regency); // avoid memory leaks
+
+            // stop the re-transmission of the STOP message for all regencies up to this one
+            removeSTOPretransmissions(regency);
+
+            // resume normal operation
+            execManager.restart();
+            //leaderChanged = true;
+
+            if (iAmLeader) {
+                Logger.println("(Synchronizer.finalise) wake up proposer thread");
+                tom.imAmTheLeader();
+            } // waik up the thread that propose values in normal operation
+
+            execManager.removeConsensus(currentCID);
+
         } else {
             Logger.println("(Synchronizer.finalise) sync phase failed for regency" + regency);
         }

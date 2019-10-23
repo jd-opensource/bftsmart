@@ -192,20 +192,20 @@ public class RequestsTimer {
             if (!pendingRequests.isEmpty()) {
                 System.out.println("Timeout for messages: " + pendingRequests);
 
-                //When the second timeout occurs, need to roll back pre compute hash operation
-                if (getCurrConsensus() != null) {
-                    Epoch epoch = getCurrConsensus().getLastEpoch();
-
-                    if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
-                        if (epoch != null && epoch.getBatchId() != null) {
-                            System.out.println("The second time requests timeout occurs, roll back precompute hash operation!");
-                            getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
-                            getCurrConsensus().setPrecomputeCommited(false);
-                            getCurrConsensus().setPrecomputed(false);
-                            getCurrConsensus().setSecondTimeout(true);
-                        }
-                    }
-                }
+                //When the second timeout occurs, need not roll back pre compute hash operation
+//                if (getCurrConsensus() != null) {
+//                    Epoch epoch = getCurrConsensus().getLastEpoch();
+//
+//                    if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
+//                        if (epoch != null && epoch.getBatchId() != null) {
+//                            System.out.println("The second time requests timeout occurs, roll back precompute hash operation!");
+//                            getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+//                            getCurrConsensus().setPrecomputeCommited(false);
+//                            getCurrConsensus().setPrecomputed(false);
+//                            getCurrConsensus().setSecondTimeout(true);
+//                        }
+//                    }
+//                }
                 //Logger.debug = true;
                 //tomLayer.requestTimeout(pendingRequests);
                 //if (reconfManager.getStaticConf().getProcessId() == 4) Logger.debug = true;

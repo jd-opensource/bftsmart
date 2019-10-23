@@ -31,6 +31,7 @@ public class ConsensusMessage extends SystemMessage {
     private int epoch; // Epoch to which this message belongs to
     private int paxosType; // Message type
     private byte[] value = null; // Value used when message type is PROPOSE
+    private byte[] origPropValue = null; // Origin propose value hash
     private Object proof; // Proof used when message type is COLLECT
                               // Can be either a MAC vector or a RSA signature
 
@@ -96,6 +97,18 @@ public class ConsensusMessage extends SystemMessage {
 
         }
 
+        // record origin propose value hash,used when view change, verify proof
+        if(origPropValue == null) {
+
+            out.writeInt(-1);
+
+        } else {
+
+            out.writeInt(origPropValue.length);
+            out.write(origPropValue);
+
+        }
+
         if(this.proof != null) {
 
             out.writeBoolean(true);
@@ -133,6 +146,20 @@ public class ConsensusMessage extends SystemMessage {
 
         }
 
+        int toOrigRead = in.readInt();
+
+        if(toOrigRead != -1) {
+
+            origPropValue = new byte[toOrigRead];
+
+            do{
+
+                toOrigRead -= in.read(origPropValue, origPropValue.length-toOrigRead, toOrigRead);
+
+            } while(toOrigRead > 0);
+
+        }
+
         boolean asProof = in.readBoolean();
         if (asProof) {
             
@@ -159,6 +186,21 @@ public class ConsensusMessage extends SystemMessage {
 
         return value;
 
+    }
+
+    /**
+     * Retrieves the origin propose value
+     * @return the propose value hash
+     */
+    public byte[] getOrigPropValue() {
+
+        return origPropValue;
+
+    }
+
+    public void setOrigPropValue(byte[] origPropValue)
+    {
+        this.origPropValue = origPropValue;
     }
 
     public void setProof(Object proof) {

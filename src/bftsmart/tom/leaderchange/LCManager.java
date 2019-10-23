@@ -815,6 +815,7 @@ public class LCManager {
             
             ConsensusMessage cm = new ConsensusMessage(consMsg.getType(),consMsg.getNumber(),
                     consMsg.getEpoch(), consMsg.getSender(), consMsg.getValue());
+            cm.setOrigPropValue(consMsg.getOrigPropValue());
 
             ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
             try {
@@ -844,7 +845,7 @@ public class LCManager {
                 }
             
                 if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC) &&
-                        Arrays.equals(consMsg.getValue(), hashedValue) &&
+                        Arrays.equals(consMsg.getOrigPropValue(), hashedValue) &&
                         consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
                 
                     alreadyCounted.add(consMsg.getSender());
@@ -876,7 +877,10 @@ public class LCManager {
             bftsmart.tom.util.Logger.println("(LCManager.hasValidProof) Computing certificate based on previous view");
         
         //return countValid >= certificateCurrentView;
-        return countValid >=  (certificateLastView != -1 && pubRSAKey != null ? certificateLastView : certificateCurrentView);
+
+        boolean result = countValid >=  (certificateLastView != -1 && pubRSAKey != null ? certificateLastView : certificateCurrentView);
+        System.out.println("Proof is valid ? "+result);
+        return result;
     }
 
     /**
