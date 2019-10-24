@@ -21,6 +21,7 @@ import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.app.BatchAppResult;
+import bftsmart.consensus.app.ErrorCode;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.reconfiguration.ServerViewController;
@@ -331,6 +332,8 @@ public final class Acceptor {
 
                     epoch.propAndAppValueHash = tomLayer.computeHash(result);
 
+                    epoch.preComputeRes = appHashResult.getErrprCode();
+
                     tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
 
                     epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
@@ -527,11 +530,22 @@ public final class Acceptor {
 
             tomLayer.clientsManager.requestsPending(requests);
 
-            System.out.println("Quorum is not satisfied,, will goto pre compute rollback branch!");
-
             try {
+
                 // reply
-                List<byte[]> updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+
+                List<byte[]> updatedResp;
+
+                if (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC) {
+                    // update exe state to IGNORED_BY_CONSENSUS_PHASE_PRECOMPUTE_ROLLBACK
+                    System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
+                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+
+                } else {
+                    //keep pre compute fail exe state
+                    System.out.println("Quorum is not satisfied, node's order transactions exe error, will goto pre compute rollback phase!");
+                    updatedResp = epoch.getAsyncResponseLinkedList();
+                }
 
                 Replier replier = getBatchReplier();
 
@@ -560,7 +574,9 @@ public final class Acceptor {
             } finally {
 
                 // rollback
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                if (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC) {
+                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                }
 
                 tomLayer.setLastExec(tomLayer.getInExec());
 

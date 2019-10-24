@@ -11,4 +11,6 @@ public interface BatchAppResult {
 
     public String getBatchId();
 
+    public byte getErrprCode();
+
 }
