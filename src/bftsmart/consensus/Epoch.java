@@ -53,6 +53,8 @@ public class Epoch implements Serializable {
     public List<byte[]> asyncResponseLinkedList = new ArrayList<>(); // pre compute responses of proposed values
     public String batchId; // pre compute batchid
 
+    public byte preComputeRes; // pre compute result ,fail or succ
+
     public HashSet<ConsensusMessage> proof; // proof from other processes
 
     private View lastView = null;
@@ -208,6 +210,14 @@ public class Epoch implements Serializable {
      */
     public String getBatchId() {
         return batchId;
+    }
+
+    /**
+     * pre compute result
+     * @return 0 or 1(suc or fail)
+     */
+    public byte getPreComputeRes() {
+        return preComputeRes;
     }
 
     /**

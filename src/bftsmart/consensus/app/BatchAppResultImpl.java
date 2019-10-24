@@ -14,6 +14,7 @@ public class BatchAppResultImpl implements BatchAppResult {
     private List<byte[]> asyncResponseLinkedList = new ArrayList<>();
     private byte[] blockHashBytes;
     private String batchId;
+    private byte errorCode;
 
     public BatchAppResultImpl(List<byte[]> reponseLinkedList, byte[] blockHashBytes, String batchId) {
         this.blockHashBytes = blockHashBytes;
@@ -38,6 +39,11 @@ public class BatchAppResultImpl implements BatchAppResult {
         return batchId;
     }
 
+    @Override
+    public byte getErrprCode() {
+        return errorCode;
+    }
+
     public void setAsyncResponseLinkedList(List<byte[]> responseLinkedList) {
         for(int i = 0; i < responseLinkedList.size(); i++) {
             asyncResponseLinkedList.add(responseLinkedList.get(i));
@@ -50,5 +56,9 @@ public class BatchAppResultImpl implements BatchAppResult {
 
     public void setBatchId(String batchId) {
         this.batchId = batchId;
+    }
+
+    public void setErrorCode(byte errorCode) {
+        this.errorCode = errorCode;
     }
 }
