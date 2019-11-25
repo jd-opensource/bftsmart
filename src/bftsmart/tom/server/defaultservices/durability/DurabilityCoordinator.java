@@ -94,8 +94,13 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 
 
 		@Override
-		public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList) {
-			return updateAppResponses(asyncResponseLinkedList);
+		public List<byte[]> preComputeRollbackResps(List<byte[]> asyncResponseLinkedList) {
+			return preCompInconsistentAppResps(asyncResponseLinkedList);
+		}
+
+		@Override
+		public List<byte[]> decisionRollbackResps(List<byte[]> asyncResponseLinkedList) {
+			return blockRollbackAppResps(asyncResponseLinkedList);
 		}
     
         private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtx, boolean noop) {
@@ -471,7 +476,11 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 		return null;
 	}
 
-	public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
+	public List<byte[]> preCompInconsistentAppResps(List<byte[]> asyncResponseLinkedList) {
+		return null;
+	}
+
+	public List<byte[]> blockRollbackAppResps(List<byte[]> asyncResponseLinkedList) {
 		return null;
 	}
 

@@ -24,6 +24,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.server.Recoverable;
+import bftsmart.tom.server.Replier;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
@@ -76,37 +77,82 @@ public final class DeliveryThread extends Thread {
     public ServiceReplica getReceiver() {
         return receiver;
     }
+
+
+    public void commitFailProcess(Decision dec) {
+
+        TOMMessage[] requests = extractMessagesFromDecision(dec);
+
+        tomLayer.clientsManager.requestsPending(requests);
+
+        tomLayer.setLastExec(tomLayer.getInExec());
+
+        tomLayer.setInExec(-1);
+
+        ((DefaultRecoverable) this.getReceiver().getExecutor()).preComputeRollback(dec.getDecisionEpoch().getBatchId());
+
+        Replier replier = tomLayer.getDeliveryThread().getReceiver().getReplier();
+
+        ReplyManager repMan = tomLayer.getDeliveryThread().getReceiver().getRepMan();
+
+        List<byte[]> updatedResp = ((DefaultRecoverable) this.getReceiver().getExecutor()).blockRollbackAppResps(dec.getDecisionEpoch().getAsyncResponseLinkedList());
+
+        for (int index = 0; index < requests.length; index++) {
+            TOMMessage request = requests[index];
+            request.reply = new TOMMessage(controller.getStaticConf().getProcessId(), request.getSession(), request.getSequence(),
+                    request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
+                    request.getReqType());
+
+            if (controller.getStaticConf().getNumRepliers() > 0) {
+                bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                        + request.getSender() + " with sequence number " + request.getSequence()
+                        + " and operation ID " + request.getOperationId() + " via ReplyManager");
+                repMan.send(request);
+            } else {
+                bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                        + request.getSender() + " with sequence number " + request.getSequence()
+                        + " and operation ID " + request.getOperationId());
+                replier.manageReply(request, null);
+                // cs.send(new int[]{request.getSender()}, request.reply);
+            }
+        }
+    }
     /**
      * Invoked by the TOM layer, to deliver a decision
      * @param dec Decision established from the consensus
      */
     public void delivery(Decision dec) {
-        if (!containsGoodReconfig(dec)) {
 
-            Logger.println("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
-            //set this decision as the last one from this replica
-            tomLayer.setLastExec(dec.getConsensusId());
-            //define that end of this execution
-            tomLayer.setInExec(-1);
-//            System.out.println("will delivery commit!");
-
-            ((DefaultRecoverable) this.getReceiver().getExecutor()).preComputeCommit(dec.getDecisionEpoch().getBatchId());
-            tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
-
-        } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
         try {
+            if (!containsGoodReconfig(dec)) {
+
+                Logger.println("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
+
+                ((DefaultRecoverable) this.getReceiver().getExecutor()).preComputeCommit(dec.getDecisionEpoch().getBatchId());
+                tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
+
+                //set this decision as the last one from this replica
+                tomLayer.setLastExec(dec.getConsensusId());
+                //define that end of this execution
+                tomLayer.setInExec(-1);
+            }
+
             decidedLock.lock();
             decided.put(dec);
-            
+
             // clean the ordered messages from the pending buffer
             TOMMessage[] requests = extractMessagesFromDecision(dec);
             tomLayer.clientsManager.requestsOrdered(requests);
-            
+
             notEmptyQueue.signalAll();
             decidedLock.unlock();
             Logger.println("(DeliveryThread.delivery) Consensus " + dec.getConsensusId() + " finished. Decided size=" + decided.size());
+
         } catch (Exception e) {
+
             e.printStackTrace(System.out);
+
+            commitFailProcess(dec);
         }
     }
 
