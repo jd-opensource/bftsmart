@@ -543,7 +543,7 @@ public final class Acceptor {
 
                 } else {
                     //keep pre compute fail exe state
-                    System.out.println("Quorum is not satisfied, node's order transactions exe error, will goto pre compute rollback phase!");
+                    System.out.println("Quorum is not satisfied, node's order transactions exe or complete batch error, will goto pre compute rollback phase!");
                     updatedResp = epoch.getAsyncResponseLinkedList();
                 }
 
@@ -572,9 +572,6 @@ public final class Acceptor {
                 }
 
             } finally {
-
-                // rollback
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
 
                 tomLayer.setLastExec(tomLayer.getInExec());
 
