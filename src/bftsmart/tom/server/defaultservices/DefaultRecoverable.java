@@ -86,13 +86,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 
     @Override
-    public List<byte[]> preComputeRollbackResps(List<byte[]> asyncResponseLinkedList) {
-        return preCompInconsistentAppResps(asyncResponseLinkedList);
-    }
-
-    @Override
-    public List<byte[]> decisionRollbackResps(List<byte[]> asyncResponseLinkedList) {
-        return blockRollbackAppResps(asyncResponseLinkedList);
+    public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList) {
+        return updateAppResponses(asyncResponseLinkedList);
     }
 
 //    @Override
@@ -502,9 +497,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
     public abstract BatchAppResultImpl preComputeAppHash(byte[][] commands);
 
-    public abstract List<byte[]> preCompInconsistentAppResps(List<byte[]> asyncResponseLinkedList);
-
-    public abstract List<byte[]> blockRollbackAppResps(List<byte[]> asyncResponseLinkedList);
+    public abstract List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList);
 
     public abstract void preComputeAppCommit(String batchId);
 

@@ -539,11 +539,11 @@ public final class Acceptor {
                 if (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC) {
                     // update exe state to IGNORED_BY_CONSENSUS_PHASE_PRECOMPUTE_ROLLBACK
                     System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
-                    updatedResp = getDefaultExecutor().preComputeRollbackResps(epoch.getAsyncResponseLinkedList());
+                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
 
                 } else {
                     //keep pre compute fail exe state
-                    System.out.println("Quorum is not satisfied, node's order transactions exe or complete batch error, will goto pre compute rollback phase!");
+                    System.out.println("Quorum is not satisfied, node's order transactions exe error, will goto pre compute rollback phase!");
                     updatedResp = epoch.getAsyncResponseLinkedList();
                 }
 
@@ -572,6 +572,11 @@ public final class Acceptor {
                 }
 
             } finally {
+
+                // rollback
+                if (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC) {
+                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                }
 
                 tomLayer.setLastExec(tomLayer.getInExec());
 

@@ -81,12 +81,7 @@ public class BFTListImpl extends DefaultRecoverable {
     }
 
     @Override
-    public List<byte[]> preCompInconsistentAppResps(List<byte[]> asyncResponseLinkedList) {
-        return null;
-    }
-
-    @Override
-    public List<byte[]> blockRollbackAppResps(List<byte[]> asyncResponseLinkedList) {
+    public List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList) {
         return null;
     }
 
