@@ -474,6 +474,47 @@ public final class Acceptor {
         computeAccept(cid, epoch, msg.getValue());
     }
 
+    private void updateConsensusSetting(Epoch epoch) {
+
+        TOMMessage[] requests = epoch.deserializedPropValue;
+
+        tomLayer.clientsManager.requestsPending(requests);
+
+        tomLayer.setLastExec(tomLayer.getInExec());
+
+        tomLayer.setInExec(-1);
+
+    }
+
+    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
+
+        TOMMessage[] requests = epoch.deserializedPropValue;
+
+        Replier replier = getBatchReplier();
+
+        ReplyManager repMan = getReplyManager();
+
+        for (int index = 0; index < requests.length; index++) {
+            TOMMessage request = requests[index];
+            request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
+                    request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
+                    request.getReqType());
+
+            if (controller.getStaticConf().getNumRepliers() > 0) {
+                bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                        + request.getSender() + " with sequence number " + request.getSequence()
+                        + " and operation ID " + request.getOperationId() + " via ReplyManager");
+                repMan.send(request);
+            } else {
+                bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
+                        + request.getSender() + " with sequence number " + request.getSequence()
+                        + " and operation ID " + request.getOperationId());
+                replier.manageReply(request, null);
+                // cs.send(new int[]{request.getSender()}, request.reply);
+            }
+        }
+
+    }
     /**
      * Computes ACCEPT values according to the Byzantine consensus
      * specification
@@ -481,34 +522,36 @@ public final class Acceptor {
      * @param value Value sent in the message
      */
     private void computeAccept(int cid, Epoch epoch, byte[] value) {
+        List<byte[]> updatedResp;
         Logger.println("(Acceptor.computeAccept) I have " + epoch.countAccept(value) +
                 " ACCEPTs for " + cid + "," + epoch.getTimestamp());
 
         if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
-            if (Arrays.equals(value, epoch.propAndAppValueHash)) {
-
+            if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                 LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
-                decide(epoch);
-
-            }
-            else {
+                try {
+                    getDefaultExecutor().preComputeCommit(epoch.getBatchId());
+                    decide(epoch);
+                } catch (Exception e) {
+                    //maybe storage exception
+                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                    updateConsensusSetting(epoch);
+                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+                    createResponses(epoch, updatedResp);
+                }
+            } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
+                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                updateConsensusSetting(epoch);
+                createResponses(epoch, epoch.getAsyncResponseLinkedList());
+            } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                 //Leader does evil to me only, need to roll back
-
                 System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
-
-                TOMMessage[] requests = epoch.deserializedPropValue;
-
-                tomLayer.clientsManager.requestsPending(requests);
-
                 // rollback
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-
-                tomLayer.setLastExec(tomLayer.getInExec());
-
                 //This round of consensus has been rolled back, mark it
                 tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
-                tomLayer.setInExec(-1);
+                updateConsensusSetting(epoch);
 
                 //Pause processing of new messages, Waiting for trigger state transfer
                 tomLayer.requestsTimer.Enabled(false);
@@ -521,70 +564,17 @@ public final class Acceptor {
             return;
         }
 
-        // rollback
+        // consensus node hash inconsistent
         if (((epoch.countAcceptSetted() == controller.getCurrentViewN()) && (epoch.countAccept(value) < controller.getQuorum() + 1))
                 || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1)
                      && (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
 
-            TOMMessage[] requests = epoch.deserializedPropValue;
+            System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
+            getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+            updateConsensusSetting(epoch);
 
-            tomLayer.clientsManager.requestsPending(requests);
-
-            try {
-
-                // reply
-
-                List<byte[]> updatedResp;
-
-                if (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC) {
-                    // update exe state to IGNORED_BY_CONSENSUS_PHASE_PRECOMPUTE_ROLLBACK
-                    System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
-                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
-
-                } else {
-                    //keep pre compute fail exe state
-                    System.out.println("Quorum is not satisfied, node's order transactions exe error, will goto pre compute rollback phase!");
-                    updatedResp = epoch.getAsyncResponseLinkedList();
-                }
-
-                Replier replier = getBatchReplier();
-
-                ReplyManager repMan = getReplyManager();
-
-                for (int index = 0; index < requests.length; index++) {
-                    TOMMessage request = requests[index];
-                    request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
-                            request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
-                            request.getReqType());
-
-                    if (controller.getStaticConf().getNumRepliers() > 0) {
-                        bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-                                + request.getSender() + " with sequence number " + request.getSequence()
-                                + " and operation ID " + request.getOperationId() + " via ReplyManager");
-                        repMan.send(request);
-                    } else {
-                        bftsmart.tom.util.Logger.println("(ServiceReplica.receiveMessages) sending reply to "
-                                + request.getSender() + " with sequence number " + request.getSequence()
-                                + " and operation ID " + request.getOperationId());
-                        replier.manageReply(request, null);
-                        // cs.send(new int[]{request.getSender()}, request.reply);
-                    }
-                }
-
-            } finally {
-
-                // rollback
-                if (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC) {
-                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-                }
-
-                tomLayer.setLastExec(tomLayer.getInExec());
-
-                //This round of consensus has been rolled back, mark it
-//                tomLayer.execManager.updateConsensus(tomLayer.getInExec());
-
-                tomLayer.setInExec(-1);
-            }
+            updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+            createResponses(epoch, updatedResp);
         }
     }
 
