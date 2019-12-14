@@ -55,6 +55,8 @@ public class Epoch implements Serializable {
 
     public byte preComputeRes; // pre compute result ,fail or succ
 
+    public byte[] commonHash;  // when an exception occurs in consensus phrase, with common hash
+
     public HashSet<ConsensusMessage> proof; // proof from other processes
 
     private View lastView = null;

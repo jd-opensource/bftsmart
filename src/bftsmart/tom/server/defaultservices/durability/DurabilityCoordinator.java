@@ -94,7 +94,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 
 
 		@Override
-		public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList) {
+		public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList, byte[] commonHash, boolean isConsistent) {
 			return updateAppResponses(asyncResponseLinkedList);
 		}
     

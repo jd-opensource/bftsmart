@@ -13,4 +13,6 @@ public interface BatchAppResult {
 
     public byte getErrprCode();
 
+    public byte[] getGenisHashBytes();
+
 }
