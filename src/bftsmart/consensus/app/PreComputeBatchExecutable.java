@@ -19,7 +19,7 @@ public interface PreComputeBatchExecutable extends Executable {
     // begin batch, process order, complete batch
     public BatchAppResultImpl preComputeHash(byte[][] command);
 
-    public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList);
+    public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList, byte[] commonHash, boolean isConsistent);
 
     // batch commit
     public void preComputeCommit(String batchId);

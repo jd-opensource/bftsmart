@@ -334,6 +334,8 @@ public final class Acceptor {
 
                     epoch.preComputeRes = appHashResult.getErrprCode();
 
+                    epoch.commonHash = appHashResult.getGenisHashBytes();
+
                     tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
 
                     epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
@@ -536,7 +538,7 @@ public final class Acceptor {
                     //maybe storage exception
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
-                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
                     createResponses(epoch, updatedResp);
                 }
             } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
@@ -573,7 +575,7 @@ public final class Acceptor {
             getDefaultExecutor().preComputeRollback(epoch.getBatchId());
             updateConsensusSetting(epoch);
 
-            updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList());
+            updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);
             createResponses(epoch, updatedResp);
         }
     }

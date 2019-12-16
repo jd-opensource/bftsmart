@@ -13,15 +13,17 @@ public class BatchAppResultImpl implements BatchAppResult {
 
     private List<byte[]> asyncResponseLinkedList = new ArrayList<>();
     private byte[] blockHashBytes;
+    private byte[] genisHashBytes;
     private String batchId;
     private byte errorCode;
 
-    public BatchAppResultImpl(List<byte[]> reponseLinkedList, byte[] blockHashBytes, String batchId) {
+    public BatchAppResultImpl(List<byte[]> reponseLinkedList, byte[] blockHashBytes, String batchId, byte[] genisHashBytes) {
         this.blockHashBytes = blockHashBytes;
         this.batchId = batchId;
         for(int i = 0; i < reponseLinkedList.size(); i++) {
             asyncResponseLinkedList.add(reponseLinkedList.get(i));
         }
+        this.genisHashBytes = genisHashBytes;
     }
 
     @Override
@@ -44,6 +46,11 @@ public class BatchAppResultImpl implements BatchAppResult {
         return errorCode;
     }
 
+    @Override
+    public byte[] getGenisHashBytes() {
+        return genisHashBytes;
+    }
+
     public void setAsyncResponseLinkedList(List<byte[]> responseLinkedList) {
         for(int i = 0; i < responseLinkedList.size(); i++) {
             asyncResponseLinkedList.add(responseLinkedList.get(i));
@@ -60,5 +67,9 @@ public class BatchAppResultImpl implements BatchAppResult {
 
     public void setErrorCode(byte errorCode) {
         this.errorCode = errorCode;
+    }
+
+    public void setGenisHashBytes(byte[] genisHashBytes) {
+        this.genisHashBytes = genisHashBytes;
     }
 }
