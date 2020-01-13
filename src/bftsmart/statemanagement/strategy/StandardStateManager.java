@@ -70,7 +70,11 @@ public class StandardStateManager extends BaseStateManager {
 
         appStateOnly = false;
     }
-	
+
+    public TOMLayer getTomLayer() {
+        return this.tomLayer;
+    }
+
     private void changeReplica() {
         
         int[] processes = this.SVController.getCurrentViewOtherAcceptors();

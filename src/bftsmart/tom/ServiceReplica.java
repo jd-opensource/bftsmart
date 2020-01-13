@@ -86,6 +86,7 @@ public class ServiceReplica {
 	private ReplicaContext replicaCtx = null;
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
+	private int lastCid;
 
 	/**
 	 * Constructor
@@ -178,6 +179,11 @@ public class ServiceReplica {
 				executor, recoverer, null, new DefaultReplier());
 	}
 
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid) {
+		this(new ServerViewController(config, new MemoryBasedViewStorage()),
+				executor, recoverer, null, new DefaultReplier(), lastCid);
+	}
+
 	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor,
                           Recoverable recoverer ) {
 		this(new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))),
@@ -219,6 +225,40 @@ public class ServiceReplica {
 		this.replier = (replier != null ? replier : new DefaultReplier());
 		this.verifier = verifier;
 		this.init();
+		this.recoverer.setReplicaContext(replicaCtx);
+		this.replier.setReplicaContext(replicaCtx);
+	}
+
+	/**
+	 * Constructor
+	 *
+	 * @param id
+	 *            Process ID
+	 * @param configHome
+	 *            Configuration directory for JBP
+	 * @param executor
+	 *            Executor
+	 * @param recoverer
+	 *            Recoverer
+	 * @param verifier
+	 *            Requests verifier
+	 * @param replier
+	 *            Replier
+	 *
+	 * @param lastCid
+	 */
+	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
+							 RequestVerifier verifier, Replier replier, int lastCid) {
+		this.id = viewController.getStaticConf().getProcessId();
+		this.SVController = viewController;
+		this.executor = executor;
+		this.recoverer = recoverer;
+		this.lastCid = lastCid;
+		this.replier = (replier != null ? replier : new DefaultReplier());
+		this.verifier = verifier;
+		this.init();
+		this.tomLayer.getStateManager().setLastCID(lastCid);
+		this.tomLayer.setLastExec(lastCid);
 		this.recoverer.setReplicaContext(replicaCtx);
 		this.replier.setReplicaContext(replicaCtx);
 	}
