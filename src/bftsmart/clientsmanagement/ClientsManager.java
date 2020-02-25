@@ -222,7 +222,9 @@ public class ClientsManager {
         // if the content of the request is invalid, ignore it
         if (controller.getStaticConf().isBFT() && !verifier.isValidRequest(request.getContent())) return false;
         
-        request.receptionTime = System.nanoTime();
+//        request.receptionTime = System.nanoTime();
+
+        request.receptionTime = System.currentTimeMillis();
 
         int clientId = request.getSender();
         boolean accounted = false;

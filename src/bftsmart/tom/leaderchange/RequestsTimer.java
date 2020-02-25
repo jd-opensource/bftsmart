@@ -110,6 +110,7 @@ public class RequestsTimer {
         //long startInstant = System.nanoTime();
         rwLock.writeLock().lock();
         watched.add(request);
+        System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ", watch at  " + System.currentTimeMillis() + "\r\n");
         if (watched.size() >= 1 && enabled) startTimer();
         rwLock.writeLock().unlock();
     }
@@ -121,6 +122,7 @@ public class RequestsTimer {
     public void unwatch(TOMMessage request) {
         //long startInstant = System.nanoTime();
         rwLock.writeLock().lock();
+        System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ", unwatch at  " + System.currentTimeMillis() + "\r\n");
         if (watched.remove(request) && watched.isEmpty()) stopTimer();
         rwLock.writeLock().unlock();
     }
@@ -167,7 +169,10 @@ public class RequestsTimer {
         
         for (Iterator<TOMMessage> i = watched.iterator(); i.hasNext();) {
             TOMMessage request = i.next();
-            if ((request.receptionTime + System.currentTimeMillis()) > t) {
+//            if ((request.receptionTime + System.currentTimeMillis()) > t) {
+              if ((System.currentTimeMillis() - request.receptionTime) > t) {
+                System.out.println("real consensus message timeout!!!!!!!!\r\n");
+                System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ",  message timeout at  " + System.currentTimeMillis() + "\r\n");
                 pendingRequests.add(request);
             } else {
                 break;

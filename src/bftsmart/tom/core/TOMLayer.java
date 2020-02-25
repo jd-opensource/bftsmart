@@ -414,6 +414,12 @@ public final class TOMLayer extends Thread implements RequestReceiver {
                 }
                 execManager.getProposer().startConsensus(execId,
                         createPropose(dec));
+
+                try {
+                    sleep(50);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
         java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.INFO, "TOMLayer stopped.");
