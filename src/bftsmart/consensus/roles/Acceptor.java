@@ -532,8 +532,9 @@ public final class Acceptor {
             if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                 LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
                 try {
-                    getDefaultExecutor().preComputeCommit(epoch.getBatchId());
+//                    getDefaultExecutor().preComputeCommit(epoch.getBatchId());
                     decide(epoch);
+                    getDefaultExecutor().preComputeCommit(epoch.getBatchId());
                 } catch (Exception e) {
                     //maybe storage exception
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
