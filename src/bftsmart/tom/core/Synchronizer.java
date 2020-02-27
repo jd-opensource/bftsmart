@@ -140,6 +140,8 @@ public class Synchronizer {
                     out.writeObject(serialized);
                 } else {
                     out.writeBoolean(false);
+
+                    Logger.println("(Synchronizer.triggerTimeout) I am proc " + controller.getStaticConf().getProcessId() + " Strange... did not include any request in my STOP message for regency " + regency);
                     System.out.println("(Synchronizer.triggerTimeout) I am proc " + controller.getStaticConf().getProcessId() + " Strange... did not include any request in my STOP message for regency " + regency);
                 }
 
@@ -152,6 +154,7 @@ public class Synchronizer {
                 bos.close();
 
                 // send STOP-message
+                Logger.println("(Synchronizer.triggerTimeout) I am proc " + controller.getStaticConf().getProcessId() + " ssending STOP message to install regency " + regency + " with " + (messages != null ? messages.size() : 0) + " request(s) to relay");
                 System.out.println("(Synchronizer.triggerTimeout) I am proc " + controller.getStaticConf().getProcessId() + " ssending STOP message to install regency " + regency + " with " + (messages != null ? messages.size() : 0) + " request(s) to relay");
 
                 LCMessage stop = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP, regency, payload);
@@ -190,8 +193,10 @@ public class Synchronizer {
         Set<LCMessage> stops = getOutOfContextLC(TOMUtil.STOP, regency);
 
         if (stops.size() > 0) {
+            Logger.println("(Synchronizer.processOutOfContextSTOPs) I am proc " + controller.getStaticConf().getProcessId() + " Processing " + stops.size() + " out of context STOPs for regency " + regency);
             System.out.println("(Synchronizer.processOutOfContextSTOPs) I am proc " + controller.getStaticConf().getProcessId() + " Processing " + stops.size() + " out of context STOPs for regency " + regency);
         } else {
+            Logger.println("(Synchronizer.processOutOfContextSTOPs) I am proc " + controller.getStaticConf().getProcessId() + " No out of context STOPs for regency " + regency);
             System.out.println("(Synchronizer.processOutOfContextSTOPs) I am proc " + controller.getStaticConf().getProcessId() + " No out of context STOPs for regency " + regency);
         }
 
@@ -258,6 +263,7 @@ public class Synchronizer {
             boolean conditionCFT = (lcManager.getLastCIDsSize(regency) > cftQuorum && lcManager.getCollectsSize(regency) > cftQuorum);
 
             if (conditionBFT || conditionCFT) {
+                Logger.println("(Synchronizer.processSTOPDATA) I am proc " + controller.getStaticConf().getProcessId() + " I recv >= 3 StopData, I will catch up regency " + regency);
                 System.out.println("(Synchronizer.processSTOPDATA) I am proc " + controller.getStaticConf().getProcessId() + " I recv >= 3 StopData, I will catch up regency " + regency);
                 catch_up(regency);
             }
@@ -299,6 +305,7 @@ public class Synchronizer {
 
             // Is the predicate "sound" true? Is the certificate for LastCID valid?
             if (lcManager.sound(lcManager.selectCollects(regency, currentCID)) && (!controller.getStaticConf().isBFT() || lcManager.hasValidProof(lastHighestCID))) {
+                Logger.println("(Synchronizer.processSYNC) I am proc " + controller.getStaticConf().getProcessId() + " sound succ , I will finalise\r\n");
                 System.out.println("(Synchronizer.processSYNC) I am proc " + controller.getStaticConf().getProcessId() + " sound succ , I will finalise\r\n");
                 finalise(regency, lastHighestCID, signedCollects, propose, batchSize, false);
             }
@@ -450,7 +457,7 @@ public class Synchronizer {
         // Ask to start the synchronizations phase if enough messages have been received already
         if (condition && lcManager.getNextReg() == lcManager.getLastReg()) {
             
-            Logger.println("(Synchronizer.startSynchronization) initialize synch phase");
+            Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " initialize synch phase");
             System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " initialize synch phase");
             requestsTimer.Enabled(false);
             requestsTimer.stopTimer();
@@ -494,6 +501,7 @@ public class Synchronizer {
                 bos.close();
 
                 // send message STOP
+                Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOP message to install regency " + regency + " with " + (messages != null ? messages.size() : 0) + " request(s) to relay");
                 System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOP message to install regency " + regency + " with " + (messages != null ? messages.size() : 0) + " request(s) to relay");
 
                 LCMessage stop = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP, regency, payload);
@@ -526,7 +534,7 @@ public class Synchronizer {
             
             if (!execManager.stopped()) execManager.stop(); // stop consensus execution if more than f replicas sent a STOP message
 
-            Logger.println("(Synchronizer.startSynchronization) installing regency " + lcManager.getNextReg());
+            Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " installing regency " + lcManager.getNextReg());
             System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " installing regency " + lcManager.getNextReg());
             lcManager.setLastReg(lcManager.getNextReg()); // define last timestamp
 
@@ -613,6 +621,7 @@ public class Synchronizer {
                         cons.createEpoch(regency, controller);
                         //Logger.println("(Synchronizer.startSynchronization) incrementing ets of consensus " + cons.getId() + " to " + ets);
                         Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
 
                         TimestampValuePair quorumWrites;
                         if (cons.getQuorumWrites() != null) {
@@ -665,7 +674,7 @@ public class Synchronizer {
                     int[] b = new int[1];
                     b[0] = leader;
 
-                    System.out.println("(Synchronizer.startSynchronization) sending STOPDATA of regency " + regency);
+                    Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOPDATA of regency " + regency);
                     System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOPDATA of regency " + regency);
                     // send message SYNC to the new leader
                     communication.send(b,
@@ -691,9 +700,10 @@ public class Synchronizer {
 //                Logger.println("(Synchronizer.startSynchronization) Checking if there are out of context SYNC for regency " + regency);
 
                 if (sync.size() > 0) {
+                    Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " Processing out of context SYNC for regency " + regency);
                     System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " Processing out of context SYNC for regency " + regency);
                 } else {
-                    Logger.println("(Synchronizer.startSynchronization) No out of context SYNC for regency " + regency);
+                    Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " No out of context SYNC for regency " + regency);
                     System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " No out of context SYNC for regency " + regency);
                 }
 
@@ -706,7 +716,7 @@ public class Synchronizer {
 
             } else { // If leader, I will store information that I would send in a SYNC message
 
-                Logger.println("(Synchronizer.startSynchronization) I'm the leader for this new regency");
+                Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " I'm the leader for this new regency");
                 System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " I'm the leader for this new regency");
                 CertifiedDecision lastDec = null;
                 CollectData collect = null;
@@ -815,8 +825,7 @@ public class Synchronizer {
                 if (stopdatas.size() > 0) {
                     System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " Processing " + stopdatas.size() + " out of context STOPDATAs for regency " + regency);
                 } else {
-                    Logger.println("(Synchronizer.startSynchronization) No out of context STOPDATAs for regency " + regency);
-
+                    Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " No out of context STOPDATAs for regency " + regency);
                     System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " No out of context STOPDATAs for regency " + regency);
                 }
 
@@ -1267,6 +1276,7 @@ public class Synchronizer {
 
             // send a WRITE/ACCEPT message to the other replicas
             if (this.controller.getStaticConf().isBFT()) {
+                Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " sending WRITE message for CID " + currentCID + ", timestamp " + e.getTimestamp() + ", value " + Arrays.toString(e.propValueHash));
                 System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " sending WRITE message for CID " + currentCID + ", timestamp " + e.getTimestamp() + ", value " + Arrays.toString(e.propValueHash));
                 communication.send(this.controller.getCurrentViewOtherAcceptors(),
                         acceptor.getFactory().createWrite(currentCID, e.getTimestamp(), e.propValueHash));
@@ -1278,6 +1288,7 @@ public class Synchronizer {
             //all peers' inexecid is -1, and peer's pending request queue is null
         } else if (batchSize == 0) {
 
+            Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " batch size is 0");
             System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " batch size is 0");
 
             lcManager.removeCollects(regency); // avoid memory leaks
@@ -1290,7 +1301,9 @@ public class Synchronizer {
             //leaderChanged = true;
 
             if (iAmLeader) {
+
                 Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " wake up proposer thread");
+                System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " wake up proposer thread");
                 tom.imAmTheLeader();
             } // waik up the thread that propose values in normal operation
 
