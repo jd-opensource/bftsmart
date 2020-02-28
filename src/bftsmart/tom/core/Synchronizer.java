@@ -545,6 +545,7 @@ public class Synchronizer {
             lcManager.clearCurrentRequestTimedOut();
             lcManager.clearRequestsFromSTOP();
 
+            //此时开启太快，会触发反反复复的超时，应该等leaderchange流程结束再开启
             requestsTimer.Enabled(true);
             requestsTimer.setShortTimeout(-1);
             requestsTimer.startTimer();
@@ -620,8 +621,8 @@ public class Synchronizer {
                         //cons.createEpoch(ets, controller);
                         cons.createEpoch(regency, controller);
                         //Logger.println("(Synchronizer.startSynchronization) incrementing ets of consensus " + cons.getId() + " to " + ets);
-                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
-                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in > -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in > -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
 
                         TimestampValuePair quorumWrites;
                         if (cons.getQuorumWrites() != null) {
@@ -653,7 +654,8 @@ public class Synchronizer {
                         //cons.createEpoch(ets, controller);
                         cons.createEpoch(regency, controller);
                         //Logger.println("(Synchronizer.startSynchronization) incrementing ets of consensus " + cons.getId() + " to " + ets);
-                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in = -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in = -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
 
                         //CollectData collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, ets, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
                         CollectData collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, regency, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
@@ -1055,7 +1057,7 @@ public class Synchronizer {
     }
 
     // this method is called on all replicas, and serves to verify and apply the
-    // information sent in the catch-up message
+    // information sent in the SYNC message
     private void finalise(int regency, CertifiedDecision lastHighestCID,
             HashSet<SignedObject> signedCollects, byte[] propose, int batchSize, boolean iAmLeader) {
 
@@ -1107,6 +1109,7 @@ public class Synchronizer {
         }*/
         
         // install proof of the last decided consensus
+        //对上个共识的处理开始
         cons = execManager.getConsensus(lastHighestCID.getCID());
         e = null;
                 
@@ -1133,6 +1136,7 @@ public class Synchronizer {
             
             
         }
+        //针对上个共识没有完成的进行一些收尾工作
         if (e != null) {
 
             Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " Installed proof of last decided consensus " + lastHighestCID.getCID());
@@ -1151,6 +1155,7 @@ public class Synchronizer {
                 cons.decided(e, true);
             }
             else {
+                //对于上个共识已经完成的，通过配置false, 控制不再进行写账本的操作
                 cons.decided(e, false);
             }
 
@@ -1158,19 +1163,21 @@ public class Synchronizer {
             Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " I did not install any proof of last decided consensus " + lastHighestCID.getCID());
             System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " I did not install any proof of last decided consensus " + lastHighestCID.getCID());
         }
-        
+        // 对上个共识的处理结束
         cons = null;
         e = null;
-        
+
+        //开启对大家当前共识的处理
         // get a value that satisfies the predicate "bind"
         byte[] tmpval = null;
         HashSet<CollectData> selectedColls = lcManager.selectCollects(signedCollects, currentCID, regency);
 
+        // getBindValue的目的就是找一个处于当前共识currentCID中的序列化后的提议值，如果currentCID中所有节点都没有收到过propose, write，则会返回空，tmpval为空，则会使用从客户端请求队列中创建的新propose, 也是finalise传进来的参数
         tmpval = lcManager.getBindValue(selectedColls);
         Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " Trying to find a binded value");
         System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " Trying to find a binded value");
 
-        // If such value does not exist, obtain the value written by the new leader
+        // If such value does not exist, obtain the value written by the arguments
         if (tmpval == null && lcManager.unbound(selectedColls) && batchSize > 0) {
             Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " did not found a value that might have already been decided, so use new propose!");
             System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " did not found a value that might have already been decided, so use new propose!");
@@ -1185,8 +1192,8 @@ public class Synchronizer {
 
         if (tmpval != null) { // did I manage to get some value?
 
-            Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + "resuming normal phase");
-            System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + "resuming normal phase");
+            Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " resuming normal phase");
+            System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " resuming normal phase");
             lcManager.removeCollects(regency); // avoid memory leaks
 
             // stop the re-transmission of the STOP message for all regencies up to this one
@@ -1278,6 +1285,7 @@ public class Synchronizer {
             if (this.controller.getStaticConf().isBFT()) {
                 Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " sending WRITE message for CID " + currentCID + ", timestamp " + e.getTimestamp() + ", value " + Arrays.toString(e.propValueHash));
                 System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " sending WRITE message for CID " + currentCID + ", timestamp " + e.getTimestamp() + ", value " + Arrays.toString(e.propValueHash));
+                //  有了propose值，各个节点从发送write消息开始，重新进行共识流程；
                 communication.send(this.controller.getCurrentViewOtherAcceptors(),
                         acceptor.getFactory().createWrite(currentCID, e.getTimestamp(), e.propValueHash));
             } else {
