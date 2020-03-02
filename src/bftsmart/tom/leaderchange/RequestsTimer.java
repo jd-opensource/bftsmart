@@ -172,7 +172,7 @@ public class RequestsTimer {
 //            if ((request.receptionTime + System.currentTimeMillis()) > t) {
               if ((System.currentTimeMillis() - request.receptionTime) > t) {
 //                System.out.println("real consensus message timeout!!!!!!!!\r\n");
-                System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ",  consensus message timeout at  " + System.currentTimeMillis() + "\r\n");
+//                System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ",  consensus message timeout at  " + System.currentTimeMillis() + "\r\n");
                 pendingRequests.add(request);
             } else {
                 break;
