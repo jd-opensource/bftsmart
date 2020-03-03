@@ -260,9 +260,9 @@ public class ServerViewController extends ViewController {
 
 			// TODO: Reactive it and make it work
 			System.out.println("Shortening LC timeout");
-			tomLayer.requestsTimer.stopTimer();
+//			tomLayer.requestsTimer.stopTimer();
 			tomLayer.requestsTimer.setShortTimeout(3000);
-			tomLayer.requestsTimer.startTimer();
+//			tomLayer.requestsTimer.startTimer();
 			// tomLayer.triggerTimeout(new LinkedList<TOMMessage>());
 
 		}

@@ -304,8 +304,8 @@ public class StandardStateManager extends BaseStateManager {
 
                         System.out.println("I updated the state!");
 
-                        tomLayer.requestsTimer.Enabled(true);
-                        tomLayer.requestsTimer.startTimer();
+//                        tomLayer.requestsTimer.Enabled(true);
+//                        tomLayer.requestsTimer.startTimer();
                         if (stateTimer != null) stateTimer.cancel();
                         
                         if (appStateOnly) {

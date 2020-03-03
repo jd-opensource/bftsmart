@@ -34,8 +34,8 @@ import java.util.logging.Level;
  */
 public class RequestsTimer {
 
-    private Timer timer = new Timer("request timer");
-    private RequestTimerTask rtTask = null;
+//    private Timer timer = new Timer("request timer");
+//    private RequestTimerTask rtTask = null;
     private TOMLayer tomLayer; // TOM layer
     private long timeout;
     private long shortTimeout;
@@ -77,30 +77,30 @@ public class RequestsTimer {
         return timeout;
     }
     
-    public void startTimer() {
-        if (rtTask == null) {
-            long t = (shortTimeout > -1 ? shortTimeout : timeout);
-            //shortTimeout = -1;
-            rtTask = new RequestTimerTask();
-            if (controller.getCurrentViewN() > 1) timer.schedule(rtTask, t);
-        }
-    }
+//    public void startTimer() {
+//        if (rtTask == null) {
+//            long t = (shortTimeout > -1 ? shortTimeout : timeout);
+//            //shortTimeout = -1;
+//            rtTask = new RequestTimerTask();
+//            if (controller.getCurrentViewN() > 1) timer.schedule(rtTask, t);
+//        }
+//    }
     
-    public void stopTimer() {
-        if (rtTask != null) {
-            rtTask.cancel();
-            rtTask = null;
-        }
-    }
+//    public void stopTimer() {
+//        if (rtTask != null) {
+//            rtTask.cancel();
+//            rtTask = null;
+//        }
+//    }
     
-    public void Enabled(boolean phase) {
-        
-        enabled = phase;
-    }
-    
-    public boolean isEnabled() {
-    	return enabled;
-    }
+//    public void Enabled(boolean phase) {
+//
+//        enabled = phase;
+//    }
+//
+//    public boolean isEnabled() {
+//    	return enabled;
+//    }
     
     /**
      * Creates a timer for the given request
@@ -111,7 +111,7 @@ public class RequestsTimer {
         rwLock.writeLock().lock();
         watched.add(request);
 //        System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ", watch at  " + System.currentTimeMillis() + "\r\n");
-        if (watched.size() >= 1 && enabled) startTimer();
+//        if (watched.size() >= 1 && enabled) startTimer();
         rwLock.writeLock().unlock();
     }
 
@@ -122,8 +122,9 @@ public class RequestsTimer {
     public void unwatch(TOMMessage request) {
         //long startInstant = System.nanoTime();
         rwLock.writeLock().lock();
+        watched.remove(request);
 //        System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ", unwatch at  " + System.currentTimeMillis() + "\r\n");
-        if (watched.remove(request) && watched.isEmpty()) stopTimer();
+//        if (watched.remove(request) && watched.isEmpty()) stopTimer();
         rwLock.writeLock().unlock();
     }
 
@@ -131,17 +132,20 @@ public class RequestsTimer {
      * Cancels all timers for all messages
      */
     public void clearAll() {
-        TOMMessage[] requests = new TOMMessage[watched.size()];
+//        TOMMessage[] requests = new TOMMessage[watched.size()];
         rwLock.writeLock().lock();
-        
-        watched.toArray(requests);
 
-        for (TOMMessage request : requests) {
-            if (request != null && watched.remove(request) && watched.isEmpty() && rtTask != null) {
-                rtTask.cancel();
-                rtTask = null;
-            }
-        }
+        watched.clear();
+//
+//        watched.toArray(requests);
+//
+//        for (TOMMessage request : requests) {
+//
+//            if (request != null && watched.remove(request) && watched.isEmpty() && rtTask != null) {
+//                rtTask.cancel();
+//                rtTask = null;
+//            }
+//        }
         rwLock.writeLock().unlock();
     }
 
@@ -180,50 +184,52 @@ public class RequestsTimer {
         }
 
         rwLock.readLock().unlock();
+
+        tomLayer.getSynchronizer().triggerTimeout(pendingRequests);
                 
-        if (!pendingRequests.isEmpty()) {
-            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message
-            for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
-                TOMMessage request = li.next();
-                if (!request.timeout) {
-
-                    request.signed = request.serializedMessageSignature != null;
-                    tomLayer.forwardRequestToLeader(request);
-                    request.timeout = true;
-                    li.remove();
-                }
-            }
-
-            if (!pendingRequests.isEmpty()) {
-                System.out.println("Timeout for messages: " + pendingRequests);
-
-                //When the second timeout occurs, need not roll back pre compute hash operation
-//                if (getCurrConsensus() != null) {
-//                    Epoch epoch = getCurrConsensus().getLastEpoch();
+//        if (!pendingRequests.isEmpty()) {
+//            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message
+//            for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
+//                TOMMessage request = li.next();
+//                if (!request.timeout) {
 //
-//                    if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
-//                        if (epoch != null && epoch.getBatchId() != null) {
-//                            System.out.println("The second time requests timeout occurs, roll back precompute hash operation!");
-//                            getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
-//                            getCurrConsensus().setPrecomputeCommited(false);
-//                            getCurrConsensus().setPrecomputed(false);
-//                            getCurrConsensus().setSecondTimeout(true);
-//                        }
-//                    }
+//                    request.signed = request.serializedMessageSignature != null;
+//                    tomLayer.forwardRequestToLeader(request);
+//                    request.timeout = true;
+//                    li.remove();
 //                }
-                //Logger.debug = true;
-                //tomLayer.requestTimeout(pendingRequests);
-                //if (reconfManager.getStaticConf().getProcessId() == 4) Logger.debug = true;
-                tomLayer.getSynchronizer().triggerTimeout(pendingRequests);
-            }
-            else {
-                rtTask = new RequestTimerTask();
-                timer.schedule(rtTask, t);
-            }
-        } else {
-            rtTask = null;
-            timer.purge();
-        }
+//            }
+//
+//            if (!pendingRequests.isEmpty()) {
+//                System.out.println("Timeout for messages: " + pendingRequests);
+//
+//                //When the second timeout occurs, need not roll back pre compute hash operation
+////                if (getCurrConsensus() != null) {
+////                    Epoch epoch = getCurrConsensus().getLastEpoch();
+////
+////                    if (getCurrConsensus().getPrecomputed() && !getCurrConsensus().getPrecomputeCommited()) {
+////                        if (epoch != null && epoch.getBatchId() != null) {
+////                            System.out.println("The second time requests timeout occurs, roll back precompute hash operation!");
+////                            getDefaultExecutor().preComputeAppRollback(epoch.getBatchId());
+////                            getCurrConsensus().setPrecomputeCommited(false);
+////                            getCurrConsensus().setPrecomputed(false);
+////                            getCurrConsensus().setSecondTimeout(true);
+////                        }
+////                    }
+////                }
+//                //Logger.debug = true;
+//                //tomLayer.requestTimeout(pendingRequests);
+//                //if (reconfManager.getStaticConf().getProcessId() == 4) Logger.debug = true;
+//                tomLayer.getSynchronizer().triggerTimeout(pendingRequests);
+//            }
+//            else {
+//                rtTask = new RequestTimerTask();
+//                timer.schedule(rtTask, t);
+//            }
+//        } else {
+//            rtTask = null;
+//            timer.purge();
+//        }
         
     }
     
@@ -236,7 +242,7 @@ public class RequestsTimer {
         
         stopTimer.schedule(stopTask, timeout);
         
-       stopTimers.put(regency, stopTimer);
+        stopTimers.put(regency, stopTimer);
 
     }   
     
@@ -261,28 +267,28 @@ public class RequestsTimer {
     }
     
     public void shutdown() {
-        timer.cancel();
+//        timer.cancel();
         stopAllSTOPs();
         java.util.logging.Logger.getLogger(RequestsTimer.class.getName()).log(Level.INFO, "RequestsTimer stopped.");
 
     }
     
-    class RequestTimerTask extends TimerTask {
-
-        @Override
-        /**
-         * This is the code for the TimerTask. It executes the timeout for the first
-         * message on the watched list.
-         */
-        public void run() {
-            
-            int[] myself = new int[1];
-            myself[0] = controller.getStaticConf().getProcessId();
-
-            communication.send(myself, new LCMessage(-1, TOMUtil.TRIGGER_LC_LOCALLY, -1, null));
-
-        }
-    }
+//    class RequestTimerTask extends TimerTask {
+//
+//        @Override
+//        /**
+//         * This is the code for the TimerTask. It executes the timeout for the first
+//         * message on the watched list.
+//         */
+//        public void run() {
+//
+//            int[] myself = new int[1];
+//            myself[0] = controller.getStaticConf().getProcessId();
+//
+//            communication.send(myself, new LCMessage(-1, TOMUtil.TRIGGER_LC_LOCALLY, -1, null));
+//
+//        }
+//    }
     
     class SendStopTask extends TimerTask {
         

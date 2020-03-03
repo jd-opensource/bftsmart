@@ -31,6 +31,7 @@ import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
+import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.ClientDatasMonitorTimer;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.Recoverable;
@@ -69,6 +70,8 @@ public final class TOMLayer extends Thread implements RequestReceiver {
      * Manage timers for pending requests
      */
     public RequestsTimer requestsTimer;
+
+    public HeartBeatTimer heartBeatTimer;
 
     // Monitor timer for client datas and clear too old datas;
     public ClientDatasMonitorTimer clientDatasMonitorTimer;
@@ -131,18 +134,21 @@ public final class TOMLayer extends Thread implements RequestReceiver {
         this.communication = cs;
         this.controller = controller;
 
+        this.requestsTimer = new RequestsTimer(this, communication, this.controller); // Create requests timers manager (a thread)
+        this.heartBeatTimer = new HeartBeatTimer(this, communication, this.controller, requestsTimer);
         //do not create a timer manager if the timeout is 0
-        if (this.controller.getStaticConf().getRequestTimeout() == 0) {
-            this.requestsTimer = null;
-        } else {
-            this.requestsTimer = new RequestsTimer(this, communication, this.controller); // Create requests timers manager (a thread)
-        }
+//        if (this.controller.getStaticConf().getRequestTimeout() == 0) {
+//            this.requestsTimer = null;
+//        } else {
+//        }
 
 //        try {
 //            this.md = MessageDigest.getInstance("MD5"); // TODO: shouldn't it be SHA?
 //        } catch (Exception e) {
 //            e.printStackTrace(System.out);
 //        }
+
+
 
         try {
             this.engine = Signature.getInstance("SHA1withRSA");
@@ -338,6 +344,22 @@ public final class TOMLayer extends Thread implements RequestReceiver {
     }
 
     /**
+     * 是否是Leader
+     * @return
+     */
+    public boolean isLeader() {
+        return leader() == this.controller.getStaticConf().getProcessId();
+    }
+
+    /**
+     * leader对应ID
+     * @return
+     */
+    public int leader() {
+        return execManager.getCurrentLeader();
+    }
+
+    /**
      * This is the main code for this thread. It basically waits until this
      * replica becomes the leader, and when so, proposes a value to the other
      * acceptors
@@ -345,6 +367,8 @@ public final class TOMLayer extends Thread implements RequestReceiver {
     @Override
     public void run() {
         Logger.println("Running."); // TODO: can't this be outside of the loop?
+        // start heart beat timer
+        this.heartBeatTimer.start();
         while (doWork) {
 
             // blocks until this replica learns to be the leader for the current epoch of the current consensus

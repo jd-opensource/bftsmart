@@ -52,6 +52,7 @@ public class Synchronizer {
     
     // Stuff from TOMLayer that this object needs
     private final RequestsTimer requestsTimer;
+    private final HeartBeatTimer heartBeatTimer;
     private final ExecutionManager execManager;
     private final ServerViewController controller;
     private final BatchBuilder bb;
@@ -75,6 +76,7 @@ public class Synchronizer {
         this.tom = tom;
         
         this.requestsTimer = this.tom.requestsTimer;
+        this.heartBeatTimer = this.tom.heartBeatTimer;
         this.execManager = this.tom.execManager;
         this.controller = this.tom.controller;
         this.bb = this.tom.bb;
@@ -84,7 +86,7 @@ public class Synchronizer {
         this.md = this.tom.md;
         
         this.outOfContextLC = new HashSet<>();
-	this.lcManager = new LCManager(this.tom,this.controller, this.md);
+	    this.lcManager = new LCManager(this.tom,this.controller, this.md);
     }
 
     public LCManager getLCManager() {
@@ -105,8 +107,8 @@ public class Synchronizer {
 
         int regency = lcManager.getNextReg();
         
-        requestsTimer.stopTimer();
-        requestsTimer.Enabled(false);
+        heartBeatTimer.stopAll();
+//        requestsTimer.Enabled(false);
 
 	// still not in the leader change phase?
         if (lcManager.getNextReg() == lcManager.getLastReg()) {
@@ -459,8 +461,9 @@ public class Synchronizer {
             
             Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " initialize synch phase");
             System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " initialize synch phase");
-            requestsTimer.Enabled(false);
-            requestsTimer.stopTimer();
+//            requestsTimer.Enabled(false);
+//            requestsTimer.stopTimer();
+            heartBeatTimer.stopAll();
 
             lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
 
@@ -546,9 +549,9 @@ public class Synchronizer {
             lcManager.clearRequestsFromSTOP();
 
             //此时开启太快，会触发反反复复的超时，应该等leaderchange流程结束再开启
-            requestsTimer.Enabled(true);
+//            requestsTimer.Enabled(true);
             requestsTimer.setShortTimeout(-1);
-            requestsTimer.startTimer();
+//            requestsTimer.startTimer();
 
             //int leader = regency % this.reconfManager.getCurrentViewN(); // new leader
             int leader = lcManager.getNewLeader();

@@ -556,8 +556,8 @@ public final class Acceptor {
                 updateConsensusSetting(epoch);
 
                 //Pause processing of new messages, Waiting for trigger state transfer
-                tomLayer.requestsTimer.Enabled(false);
-                tomLayer.requestsTimer.stopTimer();
+//                tomLayer.requestsTimer.Enabled(false);
+//                tomLayer.requestsTimer.stopTimer();
 
                 if (!tomLayer.execManager.stopped()) {
                     tomLayer.execManager.stop();

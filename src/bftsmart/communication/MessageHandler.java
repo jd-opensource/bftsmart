@@ -23,6 +23,7 @@ import bftsmart.statemanagement.SMMessage;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.leaderchange.HeartBeatMessage;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
@@ -118,6 +119,9 @@ public class MessageHandler {
                 Logger.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
             }
 
+        } else if (sm instanceof HeartBeatMessage) {
+            // 心跳消息
+            tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
         } else {
         	if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || sm.authenticated) {
 	            /*** This is Joao's code, related to leader change */
