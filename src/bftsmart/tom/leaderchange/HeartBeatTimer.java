@@ -14,12 +14,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class HeartBeatTimer {
 
-    // Leader发送超时信息的时间间隔
-    private static final long leaderHeartBeatPeriod = 5000;
-
-    // Replica接收超时时间判断
-    private static final long leaderHeartBeatTimeout = 20000;
-
     private final Timer leaderTimer = new Timer("heart beat leader timer");
 
     private final Timer replicaTimer = new Timer("heart beat replica timer");
@@ -34,6 +28,10 @@ public class HeartBeatTimer {
 
     private ServerViewController controller; // Reconfiguration manager
 
+    private long heartBeatPeriod = 6000L;
+
+    private long heartBeatTimeout = 20000L;
+
     /**
      * Creates a new instance of RequestsTimer
      * @param tomLayer TOM layer
@@ -45,6 +43,22 @@ public class HeartBeatTimer {
         this.controller = controller;
 
         this.requestsTimer = requestsTimer;
+    }
+
+    /**
+     * Creates a new instance of RequestsTimer
+     * @param tomLayer TOM layer
+     */
+    public HeartBeatTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller,
+                          RequestsTimer requestsTimer, long heartBeatPeriod, long heartBeatTimeout) {
+        this.tomLayer = tomLayer;
+
+        this.communication = communication;
+        this.controller = controller;
+
+        this.requestsTimer = requestsTimer;
+        this.heartBeatPeriod = heartBeatPeriod;
+        this.heartBeatTimeout = heartBeatTimeout;
     }
 
     public void start() {
@@ -63,12 +77,12 @@ public class HeartBeatTimer {
     public void leaderTimerStart() {
         // stop Replica timer，and start leader timer
         replicaTimer.cancel();
-        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), 0, leaderHeartBeatPeriod);
+        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), 0, heartBeatPeriod);
     }
 
     public void replicaTimerStart() {
         leaderTimer.cancel();
-        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), 0, leaderHeartBeatTimeout);
+        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), 0, heartBeatTimeout);
     }
 
     public void stopAll() {
@@ -129,7 +143,7 @@ public class HeartBeatTimer {
                     } else {
                         // 判断时间
                         long lastTime = innerHeartBeatMessage.getTime();
-                        if (System.currentTimeMillis() - lastTime > leaderHeartBeatTimeout) {
+                        if (System.currentTimeMillis() - lastTime > heartBeatTimeout) {
                             // todo 此处触发超时
                             if (requestsTimer != null) {
                                 requestsTimer.run_lc_protocol();

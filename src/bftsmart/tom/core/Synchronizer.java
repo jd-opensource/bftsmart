@@ -560,6 +560,9 @@ public class Synchronizer {
 
             execManager.setNewLeader(leader);
 
+            // 重启心跳
+            tom.heartBeatTimer.restart();
+
             // If I am not the leader, I have to send a STOPDATA message to the elected leader
             if (leader != this.controller.getStaticConf().getProcessId()) {
 

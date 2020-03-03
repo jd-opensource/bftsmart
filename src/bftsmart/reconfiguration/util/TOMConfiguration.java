@@ -31,6 +31,8 @@ public class TOMConfiguration extends Configuration {
 	protected int requestTimeout;
 	protected int clientDatasMonitorTimeout;
 	protected int clientDatasMaxCount;
+	protected long heartBeatTimeout;
+	protected long heartBeatPeriod;
 	protected int tomPeriod;
 	protected int paxosHighMark;
 	protected int revivalHighMark;
@@ -160,6 +162,30 @@ public class TOMConfiguration extends Configuration {
 				clientDatasMaxCount = Integer.parseInt(s);
 				if (clientDatasMaxCount < 0) {
 					clientDatasMaxCount = 0;
+				}
+			}
+
+
+
+			// heartBeatTimeout;
+			s = (String) configs.remove("system.totalordermulticast.heartBeatTimeout");
+			if (s == null) {
+				heartBeatTimeout = 20000L;
+			} else {
+				heartBeatTimeout = Long.parseLong(s);
+				if (heartBeatTimeout < 0) {
+					heartBeatTimeout = 20000L;
+				}
+			}
+
+			// heartBeatPeriod;
+			s = (String) configs.remove("system.totalordermulticast.heartBeatPeriod");
+			if (s == null) {
+				heartBeatPeriod = 6000L;
+			} else {
+				heartBeatPeriod = Long.parseLong(s);
+				if (heartBeatPeriod < 0) {
+					heartBeatPeriod = 6000L;
 				}
 			}
 
@@ -452,6 +478,14 @@ public class TOMConfiguration extends Configuration {
 
 	public int getClientDatasMaxCount () {
 		return clientDatasMaxCount;
+	}
+
+	public long getHeartBeatTimeout() {
+		return heartBeatTimeout;
+	}
+
+	public long getHeartBeatPeriod() {
+		return heartBeatPeriod;
 	}
 
 	public int getReplyVerificationTime() {
