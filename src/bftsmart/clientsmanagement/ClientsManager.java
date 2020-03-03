@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
@@ -40,7 +41,9 @@ public class ClientsManager {
     private RequestsTimer timer;
     private HashMap<Integer, ClientData> clientsData = new HashMap<Integer, ClientData>();
     private RequestVerifier verifier;
-    
+
+    private AtomicLong clientDatasTotal = new AtomicLong(0);
+
     private ReentrantLock clientsLock = new ReentrantLock();
 
     public ClientsManager(ServerViewController controller, RequestsTimer timer, RequestVerifier verifier) {
@@ -49,6 +52,21 @@ public class ClientsManager {
         this.verifier = verifier;
     }
 
+    /**
+     * Return the total count of requests from all client data lists.
+     *
+     * @param
+     * @return the total number
+     */
+    public long getClientDatasTotal() {
+        long total;
+
+        clientsLock.lock();
+        total =  clientDatasTotal.get();
+        clientsLock.unlock();
+//        System.out.println("I am proc " + this.controller.getStaticConf().getProcessId() + " , the client data total is " + total);
+        return total;
+    }
     /**
      * We are assuming that no more than one thread will access
      * the same clientData during creation.
@@ -172,6 +190,40 @@ public class ClientsManager {
     }
 
     /**
+     * Clear obsolete requests from client data lists.
+     *
+     * @param void
+     * @return void
+     */
+    public void clearObsoleteRequests() {
+        clientsLock.lock();
+        Iterator<Entry<Integer, ClientData>> it = clientsData.entrySet().iterator();
+
+        while (it.hasNext()) {
+            ClientData clientData = it.next().getValue();
+
+            clientData.clientLock.lock();
+            RequestList reqs = clientData.getPendingRequests();
+            if (!reqs.isEmpty()) {
+                for(TOMMessage msg:reqs) {
+                    if((System.currentTimeMillis() - msg.receptionTime) < (4 * this.controller.getStaticConf().getRequestTimeout()) ) {
+                        break;
+                    }
+                    else {
+                        clientData.removePendingRequest(msg);
+                        timer.unwatch(msg);
+                        System.out.println("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
+                    }
+                }
+            }
+            clientData.clientLock.unlock();
+        }
+        clientsLock.unlock();
+
+
+    }
+
+    /**
      * Verifies if some reqId is pending.
      *
      * @param reqId the request identifier
@@ -277,6 +329,7 @@ public class ClientsManager {
                 clientData.getPendingRequests().add(request); 
                 clientData.setLastMessageReceived(request.getSequence());
                 clientData.setLastMessageReceivedTime(request.receptionTime);
+                clientDatasTotal.getAndIncrement();
 
                 //create a timer for this message
                 if (timer != null) {
@@ -354,6 +407,9 @@ public class ClientsManager {
             Logger.println("(ClientsManager.requestOrdered) Request "
                     + request + " does not exist in pending requests");
         }
+
+        clientDatasTotal.getAndDecrement();
+
         clientData.setLastMessageExecuted(request.getSequence());
 
         /******* END CLIENTDATA CRITICAL SECTION ******/
@@ -396,6 +452,7 @@ public class ClientsManager {
                     + request + " does not exist in pending requests");
         }
 
+        clientDatasTotal.getAndDecrement();
         /******* END CLIENTDATA CRITICAL SECTION ******/
         clientData.clientLock.unlock();
     }

@@ -31,6 +31,7 @@ import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
+import bftsmart.tom.leaderchange.ClientDatasMonitorTimer;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.RequestVerifier;
@@ -68,6 +69,9 @@ public final class TOMLayer extends Thread implements RequestReceiver {
      * Manage timers for pending requests
      */
     public RequestsTimer requestsTimer;
+
+    // Monitor timer for client datas and clear too old datas;
+    public ClientDatasMonitorTimer clientDatasMonitorTimer;
     /**
      * Store requests received but still not ordered
      */
@@ -161,6 +165,8 @@ public final class TOMLayer extends Thread implements RequestReceiver {
 
         // I have a verifier, now create clients manager
         this.clientsManager = new ClientsManager(this.controller, requestsTimer, this.verifier);
+
+        this.clientDatasMonitorTimer = new ClientDatasMonitorTimer(this.controller, requestsTimer, clientsManager);
 
         this.syncher = new Synchronizer(this); // create synchronizer
     }
