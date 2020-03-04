@@ -135,9 +135,7 @@ public final class TOMLayer extends Thread implements RequestReceiver {
         this.controller = controller;
 
         this.requestsTimer = new RequestsTimer(this, communication, this.controller); // Create requests timers manager (a thread)
-        this.heartBeatTimer = new HeartBeatTimer(this, communication, this.controller, requestsTimer,
-                this.controller.getStaticConf().getHeartBeatPeriod(),
-                this.controller.getStaticConf().getHeartBeatTimeout());
+        this.heartBeatTimer = new HeartBeatTimer(this, communication, this.controller, requestsTimer);
         //do not create a timer manager if the timeout is 0
 //        if (this.controller.getStaticConf().getRequestTimeout() == 0) {
 //            this.requestsTimer = null;

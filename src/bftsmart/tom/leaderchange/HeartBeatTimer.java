@@ -28,9 +28,9 @@ public class HeartBeatTimer {
 
     private ServerViewController controller; // Reconfiguration manager
 
-    private long heartBeatPeriod = 6000L;
+    private long heartBeatPeriod;
 
-    private long heartBeatTimeout = 20000L;
+    private long heartBeatTimeout;
 
     /**
      * Creates a new instance of RequestsTimer
@@ -40,25 +40,14 @@ public class HeartBeatTimer {
         this.tomLayer = tomLayer;
         
         this.communication = communication;
+
         this.controller = controller;
 
         this.requestsTimer = requestsTimer;
-    }
 
-    /**
-     * Creates a new instance of RequestsTimer
-     * @param tomLayer TOM layer
-     */
-    public HeartBeatTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller,
-                          RequestsTimer requestsTimer, long heartBeatPeriod, long heartBeatTimeout) {
-        this.tomLayer = tomLayer;
+        this.heartBeatPeriod = this.controller.getStaticConf().getHeartBeatPeriod();
 
-        this.communication = communication;
-        this.controller = controller;
-
-        this.requestsTimer = requestsTimer;
-        this.heartBeatPeriod = heartBeatPeriod;
-        this.heartBeatTimeout = heartBeatTimeout;
+        this.heartBeatTimeout = this.controller.getStaticConf().getHeartBeatTimeout();
     }
 
     public void start() {
