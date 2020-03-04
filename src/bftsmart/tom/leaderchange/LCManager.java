@@ -164,6 +164,11 @@ public class LCManager {
      * @param requestsFromSTOP Requests received in a STOP message
      */
     public void addRequestsFromSTOP(TOMMessage[] requestsFromSTOP) {
+
+        if (requestsFromSTOP == null) {
+            return;
+        }
+
         if (this.requestsFromSTOP == null)
             this.requestsFromSTOP = new LinkedList<>();
         
