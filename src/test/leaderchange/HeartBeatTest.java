@@ -17,12 +17,12 @@ public class HeartBeatTest {
 
     public static void main(String[] args) {
 
-        if (Integer.parseInt(args[0]) < 4) {
-            System.out.println("Client proc id error, cann't same with node server!!");
-            return;
-        }
+//        if (Integer.parseInt(args[0]) < 4) {
+//            System.out.println("Client proc id error, cann't same with node server!!");
+//            return;
+//        }
 
-        int clientProcId = Integer.parseInt(args[0]);
+        int clientProcId = 11000;
 
         // create client request content
         Random random = new Random();
