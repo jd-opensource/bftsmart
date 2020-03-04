@@ -14,14 +14,16 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class HeartBeatTimer {
 
-    private final Timer leaderTimer = new Timer("heart beat leader timer");
+    private Timer leaderTimer = new Timer("heart beat leader timer");
 
-    private final Timer replicaTimer = new Timer("heart beat replica timer");
+    private Timer replicaTimer = new Timer("heart beat replica timer");
 
     private RequestsTimer requestsTimer;
 
     private TOMLayer tomLayer; // TOM layer
+
     private volatile InnerHeartBeatMessage innerHeartBeatMessage;
+
     private Lock hbLock = new ReentrantLock();
 
     private ServerCommunicationSystem communication; // Communication system between replicas
@@ -65,18 +67,28 @@ public class HeartBeatTimer {
 
     public void leaderTimerStart() {
         // stop Replica timer，and start leader timer
-        replicaTimer.cancel();
+        if (leaderTimer == null) {
+            leaderTimer = new Timer("heart beat leader timer");
+        }
         leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), 0, heartBeatPeriod);
     }
 
     public void replicaTimerStart() {
-        leaderTimer.cancel();
-        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), 0, heartBeatTimeout);
+        if (replicaTimer == null) {
+            replicaTimer = new Timer("heart beat replica timer");
+        }
+        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), heartBeatTimeout, heartBeatTimeout);
     }
 
     public void stopAll() {
-        replicaTimer.cancel();
-        leaderTimer.cancel();
+        if (replicaTimer != null) {
+            replicaTimer.cancel();
+        }
+        if (leaderTimer != null) {
+            leaderTimer.cancel();
+        }
+        replicaTimer = null;
+        leaderTimer = null;
     }
 
     /**
@@ -87,6 +99,8 @@ public class HeartBeatTimer {
         hbLock.lock();
         try {
             if (heartBeatMessage.getLeader() == tomLayer.leader()) {
+                System.out.printf("node %s receive heart beat from %s \r\n",
+                        this.controller.getStaticConf().getProcessId(), heartBeatMessage.getLeader());
                 innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
             }
         } finally {
@@ -124,6 +138,7 @@ public class HeartBeatTimer {
                 // 检查收到的InnerHeartBeatMessage是否超时
                 hbLock.lock();
                 try {
+                    System.out.printf("node %s check heart beat message \r\n", controller.getStaticConf().getProcessId());
                     if (innerHeartBeatMessage == null) {
                         // todo 此处触发超时
                         if (requestsTimer != null) {
