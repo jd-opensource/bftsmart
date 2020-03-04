@@ -4,6 +4,7 @@ import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -15,6 +16,7 @@ import java.util.concurrent.Executors;
 public class HeartBeatTest {
 
     private static int nodeNums = 4;
+
     private static final ExecutorService nodeStartPools = Executors.newCachedThreadPool();
 
 
@@ -24,6 +26,8 @@ public class HeartBeatTest {
 //            System.out.println("Client proc id error, cann't same with node server!!");
 //            return;
 //        }
+
+        CountDownLatch servers = new CountDownLatch(nodeNums);
 
         int clientProcId = 11000;
 
@@ -40,7 +44,15 @@ public class HeartBeatTest {
            NodeServerTest node = serverNodes[i];
             nodeStartPools.execute(() -> {
                node.startNode();
+                servers.countDown();
             });
+        }
+
+        try {
+            servers.await();
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         //create client proxy

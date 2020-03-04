@@ -10,6 +10,7 @@ import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.BytesUtils;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,7 +36,6 @@ public class NodeServerTest extends DefaultRecoverable {
 
     @Override
     public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus) {
-
 
         byte [][] replies = new byte[commands.length][];
         for (int i = 0; i < commands.length; i++) {
@@ -73,13 +73,13 @@ public class NodeServerTest extends DefaultRecoverable {
         try {
             int increment = new DataInputStream(new ByteArrayInputStream(command)).readInt();
             //System.out.println("read-only request: "+(msgCtx.getConsensusId() == -1));
-            counter += increment;
+            counter++;
 
             if (msgCtx != null) {
                 if (msgCtx.getConsensusId() == -1) {
                     System.out.println("(" + iterations + ") Counter was incremented: " + counter);
                 } else {
-                    System.out.println("(" + iterations + " / " + msgCtx.getConsensusId() + ") Counter was incremented: " + counter);
+                    System.out.println("Procid " + proId + " (" + iterations + " / " + msgCtx.getConsensusId() + ") Counter was incremented: " + counter);
                 }
             }
             else {
@@ -141,7 +141,14 @@ public class NodeServerTest extends DefaultRecoverable {
 
     @Override
     public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
-        return null;
+        List<byte[]> responseLinkedList = new ArrayList<>();
+
+        for (int i = 0; i < commands.length; i++) {
+            responseLinkedList.add("test".getBytes());
+        }
+
+        return new BatchAppResultImpl(responseLinkedList, "new".getBytes(), "batchId", "genis".getBytes() );
+
     }
 
     @Override
@@ -151,11 +158,11 @@ public class NodeServerTest extends DefaultRecoverable {
 
     @Override
     public void preComputeAppCommit(String batchId) {
-
+        return;
     }
 
     @Override
     public void preComputeAppRollback(String batchId) {
-
+        return;
     }
 }
