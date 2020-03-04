@@ -347,8 +347,8 @@ public class Synchronizer {
     // Deserializes requests that were included in STOP messages
     private TOMMessage[] deserializeTOMMessages(byte[] playload) {
 
-        ByteArrayInputStream bis;
-        ObjectInputStream ois;
+        ByteArrayInputStream bis = null;
+        ObjectInputStream ois = null;
 
         TOMMessage[] requests = null;
 
@@ -372,6 +372,8 @@ public class Synchronizer {
             ois.close();
             bis.close();
 
+        } catch (EOFException ex) {
+            return requests;
         } catch (IOException ex) {
             ex.printStackTrace();
             java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.SEVERE, null, ex);
