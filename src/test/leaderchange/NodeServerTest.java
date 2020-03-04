@@ -23,8 +23,14 @@ public class NodeServerTest extends DefaultRecoverable {
 
     ServiceReplica replica = null;
 
+    private int proId;
+
     public NodeServerTest(int id) {
-        replica = new ServiceReplica(id, "config", this, this, null, new DefaultReplier());
+        this.proId = id;
+    }
+
+    public void startNode() {
+        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier());
     }
 
     @Override

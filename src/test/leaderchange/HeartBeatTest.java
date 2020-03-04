@@ -4,6 +4,8 @@ import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @Author: zhangshuang
@@ -13,6 +15,7 @@ import java.util.Random;
 public class HeartBeatTest {
 
     private static int nodeNums = 4;
+    private static final ExecutorService nodeStartPools = Executors.newCachedThreadPool();
 
 
     public static void main(String[] args) {
@@ -29,11 +32,15 @@ public class HeartBeatTest {
         byte[] bytes = new byte[4];
         random.nextBytes(bytes);
 
-        ServiceReplica[] replicas;
+        NodeServerTest[] serverNodes = new NodeServerTest[4];
 
         //start 4 node servers
         for (int i = 0; i < nodeNums ; i++) {
-           new NodeServerTest(i);
+           serverNodes[i] = new NodeServerTest(i);
+           NodeServerTest node = serverNodes[i];
+            nodeStartPools.execute(() -> {
+               node.startNode();
+            });
         }
 
         //create client proxy
