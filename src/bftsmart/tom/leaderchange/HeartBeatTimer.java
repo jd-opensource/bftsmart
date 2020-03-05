@@ -108,6 +108,10 @@ public class HeartBeatTimer {
         }
     }
 
+    public void setCommunication(ServerCommunicationSystem communication) {
+        this.communication = communication;
+    }
+
     /**
      *
      */

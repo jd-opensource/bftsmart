@@ -689,4 +689,8 @@ public class ServiceReplica {
 	public int getId() {
 		return id;
 	}
+
+	public TOMLayer getTomLayer() {
+		return tomLayer;
+	}
 }

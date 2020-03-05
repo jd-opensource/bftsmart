@@ -4,7 +4,9 @@ import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.SystemMessage;
 import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
+import bftsmart.tom.leaderchange.HeartBeatTimer;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -76,6 +78,9 @@ public class HeartBeatTest {
         //mock cs
         mockCommunicationSystem(serviceReplicas);
 
+        // mock hearttimer's communation
+        mockHeartBeatCommunicationSystem(serviceReplicas);
+
         // test1
         leaderHeartbeatTimeoutTest(serviceReplicas[0]);
 
@@ -102,7 +107,14 @@ public class HeartBeatTest {
         serviceReplicas[1].setCommunicationSystem(mockCommunicationSystem1);
         serviceReplicas[2].setCommunicationSystem(mockCommunicationSystem2);
         serviceReplicas[3].setCommunicationSystem(mockCommunicationSystem3);
+    }
 
+    public static void mockHeartBeatCommunicationSystem(ServiceReplica[] serviceReplicas) {
+        for (ServiceReplica serviceReplica : serviceReplicas) {
+            TOMLayer tomLayer = serviceReplica.getTomLayer();
+            HeartBeatTimer heartBeatTimer = tomLayer.heartBeatTimer;
+            heartBeatTimer.setCommunication(serviceReplica.getServerCommunicationSystem());
+        }
     }
     public static void leaderHeartbeatTimeoutTest(ServiceReplica serviceReplica) {
 
