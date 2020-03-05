@@ -682,6 +682,10 @@ public class ServiceReplica {
 		return cs;
 	}
 
+	public void setCommunicationSystem(ServerCommunicationSystem cs) {
+		this.cs = cs;
+	}
+
 	public int getId() {
 		return id;
 	}
