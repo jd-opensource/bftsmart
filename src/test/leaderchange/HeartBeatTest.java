@@ -1,5 +1,6 @@
 package test.leaderchange;
 
+import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 
@@ -22,12 +23,9 @@ public class HeartBeatTest {
 
     public static void main(String[] args) {
 
-//        if (Integer.parseInt(args[0]) < 4) {
-//            System.out.println("Client proc id error, cann't same with node server!!");
-//            return;
-//        }
-
         CountDownLatch servers = new CountDownLatch(nodeNums);
+        ServiceReplica[] serviceReplicas = new ServiceReplica[4];
+
 
         int clientProcId = 11000;
 
@@ -55,19 +53,38 @@ public class HeartBeatTest {
             e.printStackTrace();
         }
 
+        for (int i = 0; i < 4; i++) {
+            serviceReplicas[i] = serverNodes[i].getReplica();
+        }
+
+
         //create client proxy
         AsynchServiceProxy clientProxy = new AsynchServiceProxy(clientProcId);
 
         clientProxy.invokeOrdered(bytes);
 
         // test1
-        // TODO: 2020/3/4  
+        leaderHeartbeatTimeoutTest(serviceReplicas);
+
         
         // test2
         // TODO: 2020/3/4  
 
 
     }
+
+    public static void leaderHeartbeatTimeoutTest(ServiceReplica[] serviceReplicas) {
+
+        ServerCommunicationSystem realCommunicationSystem0 = serviceReplicas[0].getServerCommunicationSystem();
+        ServerCommunicationSystem realCommunicationSystem1 = serviceReplicas[1].getServerCommunicationSystem();
+        ServerCommunicationSystem realCommunicationSystem2 = serviceReplicas[2].getServerCommunicationSystem();
+        ServerCommunicationSystem realCommunicationSystem3 = serviceReplicas[3].getServerCommunicationSystem();
+
+//        ServerCommunicationSystem mockCommunicationSystem =
+    }
+
+
+
 
 
 
