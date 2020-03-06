@@ -596,4 +596,12 @@ public final class TOMLayer extends Thread implements RequestReceiver {
         if (this.communication != null) this.communication.shutdown();
  
     }
+
+    public HeartBeatTimer getHeartBeatTimer() {
+        return heartBeatTimer;
+    }
+
+    public RequestsTimer getRequestsTimer() {
+        return requestsTimer;
+    }
 }

@@ -30,9 +30,9 @@ public class NodeServerTest extends DefaultRecoverable {
         this.proId = id;
     }
 
-    public void startNode() {
+    public ServiceReplica startNode() {
         replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier());
-
+        return replica;
     }
 
     public ServiceReplica getReplica() {

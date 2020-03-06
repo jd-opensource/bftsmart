@@ -154,10 +154,10 @@ public class ServerCommunicationSystem extends Thread {
         return clientsConn;
     }
     
-//    @Override
-//    public String toString() {
-//        return serversConn.toString();
-//    }
+    @Override
+    public String toString() {
+        return serversConn.toString();
+    }
     
     public void shutdown() {
         
