@@ -25,6 +25,8 @@ import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
 import bftsmart.tom.leaderchange.LCMessage;
+import bftsmart.tom.leaderchange.LeaderRequestMessage;
+import bftsmart.tom.leaderchange.LeaderResponseMessage;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
 
@@ -122,6 +124,12 @@ public class MessageHandler {
         } else if (sm instanceof HeartBeatMessage) {
             // 心跳消息
             tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
+        } else if (sm instanceof LeaderRequestMessage) {
+            // 获取Leader节点请求的消息
+            tomLayer.heartBeatTimer.receiveLeaderRequestMessage((LeaderRequestMessage) sm);
+        } else if (sm instanceof LeaderResponseMessage) {
+            // 获取Leader节点请求的消息
+            tomLayer.heartBeatTimer.receiveLeaderResponseMessage((LeaderResponseMessage) sm);
         } else {
         	if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || sm.authenticated) {
 	            /*** This is Joao's code, related to leader change */
