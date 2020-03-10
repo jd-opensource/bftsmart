@@ -161,6 +161,15 @@ public class HeartBeatTimer {
                     // 表示满足条件，设置新的Leader
                     leaderResponseTimer.cancel(); // 取消定时器
                     leaderResponseTimer = null;
+                    //如果我本身是领导者，又收到来自其他领导者的心跳，经过领导者查询之后需要取消一个领导者定时器
+                    if (tomLayer.leader() != newLeaderId) {
+                        if (leaderTimer != null) {
+                            leaderTimer.cancel();
+                            leaderTimer = null;
+                        } else if (replicaTimer != null) {
+                           //To be perfected
+                        }
+                    }
                     tomLayer.execManager.setNewLeader(newLeaderId); // 设置新的Leader
                 }
             } else {
