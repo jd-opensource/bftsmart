@@ -35,6 +35,7 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.CertifiedDecision;
+import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.server.*;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
@@ -86,6 +87,7 @@ public class ServiceReplica {
 	private ReplicaContext replicaCtx = null;
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
+	private HeartBeatTimer heartBeatTimer = null;
 
 	/**
 	 * Constructor
@@ -194,7 +196,45 @@ public class ServiceReplica {
 		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier);
 	}
 
-	/**
+	public ServiceReplica(int id, String configHome, Executable executor, Recoverable recoverer,
+						  RequestVerifier verifier, Replier replier, HeartBeatTimer heartBeatTimer) {
+
+		this(new ServerViewController(id, configHome), executor, recoverer, verifier, replier, heartBeatTimer);
+	}
+
+    /**
+     * Constructor
+     *
+     * @param id
+     *            Process ID
+     * @param configHome
+     *            Configuration directory for JBP
+     * @param executor
+     *            Executor
+     * @param recoverer
+     *            Recoverer
+     * @param verifier
+     *            Requests verifier
+     * @param replier
+     *            Replier
+     * @param heartBeatTimer
+     *            HeartBeatTimer
+     */
+    protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
+                             RequestVerifier verifier, Replier replier, HeartBeatTimer heartBeatTimer) {
+        this.id = viewController.getStaticConf().getProcessId();
+        this.SVController = viewController;
+        this.executor = executor;
+        this.recoverer = recoverer;
+        this.replier = (replier != null ? replier : new DefaultReplier());
+        this.verifier = verifier;
+        this.heartBeatTimer = heartBeatTimer;
+        this.init();
+        this.recoverer.setReplicaContext(replicaCtx);
+        this.replier.setReplicaContext(replicaCtx);
+    }
+
+    /**
 	 * Constructor
 	 *
 	 * @param id
@@ -238,6 +278,10 @@ public class ServiceReplica {
 	public ReplyManager getRepMan() {
 		return repMan;
 	}
+
+	public HeartBeatTimer getHeartBeatTimer() {
+	    return heartBeatTimer;
+    }
 
 	// this method initializes the object
 	private void init() {

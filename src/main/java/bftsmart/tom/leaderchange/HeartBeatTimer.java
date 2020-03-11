@@ -38,31 +38,34 @@ public class HeartBeatTimer {
 
     private Lock hbLock = new ReentrantLock();
 
-    private ServerCommunicationSystem communication; // Communication system between replicas
+//    private ServerCommunicationSystem communication; // Communication system between replicas
 
-    private ServerViewController controller; // Reconfiguration manager
+//    private ServerViewController controller; // Reconfiguration manager
 
-    private long heartBeatPeriod;
+//    private long heartBeatPeriod;
+//
+//    private long heartBeatTimeout;
 
-    private long heartBeatTimeout;
+    public HeartBeatTimer() {
 
+    }
     /**
      * Creates a new instance of RequestsTimer
      * @param tomLayer TOM layer
      */
-    public HeartBeatTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller, RequestsTimer requestsTimer) {
-        this.tomLayer = tomLayer;
-        
-        this.communication = communication;
-
-        this.controller = controller;
-
-        this.requestsTimer = requestsTimer;
-
-        this.heartBeatPeriod = this.controller.getStaticConf().getHeartBeatPeriod();
-
-        this.heartBeatTimeout = this.controller.getStaticConf().getHeartBeatTimeout();
-    }
+//    public HeartBeatTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller, RequestsTimer requestsTimer) {
+//        this.tomLayer = tomLayer;
+//
+//        this.communication = communication;
+//
+//        this.controller = controller;
+//
+//        this.requestsTimer = requestsTimer;
+//
+//        this.heartBeatPeriod = this.controller.getStaticConf().getHeartBeatPeriod();
+//
+//        this.heartBeatTimeout = this.controller.getStaticConf().getHeartBeatTimeout();
+//    }
 
     public void start() {
         if (tomLayer.isLeader()) {
@@ -82,14 +85,14 @@ public class HeartBeatTimer {
         if (leaderTimer == null) {
             leaderTimer = new Timer("heart beat leader timer");
         }
-        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), 0, heartBeatPeriod);
+        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), 0, tomLayer.controller.getStaticConf().getHeartBeatPeriod());
     }
 
     public void replicaTimerStart() {
         if (replicaTimer == null) {
             replicaTimer = new Timer("heart beat replica timer");
         }
-        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), heartBeatTimeout, heartBeatTimeout);
+        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(),tomLayer.controller.getStaticConf().getHeartBeatTimeout(), tomLayer.controller.getStaticConf().getHeartBeatTimeout());
     }
 
     public void stopAll() {
@@ -112,7 +115,7 @@ public class HeartBeatTimer {
         try {
             if (heartBeatMessage.getLeader() == tomLayer.leader()) {
                 System.out.printf("node %s receive heart beat from %s \r\n",
-                        this.controller.getStaticConf().getProcessId(), heartBeatMessage.getLeader());
+                        tomLayer.controller.getStaticConf().getProcessId(), heartBeatMessage.getLeader());
                 innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
             } else {
                 sendLeaderRequestMessage();
@@ -130,10 +133,10 @@ public class HeartBeatTimer {
         // 获取当前节点的领导者信息，然后应答给发送者
         int currLeader = tomLayer.leader();
         LeaderResponseMessage responseMessage = new LeaderResponseMessage(
-                controller.getStaticConf().getProcessId(), currLeader, requestMessage.getSequence());
+                tomLayer.controller.getStaticConf().getProcessId(), currLeader, requestMessage.getSequence());
         int[] to = new int[1];
         to[0] = requestMessage.getFrom();
-        communication.send(to, responseMessage);
+        tomLayer.getCommunication().send(to, responseMessage);
     }
 
     /**
@@ -182,8 +185,8 @@ public class HeartBeatTimer {
         }
     }
 
-    public void setCommunication(ServerCommunicationSystem communication) {
-        this.communication = communication;
+    public void setTomLayer(TOMLayer tomLayer) {
+        this.tomLayer = tomLayer;
     }
 
     public void sendLeaderRequestMessage() {
@@ -202,8 +205,8 @@ public class HeartBeatTimer {
 
     private void sendLeaderRequestMessage(long sequence) {
         LeaderRequestMessage requestMessage = new LeaderRequestMessage(
-                controller.getStaticConf().getProcessId(), sequence);
-        communication.send(controller.getCurrentViewOtherAcceptors(), requestMessage);
+                tomLayer.controller.getStaticConf().getProcessId(), sequence);
+        tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), requestMessage);
         lastLeaderRequestSequence = sequence;
         // 启动定时任务，判断心跳的应答处理
         if (leaderResponseTimer == null) {
@@ -246,7 +249,7 @@ public class HeartBeatTimer {
                 }
             }
             // 判断是否满足2f+1
-            int compareSize = 2 * controller.getStaticConf().getF() + 1;
+            int compareSize = 2 * tomLayer.controller.getStaticConf().getF() + 1;
             if (leaderMaxSize >= compareSize) {
                 return leaderMaxId;
             }
@@ -268,9 +271,9 @@ public class HeartBeatTimer {
             // 再次判断是否是Leader
             if (tomLayer.isLeader()) {
                 // 如果是Leader则发送心跳信息给其他节点，当前节点除外
-                HeartBeatMessage heartBeatMessage = new HeartBeatMessage(controller.getStaticConf().getProcessId(),
-                        controller.getStaticConf().getProcessId());
-                communication.send(controller.getCurrentViewOtherAcceptors(), heartBeatMessage);
+                HeartBeatMessage heartBeatMessage = new HeartBeatMessage(tomLayer.controller.getStaticConf().getProcessId(),
+                        tomLayer.controller.getStaticConf().getProcessId());
+                tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), heartBeatMessage);
             }
         }
     }
@@ -311,19 +314,21 @@ public class HeartBeatTimer {
                 // 检查收到的InnerHeartBeatMessage是否超时
                 hbLock.lock();
                 try {
-                    System.out.printf("node %s check heart beat message \r\n", controller.getStaticConf().getProcessId());
+                    System.out.printf("node %s check heart beat message \r\n", tomLayer.controller.getStaticConf().getProcessId());
                     if (innerHeartBeatMessage == null) {
                         // todo 此处触发超时
-                        if (requestsTimer != null) {
-                            requestsTimer.run_lc_protocol();
+                        System.out.println("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout1");
+                        if (tomLayer.requestsTimer != null) {
+                            tomLayer.requestsTimer.run_lc_protocol();
                         }
                     } else {
                         // 判断时间
                         long lastTime = innerHeartBeatMessage.getTime();
-                        if (System.currentTimeMillis() - lastTime > heartBeatTimeout) {
+                        if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
                             // todo 此处触发超时
-                            if (requestsTimer != null) {
-                                requestsTimer.run_lc_protocol();
+                            System.out.println("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout2");
+                            if (tomLayer.requestsTimer != null) {
+                                tomLayer.requestsTimer.run_lc_protocol();
                             }
                         }
                     }

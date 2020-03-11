@@ -1,7 +1,11 @@
 package test.bftsmart.leaderchange;
 
 import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.leaderchange.HeartBeatTimer;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -9,6 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Matchers.any;
 
 /**
@@ -25,22 +30,15 @@ public class HeartBeatTest {
     private static AtomicBoolean isTestTurnOn = new AtomicBoolean(false);
 
     @Test
-    public void test() {
+    public void stopLeaderHbTest() {
 
         CountDownLatch servers = new CountDownLatch(nodeNums);
 
         ServiceReplica[] serviceReplicas = new ServiceReplica[4];
 
-        int clientProcId = 11000;
-
-        // create client request content
-        Random random = new Random();
-        byte[] bytes = new byte[4];
-        random.nextBytes(bytes);
-
         TestNodeServer[] serverNodes = new TestNodeServer[4];
 
-        TestNodeServer[] mockServerNodes = new TestNodeServer[4];
+        HeartBeatTimer[] mockHbTimers = new HeartBeatTimer[4];
 
         //start 4 node servers
         for (int i = 0; i < nodeNums ; i++) {
@@ -61,26 +59,83 @@ public class HeartBeatTest {
 
         for (int i = 0; i < nodeNums; i++) {
             serviceReplicas[i] = serverNodes[i].getReplica();
+            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
         }
+
+        //stop leader's heart beat, not network reason
+        stopLeaderHeartBeat(serviceReplicas);
+
+        try {
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    @Test
+    public void UnleaderHbTimeoutTest() {
+        CountDownLatch servers = new CountDownLatch(nodeNums);
+
+        ServiceReplica[] serviceReplicas = new ServiceReplica[4];
+
+        TestNodeServer[] serverNodes = new TestNodeServer[4];
+
+        HeartBeatTimer[] mockHbTimers = new HeartBeatTimer[4];
+
+        //start 4 node servers
+        for (int i = 0; i < nodeNums ; i++) {
+            serverNodes[i] = new TestNodeServer(i);
+            TestNodeServer node = serverNodes[i];
+            nodeStartPools.execute(() -> {
+                node.startNode();
+                servers.countDown();
+            });
+        }
+
+        try {
+            servers.await();
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        for (int i = 0; i < nodeNums; i++) {
+            serviceReplicas[i] = serverNodes[i].getReplica();
+            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
+        }
+
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(30000);
+                return invocationOnMock.callRealMethod();
+            }
+        }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
+
+
+        try {
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void clientSendTest() {
+        int clientProcId = 11000;
+
+        // create client request content
+//        Random random = new Random();
+//        byte[] bytes = new byte[4];
+//        random.nextBytes(bytes);
 
         //create client proxy
 //        AsynchServiceProxy clientProxy = new AsynchServiceProxy(clientProcId);
 
         //simple send msg test
 //        clientProxy.invokeOrdered(bytes);
-
-        //mock cs
-//        mockCommunicationSystem(serviceReplicas);
-
-        //mock hearttimer's communation
-//        mockHeartBeatCommunicationSystem(serviceReplicas);
-
-        // test1
-//        leaderHeartbeatTimeoutTest(serviceReplicas[0]);
-
-        //stop leader's heart beat, not network reason
-        stopLeaderHeartBeat(serviceReplicas);
-
 
     }
 
@@ -90,60 +145,4 @@ public class HeartBeatTest {
 
         serviceReplicas[leadId].getTomLayer().heartBeatTimer.stopAll();
     }
-
-//    public static void mockCommunicationSystem(ServiceReplica[] serviceReplicas)  {
-//
-//        ServerCommunicationSystem realCommunicationSystem0 = serviceReplicas[0].getServerCommunicationSystem();
-//        ServerCommunicationSystem realCommunicationSystem1 = serviceReplicas[1].getServerCommunicationSystem();
-//        ServerCommunicationSystem realCommunicationSystem2 = serviceReplicas[2].getServerCommunicationSystem();
-//        ServerCommunicationSystem realCommunicationSystem3 = serviceReplicas[3].getServerCommunicationSystem();
-//
-//        ServerCommunicationSystem mockCommunicationSystem0 = Mockito.spy(realCommunicationSystem0);
-//        ServerCommunicationSystem mockCommunicationSystem1 = Mockito.spy(realCommunicationSystem1);
-//        ServerCommunicationSystem mockCommunicationSystem2 = Mockito.spy(realCommunicationSystem2);
-//        ServerCommunicationSystem mockCommunicationSystem3 = Mockito.spy(realCommunicationSystem3);
-//
-//        serviceReplicas[0].setCommunicationSystem(mockCommunicationSystem0);
-//        serviceReplicas[1].setCommunicationSystem(mockCommunicationSystem1);
-//        serviceReplicas[2].setCommunicationSystem(mockCommunicationSystem2);
-//        serviceReplicas[3].setCommunicationSystem(mockCommunicationSystem3);
-//    }
-
-//    public static void mockHeartBeatCommunicationSystem(ServiceReplica[] serviceReplicas) {
-//        for (ServiceReplica serviceReplica : serviceReplicas) {
-//            TOMLayer tomLayer = serviceReplica.getTomLayer();
-//            HeartBeatTimer heartBeatTimer = tomLayer.heartBeatTimer;
-//            heartBeatTimer.setCommunication(serviceReplica.getServerCommunicationSystem());
-//        }
-//    }
-//    public static void leaderHeartbeatTimeoutTest(ServiceReplica serviceReplica) {
-//
-//
-//        ServerCommunicationSystem mockCommunicationSystem = serviceReplica.getServerCommunicationSystem();
-//
-//        isTestTurnOn.set(true);
-//
-//        doAnswer(new Answer<Object>() {
-//            @Override
-//            public Object answer(InvocationOnMock invocation) throws Throwable {
-//                if (isTestTurnOn.get()) {
-//                    if (invocation.getArguments()[1] instanceof HeartBeatMessage) {
-//                        Thread.sleep(20000);
-//                    }
-//                }
-//                return invocation.callRealMethod();
-//            }
-//        }).when(mockCommunicationSystem).send(any(), any());
-//
-//        isTestTurnOn.set(false);
-//    }
-
-
-
-
-
-
-
-
-
 }

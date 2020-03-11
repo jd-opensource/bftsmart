@@ -4,9 +4,11 @@ import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.BytesUtils;
+import org.mockito.Mockito;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -32,7 +34,8 @@ public class TestNodeServer extends DefaultRecoverable {
     }
 
     public ServiceReplica startNode() {
-        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier());
+
+        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier(), Mockito.spy(new HeartBeatTimer()));
         return replica;
     }
 
