@@ -1,7 +1,6 @@
-package test.leaderchange;
+package test.bftsmart.leaderchange;
 
 import bftsmart.consensus.app.BatchAppResultImpl;
-import bftsmart.demo.counter.CounterServer;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
@@ -18,15 +17,17 @@ import java.util.List;
  * @Date: 2020/3/4 11:50 AM
  * Version 1.0
  */
-public class NodeServerTest extends DefaultRecoverable {
+public class TestNodeServer extends DefaultRecoverable {
+
     private int counter = 0;
+
     private int iterations = 0;
 
     ServiceReplica replica = null;
 
     private int proId;
 
-    public NodeServerTest(int id) {
+    public TestNodeServer(int id) {
         this.proId = id;
     }
 
@@ -104,7 +105,7 @@ public class NodeServerTest extends DefaultRecoverable {
             System.out.println("Use: java CounterServer <processId>");
             System.exit(-1);
         }
-        new NodeServerTest(Integer.parseInt(args[0]));
+        new TestNodeServer(Integer.parseInt(args[0]));
     }
 
 

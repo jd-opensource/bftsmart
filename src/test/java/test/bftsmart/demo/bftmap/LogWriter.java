@@ -13,24 +13,26 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package bftsmart;
+package test.bftsmart.demo.bftmap;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 
 /**
  * 
  * @author Marcel Santos
  *
  */
-public class ConsoleLogger extends Thread {
+public class LogWriter extends Thread {
 
 	private InputStream in = null;
 	private PrintStream out = null;
-	private String index;
+	private int index;
 
 	public InputStream getIn() {
 		return in;
@@ -44,10 +46,10 @@ public class ConsoleLogger extends Thread {
 	public void setOut(PrintStream out) {
 		this.out = out;
 	}
-	public String getIndex() {
+	public int getIndex() {
 		return index;
 	}
-	public void setIndex(String index) {
+	public void setIndex(int index) {
 		this.index = index;
 	}
 	
@@ -55,9 +57,12 @@ public class ConsoleLogger extends Thread {
 		BufferedReader stdInput = new BufferedReader(new InputStreamReader(in));
 		String s;
 		try {
+			PrintWriter pw = new PrintWriter(new FileWriter("ServerLog-" + index + ".debug"));
 			while ((s = stdInput.readLine()) != null) {
-				out.println("Replica " + index + ")" +s);
+//				out.println(s);
+				pw.println(s);
 			}
+			pw.close();
 		} catch(IOException ioe) {
 			System.out.println("----------- Exception writing replica log: " + ioe.getMessage());
 		}

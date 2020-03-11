@@ -1,15 +1,7 @@
-package test.leaderchange;
+package test.bftsmart.leaderchange;
 
-import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.communication.SystemMessage;
-import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.core.TOMLayer;
-import bftsmart.tom.leaderchange.HeartBeatMessage;
-import bftsmart.tom.leaderchange.HeartBeatTimer;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.junit.Test;
 
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -18,7 +10,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 
 /**
  * @Author: zhangshuang
@@ -33,7 +24,8 @@ public class HeartBeatTest {
 
     private static AtomicBoolean isTestTurnOn = new AtomicBoolean(false);
 
-    public static void main(String[] args) {
+    @Test
+    public void test(String[] args) {
 
         CountDownLatch servers = new CountDownLatch(nodeNums);
 
@@ -46,14 +38,14 @@ public class HeartBeatTest {
         byte[] bytes = new byte[4];
         random.nextBytes(bytes);
 
-        NodeServerTest[] serverNodes = new NodeServerTest[4];
+        TestNodeServer[] serverNodes = new TestNodeServer[4];
 
-        NodeServerTest[] mockServerNodes = new NodeServerTest[4];
+        TestNodeServer[] mockServerNodes = new TestNodeServer[4];
 
         //start 4 node servers
         for (int i = 0; i < nodeNums ; i++) {
-           serverNodes[i] = new NodeServerTest(i);
-           NodeServerTest node = serverNodes[i];
+           serverNodes[i] = new TestNodeServer(i);
+           TestNodeServer node = serverNodes[i];
             nodeStartPools.execute(() -> {
                node.startNode();
                 servers.countDown();
@@ -92,7 +84,7 @@ public class HeartBeatTest {
 
     }
 
-    public static void stopLeaderHeartBeat(ServiceReplica[] serviceReplicas) {
+    private void stopLeaderHeartBeat(ServiceReplica[] serviceReplicas) {
 
         int leadId = serviceReplicas[0].getTomLayer().getExecManager().getCurrentLeader();
 
