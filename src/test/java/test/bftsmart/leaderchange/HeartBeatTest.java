@@ -29,6 +29,8 @@ public class HeartBeatTest {
 
     private static AtomicBoolean isTestTurnOn = new AtomicBoolean(false);
 
+    private static AtomicBoolean isTestTurnOn1 = new AtomicBoolean(false);
+
     @Test
     public void stopLeaderHbTest() {
 
@@ -75,7 +77,7 @@ public class HeartBeatTest {
     }
 
     @Test
-    public void UnleaderHbTimeoutTest() {
+    public void OneUnleaderHbTimeoutTest() {
         CountDownLatch servers = new CountDownLatch(nodeNums);
 
         ServiceReplica[] serviceReplicas = new ServiceReplica[4];
@@ -114,6 +116,70 @@ public class HeartBeatTest {
             }
         }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
 
+
+        try {
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void TwoUnleaderHbTimeoutTest() {
+        CountDownLatch servers = new CountDownLatch(nodeNums);
+
+        ServiceReplica[] serviceReplicas = new ServiceReplica[4];
+
+        TestNodeServer[] serverNodes = new TestNodeServer[4];
+
+        HeartBeatTimer[] mockHbTimers = new HeartBeatTimer[4];
+
+        //start 4 node servers
+        for (int i = 0; i < nodeNums ; i++) {
+            serverNodes[i] = new TestNodeServer(i);
+            TestNodeServer node = serverNodes[i];
+            nodeStartPools.execute(() -> {
+                node.startNode();
+                servers.countDown();
+            });
+        }
+
+        try {
+            servers.await();
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        for (int i = 0; i < nodeNums; i++) {
+            serviceReplicas[i] = serverNodes[i].getReplica();
+            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
+        }
+
+        isTestTurnOn.set(true);
+
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                if (isTestTurnOn.get()) {
+                    Thread.sleep(30000);
+                }
+                isTestTurnOn.set(false);
+                return invocationOnMock.callRealMethod();
+            }
+        }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
+
+        isTestTurnOn1.set(true);
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                if (isTestTurnOn1.get()) {
+                    Thread.sleep(30000);
+                }
+                isTestTurnOn1.set(false);
+                return invocationOnMock.callRealMethod();
+            }
+        }).when(mockHbTimers[2]).receiveHeartBeatMessage(any());
 
         try {
             Thread.sleep(Integer.MAX_VALUE);
