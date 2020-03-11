@@ -25,7 +25,7 @@ public class HeartBeatTest {
     private static AtomicBoolean isTestTurnOn = new AtomicBoolean(false);
 
     @Test
-    public void test(String[] args) {
+    public void test() {
 
         CountDownLatch servers = new CountDownLatch(nodeNums);
 
