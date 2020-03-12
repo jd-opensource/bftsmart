@@ -14,9 +14,9 @@ public class LeaderResponseMessage extends SystemMessage {
 
     private long sequence;
 
-    private int from;
-
     private int leader;
+
+    private int lastRegency;
 
     public LeaderResponseMessage() {
     }
@@ -26,18 +26,11 @@ public class LeaderResponseMessage extends SystemMessage {
      * @param from replica that creates this message
      * @param leader type of the message (STOP, SYNC, CATCH-UP)
      */
-    public LeaderResponseMessage(int from, int leader, long sequence) {
+    public LeaderResponseMessage(int from, int leader, long sequence, int lastRegency) {
         super(from);
         this.leader = leader;
         this.sequence = sequence;
-    }
-
-    public int getFrom() {
-        return from;
-    }
-
-    public void setFrom(int from) {
-        this.from = from;
+        this.lastRegency = lastRegency;
     }
 
     public int getLeader() {
@@ -56,12 +49,21 @@ public class LeaderResponseMessage extends SystemMessage {
         this.sequence = sequence;
     }
 
+    public int getLastRegency() {
+        return lastRegency;
+    }
+
+    public void setLastRegency(int lastRegency) {
+        this.lastRegency = lastRegency;
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException{
         super.writeExternal(out);
 
         out.writeInt(leader);
         out.writeLong(sequence);
+        out.writeInt(lastRegency);
     }
 
     @Override
@@ -71,5 +73,7 @@ public class LeaderResponseMessage extends SystemMessage {
         leader = in.readInt();
 
         sequence = in.readLong();
+
+        lastRegency = in.readInt();
     }
 }

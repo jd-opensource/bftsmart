@@ -39,7 +39,7 @@ public class ServerCommunicationSystem extends Thread {
     private boolean doWork = true;
     public final long MESSAGE_WAIT_TIME = 100;
     private LinkedBlockingQueue<SystemMessage> inQueue = null;//new LinkedBlockingQueue<SystemMessage>(IN_QUEUE_SIZE);
-    protected MessageHandler messageHandler = new MessageHandler();
+    private MessageHandler messageHandler = new MessageHandler();
     private ServersCommunicationLayer serversConn;
     private CommunicationSystemServerSide clientsConn;
     private ServerViewController controller;
@@ -97,6 +97,14 @@ public class ServerCommunicationSystem extends Thread {
             clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
         }
         clientsConn.setRequestReceiver(requestReceiver);
+    }
+
+    public void setMessageHandler(MessageHandler messageHandler) {
+        this.messageHandler = messageHandler;
+    }
+
+    public MessageHandler getMessageHandler() {
+        return messageHandler;
     }
 
     /**

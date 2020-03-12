@@ -68,7 +68,7 @@ public class MessageHandler {
     }
 
     @SuppressWarnings("unchecked")
-    protected void processData(SystemMessage sm) {
+    public void processData(SystemMessage sm) {
         if (sm instanceof ConsensusMessage) {
             
             int myId = tomLayer.controller.getStaticConf().getProcessId();

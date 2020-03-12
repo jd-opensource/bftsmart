@@ -30,14 +30,6 @@ public class HeartBeatMessage extends SystemMessage {
         this.leader = leader;
     }
 
-    public int getFrom() {
-        return from;
-    }
-
-    public void setFrom(int from) {
-        this.from = from;
-    }
-
     public int getLeader() {
         return leader;
     }

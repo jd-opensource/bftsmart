@@ -133,10 +133,15 @@ public class HeartBeatTimer {
         // 获取当前节点的领导者信息，然后应答给发送者
         int currLeader = tomLayer.leader();
         LeaderResponseMessage responseMessage = new LeaderResponseMessage(
-                tomLayer.controller.getStaticConf().getProcessId(), currLeader, requestMessage.getSequence());
+                tomLayer.controller.getStaticConf().getProcessId(), currLeader, requestMessage.getSequence(),
+                tomLayer.getSynchronizer().getLCManager().getLastReg());
         int[] to = new int[1];
         to[0] = requestMessage.getFrom();
+        System.out.printf("%s receive leader request from %s \r\n",
+                tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getFrom());
         tomLayer.getCommunication().send(to, responseMessage);
+        System.out.printf("%s send leader[%s] response to %s currNode = %s \r\n",
+                tomLayer.controller.getStaticConf().getProcessId(), currLeader, to[0], responseMessage.getSender());
     }
 
     /**
@@ -148,6 +153,8 @@ public class HeartBeatTimer {
         lrLock.lock();
         try {
             long msgSeq = responseMessage.getSequence();
+            System.out.printf("%s receive leader %s response from %s \r\n",
+                    tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getLeader(), responseMessage.getSender());
             if (msgSeq == lastLeaderRequestSequence) {
                 // 是当前节点发送的请求，则将其加入到Map中
                 List<LeaderResponseMessage> responseMessages = leaderResponseMap.get(msgSeq);
@@ -159,13 +166,13 @@ public class HeartBeatTimer {
                     responseMessages.add(responseMessage);
                 }
                 // 判断收到的心跳信息是否满足
-                int newLeaderId = newLeader(responseMessage.getSequence());
-                if (newLeaderId >= 0) {
+                NewLeader newLeader = newLeader(responseMessage.getSequence());
+                if (newLeader != null) {
                     // 表示满足条件，设置新的Leader
                     leaderResponseTimer.cancel(); // 取消定时器
                     leaderResponseTimer = null;
                     //如果我本身是领导者，又收到来自其他领导者的心跳，经过领导者查询之后需要取消一个领导者定时器
-                    if (tomLayer.leader() != newLeaderId) {
+                    if (tomLayer.leader() != newLeader.getNewLeader()) {
                         if (leaderTimer != null) {
                             leaderTimer.cancel();
                             leaderTimer = null;
@@ -173,11 +180,17 @@ public class HeartBeatTimer {
                            //To be perfected
                         }
                     }
-                    tomLayer.execManager.setNewLeader(newLeaderId); // 设置新的Leader
+                    tomLayer.execManager.setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
+                    tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
+                    tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
+                    System.out.printf("%s set new leader %s last regency %s \r\n",
+                            tomLayer.controller.getStaticConf().getProcessId(), newLeader.getNewLeader(),
+                            newLeader.getLastRegency());
                 }
             } else {
                 // 收到的心跳信息有问题，打印日志
-                System.out.printf("receive leader response last sequence = %s, receive sequence = %s \r\n",
+                System.out.printf("%s receive leader response from %s last sequence = %s, receive sequence = %s \r\n",
+                        tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSender(),
                         lastLeaderRequestSequence, msgSeq);
             }
         } finally {
@@ -220,41 +233,66 @@ public class HeartBeatTimer {
      * @return
      *     返回-1表示未达成一致，否则表示达成一致
      */
-    private int newLeader(long currentSequence) {
+    private NewLeader newLeader(long currentSequence) {
         // 从缓存中获取应答
         List<LeaderResponseMessage> leaderResponseMessages = leaderResponseMap.get(currentSequence);
         if (leaderResponseMessages == null || leaderResponseMessages.isEmpty()) {
-            return -1;
+            return null;
         } else {
-            // 判断收到的应答结果是不是满足2f+1的规则
-            Map<Integer, Integer> leader2Size = new HashMap<>();
-            // 防止重复
-            Set<Integer> nodeSet = new HashSet<>();
-            for (LeaderResponseMessage lrm : leaderResponseMessages) {
-                int currentLeader = lrm.getLeader();
-                int currentNode = lrm.getFrom();
-                if (!nodeSet.contains(currentNode)) {
-                    leader2Size.merge(currentLeader, 1, Integer::sum);
-                    nodeSet.add(currentNode);
-                }
-            }
-            // 获取leaderSize最大的Leader
-            int leaderMaxSize = -1;
-            int leaderMaxId = -1;
-            for (Map.Entry<Integer, Integer> entry : leader2Size.entrySet()) {
-                int currLeaderId = entry.getKey(), currLeaderSize = entry.getValue();
-                if (currLeaderSize > leaderMaxSize) {
-                    leaderMaxId = currLeaderId;
-                    leaderMaxSize = currLeaderSize;
-                }
-            }
-            // 判断是否满足2f+1
-            int compareSize = 2 * tomLayer.controller.getStaticConf().getF() + 1;
-            if (leaderMaxSize >= compareSize) {
-                return leaderMaxId;
-            }
-            return -1;
+            return newLeaderCheck(leaderResponseMessages);
         }
+    }
+
+    /**
+     * 新领导者check过程
+     * @param leaderResponseMessages
+     * @return
+     */
+    private NewLeader newLeaderCheck(List<LeaderResponseMessage> leaderResponseMessages) {
+        // 判断收到的应答结果是不是满足2f+1的规则
+        Map<Integer, Integer> leader2Size = new HashMap<>();
+        Map<Integer, Integer> regency2Size = new HashMap<>();
+        // 防止重复
+        Set<Integer> nodeSet = new HashSet<>();
+        for (LeaderResponseMessage lrm : leaderResponseMessages) {
+            int currentLeader = lrm.getLeader();
+            int currentRegency = lrm.getLeader();
+            int currentNode = lrm.getSender();
+            if (!nodeSet.contains(currentNode)) {
+                leader2Size.merge(currentLeader, 1, Integer::sum);
+                regency2Size.merge(currentRegency, 1, Integer::sum);
+                nodeSet.add(currentNode);
+            }
+        }
+        // 获取leaderSize最大的Leader
+        int leaderMaxSize = -1;
+        int leaderMaxId = -1;
+        for (Map.Entry<Integer, Integer> entry : leader2Size.entrySet()) {
+            int currLeaderId = entry.getKey(), currLeaderSize = entry.getValue();
+            if (currLeaderSize > leaderMaxSize) {
+                leaderMaxId = currLeaderId;
+                leaderMaxSize = currLeaderSize;
+            }
+        }
+
+        // 获取leaderSize最大的Leader
+        int regencyMaxSize = -1;
+        int regencyMaxId = -1;
+        for (Map.Entry<Integer, Integer> entry : regency2Size.entrySet()) {
+            int currRegency = entry.getKey(), currRegencySize = entry.getValue();
+            if (currRegencySize > regencyMaxSize) {
+                regencyMaxId = currRegency;
+                regencyMaxSize = currRegencySize;
+            }
+        }
+
+        // 判断是否满足2f+1
+        int compareLeaderSize = 2 * tomLayer.controller.getStaticConf().getF() + 1;
+        int compareRegencySize = 2 * tomLayer.controller.getStaticConf().getF() + 1;
+        if (leaderMaxSize >= compareLeaderSize && regencyMaxSize >= compareRegencySize) {
+            return new NewLeader(leaderMaxId, regencyMaxId);
+        }
+        return null;
     }
 
     /**
@@ -290,14 +328,16 @@ public class HeartBeatTimer {
         public void run() {
             lrLock.lock();
             try {
-                int newLeaderId = newLeader(currentSequence);
-                if (newLeaderId < 0) {
+                NewLeader newLeader = newLeader(currentSequence);
+                if (newLeader == null) {
                     // 不满足，则重新发送获取
                     leaderResponseTimer = null;
                     sendLeaderRequestMessage(System.currentTimeMillis());
                 } else {
                     // 满足，则更新当前节点的Leader
-                    tomLayer.execManager.setNewLeader(newLeaderId);
+                    tomLayer.execManager.setNewLeader(newLeader.getNewLeader());
+                    tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
+                    tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
                 }
             } finally {
                 lrLock.unlock();
@@ -356,6 +396,26 @@ public class HeartBeatTimer {
 
         public HeartBeatMessage getHeartBeatMessage() {
             return heartBeatMessage;
+        }
+    }
+
+    class NewLeader {
+
+        private int newLeader;
+
+        private int lastRegency;
+
+        public NewLeader(int newLeader, int lastRegency) {
+            this.newLeader = newLeader;
+            this.lastRegency = lastRegency;
+        }
+
+        public int getNewLeader() {
+            return newLeader;
+        }
+
+        public int getLastRegency() {
+            return lastRegency;
         }
     }
 }
