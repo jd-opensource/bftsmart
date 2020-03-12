@@ -15,6 +15,8 @@ public class HeartBeatMessage extends SystemMessage {
 
     private int leader;
 
+    private int lastRegency;
+
     public HeartBeatMessage() {
     }
 
@@ -23,9 +25,10 @@ public class HeartBeatMessage extends SystemMessage {
      * @param from replica that creates this message
      * @param leader type of the message (STOP, SYNC, CATCH-UP)
      */
-    public HeartBeatMessage(int from, int leader) {
+    public HeartBeatMessage(int from, int leader, int lastRegency) {
         super(from);
         this.leader = leader;
+        this.lastRegency = lastRegency;
     }
 
     public int getLeader() {
@@ -36,11 +39,20 @@ public class HeartBeatMessage extends SystemMessage {
         this.leader = leader;
     }
 
+    public int getLastRegency() {
+        return lastRegency;
+    }
+
+    public void setLastRegency(int lastRegency) {
+        this.lastRegency = lastRegency;
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException{
         super.writeExternal(out);
 
         out.writeInt(leader);
+        out.writeInt(lastRegency);
     }
 
     @Override
@@ -48,5 +60,6 @@ public class HeartBeatMessage extends SystemMessage {
         super.readExternal(in);
 
         leader = in.readInt();
+        lastRegency = in.readInt();
     }
 }

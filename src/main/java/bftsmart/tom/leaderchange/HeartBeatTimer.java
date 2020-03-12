@@ -113,10 +113,15 @@ public class HeartBeatTimer {
     public void receiveHeartBeatMessage(HeartBeatMessage heartBeatMessage) {
         hbLock.lock();
         try {
+            // todo 此处逻辑有问题，需要再次考虑
+            // 需要考虑是否每次都更新innerHeartBeatMessage
             if (heartBeatMessage.getLeader() == tomLayer.leader()) {
                 System.out.printf("node %s receive heart beat from %s \r\n",
                         tomLayer.controller.getStaticConf().getProcessId(), heartBeatMessage.getLeader());
                 innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
+                if (heartBeatMessage.getLastRegency() != tomLayer.getSynchronizer().getLCManager().getLastReg()) {
+                    sendLeaderRequestMessage();
+                }
             } else {
                 sendLeaderRequestMessage();
             }
@@ -314,7 +319,7 @@ public class HeartBeatTimer {
             if (tomLayer.isLeader()) {
                 // 如果是Leader则发送心跳信息给其他节点，当前节点除外
                 HeartBeatMessage heartBeatMessage = new HeartBeatMessage(tomLayer.controller.getStaticConf().getProcessId(),
-                        tomLayer.controller.getStaticConf().getProcessId());
+                        tomLayer.controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
                 tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), heartBeatMessage);
             }
         }
