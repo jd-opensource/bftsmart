@@ -13,8 +13,6 @@ import java.io.ObjectOutput;
  */
 public class HeartBeatMessage extends SystemMessage {
 
-    private int from;
-
     private int leader;
 
     public HeartBeatMessage() {

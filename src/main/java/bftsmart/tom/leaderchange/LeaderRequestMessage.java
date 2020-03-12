@@ -28,14 +28,6 @@ public class LeaderRequestMessage extends SystemMessage {
         this.sequence = sequence;
     }
 
-    public int getFrom() {
-        return from;
-    }
-
-    public void setFrom(int from) {
-        this.from = from;
-    }
-
     public long getSequence() {
         return sequence;
     }

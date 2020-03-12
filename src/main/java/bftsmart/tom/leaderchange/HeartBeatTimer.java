@@ -136,12 +136,12 @@ public class HeartBeatTimer {
                 tomLayer.controller.getStaticConf().getProcessId(), currLeader, requestMessage.getSequence(),
                 tomLayer.getSynchronizer().getLCManager().getLastReg());
         int[] to = new int[1];
-        to[0] = requestMessage.getFrom();
+        to[0] = requestMessage.getSender();
         System.out.printf("%s receive leader request from %s \r\n",
-                tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getFrom());
+                tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSender());
         tomLayer.getCommunication().send(to, responseMessage);
-        System.out.printf("%s send leader[%s] response to %s currNode = %s \r\n",
-                tomLayer.controller.getStaticConf().getProcessId(), currLeader, to[0], responseMessage.getSender());
+        System.out.printf("%s send leader[%s] response to %s \r\n",
+                tomLayer.controller.getStaticConf().getProcessId(), currLeader, to[0]);
     }
 
     /**
@@ -168,24 +168,24 @@ public class HeartBeatTimer {
                 // 判断收到的心跳信息是否满足
                 NewLeader newLeader = newLeader(responseMessage.getSequence());
                 if (newLeader != null) {
+                    if (leaderResponseTimer != null) {
+                        leaderResponseTimer.cancel(); // 取消定时器
+                        leaderResponseTimer = null;
+                    }
                     // 表示满足条件，设置新的Leader
-                    leaderResponseTimer.cancel(); // 取消定时器
-                    leaderResponseTimer = null;
                     //如果我本身是领导者，又收到来自其他领导者的心跳，经过领导者查询之后需要取消一个领导者定时器
                     if (tomLayer.leader() != newLeader.getNewLeader()) {
-                        if (leaderTimer != null) {
-                            leaderTimer.cancel();
-                            leaderTimer = null;
-                        } else if (replicaTimer != null) {
-                           //To be perfected
-                        }
+                        // 重置leader和regency
+                        tomLayer.execManager.setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
+                        tomLayer.getSynchronizer().getLCManager().setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
+                        tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
+                        tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
+                        System.out.printf("%s set new leader %s last regency %s \r\n",
+                                tomLayer.controller.getStaticConf().getProcessId(), newLeader.getNewLeader(),
+                                newLeader.getLastRegency());
+                        // 重启定时器
+                        restart();
                     }
-                    tomLayer.execManager.setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
-                    tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
-                    tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
-                    System.out.printf("%s set new leader %s last regency %s \r\n",
-                            tomLayer.controller.getStaticConf().getProcessId(), newLeader.getNewLeader(),
-                            newLeader.getLastRegency());
                 }
             } else {
                 // 收到的心跳信息有问题，打印日志
@@ -228,10 +228,14 @@ public class HeartBeatTimer {
         leaderResponseTimer.schedule(new LeaderResponseTask(lastLeaderRequestSequence), RESEND_MILL_SECONDS);
     }
 
+    private void resetNewLeader() {
+
+    }
+
     /**
      * 获取新的Leader
      * @return
-     *     返回-1表示未达成一致，否则表示达成一致
+     *     返回null表示未达成一致，否则表示达成一致
      */
     private NewLeader newLeader(long currentSequence) {
         // 从缓存中获取应答

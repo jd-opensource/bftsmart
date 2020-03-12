@@ -684,8 +684,8 @@ public class Synchronizer {
                     int[] b = new int[1];
                     b[0] = leader;
 
-                    Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOPDATA of regency " + regency);
-                    System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOPDATA of regency " + regency);
+                    Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOPDATA of regency " + regency + " new leader " + leader + " time = " + new Date());
+                    System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " sending STOPDATA of regency " + regency + " new leader " + leader + " time = " + new Date());
                     // send message SYNC to the new leader
                     communication.send(b,
                             new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOPDATA, regency, payload));
@@ -860,7 +860,7 @@ public class Synchronizer {
             case TOMUtil.STOP: { // message STOP
 
                 Logger.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stop msg, Last regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg());
-                System.out.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stop msg, Last regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg());
+                System.out.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stop msg, Last regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg() + ", time = " + new Date() + ", from " + msg.getSender());
 
                 // this message is for the next leader change?
                 if (msg.getReg() == lcManager.getLastReg() + 1) {
@@ -899,8 +899,8 @@ public class Synchronizer {
 
                 int regency = msg.getReg();
 
-                Logger.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stopdata msg, sLast regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg());
-                System.out.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stopdata msg, sLast regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg());
+                Logger.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stopdata msg, sLast regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg() + " time = " + new Date() + ", from " + msg.getSender());
+                System.out.println("(Synchronizer.deliverTimeoutRequest) I am proc " + controller.getStaticConf().getProcessId() + " Recv Stopdata msg, sLast regency: " + lcManager.getLastReg() + ", next regency: " + lcManager.getNextReg() + " time = " + new Date() + ", from " + msg.getSender());
 
                 // Am I the new leader, and am I expecting this messages?
                 if (regency == lcManager.getLastReg()
