@@ -177,9 +177,9 @@ public class HeartBeatTimer {
                         leaderResponseTimer.cancel(); // 取消定时器
                         leaderResponseTimer = null;
                     }
-                    // 表示满足条件，设置新的Leader
+                    // 表示满足条件，设置新的Leader与regency
                     //如果我本身是领导者，又收到来自其他领导者的心跳，经过领导者查询之后需要取消一个领导者定时器
-                    if (tomLayer.leader() != newLeader.getNewLeader()) {
+                    if ((tomLayer.leader() != newLeader.getNewLeader()) || (tomLayer.getSynchronizer().getLCManager().getLastReg() != newLeader.getLastRegency())) {
                         // 重置leader和regency
                         tomLayer.execManager.setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
                         tomLayer.getSynchronizer().getLCManager().setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
@@ -191,6 +191,9 @@ public class HeartBeatTimer {
                         // 重启定时器
                         restart();
                     }
+                    //重置last regency以后，所有在此之前添加的stop 重传定时器需要取消
+                    tomLayer.getSynchronizer().removeSTOPretransmissions(tomLayer.getSynchronizer().getLCManager().getLastReg());
+
                 }
             } else {
                 // 收到的心跳信息有问题，打印日志
