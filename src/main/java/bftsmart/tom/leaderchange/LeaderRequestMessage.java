@@ -14,8 +14,6 @@ public class LeaderRequestMessage extends SystemMessage {
 
     private long sequence;
 
-    private int from;
-
     public LeaderRequestMessage() {
     }
 

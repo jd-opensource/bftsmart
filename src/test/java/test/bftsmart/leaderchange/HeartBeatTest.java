@@ -48,40 +48,8 @@ public class HeartBeatTest {
 
     @Before
     public void serversStart() {
-        CountDownLatch servers = new CountDownLatch(nodeNums);
-
-        serviceReplicas = new ServiceReplica[4];
-
-        serverNodes = new TestNodeServer[4];
-
-        mockHbTimers = new HeartBeatTimer[4];
-
-        serverCommunicationSystems = new ServerCommunicationSystem[4];
-
-        //start 4 node servers
-        for (int i = 0; i < nodeNums ; i++) {
-            serverNodes[i] = new TestNodeServer(i);
-            TestNodeServer node = serverNodes[i];
-            nodeStartPools.execute(() -> {
-                node.startNode();
-                servers.countDown();
-            });
-        }
-
-        try {
-            servers.await();
-            Thread.sleep(1000);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        for (int i = 0; i < nodeNums; i++) {
-            serviceReplicas[i] = serverNodes[i].getReplica();
-            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
-            serverCommunicationSystems[i] = serviceReplicas[i].getServerCommunicationSystem();
-        }
+        initNode(nodeNums);
     }
-
 
     @Test
     public void stopLeaderHbTest() {
@@ -469,6 +437,83 @@ public class HeartBeatTest {
         }
     }
 
+    /**
+     * 测试4个节点循环进行一次领导者切换，看最终是否可以恢复正常
+     */
+    @Test
+    public void test5NodeLeaderChange() {
+
+        for (int i = 0; i < 5; i++) {
+
+            final int index = i;
+
+            // 重新设置leader的消息处理方式
+            MessageHandler mockMessageHandler = spy(serverCommunicationSystems[i].getMessageHandler());
+
+            // mock messageHandler对消息应答的处理
+            doAnswer(new Answer() {
+                @Override
+                public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                    Object[] objs = invocationOnMock.getArguments();
+                    if (objs == null || objs.length != 1) {
+                        invocationOnMock.callRealMethod();
+                    } else {
+                        Object obj = objs[0];
+                        if (obj instanceof LCMessage) {
+                            // 走我们设计的逻辑，即不处理
+                            System.out.println(index + " receive leader change message !");
+                        } else if (obj instanceof LeaderResponseMessage) {
+                            System.out.println(index + " receive leader response message !");
+                            invocationOnMock.callRealMethod();
+                        } else if (obj instanceof HeartBeatMessage) {
+                            System.out.printf(index + " receive heart beat message from %s !\r\n", ((HeartBeatMessage) obj).getSender());
+                            invocationOnMock.callRealMethod();
+                        } else {
+                            invocationOnMock.callRealMethod();
+                        }
+                    }
+                    return null;
+                }
+            }).when(mockMessageHandler).processData(any());
+
+            serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
+
+            // 领导者心跳停止
+            stopLeaderHeartBeat(serviceReplicas);
+
+            System.out.printf("-- stop %s LeaderHeartBeat -- \r\n", index);
+
+            try {
+                // 休眠40s，等待领导者切换完成
+                Thread.sleep(40000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Test
     public void clientSendTest() {
         int clientProcId = 11000;
@@ -484,6 +529,41 @@ public class HeartBeatTest {
         //simple send msg test
 //        clientProxy.invokeOrdered(bytes);
 
+    }
+
+    private void initNode(int nodeSize) {
+        CountDownLatch servers = new CountDownLatch(nodeSize);
+
+        serviceReplicas = new ServiceReplica[nodeSize];
+
+        serverNodes = new TestNodeServer[nodeSize];
+
+        mockHbTimers = new HeartBeatTimer[nodeSize];
+
+        serverCommunicationSystems = new ServerCommunicationSystem[nodeSize];
+
+        //start nodeSize node servers
+        for (int i = 0; i < nodeSize ; i++) {
+            serverNodes[i] = new TestNodeServer(i);
+            TestNodeServer node = serverNodes[i];
+            nodeStartPools.execute(() -> {
+                node.startNode();
+                servers.countDown();
+            });
+        }
+
+        try {
+            servers.await();
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        for (int i = 0; i < nodeSize; i++) {
+            serviceReplicas[i] = serverNodes[i].getReplica();
+            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
+            serverCommunicationSystems[i] = serviceReplicas[i].getServerCommunicationSystem();
+        }
     }
 
     private void stopLeaderHeartBeat(ServiceReplica[] serviceReplicas) {
