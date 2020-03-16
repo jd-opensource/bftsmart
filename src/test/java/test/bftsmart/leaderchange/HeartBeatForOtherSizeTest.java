@@ -390,6 +390,119 @@ public class HeartBeatForOtherSizeTest {
         }
     }
 
+    /**
+     * 5 nodes , id为4的节点前期一直处于网络异常中， 其余四个节点循环当领导者，当领导者再次选为0时，regency已经进行了很多轮，
+     * 此时id为4的节点网络恢复，虽然当前领导者与心跳来源的领导者一致，但regency已经千差万别，需要更新处理；
+     */
+    @Test
+    public void test5NodeLeaderChangeOneUnleaderException() {
+
+        int nodeNums = 5;
+
+        initNode(nodeNums);
+
+        MessageHandler mockMessageHandler4 = spy(serverCommunicationSystems[4].getMessageHandler());
+
+        // mock messageHandler4对消息应答的处理, 让节点4网络异常
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Object[] objs = invocationOnMock.getArguments();
+                if (objs == null || objs.length != 1) {
+                    invocationOnMock.callRealMethod();
+                } else {
+                    Object obj = objs[0];
+                    if ((obj instanceof LCMessage) || (obj instanceof LeaderResponseMessage) || (obj instanceof HeartBeatMessage) ) {
+                        // 走我们设计的逻辑，即不处理
+                    } else {
+                        invocationOnMock.callRealMethod();
+                    }
+                }
+                return null;
+            }
+        }).when(mockMessageHandler4).processData(any());
+
+        serverCommunicationSystems[4].setMessageHandler(mockMessageHandler4);
+
+        // 停止节点4因为心跳超时而重传STOP消息
+        serviceReplicas[4].getTomLayer().heartBeatTimer.stopAll();
+
+
+        //让0,1,2,3节点依次当领导者，并进行网络异常与恢复的模拟操作
+        for (int i = 0; i < nodeNums - 1; i++) {
+
+            final int index = i;
+
+            // 重新设置leader的消息处理方式
+            MessageHandler mockMessageHandler = spy(serverCommunicationSystems[i].getMessageHandler());
+
+            // mock messageHandler对消息应答的处理
+            doAnswer(new Answer() {
+                @Override
+                public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                    Object[] objs = invocationOnMock.getArguments();
+                    if (objs == null || objs.length != 1) {
+                        invocationOnMock.callRealMethod();
+                    } else {
+                        Object obj = objs[0];
+                        if (obj instanceof LCMessage) {
+                            // 走我们设计的逻辑，即不处理
+                            System.out.println(index + " receive leader change message !");
+                        } else if (obj instanceof LeaderResponseMessage) {
+                            System.out.println(index + " receive leader response message !");
+                            invocationOnMock.callRealMethod();
+                        } else if (obj instanceof HeartBeatMessage) {
+                            System.out.printf(index + " receive heart beat message from %s !\r\n", ((HeartBeatMessage) obj).getSender());
+                            invocationOnMock.callRealMethod();
+                        } else {
+                            invocationOnMock.callRealMethod();
+                        }
+                    }
+                    return null;
+                }
+            }).when(mockMessageHandler).processData(any());
+
+            serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
+
+            // 领导者心跳停止
+            stopLeaderHeartBeat(serviceReplicas);
+
+            System.out.printf("-- stop %s LeaderHeartBeat -- \r\n", index);
+
+            try {
+                // 休眠40s，等待领导者切换完成
+                Thread.sleep(40000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        // 节点4网络恢复
+        System.out.println("-- Node 4 network recovery --");
+        reset(mockMessageHandler4);
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void stopLeaderHeartBeat(ServiceReplica[] serviceReplicas) {
 
         int leadId = serviceReplicas[0].getTomLayer().getExecManager().getCurrentLeader();
