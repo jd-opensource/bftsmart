@@ -265,7 +265,7 @@ public class HeartBeatTimer {
         Set<Integer> nodeSet = new HashSet<>();
         for (LeaderResponseMessage lrm : leaderResponseMessages) {
             int currentLeader = lrm.getLeader();
-            int currentRegency = lrm.getLeader();
+            int currentRegency = lrm.getLastRegency();
             int currentNode = lrm.getSender();
             if (!nodeSet.contains(currentNode)) {
                 leader2Size.merge(currentLeader, 1, Integer::sum);

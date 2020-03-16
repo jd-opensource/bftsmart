@@ -167,7 +167,7 @@ public class HeartBeatForOtherSizeTest {
     }
 
     /**
-     * 测试4个节点循环进行一次领导者切换，看最终是否可以恢复正常
+     * 测试5个节点循环进行一次领导者切换，看最终是否可以恢复正常
      */
     @Test
     public void test5NodeLeaderChange() {
@@ -246,6 +246,95 @@ public class HeartBeatForOtherSizeTest {
             e.printStackTrace();
         }
     }
+
+    @Test
+    public void test6NodeLeaderChangeBut1ContinueException() {
+
+        int nodeNums = 6;
+
+        initNode(nodeNums);
+
+        // 停掉第一个节点
+        stopNode(0);
+
+        /**
+         * 预期结果：
+         * 第二个节点触发异常，则会选举三，知道最后一个节点异常，则重新选举1，但是因为1一直异常，所以一会儿会选举2
+         */
+        for (int i = 1; i < nodeNums; i++) {
+
+            final int index = i;
+
+            MessageHandler mockMessageHandler = stopNode(index);
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private MessageHandler stopNode(final int index) {
+        // 第一个节点持续异常
+        // 重新设置leader的消息处理方式
+        MessageHandler mockMessageHandler = spy(serverCommunicationSystems[index].getMessageHandler());
+
+        // mock messageHandler对消息应答的处理
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Object[] objs = invocationOnMock.getArguments();
+                if (objs == null || objs.length != 1) {
+                    invocationOnMock.callRealMethod();
+                } else {
+                    Object obj = objs[0];
+                    if (obj instanceof LCMessage) {
+                        // 走我们设计的逻辑，即不处理
+                    } else if (obj instanceof LeaderResponseMessage) {
+                        invocationOnMock.callRealMethod();
+                    } else if (obj instanceof HeartBeatMessage) {
+                        invocationOnMock.callRealMethod();
+                    } else {
+                        invocationOnMock.callRealMethod();
+                    }
+                }
+                return null;
+            }
+        }).when(mockMessageHandler).processData(any());
+
+        serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
+
+        // 领导者心跳停止
+        stopLeaderHeartBeat(serviceReplicas);
+
+        System.out.printf("-- stop %s LeaderHeartBeat -- \r\n", index);
+
+        try {
+            // 休眠40s，等待领导者切换完成
+            Thread.sleep(40000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return mockMessageHandler;
+    }
+
 
     private void initNode(int nodeSize) {
 
