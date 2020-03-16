@@ -475,7 +475,8 @@ public class LCManager {
             return false;
         }
         
-        if (!(collects.size() >= (SVController.getCurrentViewN() - SVController.getCurrentViewF()))) {
+//        if (!(collects.size() >= (SVController.getCurrentViewN() - SVController.getCurrentViewF()))) {
+        if (!(collects.size() > 2 * SVController.getCurrentViewF())) {
             bftsmart.tom.util.Logger.println("(LCManager.binds) Less than N-F contexts collected from replicas, returning false");
             return false;
         }
@@ -573,7 +574,7 @@ public class LCManager {
         boolean unbound = false;
         int count = 0;
 
-        if (collects.size() >= (SVController.getCurrentViewN() - SVController.getCurrentViewF())) {
+        if (collects.size() > (2 * SVController.getCurrentViewF())) {
 
 
             for (CollectData c : collects) {
@@ -584,7 +585,7 @@ public class LCManager {
         else return false;
 
         if(SVController.getStaticConf().isBFT()) {
-            unbound = count > ((SVController.getCurrentViewN() + SVController.getCurrentViewF()) / 2);
+            unbound = count > (2 * SVController.getCurrentViewF());
         }
         else {
         	unbound = count > ((SVController.getCurrentViewN()) / 2);
