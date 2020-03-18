@@ -1340,8 +1340,8 @@ public class Synchronizer {
                 System.out.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " wake up proposer thread");
                 tom.imAmTheLeader();
             } // waik up the thread that propose values in normal operation
-
-            execManager.removeConsensus(currentCID);
+            
+            execManager.removeSingleConsensus(currentCID);
 
         } else {
             Logger.println("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " sync phase failed for regency" + regency);
