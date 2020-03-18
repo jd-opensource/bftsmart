@@ -2,6 +2,7 @@ package test.bftsmart.leaderchange;
 
 import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
@@ -433,23 +434,6 @@ public class HeartBeatTest {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    @Test
-    public void clientSendTest() {
-        int clientProcId = 11000;
-
-        // create client request content
-//        Random random = new Random();
-//        byte[] bytes = new byte[4];
-//        random.nextBytes(bytes);
-
-        //create client proxy
-//        AsynchServiceProxy clientProxy = new AsynchServiceProxy(clientProcId);
-
-        //simple send msg test
-//        clientProxy.invokeOrdered(bytes);
-
     }
 
     private void initNode(int nodeSize) {
