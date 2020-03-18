@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 
 /**
@@ -83,7 +84,42 @@ public class ConsensusTest {
      */
     @Test
     public void test4NodeFirstNormalConsensusThenLeaderRollException() {
+        int nodeNums = 4;
+        int consensusMsgNum = 10;
 
+        initNode(nodeNums);
+
+        for (int i = 0; i < consensusMsgNum; i++ ) {
+            clientProxy.invokeOrdered(bytes);
+        }
+
+        for (int i = 0; i < nodeNums; i++) {
+
+            final int index = i;
+
+            MessageHandler mockMessageHandler = stopNode(index);
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -194,4 +230,12 @@ public class ConsensusTest {
         serviceReplicas[leadId].getTomLayer().heartBeatTimer.stopAll();
     }
 
+    private void restartLeaderHeartBeat(ServiceReplica[] serviceReplicas, int node) {
+
+        int leadId = serviceReplicas[node].getTomLayer().getExecManager().getCurrentLeader();
+
+        System.out.printf("my new leader = %s \r\n", leadId);
+
+        serviceReplicas[leadId].getTomLayer().heartBeatTimer.restart();
+    }
 }
