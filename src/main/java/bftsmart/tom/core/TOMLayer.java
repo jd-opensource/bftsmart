@@ -55,7 +55,7 @@ import java.util.logging.Level;
  * 
  * The synchronization phase described in the paper is implemented in the Synchronizer class
  */
-public final class TOMLayer extends Thread implements RequestReceiver {
+public class TOMLayer extends Thread implements RequestReceiver {
 
     private boolean doWork = true;
     //other components used by the TOMLayer (they are never changed)

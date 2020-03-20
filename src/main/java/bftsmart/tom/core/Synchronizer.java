@@ -271,8 +271,8 @@ public class Synchronizer {
             boolean conditionCFT = (lcManager.getLastCIDsSize(regency) > cftQuorum && lcManager.getCollectsSize(regency) > cftQuorum);
 
             if (conditionBFT || conditionCFT) {
-                Logger.println("(Synchronizer.processSTOPDATA) I am proc " + controller.getStaticConf().getProcessId() + " I recv >= 3 StopData, I will catch up regency " + regency);
-                System.out.println("(Synchronizer.processSTOPDATA) I am proc " + controller.getStaticConf().getProcessId() + " I recv >= 3 StopData, I will catch up regency " + regency);
+                Logger.println("(Synchronizer.processSTOPDATA) I am proc " + controller.getStaticConf().getProcessId() + " I recv >= 3 StopData, I will catch up regency " + regency + ", msg from " + msg.getSender());
+                System.out.println("(Synchronizer.processSTOPDATA) I am proc " + controller.getStaticConf().getProcessId() + " I recv >= 3 StopData, I will catch up regency " + regency + ", msg from " + msg.getSender());
                 catch_up(regency);
             }
 

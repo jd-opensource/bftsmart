@@ -88,7 +88,7 @@ public class TestNodeServer extends DefaultRecoverable {
                 if (msgCtx.getConsensusId() == -1) {
                     System.out.println("(" + iterations + ") Counter was incremented: " + counter);
                 } else {
-                    System.out.println("Procid " + proId + " (" + iterations + " / " + msgCtx.getConsensusId() + ") Counter was incremented: " + counter);
+//                    System.out.println("Procid " + proId + " (" + iterations + " / " + msgCtx.getConsensusId() + ") Counter was incremented: " + counter);
                 }
             }
             else {

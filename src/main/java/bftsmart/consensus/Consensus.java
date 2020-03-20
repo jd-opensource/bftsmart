@@ -190,6 +190,8 @@ public class Consensus {
         if(epoch == null && create){
             epoch = new Epoch(controller, this, timestamp);
             epochs.put(timestamp, epoch);
+//            System.out.printf("getEpoch i am %s, time = %s \r\n",
+//                    controller.getStaticConf().getProcessId(), timestamp);
         }
 
         epochsLock.unlock();
@@ -286,6 +288,9 @@ public class Consensus {
 
         Epoch epoch = new Epoch(recManager, this, timestamp);
         epochs.put(timestamp, epoch);
+
+        System.out.printf("createEpoch i am %s, time = %s \r\n",
+                manager.getTOMLayer().controller.getStaticConf().getProcessId(), timestamp);
 
         epochsLock.unlock();
 
@@ -384,6 +389,8 @@ public class Consensus {
             decision.setDecisionEpoch(epoch);
             if (deliver) {
                 Logger.println("(Consensus.decided) Delivering decision from consensus " + getId() + " to the TOMLayer/DeliveryThread");
+//                System.out.println("(Consensus.decided) Delivering decision from consensus " + getId() + " to the TOMLayer/DeliveryThread, cid = "
+//                        + epoch.getConsensus().getId() + ", i am " + manager.getTOMLayer().controller.getStaticConf().getProcessId());
                 manager.getTOMLayer().decided(decision);
             }
         }

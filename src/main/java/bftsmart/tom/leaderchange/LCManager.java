@@ -809,8 +809,17 @@ public class LCManager {
         if (cDec.getCID() == -1) return true; // If the last CID is -1 it means the replica
                                              // did not complete any consensus and cannot have
                                              // any proof
-        
-        byte[] hashedValue = md.hash(cDec.getDecision());
+        System.out.printf("I am %s, pid = %s, cid = %s, consmsg = %s \r\n",
+                tomLayer.controller.getStaticConf().getProcessId(), cDec.getPID(), cDec.getCID(),
+                cDec.getConsMessages() == null ? "null" : cDec.getConsMessages().size());
+
+        byte[] hashedValue = null;
+        try {
+            hashedValue = md.hash(cDec.getDecision());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+//        byte[] hashedValue = md.hash(cDec.getDecision());
         Set<ConsensusMessage> ConsensusMessages = cDec.getConsMessages();
         int myId = tomLayer.controller.getStaticConf().getProcessId();
         int certificateCurrentView = (2*tomLayer.controller.getCurrentViewF()) + 1;
