@@ -480,6 +480,10 @@ public final class Acceptor {
 
         TOMMessage[] requests = epoch.deserializedPropValue;
 
+        if (requests == null) {
+            return;
+        }
+
         tomLayer.clientsManager.requestsPending(requests);
 
         tomLayer.setLastExec(tomLayer.getInExec());
