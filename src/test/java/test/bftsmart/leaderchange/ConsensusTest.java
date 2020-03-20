@@ -431,12 +431,36 @@ public class ConsensusTest {
 
     }
 
-    //在有大批消息共识的过程中触发一次领导者切换
+    //在有大批消息共识的过程中通过简单的停止领导者心跳触发领导者切换
+    @Test
+    public void OneTimeSimpleStopLeaderHbDuringConsensus() {
+        int nodeNums = 4;
+        int consensusMsgNum = 10000;
+
+        initNode(nodeNums);
+
+        nodeStartPools.execute(() -> {
+            for (int i = 0; i < consensusMsgNum; i++) {
+                clientProxy.invokeOrdered(bytes);
+            }
+        });
+
+        stopLeaderHeartBeat(serviceReplicas);
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    //在有大批消息共识的过程中触发一次领导者异常与恢复
     @Test
     public void OneTimeLeaderChangeDuringConsensus() {
 
         int nodeNums = 4;
-        int consensusMsgNum = 2000;
+        int consensusMsgNum = 10000;
 
         initNode(nodeNums);
 
@@ -446,7 +470,27 @@ public class ConsensusTest {
            }
         });
 
-        stopLeaderHeartBeat(serviceReplicas);
+        //1节点进行领导者切换
+        for (int i = 0; i < 1; i++) {
+
+            final int index = i;
+
+            MessageHandler mockMessageHandler = stopNode(index);
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 
         try {
             System.out.println("-- total node has complete change --");
