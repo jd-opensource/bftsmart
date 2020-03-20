@@ -83,16 +83,18 @@ public class ConsensusTest {
      * 开始一段时间正常共识，然后领导者异常循环切换
      */
     @Test
-    public void test4NodeFirstNormalConsensusThenLeaderRollException() {
+    public void test4NodeFirstNormalConsensusThenLeaderPollException() {
         int nodeNums = 4;
         int consensusMsgNum = 10;
 
         initNode(nodeNums);
 
+        //正常共识
         for (int i = 0; i < consensusMsgNum; i++ ) {
             clientProxy.invokeOrdered(bytes);
         }
 
+        //领导者轮询异常
         for (int i = 0; i < nodeNums; i++) {
 
             final int index = i;
@@ -122,6 +124,172 @@ public class ConsensusTest {
         }
 
     }
+
+    /**
+     * 正常共识，领导者轮询异常交替进行
+     */
+    @Test
+    public void test4NodeNormalConsensusAndLeadePollExceptionAlter() {
+        int nodeNums = 4;
+        int consensusMsgNum = 10;
+
+        initNode(nodeNums);
+
+        //正常共识
+        for (int i = 0; i < consensusMsgNum; i++ ) {
+            clientProxy.invokeOrdered(bytes);
+        }
+
+        //领导者轮询异常
+        for (int i = 0; i < nodeNums; i++) {
+
+            final int index = i;
+
+            MessageHandler mockMessageHandler = stopNode(index);
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("-- The first alter complete! --");
+
+        //正常共识
+        for (int i = 0; i < consensusMsgNum; i++ ) {
+            clientProxy.invokeOrdered(bytes);
+        }
+
+        //领导者轮询异常
+        for (int i = 0; i < nodeNums; i++) {
+
+            final int index = i;
+
+            MessageHandler mockMessageHandler = stopNode(index);
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    //在有大批消息共识的过程中触发一次领导者切换
+    @Test
+    public void OneTimeLeaderChangeDuringConsensus() {
+
+        int nodeNums = 4;
+        int consensusMsgNum = 2000;
+
+        initNode(nodeNums);
+
+        nodeStartPools.execute(() -> {
+           for (int i = 0; i < consensusMsgNum; i++) {
+               clientProxy.invokeOrdered(bytes);
+           }
+        });
+
+        stopLeaderHeartBeat(serviceReplicas);
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    //在有大批消息共识的过程中触发两次领导者切换
+    @Test
+    public void TwoTimesleaderChangeDuringConsensus() {
+
+        int nodeNums = 4;
+        int consensusMsgNum = 5000;
+
+        initNode(nodeNums);
+
+        nodeStartPools.execute(() -> {
+            for (int i = 0; i < consensusMsgNum; i++) {
+                clientProxy.invokeOrdered(bytes);
+            }
+        });
+
+        //1,2节点分别进行领导者切换
+        for (int i = 0; i < 2; i++) {
+
+            final int index = i;
+
+            MessageHandler mockMessageHandler = stopNode(index);
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+//    // client send
+//    @Test
+//    public void clientSend() {
+//
+//        int consensusNum = 2000;
+//        //正常共识
+//        for (int i = 0; i < consensusNum; i++ ) {
+//            clientProxy.invokeOrdered(bytes);
+//        }
+//    }
 
     private MessageHandler stopNode(final int index) {
         // 第一个节点持续异常
