@@ -197,30 +197,34 @@ public class ClientsManager {
      */
     public void clearObsoleteRequests() {
         clientsLock.lock();
-        Iterator<Entry<Integer, ClientData>> it = clientsData.entrySet().iterator();
 
-        while (it.hasNext()) {
-            ClientData clientData = it.next().getValue();
+        try {
+            Iterator<Entry<Integer, ClientData>> it = clientsData.entrySet().iterator();
 
-            clientData.clientLock.lock();
-            RequestList reqs = clientData.getPendingRequests();
-            if (!reqs.isEmpty()) {
-                for(TOMMessage msg:reqs) {
-                    if((System.currentTimeMillis() - msg.receptionTime) < (4 * this.controller.getStaticConf().getRequestTimeout()) ) {
-                        break;
+            while (it.hasNext()) {
+                ClientData clientData = it.next().getValue();
+                clientData.clientLock.lock();
+                try {
+                    RequestList reqs = clientData.getPendingRequests();
+                    if (!reqs.isEmpty()) {
+                        for(TOMMessage msg:reqs) {
+                            if((System.currentTimeMillis() - msg.receptionTime) < (this.controller.getStaticConf().getRequestTimeout()) ) {
+                                break;
+                            }
+                            else {
+                                clientData.removePendingRequest(msg);
+                                timer.unwatch(msg);
+                                System.out.println("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
+                            }
+                        }
                     }
-                    else {
-                        clientData.removePendingRequest(msg);
-                        timer.unwatch(msg);
-                        System.out.println("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
-                    }
+                } finally {
+                    clientData.clientLock.unlock();
                 }
             }
-            clientData.clientLock.unlock();
+        } finally {
+            clientsLock.unlock();
         }
-        clientsLock.unlock();
-
-
     }
 
     /**
