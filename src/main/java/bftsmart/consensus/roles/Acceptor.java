@@ -146,9 +146,19 @@ public final class Acceptor {
      */
     public final void processMessage(ConsensusMessage msg) {
         Consensus consensus = executionManager.getConsensus(msg.getNumber());
+//        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", msg type is " + msg.getType() + ", msg cid is " + msg.getNumber());
 
         consensus.lock.lock();
+
+        Epoch lastEpoch = consensus.getLastEpoch();
+
         Epoch epoch = consensus.getEpoch(msg.getEpoch(), controller);
+
+        if ((tomLayer.getInExec() == msg.getNumber()) && (epoch.getTimestamp() > lastEpoch.getTimestamp())) {
+            epoch.propValue = lastEpoch.propValue;
+            epoch.propValueHash = lastEpoch.propValueHash;
+        }
+
         switch (msg.getType()){
             case MessageFactory.PROPOSE:{
                     proposeReceived(epoch, msg);
@@ -298,9 +308,17 @@ public final class Acceptor {
         Logger.println("(Acceptor.computeWrite) I have " + writeAccepted +
                 " WRITEs for " + cid + "," + epoch.getTimestamp());
 
-        if (writeAccepted > controller.getQuorum() && Arrays.equals(value, epoch.propValueHash)) {
-                        
-            if (!epoch.isAcceptSetted(me)) {
+//        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value);
+        if (writeAccepted > controller.getQuorum()) {
+
+            System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + "cid is " + cid + ", epoch is " + epoch.getTimestamp());
+//            if (epoch.isAcceptSetted(me)) {
+//                System.out.println("1111111111  accept before write , cid  " + cid);
+//            }
+
+//            System.out.println("I am proc "+ controller.getStaticConf().getProcessId() + ", cid is " + cid);
+
+            if (!epoch.isAcceptSetted(me) && Arrays.equals(value, epoch.propValueHash)) {
 
                 Logger.println("(Acceptor.computeWrite) sending WRITE for " + cid);
 
@@ -344,6 +362,7 @@ public final class Acceptor {
 
                     epoch.setAccept(me, epoch.propAndAppValueHash);
 
+//                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept ,cid is " + cid);
                     ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
 
                     //add origin propose hash for accept type consensus msg
@@ -551,7 +570,8 @@ public final class Acceptor {
                 createResponses(epoch, epoch.getAsyncResponseLinkedList());
             } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                 //Leader does evil to me only, need to roll back
-                System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
+                System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", My last regency is  " + tomLayer.getSynchronizer().getLCManager().getLastReg() + ", Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
+                System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my cid is " + cid + ", my propose value hash is  " + epoch.propValueHash + ", recv propose value hash is " + value + ", my epoc timestamp is " + epoch.getTimestamp());
                 // rollback
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                 //This round of consensus has been rolled back, mark it

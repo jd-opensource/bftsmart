@@ -444,8 +444,19 @@ public class TOMLayer extends Thread implements RequestReceiver {
                     continue;
 
                 }
-                execManager.getProposer().startConsensus(execId,
-                        createPropose(dec));
+                {
+//                    execManager.getProposer().startConsensus(execId,
+//                            createPropose(dec));
+
+                    byte[] value = createPropose(dec);
+
+                    Consensus consensus = execManager.getConsensus(dec.getConsensusId());
+                    Epoch epoch = consensus.getEpoch(0, controller);
+//                    epoch.propValue = value;
+//                    epoch.propValueHash = computeHash(value);
+                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + " I will propose , consensus msg id is  " +execId);
+                    execManager.getProposer().startConsensus(execId, value);
+                }
 
                 try {
                     sleep(50);

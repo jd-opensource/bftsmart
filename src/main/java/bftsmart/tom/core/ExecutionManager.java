@@ -241,6 +241,7 @@ public final class ExecutionManager {
                 stoppedMsgsLock.lock();
                 if (stopped) {
                     Logger.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped");
+                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped" + ", is retrive state : " + isRetrievingState + ", last cid is " + lastConsId + ", in exe cid is " + inExec);
 //                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped");
                     //the execution manager was stopped, the messages should be stored
                     //for later processing (when the consensus is restarted)
@@ -254,7 +255,10 @@ public final class ExecutionManager {
                         (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus
                     Logger.println("(ExecutionManager.checkLimits) Message for consensus " + 
                             msg.getNumber() + " is out of context, adding it to out of context set");
-                    
+
+                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + ", Message for consensus " +
+                            msg.getNumber() + " is out of context, adding it to out of context set" + ", last cid is " + lastConsId + ", in exe cid is " + inExec);
+
 
                     //System.out.println("(ExecutionManager.checkLimits) Message for consensus " + 
                      //       msg.getNumber() + " is out of context, adding it to out of context set; isRetrievingState="+isRetrievingState);
@@ -273,6 +277,7 @@ public final class ExecutionManager {
                 (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
                 (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
+            System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + ", sstart state transfer, "+ "last cid is " + lastConsId + "recv msg cid is " + msg.getNumber() + ", in cid is " + inExec);
             //Start state transfer
             /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
             Logger.println("(ExecutionManager.checkLimits) Message for consensus "
