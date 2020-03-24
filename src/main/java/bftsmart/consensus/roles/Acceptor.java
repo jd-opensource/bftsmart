@@ -311,7 +311,7 @@ public final class Acceptor {
 //        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value);
         if (writeAccepted > controller.getQuorum()) {
 
-            System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + "cid is " + cid + ", epoch is " + epoch.getTimestamp());
+            System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 //            if (epoch.isAcceptSetted(me)) {
 //                System.out.println("1111111111  accept before write , cid  " + cid);
 //            }
@@ -373,7 +373,8 @@ public final class Acceptor {
                     insertProof(cm, epoch);
 
                     int[] targets = this.controller.getCurrentViewOtherAcceptors();
-                    communication.getServersConn().send(targets, cm, true);
+                    communication.send(targets, cm);
+//                    communication.getServersConn().send(targets, cm, true);
 
                     epoch.addToProof(cm);
                     computeAccept(cid, epoch, epoch.propAndAppValueHash);
@@ -500,6 +501,9 @@ public final class Acceptor {
         TOMMessage[] requests = epoch.deserializedPropValue;
 
         if (requests == null) {
+            tomLayer.setLastExec(tomLayer.getInExec());
+
+            tomLayer.setInExec(-1);
             return;
         }
 

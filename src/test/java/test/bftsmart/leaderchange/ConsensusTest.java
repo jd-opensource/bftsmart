@@ -2,6 +2,10 @@ package test.bftsmart.leaderchange;
 
 import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.communication.server.ServersCommunicationLayer;
+import bftsmart.consensus.Consensus;
+import bftsmart.consensus.messages.ConsensusMessage;
+import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
@@ -25,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
@@ -455,6 +460,66 @@ public class ConsensusTest {
         }
     }
 
+    /**
+     * 领导者发送Propose消息之前网络异常，也就是说上一轮处理结束后，领导者异常
+     */
+    @Test
+    public void oneTimeLeaderChangeDuringConsensusWhenProposeUnSend() throws InterruptedException {
+
+        int nodeNums = 4;
+        int consensusMsgNum = 1000;
+
+        initNode(nodeNums);
+
+        nodeStartPools.execute(() -> {
+            for (int i = 0; i < consensusMsgNum; i++) {
+                if (i % 10 == 0) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                clientProxy.invokeOrdered(bytes);
+            }
+        });
+
+        Thread.sleep(5000);
+
+        //1节点进行领导者切换
+        for (int i = 0; i < 1; i++) {
+
+            final int index = i;
+
+            MockHandlers mockHandlers = stopNodeAndStopProposeMsg(index);
+
+            MessageHandler mockMessageHandler = mockHandlers.messageHandler;
+
+            // 重启之前领导者心跳服务
+            restartLeaderHeartBeat(serviceReplicas, index);
+
+            System.out.printf("-- restart %s LeaderHeartBeat -- \r\n", index);
+
+            // 重置mock操作
+            reset(mockMessageHandler);
+            reset(mockHandlers.serversCommunicationLayer);
+
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            System.out.println("-- total node has complete change --");
+            Thread.sleep(Integer.MAX_VALUE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
     //在有大批消息共识的过程中触发一次领导者异常与恢复
     @Test
     public void OneTimeLeaderChangeDuringConsensus() {
@@ -626,7 +691,91 @@ public class ConsensusTest {
             e.printStackTrace();
         }
 
-        return new MockHandlers(mockMessageHandler, mockTomlayer);
+        MockHandlers mockHandlers = new MockHandlers();
+
+        mockHandlers.setMessageHandler(mockMessageHandler);
+        mockHandlers.setTomLayer(mockTomlayer);
+
+        return mockHandlers;
+    }
+
+    private MockHandlers stopNodeAndStopProposeMsg(final int index) {
+        // 第一个节点持续异常
+        // 重新设置leader的消息处理方式
+        MessageHandler mockMessageHandler = spy(serverCommunicationSystems[index].getMessageHandler());
+
+        // mock messageHandler对消息应答的处理
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Object[] objs = invocationOnMock.getArguments();
+                if (objs == null || objs.length != 1) {
+                    invocationOnMock.callRealMethod();
+                } else {
+                    Object obj = objs[0];
+                    if (obj instanceof LCMessage || obj instanceof ConsensusMessage) {
+                        // 走我们设计的逻辑，即不处理
+                    } else if (obj instanceof LeaderResponseMessage) {
+                        invocationOnMock.callRealMethod();
+                    } else if (obj instanceof HeartBeatMessage) {
+                        invocationOnMock.callRealMethod();
+                    } else {
+                        invocationOnMock.callRealMethod();
+                    }
+                }
+                return null;
+            }
+        }).when(mockMessageHandler).processData(any());
+
+        serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
+
+        ServersCommunicationLayer serversCommunicationLayer = spy(serverCommunicationSystems[index].getServersConn());
+
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Object[] objs = invocationOnMock.getArguments();
+                if (objs == null || objs.length != 3) {
+                    invocationOnMock.callRealMethod();
+                } else {
+                    Object obj = objs[1];
+                    if (obj instanceof ConsensusMessage) {
+                        //
+                        ConsensusMessage cmsg = (ConsensusMessage) obj;
+                        if (cmsg.getType() == MessageFactory.PROPOSE) {
+                            // 不处理
+                        } else {
+                            invocationOnMock.callRealMethod();
+                        }
+                    } else {
+                        invocationOnMock.callRealMethod();
+                    }
+                }
+
+                return null;
+            }
+        }).when(serversCommunicationLayer).send(any(), any(), anyBoolean());
+
+        serverCommunicationSystems[index].setServersConn(serversCommunicationLayer);
+
+        // 领导者心跳停止
+        stopLeaderHeartBeat(serviceReplicas);
+
+        System.out.printf("-- stop %s LeaderHeartBeat -- \r\n", index);
+
+        try {
+            // 休眠40s，等待领导者切换完成
+            Thread.sleep(40000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        MockHandlers mockHandlers = new MockHandlers();
+
+        mockHandlers.setMessageHandler(mockMessageHandler);
+        mockHandlers.setServersCommunicationLayer(serversCommunicationLayer);
+
+        return mockHandlers;
     }
 
     private MessageHandler stopNode(final int index) {
@@ -751,9 +900,18 @@ public class ConsensusTest {
 
         private TOMLayer tomLayer;
 
-        public MockHandlers(MessageHandler messageHandler, TOMLayer tomLayer) {
+        private ServersCommunicationLayer serversCommunicationLayer;
+
+        public void setMessageHandler(MessageHandler messageHandler) {
             this.messageHandler = messageHandler;
+        }
+
+        public void setTomLayer(TOMLayer tomLayer) {
             this.tomLayer = tomLayer;
+        }
+
+        public void setServersCommunicationLayer(ServersCommunicationLayer serversCommunicationLayer) {
+            this.serversCommunicationLayer = serversCommunicationLayer;
         }
     }
 }

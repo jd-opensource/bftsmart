@@ -154,6 +154,10 @@ public class ServerCommunicationSystem extends Thread {
         }
     }
 
+    public void setServersConn(ServersCommunicationLayer serversConn) {
+        this.serversConn = serversConn;
+    }
+
     public ServersCommunicationLayer getServersConn() {
         return serversConn;
     }

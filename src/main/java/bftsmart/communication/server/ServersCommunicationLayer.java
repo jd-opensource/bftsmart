@@ -145,7 +145,7 @@ public class ServersCommunicationLayer extends Thread {
     //******* EDUARDO END **************//
 
 
-    public final void send(int[] targets, SystemMessage sm, boolean useMAC) {
+    public void send(int[] targets, SystemMessage sm, boolean useMAC) {
         ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
         try {
             new ObjectOutputStream(bOut).writeObject(sm);
