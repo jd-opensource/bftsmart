@@ -277,7 +277,8 @@ public final class ExecutionManager {
                 (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
                 (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
-            System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + ", start state transfer, "+ ", last cid is " + lastConsId + ", recv msg cid is " + msg.getNumber() + ", in cid is " + inExec);
+            System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + ", start state transfer"+ ", last cid is " + lastConsId + ", recv msg cid is " + msg.getNumber() + ", in cid is " + inExec);
+            System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", revivalHighMark = " + revivalHighMark + ", paxosHighMark = " + paxosHighMark + ", timeoutHighMark = " + timeoutHighMark);
             //Start state transfer
             /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
             Logger.println("(ExecutionManager.checkLimits) Message for consensus "
@@ -455,16 +456,15 @@ public final class ExecutionManager {
             int countAccepts = 0;
             if (msgs != null) {
                 for (ConsensusMessage msg : msgs) {
-                    
+                    // 对于Accept类型的共识消息，需要通过getOrigPropValue取到预计算之前的提议值hash
                     if (msg.getEpoch() == epoch.getTimestamp() &&
-                            Arrays.equals(propHash, msg.getValue())) {
+                            (Arrays.equals(propHash, msg.getValue()) || Arrays.equals(propHash, msg.getOrigPropValue()))) {
                         
                         if (msg.getType() == MessageFactory.WRITE) countWrites++;
                         else if (msg.getType() == MessageFactory.ACCEPT) countAccepts++;
                     }
                 }
             }
-            
             if(controller.getStaticConf().isBFT()){
             	return ((countWrites > (2*controller.getCurrentViewF())) &&
             			(countAccepts > (2*controller.getCurrentViewF())));
