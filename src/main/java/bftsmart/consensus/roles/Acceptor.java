@@ -137,7 +137,37 @@ public final class Acceptor {
             tomLayer.processOutOfContext();
         }
     }
-   
+
+    public boolean checkSucc(Consensus consensus, int msgEpoch) {
+
+        Epoch latestEpochObj = consensus.getLastEpoch();
+
+        if (latestEpochObj == null) {
+            return true;
+        }
+
+        int latestEpoch = latestEpochObj.getTimestamp();
+
+        // 说明发生过领导者切换，本节点参与了领导者切换流程，并更新了本共识的时间戳，此时又收到老时间戳内的共识消息，对于这种共识消息不再处理
+        if (msgEpoch < latestEpoch) {
+            return false;
+        }
+
+        // 说明本节点因为网络原因没有参与到领导者切换的流程；网络恢复后，收到时间戳前进后的共识消息；本分支让没有参与到领导者切换过程的节点后续走状态传输的过程去进行本地的更新；
+        if ((tomLayer.getInExec() == consensus.getId()) && (msgEpoch > latestEpoch)) {
+            // 如果本轮共识已经处理完成并且提交了，不再处理该消息；
+            // 如果没有提交，但是已经进行了预计算，需要对预计算进行回滚；
+            // 如果本轮共识没有走到预计算的过程，对于新时间戳内的共识消息也不做处理
+            // 本过程就是让没有参与到领导者切换过程的节点
+            if (consensus.getPrecomputed() && !consensus.getPrecomputeCommited()) {
+                Epoch epoch = consensus.getEpoch(latestEpoch, controller);
+                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+            }
+            return false;
+        }
+
+        return true;
+    }
     /**
      * Called when a Consensus message is received or when a out of context message must be processed.
      * It processes the received message according to its type
@@ -146,28 +176,27 @@ public final class Acceptor {
      */
     public final void processMessage(ConsensusMessage msg) {
         Consensus consensus = executionManager.getConsensus(msg.getNumber());
-//        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", msg type is " + msg.getType() + ", msg cid is " + msg.getNumber());
+        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", msg type is " + msg.getType() + ", msg cid is " + msg.getNumber() + ",msg from " + msg.getSender() + ", epoch is " + msg.getEpoch());
 
         consensus.lock.lock();
 
-        Epoch lastEpoch = consensus.getLastEpoch();
-
-        Epoch epoch = consensus.getEpoch(msg.getEpoch(), controller);
-
-        if ((tomLayer.getInExec() == msg.getNumber()) && (epoch.getTimestamp() > lastEpoch.getTimestamp())) {
-            epoch.propValue = lastEpoch.propValue;
-            epoch.propValueHash = lastEpoch.propValueHash;
+        if (!checkSucc(consensus, msg.getEpoch())) {
+            consensus.lock.unlock();
+            return;
         }
+
+        //收到的共识消息对应的时间戳
+        Epoch poch = consensus.getEpoch(msg.getEpoch(), controller);
 
         switch (msg.getType()){
             case MessageFactory.PROPOSE:{
-                    proposeReceived(epoch, msg);
+                    proposeReceived(poch, msg);
             }break;
             case MessageFactory.WRITE:{
-                    writeReceived(epoch, msg.getSender(), msg.getValue());
+                    writeReceived(poch, msg.getSender(), msg.getValue());
             }break;
             case MessageFactory.ACCEPT:{
-                    acceptReceived(epoch, msg);
+                    acceptReceived(poch, msg);
             }
         }
         consensus.lock.unlock();
@@ -238,6 +267,8 @@ public final class Acceptor {
 
                     epoch.setWrite(me, epoch.propValueHash);
                     epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
+
+                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send write msg" + ", cid is " + cid);
                     communication.send(this.controller.getCurrentViewOtherAcceptors(),
                             factory.createWrite(cid, epoch.getTimestamp(), epoch.propValueHash));
 
@@ -311,7 +342,7 @@ public final class Acceptor {
 //        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value);
         if (writeAccepted > controller.getQuorum()) {
 
-            System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
+            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 //            if (epoch.isAcceptSetted(me)) {
 //                System.out.println("1111111111  accept before write , cid  " + cid);
 //            }
@@ -373,6 +404,7 @@ public final class Acceptor {
                     insertProof(cm, epoch);
 
                     int[] targets = this.controller.getCurrentViewOtherAcceptors();
+                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept msg" + ", cid is "+cid);
                     communication.send(targets, cm);
 //                    communication.getServersConn().send(targets, cm, true);
 
@@ -574,8 +606,8 @@ public final class Acceptor {
                 createResponses(epoch, epoch.getAsyncResponseLinkedList());
             } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                 //Leader does evil to me only, need to roll back
-                System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", My last regency is  " + tomLayer.getSynchronizer().getLCManager().getLastReg() + ", Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
-                System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my cid is " + cid + ", my propose value hash is  " + epoch.propValueHash + ", recv propose value hash is " + value + ", my epoc timestamp is " + epoch.getTimestamp());
+                System.out.println("(computeAccept) I am proc " + controller.getStaticConf().getProcessId() + ", My last regency is  " + tomLayer.getSynchronizer().getLCManager().getLastReg() + ", Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
+                System.out.println("(computeAccept) I am proc " + controller.getStaticConf().getProcessId() + ", my cid is " + cid + ", my propose value hash is  " + epoch.propAndAppValueHash + ", recv propose value hash is " + value + ", my epoc timestamp is " + epoch.getTimestamp());
                 // rollback
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                 //This round of consensus has been rolled back, mark it

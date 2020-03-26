@@ -18,6 +18,7 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.*;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
@@ -806,8 +807,8 @@ public class Synchronizer {
                         //cons.createEpoch(ets, controller);
                         cons.createEpoch(regency, controller);
                         //Logger.println("(Synchronizer.startSynchronization) incrementing ets of consensus " + cons.getId() + " to " + ets);
-                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
-                        System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in > -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in > -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
                         TimestampValuePair quorumWrites;
 
                         if (cons.getQuorumWrites() != null) {
@@ -833,8 +834,8 @@ public class Synchronizer {
                         //cons.createEpoch(ets, controller);
                         cons.createEpoch(regency, controller);
                         //Logger.println("(Synchronizer.startSynchronization) incrementing ets of consensus " + cons.getId() + " to " + ets);
-                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
-                        System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        Logger.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in = -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
+                        System.out.println("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in = -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
 
                         //collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, ets, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
                         collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, regency, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
@@ -1245,7 +1246,15 @@ public class Synchronizer {
                 /*do {
                     cons.incEts();
                 } while (cons.getEts() != currentETS);*/
-                
+
+                // 对于在领导者切换过程中已经收到三个Write，即已经进行了预计算的节点，需要进行预计算的回滚，因为领导者切换完成时会对本轮共识重新发送write消息，重新执行共识过程；
+                if (cons != null && cons.getPrecomputed() && !cons.getPrecomputeCommited()) {
+
+                    DefaultRecoverable defaultRecoverable = ((DefaultRecoverable) tom.getDeliveryThread().getReceiver().getExecutor());
+                    if (e != null){
+                        defaultRecoverable.preComputeRollback(e.getBatchId());
+                    }
+                }
                 cons.setETS(regency);
                 
                 //cons.createEpoch(currentETS, controller);
