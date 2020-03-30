@@ -787,7 +787,7 @@ public class LCForTOMMessageTest {
 
         for (int i = 0; i < nodeSize; i++) {
             serviceReplicas[i] = serverNodes[i].getReplica();
-            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
+//            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
             serverCommunicationSystems[i] = serviceReplicas[i].getServerCommunicationSystem();
         }
     }

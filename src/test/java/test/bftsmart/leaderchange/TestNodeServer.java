@@ -35,7 +35,8 @@ public class TestNodeServer extends DefaultRecoverable {
 
     public ServiceReplica startNode() {
 
-        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier(), Mockito.spy(new HeartBeatTimer()));
+        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier());
+//        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier(), Mockito.spy(new HeartBeatTimer()));
         return replica;
     }
 

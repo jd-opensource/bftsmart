@@ -41,7 +41,7 @@ public class HeartBeatTest {
 
     private TestNodeServer[] serverNodes;
 
-    private HeartBeatTimer[] mockHbTimers;
+//    private HeartBeatTimer[] mockHbTimers;
 
     private ServerCommunicationSystem[] serverCommunicationSystems;
 
@@ -63,57 +63,57 @@ public class HeartBeatTest {
         }
     }
 
-    @Test
-    public void oneUnleaderHbTimeoutTest() {
-        Mockito.doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(30000);
-                return invocationOnMock.callRealMethod();
-            }
-        }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
+//    @Test
+//    public void oneUnleaderHbTimeoutTest() {
+//        Mockito.doAnswer(new Answer() {
+//            @Override
+//            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+//                Thread.sleep(30000);
+//                return invocationOnMock.callRealMethod();
+//            }
+//        }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
+//
+//
+//        try {
+//            Thread.sleep(Integer.MAX_VALUE);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
-
-        try {
-            Thread.sleep(Integer.MAX_VALUE);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Test
-    public void twoUnleaderHbTimeoutTest() {
-        isTestTurnOn.set(true);
-
-        Mockito.doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                if (isTestTurnOn.get()) {
-                    Thread.sleep(30000);
-                }
-                isTestTurnOn.set(false);
-                return invocationOnMock.callRealMethod();
-            }
-        }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
-
-        isTestTurnOn1.set(true);
-        Mockito.doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                if (isTestTurnOn1.get()) {
-                    Thread.sleep(30000);
-                }
-                isTestTurnOn1.set(false);
-                return invocationOnMock.callRealMethod();
-            }
-        }).when(mockHbTimers[2]).receiveHeartBeatMessage(any());
-
-        try {
-            Thread.sleep(Integer.MAX_VALUE);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+//    @Test
+//    public void twoUnleaderHbTimeoutTest() {
+//        isTestTurnOn.set(true);
+//
+//        Mockito.doAnswer(new Answer() {
+//            @Override
+//            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+//                if (isTestTurnOn.get()) {
+//                    Thread.sleep(30000);
+//                }
+//                isTestTurnOn.set(false);
+//                return invocationOnMock.callRealMethod();
+//            }
+//        }).when(mockHbTimers[3]).receiveHeartBeatMessage(any());
+//
+//        isTestTurnOn1.set(true);
+//        Mockito.doAnswer(new Answer() {
+//            @Override
+//            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+//                if (isTestTurnOn1.get()) {
+//                    Thread.sleep(30000);
+//                }
+//                isTestTurnOn1.set(false);
+//                return invocationOnMock.callRealMethod();
+//            }
+//        }).when(mockHbTimers[2]).receiveHeartBeatMessage(any());
+//
+//        try {
+//            Thread.sleep(Integer.MAX_VALUE);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
 
     /**
@@ -443,7 +443,7 @@ public class HeartBeatTest {
 
         serverNodes = new TestNodeServer[nodeSize];
 
-        mockHbTimers = new HeartBeatTimer[nodeSize];
+//        mockHbTimers = new HeartBeatTimer[nodeSize];
 
         serverCommunicationSystems = new ServerCommunicationSystem[nodeSize];
 
@@ -466,7 +466,7 @@ public class HeartBeatTest {
 
         for (int i = 0; i < nodeSize; i++) {
             serviceReplicas[i] = serverNodes[i].getReplica();
-            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
+//            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
             serverCommunicationSystems[i] = serviceReplicas[i].getServerCommunicationSystem();
         }
     }

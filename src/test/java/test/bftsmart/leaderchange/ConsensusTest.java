@@ -47,7 +47,7 @@ public class ConsensusTest {
 
     private TestNodeServer[] serverNodes;
 
-    private HeartBeatTimer[] mockHbTimers;
+//    private HeartBeatTimer[] mockHbTimers;
 
     private ServerCommunicationSystem[] serverCommunicationSystems;
 
@@ -850,7 +850,7 @@ public class ConsensusTest {
 
         serverNodes = new TestNodeServer[nodeSize];
 
-        mockHbTimers = new HeartBeatTimer[nodeSize];
+//        mockHbTimers = new HeartBeatTimer[nodeSize];
 
         serverCommunicationSystems = new ServerCommunicationSystem[nodeSize];
 
@@ -873,7 +873,7 @@ public class ConsensusTest {
 
         for (int i = 0; i < nodeSize; i++) {
             serviceReplicas[i] = serverNodes[i].getReplica();
-            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
+//            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
             serverCommunicationSystems[i] = serviceReplicas[i].getServerCommunicationSystem();
         }
     }
