@@ -4,7 +4,6 @@ import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
-import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LeaderResponseMessage;
 import org.apache.commons.io.FileUtils;
@@ -23,11 +22,9 @@ import static org.mockito.Mockito.*;
 /**
  * @Author: zhangshuang
  * @Date: 2020/3/4 11:33 AM
- *
- * 携带TOMMessage的领导者改变处理机制
  * Version 1.0
  */
-public class LCForTOMMessageTest {
+public class HeartBeatForOtherSizeTest_ {
 
     private static final ExecutorService nodeStartPools = Executors.newCachedThreadPool();
 
@@ -35,7 +32,7 @@ public class LCForTOMMessageTest {
 
     private TestNodeServer[] serverNodes;
 
-    private HeartBeatTimer[] mockHbTimers;
+//    private HeartBeatTimer[] mockHbTimers;
 
     private ServerCommunicationSystem[] serverCommunicationSystems;
 
@@ -742,7 +739,7 @@ public class LCForTOMMessageTest {
 
         // 首先删除view，然后修改配置文件
         try {
-            String path = LCForTOMMessageTest.class.getResource("/").toURI().getPath();
+            String path = HeartBeatForOtherSizeTest_.class.getResource("/").toURI().getPath();
             String dirPath = new File(path).getParentFile().getParentFile().getPath() + File.separator + "config";
             // 删除view
             new File(dirPath + File.separator + "currentView").delete();
@@ -764,7 +761,7 @@ public class LCForTOMMessageTest {
 
         serverNodes = new TestNodeServer[nodeSize];
 
-        mockHbTimers = new HeartBeatTimer[nodeSize];
+//        mockHbTimers = new HeartBeatTimer[nodeSize];
 
         serverCommunicationSystems = new ServerCommunicationSystem[nodeSize];
 

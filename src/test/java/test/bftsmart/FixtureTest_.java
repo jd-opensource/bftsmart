@@ -25,7 +25,7 @@ import org.junit.BeforeClass;
  * @author Marcel Santos
  *
  */
-public class TestFixture {
+public class FixtureTest_ {
 
 	private static Process replica0;
 	private static Process replica1;

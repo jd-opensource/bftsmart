@@ -31,7 +31,7 @@ import bftsmart.demo.bftmap.BFTMap;
  * @author Marcel Santos
  *
  */
-public class ConsoleTest {
+public class ConsoleTest_ {
 
 	private static Process replica0;
 	private static Process replica1;
@@ -127,7 +127,7 @@ public class ConsoleTest {
 	}
 
 	public static void main(String[] args) {
-		ConsoleTest test = new ConsoleTest();
+		ConsoleTest_ test = new ConsoleTest_();
 		startServers();
 		test.testStopAndStartNonLeader();
 		try {

@@ -8,10 +8,7 @@ import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LeaderResponseMessage;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -19,7 +16,6 @@ import java.io.File;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
@@ -27,9 +23,11 @@ import static org.mockito.Mockito.*;
 /**
  * @Author: zhangshuang
  * @Date: 2020/3/4 11:33 AM
+ *
+ * 携带TOMMessage的领导者改变处理机制
  * Version 1.0
  */
-public class HeartBeatForOtherSizeTest {
+public class LCForTOMMessageTest_ {
 
     private static final ExecutorService nodeStartPools = Executors.newCachedThreadPool();
 
@@ -37,7 +35,7 @@ public class HeartBeatForOtherSizeTest {
 
     private TestNodeServer[] serverNodes;
 
-//    private HeartBeatTimer[] mockHbTimers;
+    private HeartBeatTimer[] mockHbTimers;
 
     private ServerCommunicationSystem[] serverCommunicationSystems;
 
@@ -744,7 +742,7 @@ public class HeartBeatForOtherSizeTest {
 
         // 首先删除view，然后修改配置文件
         try {
-            String path = HeartBeatForOtherSizeTest.class.getResource("/").toURI().getPath();
+            String path = LCForTOMMessageTest_.class.getResource("/").toURI().getPath();
             String dirPath = new File(path).getParentFile().getParentFile().getPath() + File.separator + "config";
             // 删除view
             new File(dirPath + File.separator + "currentView").delete();
@@ -766,7 +764,7 @@ public class HeartBeatForOtherSizeTest {
 
         serverNodes = new TestNodeServer[nodeSize];
 
-//        mockHbTimers = new HeartBeatTimer[nodeSize];
+        mockHbTimers = new HeartBeatTimer[nodeSize];
 
         serverCommunicationSystems = new ServerCommunicationSystem[nodeSize];
 

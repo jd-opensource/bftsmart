@@ -31,7 +31,7 @@ import static org.junit.Assert.*;
  * @author Marcel Santos
  *
  */
-public class ConsoleTest {
+public class ConsoleTest_ {
 
 	// Comment to test SVN branch creation left by Marcel
 	private static Process replica0;
@@ -128,7 +128,7 @@ public class ConsoleTest {
 	}
 
 	public static void main(String[] args) {
-		ConsoleTest test = new ConsoleTest();
+		ConsoleTest_ test = new ConsoleTest_();
 		startServers();
 		test.testStopAndStartNonLeader();
 		try {

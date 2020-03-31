@@ -31,7 +31,7 @@ import bftsmart.demo.bftmap.BFTMap;
  * @author Marcel Santos
  *
  */
-public class KVClientTest {
+public class KVClientTest_ {
 
 	private static Process replica0;
 	private static Process replica1;

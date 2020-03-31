@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
  * @Date: 2020/3/4 11:33 AM
  * Version 1.0
  */
-public class HeartBeatTest {
+public class HeartBeatTest_ {
 
     private static int nodeNums = 4;
 

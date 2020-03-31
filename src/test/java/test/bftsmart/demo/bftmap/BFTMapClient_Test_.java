@@ -22,14 +22,14 @@ import java.util.HashMap;
 import org.junit.Test;
 
 import bftsmart.demo.bftmap.BFTMap;
-import test.bftsmart.TestFixture;
+import test.bftsmart.FixtureTest_;
 
 /**
  * 
  * @author Marcel Santos
  *
  */
-public class BFTMapClientTest extends TestFixture {
+public class BFTMapClient_Test_ extends FixtureTest_ {
 
 	private BFTMap bftMap;
 	

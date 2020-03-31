@@ -3,19 +3,15 @@ package test.bftsmart.leaderchange;
 import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.server.ServersCommunicationLayer;
-import bftsmart.consensus.Consensus;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
-import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LeaderResponseMessage;
-import bftsmart.tom.util.Logger;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +35,7 @@ import static org.mockito.Mockito.spy;
  * @Date: 2020/3/18 1:57 PM
  * Version 1.0
  */
-public class ConsensusTest {
+public class ConsensusTest_ {
 
     private static final ExecutorService nodeStartPools = Executors.newCachedThreadPool();
 
@@ -828,7 +824,7 @@ public class ConsensusTest {
 
         // 首先删除view，然后修改配置文件
         try {
-            String path = HeartBeatForOtherSizeTest.class.getResource("/").toURI().getPath();
+            String path = HeartBeatForOtherSizeTest_.class.getResource("/").toURI().getPath();
             String dirPath = new File(path).getParentFile().getParentFile().getPath() + File.separator + "config";
             // 删除view
             new File(dirPath + File.separator + "currentView").delete();
