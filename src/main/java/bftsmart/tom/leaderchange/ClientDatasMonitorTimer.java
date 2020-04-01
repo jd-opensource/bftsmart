@@ -46,6 +46,10 @@ public class ClientDatasMonitorTimer {
         }
     }
 
+    public void shutdown() {
+        stopTimer();
+    }
+
     class ClientDataMonitorTimerTask extends TimerTask {
 
        private ClientsManager clientsManager;
