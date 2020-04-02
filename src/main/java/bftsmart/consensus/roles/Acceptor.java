@@ -595,6 +595,7 @@ public final class Acceptor {
                     decide(epoch);
                 } catch (Exception e) {
                     //maybe storage exception
+                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", flush storage fail, will rollback!");
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
                     updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);

@@ -321,7 +321,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 installSnapshot(state.getSerializedState());
             }
 
-            for (int cid = lastCheckpointCID + 1; cid <= lastCID; cid++) {
+            int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
+
+            System.out.printf("I am proc " + controller.getStaticConf().getProcessId() + ", my currentcid = %d,  from other nodes lastestcid  = %d\r\n", currentCid, lastCID);
+
+            for (int cid = currentCid + 1; cid <= lastCID; cid++) {
                 try {
 
                     bftsmart.tom.util.Logger.println("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid " + cid);
