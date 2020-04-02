@@ -176,10 +176,11 @@ public final class Acceptor {
      */
     public final void processMessage(ConsensusMessage msg) {
         Consensus consensus = executionManager.getConsensus(msg.getNumber());
-        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", msg type is " + msg.getType() + ", msg cid is " + msg.getNumber() + ",msg from " + msg.getSender() + ", epoch is " + msg.getEpoch());
+//        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", msg type is " + msg.getType() + ", msg cid is " + msg.getNumber() + ",msg from " + msg.getSender() + ", epoch is " + msg.getEpoch());
 
         consensus.lock.lock();
 
+        // 检查消息的epoch
         if (!checkSucc(consensus, msg.getEpoch())) {
             consensus.lock.unlock();
             return;
@@ -268,7 +269,7 @@ public final class Acceptor {
                     epoch.setWrite(me, epoch.propValueHash);
                     epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
 
-                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send write msg" + ", cid is " + cid);
+//                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send write msg" + ", cid is " + cid);
                     communication.send(this.controller.getCurrentViewOtherAcceptors(),
                             factory.createWrite(cid, epoch.getTimestamp(), epoch.propValueHash));
 
@@ -339,15 +340,9 @@ public final class Acceptor {
         Logger.println("(Acceptor.computeWrite) I have " + writeAccepted +
                 " WRITEs for " + cid + "," + epoch.getTimestamp());
 
-//        System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value);
         if (writeAccepted > controller.getQuorum()) {
 
-            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
-//            if (epoch.isAcceptSetted(me)) {
-//                System.out.println("1111111111  accept before write , cid  " + cid);
-//            }
-
-//            System.out.println("I am proc "+ controller.getStaticConf().getProcessId() + ", cid is " + cid);
+//            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 
             if (!epoch.isAcceptSetted(me) && Arrays.equals(value, epoch.propValueHash)) {
 
@@ -404,7 +399,7 @@ public final class Acceptor {
                     insertProof(cm, epoch);
 
                     int[] targets = this.controller.getCurrentViewOtherAcceptors();
-                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept msg" + ", cid is "+cid);
+//                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept msg" + ", cid is "+cid);
                     communication.send(targets, cm);
 //                    communication.getServersConn().send(targets, cm, true);
 

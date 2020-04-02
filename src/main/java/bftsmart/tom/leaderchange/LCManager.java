@@ -122,7 +122,7 @@ public class LCManager {
             }
         } while(!SVController.isCurrentViewMember(currentLeader));
 
-        System.out.printf("%s get new leader = %s \r\n",
+        System.out.printf("I am proc %s , get new leader = %s \r\n",
                 tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
 
         return currentLeader;
@@ -134,7 +134,7 @@ public class LCManager {
      */
     public void setNewLeader(int leader) {
         currentLeader = leader;
-        System.out.printf("%s set new leader = %s \r\n",
+        System.out.printf("I am proc %s , set new leader = %s \r\n",
                 tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
     }
     
