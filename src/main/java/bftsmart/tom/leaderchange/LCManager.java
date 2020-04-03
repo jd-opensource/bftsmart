@@ -806,7 +806,7 @@ public class LCManager {
     // verifies is a proof associated with a decided value is valid
     public boolean hasValidProof(CertifiedDecision cDec) {
         
-        if (cDec.getCID() == -1) return true; // If the last CID is -1 it means the replica
+        if (cDec.getCID() == -1 || cDec.getDecision() == null || cDec.getConsMessages() == null) return true; // If the last CID is -1 it means the replica
                                              // did not complete any consensus and cannot have
                                              // any proof
         System.out.printf("I am %s, pid = %s, cid = %s, consmsg = %s \r\n",
