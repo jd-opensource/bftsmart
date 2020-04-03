@@ -36,6 +36,8 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 import bftsmart.communication.SystemMessage;
+import bftsmart.communication.queue.MessageQueue;
+import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.tom.ServiceReplica;
@@ -65,10 +67,11 @@ public class ServerConnection {
     private DataInputStream socketInStream = null;
     private int remoteId;
     private boolean useSenderThread;
+    private MessageQueue messageInQueue;
     protected LinkedBlockingQueue<byte[]> outQueue;// = new LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
     private HashSet<Integer> noMACs = null; // this is used to keep track of data to be sent without a MAC.
                                             // It uses the reference id for that same data
-    private LinkedBlockingQueue<SystemMessage> inQueue;
+//    private LinkedBlockingQueue<SystemMessage> inQueue;
     private SecretKey authKey = null;
     private Mac macSend;
     private Mac macReceive;
@@ -79,8 +82,8 @@ public class ServerConnection {
     private boolean doWork = true;
     private CountDownLatch latch = new CountDownLatch(1);
 
-    public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
-                            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
+    public ServerConnection(ServerViewController controller, Socket socket,
+                            int remoteId, MessageQueue messageInQueue, ServiceReplica replica) {
 
         this.controller = controller;
 
@@ -88,7 +91,7 @@ public class ServerConnection {
 
         this.remoteId = remoteId;
 
-        this.inQueue = inQueue;
+        this.messageInQueue = messageInQueue;
 
         this.outQueue = new LinkedBlockingQueue<byte[]>(this.controller.getStaticConf().getOutQueueSize());
 
@@ -140,6 +143,69 @@ public class ServerConnection {
         }
         //******* EDUARDO END **************//
     }
+
+
+//    public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
+//                            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
+//
+//        this.controller = controller;
+//
+//        this.socket = socket;
+//
+//        this.remoteId = remoteId;
+//
+//        this.inQueue = inQueue;
+//
+//        this.outQueue = new LinkedBlockingQueue<byte[]>(this.controller.getStaticConf().getOutQueueSize());
+//
+//        this.noMACs = new HashSet<Integer>();
+//        // Connect to the remote process or just wait for the connection?
+//        if (isToConnect()) {
+//            //I have to connect to the remote server
+//            try {
+//                this.socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
+//                        this.controller.getStaticConf().getServerToServerPort(remoteId));
+//                ServersCommunicationLayer.setSocketOptions(this.socket);
+//                new DataOutputStream(this.socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
+//
+//            } catch (UnknownHostException ex) {
+//                ex.printStackTrace();
+//            } catch (IOException ex) {
+//                ex.printStackTrace();
+//            }
+//        }
+//        //else I have to wait a connection from the remote server
+//
+//        if (this.socket != null) {
+//            try {
+//                socketOutStream = new DataOutputStream(this.socket.getOutputStream());
+//                socketInStream = new DataInputStream(this.socket.getInputStream());
+//            } catch (IOException ex) {
+//                Logger.println("Error creating connection to "+remoteId);
+//                ex.printStackTrace();
+//            }
+//        }
+//
+//        //******* EDUARDO BEGIN **************//
+//        this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
+//
+//        if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
+//            new SenderThread(latch).start();
+//        } else {
+//            sendLock = new ReentrantLock();
+//        }
+//        authenticateAndEstablishAuthKey();
+//
+//        if (!this.controller.getStaticConf().isTheTTP()) {
+//            if (this.controller.getStaticConf().getTTPId() == remoteId) {
+//                //Uma thread "diferente" para as msgs recebidas da TTP
+//                new TTPReceiverThread(replica).start();
+//            } else {
+//                new ReceiverThread().start();
+//            }
+//        }
+//        //******* EDUARDO END **************//
+//    }
 
     public SecretKey getSecretKey() {
         return authKey;
@@ -527,7 +593,10 @@ public class ServerConnection {
                             sm.authenticated = (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1);
                             
                             if (sm.getSender() == remoteId) {
-                                if (!inQueue.offer(sm)) {
+
+                                MessageQueue.MSG_TYPE msgType = MessageQueueFactory.msgType(sm);
+
+                                if (!messageInQueue.offer(msgType, sm)) {
                                     Logger.println("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
                                     System.out.println("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
                                 }

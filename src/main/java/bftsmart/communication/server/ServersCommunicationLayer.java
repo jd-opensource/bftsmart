@@ -16,6 +16,8 @@ limitations under the License.
 package bftsmart.communication.server;
 
 import bftsmart.communication.SystemMessage;
+import bftsmart.communication.queue.MessageQueue;
+import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
 
@@ -48,7 +50,7 @@ import java.util.logging.Logger;
 public class ServersCommunicationLayer extends Thread {
 
     private ServerViewController controller;
-    private LinkedBlockingQueue<SystemMessage> inQueue;
+//    private LinkedBlockingQueue<SystemMessage> inQueue;
     private Hashtable<Integer, ServerConnection> connections = new Hashtable<Integer, ServerConnection>();
     private ServerSocket serverSocket;
     private int me;
@@ -59,13 +61,14 @@ public class ServersCommunicationLayer extends Thread {
     private List<PendingConnection> pendingConn = new LinkedList<PendingConnection>();
     private ServiceReplica replica;
     private SecretKey selfPwd;
+    private MessageQueue messageInQueue;
     private static final String PASSWORD = "commsyst";
 
-    public ServersCommunicationLayer(ServerViewController controller,
-                                     LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) throws Exception {
+    public ServersCommunicationLayer(ServerViewController controller, MessageQueue messageInQueue,
+                                     ServiceReplica replica) throws Exception {
 
         this.controller = controller;
-        this.inQueue = inQueue;
+        this.messageInQueue = messageInQueue;
         this.me = controller.getStaticConf().getProcessId();
         this.replica = replica;
 
@@ -91,6 +94,38 @@ public class ServersCommunicationLayer extends Thread {
 
         start();
     }
+
+//    public ServersCommunicationLayer(ServerViewController controller,
+//                                     LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) throws Exception {
+//
+//        this.controller = controller;
+//        this.inQueue = inQueue;
+//        this.me = controller.getStaticConf().getProcessId();
+//        this.replica = replica;
+//
+//        //Try connecting if a member of the current view. Otherwise, wait until the Join has been processed!
+//        if (controller.isInCurrentView()) {
+//            int[] initialV = controller.getCurrentViewAcceptors();
+//            for (int i = 0; i < initialV.length; i++) {
+//                if (initialV[i] != me) {
+//                    getConnection(initialV[i]);
+//                }
+//            }
+//        }
+//
+//        serverSocket = new ServerSocket(controller.getStaticConf().getServerToServerPort(
+//                controller.getStaticConf().getProcessId()));
+//
+//        SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+//        PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
+//        selfPwd = fac.generateSecret(spec);
+//
+//        serverSocket.setSoTimeout(10000);
+//        serverSocket.setReuseAddress(true);
+//
+//        start();
+//    }
+
 
     public SecretKey getSecretKey(int id) {
         if (id == controller.getStaticConf().getProcessId()) return selfPwd;
@@ -136,7 +171,7 @@ public class ServersCommunicationLayer extends Thread {
         connectionsLock.lock();
         ServerConnection ret = this.connections.get(remoteId);
         if (ret == null) {
-            ret = new ServerConnection(controller, null, remoteId, this.inQueue, this.replica);
+            ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica);
             this.connections.put(remoteId, ret);
         }
         connectionsLock.unlock();
@@ -159,7 +194,8 @@ public class ServersCommunicationLayer extends Thread {
             try {
                 if (i == me) {
                     sm.authenticated = true;
-                    inQueue.put(sm);
+                    MessageQueue.MSG_TYPE msgType = MessageQueueFactory.msgType(sm);
+                    messageInQueue.put(msgType, sm);
                 } else {
                     //System.out.println("Going to send message to: "+i);
                     //******* EDUARDO BEGIN **************//
@@ -257,7 +293,7 @@ public class ServersCommunicationLayer extends Thread {
             if (this.connections.get(remoteId) == null) { //This must never happen!!!
                 //first time that this connection is being established
                 //System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
-                this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, inQueue, replica));
+                this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica));
             } else {
                 //reconnection
                 this.connections.get(remoteId).reconnect(newSocket);
@@ -281,7 +317,7 @@ public class ServersCommunicationLayer extends Thread {
 
     @Override
     public String toString() {
-        String str = "inQueue=" + inQueue.toString();
+        String str = "inQueue=" + messageInQueue.toString();
 
         int[] activeServers = controller.getCurrentViewAcceptors();
 

@@ -1,18 +1,18 @@
 /**
-Copyright (c) 2007-2013 Alysson Bessani, Eduardo Alchieri, Paulo Sousa, and the authors indicated in the @author tags
+ Copyright (c) 2007-2013 Alysson Bessani, Eduardo Alchieri, Paulo Sousa, and the authors indicated in the @author tags
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 package bftsmart.communication;
 
 import bftsmart.communication.server.ServerConnection;
@@ -39,8 +39,6 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  *
@@ -52,9 +50,6 @@ public class MessageHandler {
     private TOMLayer tomLayer;
     //private Cipher cipher;
     private Mac mac;
-    private final ExecutorService conesnsusMsgThreadPool = Executors.newSingleThreadExecutor();
-    private final ExecutorService heartMsgThreadPool = Executors.newSingleThreadExecutor();
-    private final ExecutorService lcMsgThreadPool = Executors.newSingleThreadExecutor();
 
     public MessageHandler() {
         try {
@@ -73,26 +68,15 @@ public class MessageHandler {
     }
 
     @SuppressWarnings("unchecked")
-    public void processData(final SystemMessage sm) {
+    public void processData(SystemMessage sm) {
         if (sm instanceof ConsensusMessage) {
-            final ConsensusMessage consMsg = (ConsensusMessage) sm;
-            processConsensusMsg(consMsg);
-        } else if (sm instanceof HeartBeatMessage || sm instanceof LeaderRequestMessage || sm instanceof LeaderResponseMessage) {
-            processHeartMsg(sm);
-        } else {
-        	processLCMsg(sm);
-        }
-    }
-
-    private void processConsensusMsg(final ConsensusMessage consMsg) {
-
-        // 由共识消息处理线程单独处理
-        conesnsusMsgThreadPool.execute(() -> {
 
             int myId = tomLayer.controller.getStaticConf().getProcessId();
 
-//            System.out.printf("(MessageHandler) node %s receive consensus msg from %s , type is = %s, time = %s \r\n",
-//                    tomLayer.controller.getStaticConf().getProcessId(), consMsg.getSender(), consMsg.getType(), System.currentTimeMillis());
+            ConsensusMessage consMsg = (ConsensusMessage) sm;
+
+            System.out.printf("(MessageHandler) node %s receive consensus msg from %s , type is = %s, time = %s \r\n",
+                    tomLayer.controller.getStaticConf().getProcessId(), sm.getSender(), consMsg.getType(), System.currentTimeMillis());
 
             if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || consMsg.authenticated || consMsg.getSender() == myId) acceptor.deliver(consMsg);
             else if (consMsg.getType() == MessageFactory.ACCEPT && consMsg.getProof() != null) {
@@ -132,36 +116,27 @@ public class MessageHandler {
                 if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC))
                     acceptor.deliver(consMsg);
                 else {
-                    Logger.println("(MessageHandler.processData) WARNING: invalid MAC from " + consMsg.getSender());
-                    System.out.println("(MessageHandler.processData) WARNING: invalid MAC from " + consMsg.getSender());
+                    Logger.println("(MessageHandler.processData) WARNING: invalid MAC from " + sm.getSender());
+                    System.out.println("(MessageHandler.processData) WARNING: invalid MAC from " + sm.getSender());
                 }
             } else {
-                System.out.println("(MessageHandler.processData) Discarding unauthenticated message from " + consMsg.getSender());
-                Logger.println("(MessageHandler.processData) Discarding unauthenticated message from " + consMsg.getSender());
+                System.out.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
+                Logger.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
             }
-        });
-    }
 
-    private void processHeartMsg(final SystemMessage sm) {
-        heartMsgThreadPool.execute(() -> {
-            if (sm instanceof HeartBeatMessage) {
-                // 心跳消息
-//                System.out.printf("(MessageHandler) node %s receive heart beat from %s , time = %s \r\n",
-//                        tomLayer.controller.getStaticConf().getProcessId(), ((HeartBeatMessage)sm).getLeader(), System.currentTimeMillis());
+        } else if (sm instanceof HeartBeatMessage) {
+            // 心跳消息
+            System.out.printf("(MessageHandler) node %s receive heart beat from %s , time = %s \r\n",
+                    tomLayer.controller.getStaticConf().getProcessId(), ((HeartBeatMessage)sm).getLeader(), System.currentTimeMillis());
 
-                tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
-            } else if (sm instanceof LeaderRequestMessage) {
-                // 获取Leader节点请求的消息
-                tomLayer.heartBeatTimer.receiveLeaderRequestMessage((LeaderRequestMessage) sm);
-            } else if (sm instanceof LeaderResponseMessage) {
-                // 获取Leader节点请求的消息
-                tomLayer.heartBeatTimer.receiveLeaderResponseMessage((LeaderResponseMessage) sm);
-            }
-        });
-    }
-
-    private void processLCMsg(final SystemMessage sm) {
-        lcMsgThreadPool.execute(() -> {
+            tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
+        } else if (sm instanceof LeaderRequestMessage) {
+            // 获取Leader节点请求的消息
+            tomLayer.heartBeatTimer.receiveLeaderRequestMessage((LeaderRequestMessage) sm);
+        } else if (sm instanceof LeaderResponseMessage) {
+            // 获取Leader节点请求的消息
+            tomLayer.heartBeatTimer.receiveLeaderResponseMessage((LeaderResponseMessage) sm);
+        } else {
             if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || sm.authenticated) {
                 /*** This is Joao's code, related to leader change */
                 if (sm instanceof LCMessage) {
@@ -221,9 +196,9 @@ public class MessageHandler {
             } else {
                 System.out.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
             }
-        });
+        }
     }
-    
+
     protected void verifyPending() {
         tomLayer.processOutOfContext();
     }
