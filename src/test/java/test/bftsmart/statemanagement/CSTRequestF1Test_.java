@@ -26,7 +26,7 @@ import bftsmart.statemanagement.strategy.durability.CSTRequestF1;
  * @author Marcel Santos
  *
  */
-public class CSTRequestF1Test {
+public class CSTRequestF1Test_ {
 	
 	@Test
 	public void testDefineReplicas() {
