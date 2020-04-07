@@ -93,8 +93,8 @@ public class HeartBeatTimer {
             // todo 此处逻辑有问题，需要再次考虑
             // 需要考虑是否每次都更新innerHeartBeatMessage
             if (heartBeatMessage.getLeader() == tomLayer.leader()) {
-                System.out.printf("I am proc %s , receive heart beat from %s , time = %s \r\n",
-                        tomLayer.controller.getStaticConf().getProcessId(), heartBeatMessage.getLeader(), System.currentTimeMillis());
+//                System.out.printf("I am proc %s , receive heart beat from %s , time = %s \r\n",
+//                        tomLayer.controller.getStaticConf().getProcessId(), heartBeatMessage.getLeader(), System.currentTimeMillis());
                 innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
                 if (heartBeatMessage.getLastRegency() != tomLayer.getSynchronizer().getLCManager().getLastReg()) {
                     sendLeaderRequestMessage();
@@ -119,11 +119,11 @@ public class HeartBeatTimer {
                 tomLayer.getSynchronizer().getLCManager().getLastReg());
         int[] to = new int[1];
         to[0] = requestMessage.getSender();
-        System.out.printf("I am proc %s , receive leader request from %s \r\n",
-                tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSender());
+//        System.out.printf("I am proc %s , receive leader request from %s \r\n",
+//                tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSender());
         tomLayer.getCommunication().send(to, responseMessage);
-        System.out.printf("I am proc %s , send leader[%s] response to %s \r\n",
-                tomLayer.controller.getStaticConf().getProcessId(), currLeader, to[0]);
+//        System.out.printf("I am proc %s , send leader[%s] response to %s \r\n",
+//                tomLayer.controller.getStaticConf().getProcessId(), currLeader, to[0]);
     }
 
     /**
@@ -135,8 +135,8 @@ public class HeartBeatTimer {
         lrLock.lock();
         try {
             long msgSeq = responseMessage.getSequence();
-            System.out.printf("I am proc %s , receive leader %s response from %s \r\n",
-                    tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getLeader(), responseMessage.getSender());
+//            System.out.printf("I am proc %s , receive leader %s response from %s \r\n",
+//                    tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getLeader(), responseMessage.getSender());
             if (msgSeq == lastLeaderRequestSequence) {
                 // 是当前节点发送的请求，则将其加入到Map中
                 List<LeaderResponseMessage> responseMessages = leaderResponseMap.get(msgSeq);
@@ -162,9 +162,9 @@ public class HeartBeatTimer {
                         tomLayer.getSynchronizer().getLCManager().setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
                         tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
                         tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
-                        System.out.printf("I am proc %s , set new leader %s last regency %s \r\n",
-                                tomLayer.controller.getStaticConf().getProcessId(), newLeader.getNewLeader(),
-                                newLeader.getLastRegency());
+//                        System.out.printf("I am proc %s , set new leader %s last regency %s \r\n",
+//                                tomLayer.controller.getStaticConf().getProcessId(), newLeader.getNewLeader(),
+//                                newLeader.getLastRegency());
                         // 重启定时器
                         restart();
                     }
@@ -203,7 +203,7 @@ public class HeartBeatTimer {
     private void sendLeaderRequestMessage(long sequence) {
         LeaderRequestMessage requestMessage = new LeaderRequestMessage(
                 tomLayer.controller.getStaticConf().getProcessId(), sequence);
-        System.out.printf("I am %s, send leader request message \r\n", tomLayer.controller.getStaticConf().getProcessId());
+//        System.out.printf("I am %s, send leader request message \r\n", tomLayer.controller.getStaticConf().getProcessId());
         tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), requestMessage);
         lastLeaderRequestSequence = sequence;
         // 启动定时任务，判断心跳的应答处理
@@ -300,7 +300,7 @@ public class HeartBeatTimer {
                 // 如果是Leader则发送心跳信息给其他节点，当前节点除外
                 HeartBeatMessage heartBeatMessage = new HeartBeatMessage(tomLayer.controller.getStaticConf().getProcessId(),
                         tomLayer.controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
-                System.out.printf("I am proc %s, send heart beat message, time = %s \r\n", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
+//                System.out.printf("I am proc %s, send heart beat message, time = %s \r\n", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
                 tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), heartBeatMessage);
             }
         }
@@ -344,7 +344,7 @@ public class HeartBeatTimer {
                 // 检查收到的InnerHeartBeatMessage是否超时
                 hbLock.lock();
                 try {
-                    System.out.printf("I am proc %s check heart beat message , check time = %s \r\n", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
+//                    System.out.printf("I am proc %s check heart beat message , check time = %s \r\n", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
                     if (innerHeartBeatMessage == null) {
                         // todo 此处触发超时
                         System.out.println("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout1");
