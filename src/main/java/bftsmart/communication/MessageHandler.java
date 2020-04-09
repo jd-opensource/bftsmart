@@ -75,8 +75,8 @@ public class MessageHandler {
 
             ConsensusMessage consMsg = (ConsensusMessage) sm;
 
-            System.out.printf("(MessageHandler) node %s receive consensus msg from %s , type is = %s, time = %s \r\n",
-                    tomLayer.controller.getStaticConf().getProcessId(), sm.getSender(), consMsg.getType(), System.currentTimeMillis());
+//            System.out.printf("(MessageHandler) node %s receive consensus msg from %s , type is = %s, time = %s \r\n",
+//                    tomLayer.controller.getStaticConf().getProcessId(), sm.getSender(), consMsg.getType(), System.currentTimeMillis());
 
             if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || consMsg.authenticated || consMsg.getSender() == myId) acceptor.deliver(consMsg);
             else if (consMsg.getType() == MessageFactory.ACCEPT && consMsg.getProof() != null) {
@@ -126,8 +126,8 @@ public class MessageHandler {
 
         } else if (sm instanceof HeartBeatMessage) {
             // 心跳消息
-            System.out.printf("(MessageHandler) node %s receive heart beat from %s , time = %s \r\n",
-                    tomLayer.controller.getStaticConf().getProcessId(), ((HeartBeatMessage)sm).getLeader(), System.currentTimeMillis());
+//            System.out.printf("(MessageHandler) node %s receive heart beat from %s , time = %s \r\n",
+//                    tomLayer.controller.getStaticConf().getProcessId(), ((HeartBeatMessage)sm).getLeader(), System.currentTimeMillis());
 
             tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
         } else if (sm instanceof LeaderRequestMessage) {
