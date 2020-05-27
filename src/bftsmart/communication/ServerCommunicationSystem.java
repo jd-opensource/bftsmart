@@ -121,7 +121,7 @@ public class ServerCommunicationSystem extends Thread {
                 } else {                
                     messageHandler.verifyPending();               
                 }
-            } catch (InterruptedException e) {
+            } catch (Throwable e) {
                 e.printStackTrace(System.err);
             }
         }

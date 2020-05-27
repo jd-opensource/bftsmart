@@ -237,6 +237,8 @@ public class ServersCommunicationLayer extends Thread {
             //timeout on the accept... do nothing
             } catch (IOException ex) {
                 Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (Throwable e) {
+                // other exception or error
             }
         }
 

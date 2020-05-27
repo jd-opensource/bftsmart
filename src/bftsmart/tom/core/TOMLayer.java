@@ -341,85 +341,89 @@ public final class TOMLayer extends Thread implements RequestReceiver {
         Logger.println("Running."); // TODO: can't this be outside of the loop?
         while (doWork) {
 
-            // blocks until this replica learns to be the leader for the current epoch of the current consensus
-            leaderLock.lock();
-            Logger.println("Next leader for CID=" + (getLastExec() + 1) + ": " + execManager.getCurrentLeader());
+            try {
+                // blocks until this replica learns to be the leader for the current epoch of the current consensus
+                leaderLock.lock();
+                Logger.println("Next leader for CID=" + (getLastExec() + 1) + ": " + execManager.getCurrentLeader());
 
-            //******* EDUARDO BEGIN **************//
-            if (execManager.getCurrentLeader() != this.controller.getStaticConf().getProcessId()) {
-                iAmLeader.awaitUninterruptibly();
-                //waitForPaxosToFinish();
-            }
-            //******* EDUARDO END **************//
-            leaderLock.unlock();
-            
-            if (!doWork) break;
-
-            // blocks until the current consensus finishes
-            proposeLock.lock();
-
-            if (getInExec() != -1) { //there is some consensus running
-                Logger.println("(TOMLayer.run) Waiting for consensus " + getInExec() + " termination.");
-                canPropose.awaitUninterruptibly();
-            }
-            proposeLock.unlock();
-            
-            if (!doWork) break;
-
-            Logger.println("(TOMLayer.run) I'm the leader.");
-
-            // blocks until there are requests to be processed/ordered
-            messagesLock.lock();
-            if (!clientsManager.havePendingRequests()) {
-                haveMessages.awaitUninterruptibly();
-            }
-            messagesLock.unlock();
-            
-            if (!doWork) break;
-            
-            Logger.println("(TOMLayer.run) There are messages to be ordered.");
-
-            Logger.println("(TOMLayer.run) I can try to propose.");
-
-            if ((execManager.getCurrentLeader() == this.controller.getStaticConf().getProcessId()) && //I'm the leader
-                    (clientsManager.havePendingRequests()) && //there are messages to be ordered
-                    (getInExec() == -1)) { //there is no consensus in execution
-
-                // Sets the current consensus
-                int execId = getLastExec() + 1;
-                setInExec(execId);
-
-                Decision dec = execManager.getConsensus(execId).getDecision();
-
-                // Bypass protocol if service is not replicated
-                if (controller.getCurrentViewN() == 1) {
-
-                    Logger.println("(TOMLayer.run) Only one replica, bypassing consensus.");
-
-                    byte[] value = createPropose(dec);
-
-                    Consensus consensus = execManager.getConsensus(dec.getConsensusId());
-                    Epoch epoch = consensus.getEpoch(0, controller);
-                    epoch.propValue = value;
-                    epoch.propValueHash = computeHash(value);
-                    epoch.getConsensus().addWritten(value);
-                    epoch.deserializedPropValue = checkProposedValue(value, true);
-                    epoch.getConsensus().getDecision().firstMessageProposed = epoch.deserializedPropValue[0];
-                    dec.setDecisionEpoch(epoch);
-
-                    //System.out.println("ESTOU AQUI!");
-                    dt.delivery(dec);
-                    continue;
-
+                //******* EDUARDO BEGIN **************//
+                if (execManager.getCurrentLeader() != this.controller.getStaticConf().getProcessId()) {
+                    iAmLeader.awaitUninterruptibly();
+                    //waitForPaxosToFinish();
                 }
-                execManager.getProposer().startConsensus(execId,
-                        createPropose(dec));
+                //******* EDUARDO END **************//
+                leaderLock.unlock();
 
-                try {
-                    sleep(50);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                if (!doWork) break;
+
+                // blocks until the current consensus finishes
+                proposeLock.lock();
+
+                if (getInExec() != -1) { //there is some consensus running
+                    Logger.println("(TOMLayer.run) Waiting for consensus " + getInExec() + " termination.");
+                    canPropose.awaitUninterruptibly();
                 }
+                proposeLock.unlock();
+
+                if (!doWork) break;
+
+                Logger.println("(TOMLayer.run) I'm the leader.");
+
+                // blocks until there are requests to be processed/ordered
+                messagesLock.lock();
+                if (!clientsManager.havePendingRequests()) {
+                    haveMessages.awaitUninterruptibly();
+                }
+                messagesLock.unlock();
+
+                if (!doWork) break;
+
+                Logger.println("(TOMLayer.run) There are messages to be ordered.");
+
+                Logger.println("(TOMLayer.run) I can try to propose.");
+
+                if ((execManager.getCurrentLeader() == this.controller.getStaticConf().getProcessId()) && //I'm the leader
+                        (clientsManager.havePendingRequests()) && //there are messages to be ordered
+                        (getInExec() == -1)) { //there is no consensus in execution
+
+                    // Sets the current consensus
+                    int execId = getLastExec() + 1;
+                    setInExec(execId);
+
+                    Decision dec = execManager.getConsensus(execId).getDecision();
+
+                    // Bypass protocol if service is not replicated
+                    if (controller.getCurrentViewN() == 1) {
+
+                        Logger.println("(TOMLayer.run) Only one replica, bypassing consensus.");
+
+                        byte[] value = createPropose(dec);
+
+                        Consensus consensus = execManager.getConsensus(dec.getConsensusId());
+                        Epoch epoch = consensus.getEpoch(0, controller);
+                        epoch.propValue = value;
+                        epoch.propValueHash = computeHash(value);
+                        epoch.getConsensus().addWritten(value);
+                        epoch.deserializedPropValue = checkProposedValue(value, true);
+                        epoch.getConsensus().getDecision().firstMessageProposed = epoch.deserializedPropValue[0];
+                        dec.setDecisionEpoch(epoch);
+
+                        //System.out.println("ESTOU AQUI!");
+                        dt.delivery(dec);
+                        continue;
+
+                    }
+                    execManager.getProposer().startConsensus(execId,
+                            createPropose(dec));
+
+                    try {
+                        sleep(50);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
         java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.INFO, "TOMLayer stopped.");

@@ -192,68 +192,74 @@ public final class Acceptor {
      * @param value Value that is proposed
      */
     private void executePropose(Epoch epoch, byte[] value) {
-        int cid = epoch.getConsensus().getId();
-        Logger.println("(Acceptor.executePropose) executing propose for " + cid + "," + epoch.getTimestamp());
 
-        long consensusStartTime = System.nanoTime();
+        try {
+            int cid = epoch.getConsensus().getId();
+            Logger.println("(Acceptor.executePropose) executing propose for " + cid + "," + epoch.getTimestamp());
 
-        
-        if(epoch.propValue == null) { //only accept one propose per epoch
-            epoch.propValue = value;
-            epoch.propValueHash = tomLayer.computeHash(value);
-            
-            /*** LEADER CHANGE CODE ********/
-            epoch.getConsensus().addWritten(value);
-            Logger.println("(Acceptor.executePropose) I have written value " + Arrays.toString(epoch.propValueHash) + " in consensus instance " + cid + " with timestamp " + epoch.getConsensus().getEts());
-            /*****************************************/
+            long consensusStartTime = System.nanoTime();
 
-            //start this consensus if it is not already running
-            if (cid == tomLayer.getLastExec() + 1) {
-                tomLayer.setInExec(cid);
-            }
-            epoch.deserializedPropValue = tomLayer.checkProposedValue(value, true);
 
-            if (epoch.deserializedPropValue != null && !epoch.isWriteSetted(me)) {
-                if(epoch.getConsensus().getDecision().firstMessageProposed == null) {
-                    epoch.getConsensus().getDecision().firstMessageProposed = epoch.deserializedPropValue[0];
+            if(epoch.propValue == null) { //only accept one propose per epoch
+                epoch.propValue = value;
+                epoch.propValueHash = tomLayer.computeHash(value);
+
+                /*** LEADER CHANGE CODE ********/
+                epoch.getConsensus().addWritten(value);
+                Logger.println("(Acceptor.executePropose) I have written value " + Arrays.toString(epoch.propValueHash) + " in consensus instance " + cid + " with timestamp " + epoch.getConsensus().getEts());
+                /*****************************************/
+
+                //start this consensus if it is not already running
+                if (cid == tomLayer.getLastExec() + 1) {
+                    tomLayer.setInExec(cid);
                 }
-                if (epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime == 0) {
-                    epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime = consensusStartTime;
-                    
-                }
-                epoch.getConsensus().getDecision().firstMessageProposed.proposeReceivedTime = System.nanoTime();
-                
-                if(controller.getStaticConf().isBFT()){
-                    Logger.println("(Acceptor.executePropose) sending WRITE for " + cid);
+                epoch.deserializedPropValue = tomLayer.checkProposedValue(value, true);
 
-                    epoch.setWrite(me, epoch.propValueHash);
-                    epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
-                    communication.send(this.controller.getCurrentViewOtherAcceptors(),
-                            factory.createWrite(cid, epoch.getTimestamp(), epoch.propValueHash));
+                if (epoch.deserializedPropValue != null && !epoch.isWriteSetted(me)) {
+                    if(epoch.getConsensus().getDecision().firstMessageProposed == null) {
+                        epoch.getConsensus().getDecision().firstMessageProposed = epoch.deserializedPropValue[0];
+                    }
+                    if (epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime == 0) {
+                        epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime = consensusStartTime;
 
-                    Logger.println("(Acceptor.executePropose) WRITE sent for " + cid);
-                
-                    computeWrite(cid, epoch, epoch.propValueHash);
-                
-                    Logger.println("(Acceptor.executePropose) WRITE computed for " + cid);
-                
-                } else {
-                 	epoch.setAccept(me, epoch.propValueHash);
-                 	epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
+                    }
+                    epoch.getConsensus().getDecision().firstMessageProposed.proposeReceivedTime = System.nanoTime();
+
+                    if(controller.getStaticConf().isBFT()){
+                        Logger.println("(Acceptor.executePropose) sending WRITE for " + cid);
+
+                        epoch.setWrite(me, epoch.propValueHash);
+                        epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
+                        communication.send(this.controller.getCurrentViewOtherAcceptors(),
+                                factory.createWrite(cid, epoch.getTimestamp(), epoch.propValueHash));
+
+                        Logger.println("(Acceptor.executePropose) WRITE sent for " + cid);
+
+                        computeWrite(cid, epoch, epoch.propValueHash);
+
+                        Logger.println("(Acceptor.executePropose) WRITE computed for " + cid);
+
+                    } else {
+                        epoch.setAccept(me, epoch.propValueHash);
+                        epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
                         epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
-                 	/**** LEADER CHANGE CODE! ******/
+                        /**** LEADER CHANGE CODE! ******/
                         Logger.println("(Acceptor.executePropose) [CFT Mode] Setting consensus " + cid + " QuorumWrite tiemstamp to " + epoch.getConsensus().getEts() + " and value " + Arrays.toString(epoch.propValueHash));
- 	                epoch.getConsensus().setQuorumWrites(epoch.propValueHash);
- 	                /*****************************************/
+                        epoch.getConsensus().setQuorumWrites(epoch.propValueHash);
+                        /*****************************************/
 
                         communication.send(this.controller.getCurrentViewOtherAcceptors(),
- 	                    factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash));
+                                factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash));
 
                         computeAccept(cid, epoch, epoch.propValueHash);
+                    }
+                    executionManager.processOutOfContext(epoch.getConsensus());
                 }
-                executionManager.processOutOfContext(epoch.getConsensus());
             }
-        } 
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
@@ -293,91 +299,96 @@ public final class Acceptor {
      * @param value Value sent in the message
      */
     private void computeWrite(int cid, Epoch epoch, byte[] value) {
-        int writeAccepted = epoch.countWrite(value);
-        
-        Logger.println("(Acceptor.computeWrite) I have " + writeAccepted +
-                " WRITEs for " + cid + "," + epoch.getTimestamp());
 
-        if (writeAccepted > controller.getQuorum() && Arrays.equals(value, epoch.propValueHash)) {
-                        
-            if (!epoch.isAcceptSetted(me)) {
+        try {
+            int writeAccepted = epoch.countWrite(value);
 
-                Logger.println("(Acceptor.computeWrite) sending WRITE for " + cid);
+            Logger.println("(Acceptor.computeWrite) I have " + writeAccepted +
+                    " WRITEs for " + cid + "," + epoch.getTimestamp());
 
-                /**** LEADER CHANGE CODE! ******/
-                Logger.println("(Acceptor.computeWrite) Setting consensus " + cid + " QuorumWrite tiemstamp to " + epoch.getConsensus().getEts() + " and value " + Arrays.toString(value));
-                epoch.getConsensus().setQuorumWrites(value);
-                /*****************************************/
+            if (writeAccepted > controller.getQuorum() && Arrays.equals(value, epoch.propValueHash)) {
 
-                if(epoch.getConsensus().getDecision().firstMessageProposed!=null) {
+                if (!epoch.isAcceptSetted(me)) {
+
+                    Logger.println("(Acceptor.computeWrite) sending WRITE for " + cid);
+
+                    /**** LEADER CHANGE CODE! ******/
+                    Logger.println("(Acceptor.computeWrite) Setting consensus " + cid + " QuorumWrite tiemstamp to " + epoch.getConsensus().getEts() + " and value " + Arrays.toString(value));
+                    epoch.getConsensus().setQuorumWrites(value);
+                    /*****************************************/
+
+                    if(epoch.getConsensus().getDecision().firstMessageProposed!=null) {
 
                         epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
-                }
-
-                // add to implement application consistency
-                if(controller.getStaticConf().isBFT()){
-
-                    DefaultRecoverable defaultExecutor = getDefaultExecutor();
-                    byte[][] commands = new byte[epoch.deserializedPropValue.length][];
-
-                    for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
-                        commands[i] = epoch.deserializedPropValue[i].getContent();
                     }
 
-                    BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands);
+                    // add to implement application consistency
+                    if(controller.getStaticConf().isBFT()){
 
-                    byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+                        DefaultRecoverable defaultExecutor = getDefaultExecutor();
+                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
 
-                    epoch.propAndAppValue = result;
+                        for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
+                            commands[i] = epoch.deserializedPropValue[i].getContent();
+                        }
 
-                    epoch.propAndAppValueHash = tomLayer.computeHash(result);
+                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands);
 
-                    epoch.preComputeRes = appHashResult.getErrprCode();
+                        byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
 
-                    epoch.commonHash = appHashResult.getGenisHashBytes();
+                        epoch.propAndAppValue = result;
 
-                    tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
+                        epoch.propAndAppValueHash = tomLayer.computeHash(result);
 
-                    epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
+                        epoch.preComputeRes = appHashResult.getErrprCode();
 
-                    epoch.batchId = appHashResult.getBatchId();
+                        epoch.commonHash = appHashResult.getGenisHashBytes();
 
-                    epoch.setAccept(me, epoch.propAndAppValueHash);
+                        tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
 
-                    ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
+                        epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
 
-                    //add origin propose hash for accept type consensus msg
-                    cm.setOrigPropValue(epoch.propValueHash);
+                        epoch.batchId = appHashResult.getBatchId();
 
-                    // Create a cryptographic proof for this ACCEPT message
-                    Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
-                    insertProof(cm, epoch);
+                        epoch.setAccept(me, epoch.propAndAppValueHash);
 
-                    int[] targets = this.controller.getCurrentViewOtherAcceptors();
-                    communication.getServersConn().send(targets, cm, true);
+                        ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
 
-                    epoch.addToProof(cm);
-                    computeAccept(cid, epoch, epoch.propAndAppValueHash);
-                }
-                else {
-                    epoch.setAccept(me, value);
+                        //add origin propose hash for accept type consensus msg
+                        cm.setOrigPropValue(epoch.propValueHash);
 
-                    ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), value);
+                        // Create a cryptographic proof for this ACCEPT message
+                        Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
+                        insertProof(cm, epoch);
 
-                    // Create a cryptographic proof for this ACCEPT message
-                    Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
-                    insertProof(cm, epoch);
+                        int[] targets = this.controller.getCurrentViewOtherAcceptors();
+                        communication.getServersConn().send(targets, cm, true);
 
-                    int[] targets = this.controller.getCurrentViewOtherAcceptors();
-                    communication.getServersConn().send(targets, cm, true);
+                        epoch.addToProof(cm);
+                        computeAccept(cid, epoch, epoch.propAndAppValueHash);
+                    }
+                    else {
+                        epoch.setAccept(me, value);
 
-                    //communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
-                    //factory.createStrong(cid, epoch.getNumber(), value));
-                    epoch.addToProof(cm);
-                    computeAccept(cid, epoch, value);
+                        ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), value);
 
+                        // Create a cryptographic proof for this ACCEPT message
+                        Logger.println("(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus " + cid);
+                        insertProof(cm, epoch);
+
+                        int[] targets = this.controller.getCurrentViewOtherAcceptors();
+                        communication.getServersConn().send(targets, cm, true);
+
+                        //communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
+                        //factory.createStrong(cid, epoch.getNumber(), value));
+                        epoch.addToProof(cm);
+                        computeAccept(cid, epoch, value);
+
+                    }
                 }
             }
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
     }
 
@@ -460,7 +471,7 @@ public final class Acceptor {
         }
         
     }
-    
+
     /**
      * Called when a ACCEPT message is received
      * @param epoch Epoch of the receives message
@@ -528,55 +539,59 @@ public final class Acceptor {
         Logger.println("(Acceptor.computeAccept) I have " + epoch.countAccept(value) +
                 " ACCEPTs for " + cid + "," + epoch.getTimestamp());
 
-        if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
-            if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
-                LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
-                try {
-                    getDefaultExecutor().preComputeCommit(epoch.getBatchId());
-                    decide(epoch);
-                } catch (Exception e) {
-                    //maybe storage exception
+        try {
+            if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
+                if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
+                    LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
+                    try {
+                        getDefaultExecutor().preComputeCommit(epoch.getBatchId());
+                        decide(epoch);
+                    } catch (Exception e) {
+                        //maybe storage exception
+                        getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                        updateConsensusSetting(epoch);
+                        updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
+                        createResponses(epoch, updatedResp);
+                    }
+                } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
-                    updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
-                    createResponses(epoch, updatedResp);
+                    createResponses(epoch, epoch.getAsyncResponseLinkedList());
+                } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
+                    //Leader does evil to me only, need to roll back
+                    System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
+                    // rollback
+                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                    //This round of consensus has been rolled back, mark it
+                    tomLayer.execManager.updateConsensus(tomLayer.getInExec());
+
+                    updateConsensusSetting(epoch);
+
+                    //Pause processing of new messages, Waiting for trigger state transfer
+                    tomLayer.requestsTimer.Enabled(false);
+                    tomLayer.requestsTimer.stopTimer();
+
+                    if (!tomLayer.execManager.stopped()) {
+                        tomLayer.execManager.stop();
+                    }
                 }
-            } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-                updateConsensusSetting(epoch);
-                createResponses(epoch, epoch.getAsyncResponseLinkedList());
-            } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
-                //Leader does evil to me only, need to roll back
-                System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
-                // rollback
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-                //This round of consensus has been rolled back, mark it
-                tomLayer.execManager.updateConsensus(tomLayer.getInExec());
-
-                updateConsensusSetting(epoch);
-
-                //Pause processing of new messages, Waiting for trigger state transfer
-                tomLayer.requestsTimer.Enabled(false);
-                tomLayer.requestsTimer.stopTimer();
-
-                if (!tomLayer.execManager.stopped()) {
-                    tomLayer.execManager.stop();
-                }
+                return;
             }
-            return;
-        }
 
-        // consensus node hash inconsistent
-        if (((epoch.countAcceptSetted() == controller.getCurrentViewN()) && (epoch.countAccept(value) < controller.getQuorum() + 1))
-                || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1)
-                     && (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
+            // consensus node hash inconsistent
+            if (((epoch.countAcceptSetted() == controller.getCurrentViewN()) && (epoch.countAccept(value) < controller.getQuorum() + 1))
+                    || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1)
+                    && (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
 
-            System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
-            getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-            updateConsensusSetting(epoch);
+                System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
+                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                updateConsensusSetting(epoch);
 
-            updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);
-            createResponses(epoch, updatedResp);
+                updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);
+                createResponses(epoch, updatedResp);
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
     }
 
