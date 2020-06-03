@@ -280,6 +280,8 @@ public class ServersCommunicationLayer extends Thread {
             serverSocket.close();
         } catch (IOException ex) {
             Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Throwable e) {
+            // other exception or error
         }
 
         Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.INFO, "ServerCommunicationLayer stopped.");
