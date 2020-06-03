@@ -21,6 +21,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.RequestVerifier;
 import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,6 +46,7 @@ public class ClientsManager {
     private AtomicLong clientDatasTotal = new AtomicLong(0);
 
     private ReentrantLock clientsLock = new ReentrantLock();
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ClientsManager.class);
 
     public ClientsManager(ServerViewController controller, RequestsTimer timer, RequestVerifier verifier) {
         this.controller = controller;
@@ -214,7 +216,7 @@ public class ClientsManager {
                             else {
                                 clientData.removePendingRequest(msg);
                                 timer.unwatch(msg);
-                                System.out.println("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
+                                LOGGER.error("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
                             }
                         }
                     }
@@ -353,7 +355,7 @@ public class ClientsManager {
                 if (reply != null && cs != null) {
 
                     if (reply.recvFromClient && fromClient) {
-                        System.out.println("[CACHE] re-send reply [Sender: " + reply.getSender() + ", sequence: " + reply.getSequence()+", session: " + reply.getSession()+ "]");
+                        LOGGER.info("[CACHE] re-send reply [Sender: " + reply.getSender() + ", sequence: " + reply.getSequence()+", session: " + reply.getSession()+ "]");
                         cs.send(new int[]{request.getSender()}, reply);
 
                     } 

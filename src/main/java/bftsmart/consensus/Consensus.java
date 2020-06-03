@@ -18,6 +18,7 @@ package bftsmart.consensus;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -56,6 +57,8 @@ public class Consensus {
     private boolean secondTimeout = false;
 
     public ReentrantLock lock = new ReentrantLock(); //this consensus lock (called by other classes)
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Consensus.class);
     
     /**
      * Creates a new instance of Consensus
@@ -289,7 +292,7 @@ public class Consensus {
         Epoch epoch = new Epoch(recManager, this, timestamp);
         epochs.put(timestamp, epoch);
 
-        System.out.printf("createEpoch i am %s, time = %s \r\n",
+        LOGGER.info("createEpoch i am %s, time = %s \r\n",
                 manager.getTOMLayer().controller.getStaticConf().getProcessId(), timestamp);
 
         epochsLock.unlock();

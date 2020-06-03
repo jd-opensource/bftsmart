@@ -16,7 +16,6 @@ limitations under the License.
 package bftsmart.tom.core.messages;
 
 import bftsmart.communication.SystemMessage;
-import bftsmart.tom.util.DebugInfo;
 
 import java.io.*;
 
@@ -111,25 +110,6 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 		buildId();
 		this.content = content;
 		this.type = type;
-	}
-
-
-	/** THIS IS JOAO'S CODE, FOR DEBUGGING */
-	private transient DebugInfo info = null; // Debug information
-
-	/**
-	 * Retrieves the debug info from the TOM layer
-	 * @return The debug info from the TOM layer
-	 */
-	public DebugInfo getDebugInfo() {
-		return info;
-	}
-
-	/**
-	 * Retrieves the debug info from the TOM layer
-	 */
-	public void  setDebugInfo(DebugInfo info) {
-		this.info = info;
 	}
 
 	/****************************************************/

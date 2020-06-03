@@ -26,6 +26,7 @@ import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.SingleExecutable;
 import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -58,6 +59,8 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     private List<MessageContext> msgContexts = new ArrayList<>();
     
     private StateManager stateManager;
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DefaultSingleRecoverable.class);
     
     public DefaultSingleRecoverable() {
 
@@ -144,8 +147,8 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     private void saveCommands(byte[][] commands, MessageContext[] msgCtx) {
         
         if (commands.length != msgCtx.length) {
-            System.out.println("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
-            System.out.println("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
+            LOGGER.error("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
+            LOGGER.error("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
         }
         logLock.lock();
 
@@ -180,7 +183,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         // of not storing anything after a checkpoint and before logging more requests        
         if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) ret = new DefaultApplicationState();
 
-        System.out.println("Getting log until CID " + cid + ", null: " + (ret == null));
+        LOGGER.info("Getting log until CID " + cid + ", null: " + (ret == null));
         logLock.unlock();
         return ret;
     }
@@ -192,7 +195,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             
             DefaultApplicationState state = (DefaultApplicationState) recvState;
             
-            System.out.println("(DefaultSingleRecoverable.setState) last CID in state: " + state.getLastCID());
+            LOGGER.info("(DefaultSingleRecoverable.setState) last CID in state: " + state.getLastCID());
             
             logLock.lock();
             initLog();
@@ -227,10 +230,10 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
                 } catch (Exception e) {
                     e.printStackTrace(System.err);
                     if (e instanceof ArrayIndexOutOfBoundsException) {
-                        System.out.println("CID do ultimo checkpoint: " + state.getLastCheckpointCID());
-                        System.out.println("CID do ultimo consenso: " + state.getLastCID());
-                        System.out.println("numero de mensagens supostamente no batch: " + (state.getLastCID() - state.getLastCheckpointCID() + 1));
-                        System.out.println("numero de mensagens realmente no batch: " + state.getMessageBatches().length);
+                        LOGGER.error("CID do ultimo checkpoint: " + state.getLastCheckpointCID());
+                        LOGGER.error("CID do ultimo consenso: " + state.getLastCID());
+                        LOGGER.error("numero de mensagens supostamente no batch: " + (state.getLastCID() - state.getLastCheckpointCID() + 1));
+                        LOGGER.error("numero de mensagens realmente no batch: " + state.getMessageBatches().length);
                     }
                 }
             }

@@ -27,6 +27,7 @@ import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +51,8 @@ public final class DeliveryThread extends Thread {
     private final ServerViewController controller;
     private final Lock decidedLock = new ReentrantLock();
     private final Condition notEmptyQueue = decidedLock.newCondition();
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DeliveryThread.class);
 
     /**
      * Creates a new instance of DeliveryThread
@@ -147,7 +150,7 @@ public final class DeliveryThread extends Thread {
         int lastCID =  recoverer.setState(state);
 
         //set this decision as the last one from this replica
-        System.out.println("Setting last CID to " + lastCID);
+        LOGGER.info("Setting last CID to " + lastCID);
         tomLayer.setLastExec(lastCID);
 
         //define the last stable consensus... the stable consensus can
@@ -161,10 +164,10 @@ public final class DeliveryThread extends Thread {
         //stateManager.setWaiting(-1);
         tomLayer.setNoExec();
 
-        System.out.print("Current decided size: " + decided.size());
+        LOGGER.info("Current decided size: " + decided.size());
         decided.clear();
 
-        System.out.println("(DeliveryThread.update) All finished up to " + lastCID);
+        LOGGER.info("(DeliveryThread.update) All finished up to " + lastCID);
     }
 
     /**
@@ -177,11 +180,11 @@ public final class DeliveryThread extends Thread {
             /** THIS IS JOAO'S CODE, TO HANDLE STATE TRANSFER */
             deliverLock();
             while (tomLayer.isRetrievingState()) {
-                System.out.println("-- Retrieving State");
+                LOGGER.info("-- Retrieving State");
                 canDeliver.awaitUninterruptibly();
                 
                 if (tomLayer.getLastExec() == -1)
-                    System.out.println("-- Ready to process operations");
+                    LOGGER.info("-- Ready to process operations");
             }
             try {
                 ArrayList<Decision> decisions = new ArrayList<Decision>();
@@ -327,7 +330,7 @@ public final class DeliveryThread extends Thread {
     public void shutdown() {
         this.doWork = false;
         
-        System.out.println("Shutting down delivery thread");
+        LOGGER.error("Shutting down delivery thread");
         
         decidedLock.lock();        
         notEmptyQueue.signalAll();
