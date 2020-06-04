@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.tom.core.messages;
 
 import bftsmart.communication.SystemMessage;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 
@@ -23,6 +24,8 @@ import java.io.*;
  * This class represents a total ordered message
  */
 public class TOMMessage extends SystemMessage implements Externalizable, Comparable, Cloneable {
+
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(TOMMessage.class);
 
 	//******* EDUARDO BEGIN **************//
 	private int viewID; //current sender view
@@ -269,7 +272,7 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 		 try{
 			 m.rExternal(dis);
 		 }catch(Exception e) {
-			 System.out.println("error on bytesToMessage " + e);
+			 LOGGER.error("error on bytesToMessage " + e);
 			 return null;
 		 }
 

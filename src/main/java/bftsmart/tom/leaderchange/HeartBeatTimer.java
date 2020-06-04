@@ -2,6 +2,7 @@ package bftsmart.tom.leaderchange;
 
 import bftsmart.tom.core.TOMLayer;
 import org.apache.commons.collections4.map.LRUMap;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.locks.Lock;
@@ -15,6 +16,8 @@ public class HeartBeatTimer {
 
     // 重复发送LeaderRequest的间隔时间
     private static final long RESEND_MILL_SECONDS = 5000;
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
     private final Map<Long, List<LeaderResponseMessage>> leaderResponseMap = new LRUMap<>(1024 * 8);
 
@@ -173,7 +176,7 @@ public class HeartBeatTimer {
                 }
             } else {
                 // 收到的心跳信息有问题，打印日志
-                System.out.printf("I am proc %s , receive leader response from %s last sequence = %s, receive sequence = %s \r\n",
+                LOGGER.error("I am proc %s , receive leader response from %s last sequence = %s, receive sequence = %s \r\n",
                         tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSender(),
                         lastLeaderRequestSequence, msgSeq);
             }
@@ -347,7 +350,7 @@ public class HeartBeatTimer {
 //                    System.out.printf("I am proc %s check heart beat message , check time = %s \r\n", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
                     if (innerHeartBeatMessage == null) {
                         // todo 此处触发超时
-                        System.out.println("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout1");
+                        LOGGER.info("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout1");
                         if (tomLayer.requestsTimer != null) {
                             tomLayer.requestsTimer.run_lc_protocol();
                         }
@@ -356,7 +359,7 @@ public class HeartBeatTimer {
                         long lastTime = innerHeartBeatMessage.getTime();
                         if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
                             // todo 此处触发超时
-                            System.out.println("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout2" + ", time = " + System.currentTimeMillis() + ", last hb time = " + innerHeartBeatMessage.getTime());
+                            LOGGER.info("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout2" + ", time = " + System.currentTimeMillis() + ", last hb time = " + innerHeartBeatMessage.getTime());
                             if (tomLayer.requestsTimer != null) {
                                 tomLayer.requestsTimer.run_lc_protocol();
                             }

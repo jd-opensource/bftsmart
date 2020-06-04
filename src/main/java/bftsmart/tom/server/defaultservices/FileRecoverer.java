@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.tom.server.defaultservices;
 
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
@@ -29,6 +31,9 @@ public class FileRecoverer {
 	
 	private int replicaId;
 	private String defaultDir;
+
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileRecoverer.class);
+
 
 	public FileRecoverer(int replicaId, String defaultDir) {
 		this.replicaId = replicaId;
@@ -51,7 +56,7 @@ public class FileRecoverer {
 	public CommandsInfo[] getLogState(int index, String logPath) {
 		RandomAccessFile log = null;
 
-		System.out.println("GETTING LOG FROM " + logPath);
+		LOGGER.info("GETTING LOG FROM " + logPath);
 		if ((log = openLogFile(logPath)) != null) {
 
 			CommandsInfo[] logState = recoverLogState(log, index);
@@ -77,7 +82,7 @@ public class FileRecoverer {
 	public CommandsInfo[] getLogState(long pointer, int startOffset,  int number, String logPath) {
 		RandomAccessFile log = null;
 
-		System.out.println("GETTING LOG FROM " + logPath);
+		LOGGER.info("GETTING LOG FROM " + logPath);
 		if ((log = openLogFile(logPath)) != null) {
 
 			CommandsInfo[] logState = recoverLogState(log, pointer, startOffset, number);
@@ -97,7 +102,7 @@ public class FileRecoverer {
 	public byte[] getCkpState(String ckpPath) {
 		RandomAccessFile ckp = null;
 
-		System.out.println("GETTING CHECKPOINT FROM " + ckpPath);
+		LOGGER.info("GETTING CHECKPOINT FROM " + ckpPath);
 		if ((ckp = openLogFile(ckpPath)) != null) {
 
 			byte[] ckpState = recoverCkpState(ckp);
@@ -117,7 +122,7 @@ public class FileRecoverer {
 	public void recoverCkpHash(String ckpPath) {
 		RandomAccessFile ckp = null;
 
-		System.out.println("GETTING HASH FROM CHECKPOINT" + ckpPath);
+		LOGGER.info("GETTING HASH FROM CHECKPOINT" + ckpPath);
 		if ((ckp = openLogFile(ckpPath)) != null) {
 			byte[] ckpHash = null;
 			try {
@@ -126,11 +131,10 @@ public class FileRecoverer {
 				int hashLength = ckp.readInt();
 				ckpHash = new byte[hashLength];
 				ckp.read(ckpHash);
-				System.out.println("--- Last ckp size: " + ckpSize + " Last ckp hash: " + Arrays.toString(ckpHash));
+				LOGGER.info("--- Last ckp size: " + ckpSize + " Last ckp hash: " + Arrays.toString(ckpHash));
 			} catch (Exception e) {
 				e.printStackTrace();
-				System.err
-				.println("State recover was aborted due to an unexpected exception");
+				LOGGER.error("State recover was aborted due to an unexpected exception");
 			}
 			this.ckpHash = ckpHash;
 		}
@@ -178,12 +182,11 @@ public class FileRecoverer {
 			}
 			if (ckp.readInt() == 0) {
 				ckpLastConsensusId = ckp.readInt();
-				System.out.println("LAST CKP read from file: " + ckpLastConsensusId);
+				LOGGER.info("LAST CKP read from file: " + ckpLastConsensusId);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.err
-			.println("State recover was aborted due to an unexpected exception");
+			LOGGER.error("State recover was aborted due to an unexpected exception");
 		}
 
 		return ckpState;
@@ -192,7 +195,7 @@ public class FileRecoverer {
 	public void transferLog(SocketChannel sChannel, int index, String logPath) {
 		RandomAccessFile log = null;
 
-		System.out.println("GETTING STATE FROM LOG " + logPath);
+		LOGGER.info("GETTING STATE FROM LOG " + logPath);
 		if ((log = openLogFile(logPath)) != null) {
 			transferLog(log, sChannel, index);
 		}
@@ -201,7 +204,7 @@ public class FileRecoverer {
 	private void transferLog(RandomAccessFile logFile, SocketChannel sChannel, int index) {
 		try {
 			long totalBytes = logFile.length();
-			System.out.println("---Called transferLog." + totalBytes + " " + (sChannel == null));
+			LOGGER.info("---Called transferLog." + totalBytes + " " + (sChannel == null));
 			FileChannel fileChannel = logFile.getChannel();
 			long bytesTransfered = 0;
 			while(bytesTransfered < totalBytes) {
@@ -218,15 +221,14 @@ public class FileRecoverer {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.err
-			.println("State recover was aborted due to an unexpected exception");
+			LOGGER.error("State recover was aborted due to an unexpected exception");
 		}
 	}
 
 	public void transferCkpState(SocketChannel sChannel, String ckpPath) {
 		RandomAccessFile ckp = null;
 
-		System.out.println("GETTING CHECKPOINT FROM " + ckpPath);
+		LOGGER.info("GETTING CHECKPOINT FROM " + ckpPath);
 		if ((ckp = openLogFile(ckpPath)) != null) {
 
 			transferCkpState(ckp, sChannel);
@@ -242,7 +244,7 @@ public class FileRecoverer {
 	private void transferCkpState(RandomAccessFile ckp, SocketChannel sChannel) {
 		try {
 			long milliInit = System.currentTimeMillis();
-			System.out.println("--- Sending checkpoint." + ckp.length() + " " + (sChannel == null));
+			LOGGER.info("--- Sending checkpoint." + ckp.length() + " " + (sChannel == null));
 			FileChannel fileChannel = ckp.getChannel();
 			long totalBytes = ckp.length();
 			long bytesTransfered = 0;
@@ -258,12 +260,11 @@ public class FileRecoverer {
 					bytesTransfered += bytesRead;
 				}
 			}
-			System.out.println("---Took " + (System.currentTimeMillis() - milliInit) + " milliseconds to transfer the checkpoint");
+			LOGGER.info("---Took " + (System.currentTimeMillis() - milliInit) + " milliseconds to transfer the checkpoint");
 			fileChannel.close();
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.err
-			.println("State recover was aborted due to an unexpected exception");
+			LOGGER.error("State recover was aborted due to an unexpected exception");
 		}
 	}
 
@@ -294,7 +295,7 @@ public class FileRecoverer {
 			ArrayList<CommandsInfo> state = new ArrayList<CommandsInfo>();
 			int recoveredBatches = 0;
 			boolean mayRead = true;
-			System.out.println("filepointer: " + log.getFilePointer() + " loglength " + logLength + " endoffset " + endOffset);
+			LOGGER.info("filepointer: " + log.getFilePointer() + " loglength " + logLength + " endoffset " + endOffset);
 			while (mayRead) {
 				try {
 					if (log.getFilePointer() < logLength) {
@@ -309,22 +310,22 @@ public class FileRecoverer {
 										bis);
 								state.add((CommandsInfo) ois.readObject());
 								if (++recoveredBatches == endOffset) {
-									System.out.println("read all " + endOffset + " log messages");
+									LOGGER.info("read all " + endOffset + " log messages");
 									return state.toArray(new CommandsInfo[state.size()]);
 								}
 							} else {
 								mayRead = false;
-								System.out.println("STATE CLEAR");
+								LOGGER.info("STATE CLEAR");
 								state.clear();
 							}
 						} else {
 							logLastConsensusId = log.readInt();
-							System.out.print("ELSE 1. Recovered batches: " + recoveredBatches);
-							System.out.println(", logLastConsensusId: " + logLastConsensusId);
+							LOGGER.info("ELSE 1. Recovered batches: " + recoveredBatches);
+							LOGGER.info(", logLastConsensusId: " + logLastConsensusId);
 							return state.toArray(new CommandsInfo[state.size()]);
 						}
 					} else {
-						System.out.println("ELSE 2 " + recoveredBatches);
+						LOGGER.info("ELSE 2 " + recoveredBatches);
 						mayRead = false;
 					}
 				} catch (Exception e) {
@@ -335,8 +336,7 @@ public class FileRecoverer {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.err
-			.println("State recover was aborted due to an unexpected exception");
+			LOGGER.error("State recover was aborted due to an unexpected exception");
 		}
 
 		return null;
@@ -387,16 +387,16 @@ public class FileRecoverer {
 									return state.toArray(new CommandsInfo[state.size()]);
 								}
 							} else {
-								System.out.println("recoverLogState (pointer,offset,number) STATE CLEAR");
+								LOGGER.info("recoverLogState (pointer,offset,number) STATE CLEAR");
 								mayRead = false;
 								state.clear();
 							}
 						} else {
-							System.out.println("recoverLogState (pointer,offset,number) ELSE 1");
+							LOGGER.info("recoverLogState (pointer,offset,number) ELSE 1");
 							mayRead = false;
 						}
 					} else {
-						System.out.println("recoverLogState (pointer,offset,number) ELSE 2 " + recoveredBatches);
+						LOGGER.info("recoverLogState (pointer,offset,number) ELSE 2 " + recoveredBatches);
 						mayRead = false;
 					}
 				} catch (Exception e) {
@@ -407,8 +407,7 @@ public class FileRecoverer {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.err
-			.println("State recover was aborted due to an unexpected exception");
+			LOGGER.error("State recover was aborted due to an unexpected exception");
 		}
 
 		return null;

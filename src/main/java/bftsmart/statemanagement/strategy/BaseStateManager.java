@@ -26,7 +26,6 @@ import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.leaderchange.LCManager;
-import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
@@ -174,9 +173,9 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public void analyzeState(int cid) {
-        Logger.println("(TOMLayer.analyzeState) The state transfer protocol is enabled");
+       LOGGER.info("(TOMLayer.analyzeState) The state transfer protocol is enabled");
         if (waitingCID == -1) {
-            Logger.println("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
+           LOGGER.info("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {
                 LOGGER.info("BaseStateManager.analyzeState: I have now more than " + SVController.getCurrentViewF() + " messages for CID " + cid + " which are beyond CID " + lastCID);
                 lastCID = cid;

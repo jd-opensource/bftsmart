@@ -17,7 +17,6 @@ package bftsmart.consensus;
 
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.ExecutionManager;
-import bftsmart.tom.util.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
@@ -391,7 +390,7 @@ public class Consensus {
             decisionEpoch = epoch.getTimestamp();
             decision.setDecisionEpoch(epoch);
             if (deliver) {
-                Logger.println("(Consensus.decided) Delivering decision from consensus " + getId() + " to the TOMLayer/DeliveryThread");
+                LOGGER.info("(Consensus.decided) Delivering decision from consensus " + getId() + " to the TOMLayer/DeliveryThread");
 //                System.out.println("(Consensus.decided) Delivering decision from consensus " + getId() + " to the TOMLayer/DeliveryThread, cid = "
 //                        + epoch.getConsensus().getId() + ", i am " + manager.getTOMLayer().controller.getStaticConf().getProcessId());
                 manager.getTOMLayer().decided(decision);

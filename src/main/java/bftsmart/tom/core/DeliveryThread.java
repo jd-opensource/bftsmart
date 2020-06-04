@@ -26,7 +26,7 @@ import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchReader;
-import bftsmart.tom.util.Logger;
+//import bftsmart.tom.util.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -86,7 +86,7 @@ public final class DeliveryThread extends Thread {
     public void delivery(Decision dec) {
         if (!containsGoodReconfig(dec)) {
 
-            Logger.println("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
+            LOGGER.info("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
             //set this decision as the last one from this replica
             tomLayer.setLastExec(dec.getConsensusId());
             //define that end of this execution
@@ -105,7 +105,7 @@ public final class DeliveryThread extends Thread {
             
             notEmptyQueue.signalAll();
             decidedLock.unlock();
-            Logger.println("(DeliveryThread.delivery) Consensus " + dec.getConsensusId() + " finished. Decided size=" + decided.size());
+            LOGGER.info("(DeliveryThread.delivery) Consensus " + dec.getConsensusId() + " finished. Decided size=" + decided.size());
         } catch (Exception e) {
             e.printStackTrace(System.out);
         }
@@ -281,14 +281,14 @@ public final class DeliveryThread extends Thread {
             // this may happen if this batch proposal was not verified
             // TODO: this condition is possible?
 
-            Logger.println("(DeliveryThread.run) interpreting and verifying batched requests.");
+            LOGGER.info("(DeliveryThread.run) interpreting and verifying batched requests.");
 
             // obtain an array of requests from the decisions obtained
             BatchReader batchReader = new BatchReader(dec.getValue(),
                             controller.getStaticConf().getUseSignatures() == 1);
             requests = batchReader.deserialiseRequests(controller);
     	} else {
-            Logger.println("(DeliveryThread.run) using cached requests from the propose.");
+            LOGGER.info("(DeliveryThread.run) using cached requests from the propose.");
     	}
 
     	return requests;

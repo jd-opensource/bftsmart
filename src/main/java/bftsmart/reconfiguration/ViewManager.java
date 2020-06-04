@@ -17,6 +17,7 @@ package bftsmart.reconfiguration;
 
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.reconfiguration.views.View;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.LinkedList;
@@ -31,6 +32,8 @@ import java.util.logging.Logger;
  * @author eduardo
  */
 public class ViewManager {
+    
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ViewManager.class);
 
     private int id;
     private Reconfiguration rec = null;
@@ -104,7 +107,7 @@ public class ViewManager {
         connect();
         ReconfigureReply r = rec.execute();
         View v = r.getView();
-        System.out.println("New view f: " + v.getF());
+        LOGGER.info("New view f: " + v.getF());
 
         VMMessage msg = new VMMessage(id, r);
 

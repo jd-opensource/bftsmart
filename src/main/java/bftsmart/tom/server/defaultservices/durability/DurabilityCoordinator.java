@@ -28,8 +28,8 @@ import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.defaultservices.CommandsInfo;
-import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -68,6 +68,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	private int globalCheckpointPeriod;
 	private int checkpointPortion;
 	private int replicaCkpIndex;
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DurabilityCoordinator.class);
 
 	public DurabilityCoordinator() {
 //		try {
@@ -115,7 +116,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 			replies = appExecuteBatch(commands, msgCtx);
 			stateLock.unlock();
                     }
-                    Logger.println("(DurabilityCoordinator.executeBatch) Storing message batch in the state log for consensus " + cid);
+                    LOGGER.info("(DurabilityCoordinator.executeBatch) Storing message batch in the state log for consensus " + cid);
                     saveCommands(commands, msgCtx);
 		} else {
 			// there is a replica supposed to take the checkpoint. In this case, the commands
@@ -149,14 +150,14 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
                         }
                         
 			if (cid % globalCheckpointPeriod == replicaCkpIndex && lastCkpCID < cid ) {
-				Logger.println("(DurabilityCoordinator.executeBatch) Performing checkpoint for consensus " + cid);
+				LOGGER.info("(DurabilityCoordinator.executeBatch) Performing checkpoint for consensus " + cid);
 				stateLock.lock();
 				byte[] snapshot = getSnapshot();
 				stateLock.unlock();
 				saveState(snapshot, cid);
 				lastCkpCID = cid;
 			} else {
-				Logger.println("(DurabilityCoordinator.executeBatch) Storing message batch in the state log for consensus " + cid);
+				LOGGER.info("(DurabilityCoordinator.executeBatch) Storing message batch in the state log for consensus " + cid);
 				saveCommands(firstHalf, firstHalfMsgCtx);
 			}
 
@@ -164,7 +165,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 
 			// execute the second half if it exists
 			if(secondHalf.length > 0) {
-				//	        	System.out.println("----THERE IS A SECOND HALF----");
+				//	        	LOGGER.info("----THERE IS A SECOND HALF----");
 				cid = msgCtx[msgCtx.length - 1].getConsensusId();
 				if (!noop) {
                                     
@@ -173,7 +174,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
                                     stateLock.unlock();
                                     
                                 }
-				Logger.println("(DurabilityCoordinator.executeBatch) Storing message batch in the state log for consensus " + cid);
+				LOGGER.info("(DurabilityCoordinator.executeBatch) Storing message batch in the state log for consensus " + cid);
 				saveCommands(secondHalf, secondHalfMsgCtx);
 
 				System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
@@ -241,7 +242,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 				break;
 			index++;
 		}
-		System.out.println("--- Checkpoint is in position " + index);
+		LOGGER.info("--- Checkpoint is in position " + index);
 		return index;
 	}
 
@@ -263,21 +264,21 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 			int lastCheckpointCID = state.getCheckpointCID();
 			lastCID = state.getLastCID();
 
-			bftsmart.tom.util.Logger.println("(DurabilityCoordinator.setState) I'm going to update myself from CID "
+			LOGGER.info("(DurabilityCoordinator.setState) I'm going to update myself from CID "
 					+ lastCheckpointCID + " to CID " + lastCID);
 
 			stateLock.lock();
 			if(state.getSerializedState() != null) {
-				System.out.println("The state is not null. Will install it");
+				LOGGER.info("The state is not null. Will install it");
 				log.update(state);
 				installSnapshot(state.getSerializedState());
 			}
 
-			System.out.print("--- Installing log from " + (lastCheckpointCID+1) + " to " + lastCID);
+			LOGGER.info("--- Installing log from " + (lastCheckpointCID+1) + " to " + lastCID);
 
 			for (int cid = lastCheckpointCID + 1; cid <= lastCID; cid++) {
 				try {
-					bftsmart.tom.util.Logger.println("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID " + cid);
+					LOGGER.info("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID " + cid);
 					CommandsInfo cmdInfo = state.getMessageBatch(cid); 
 					byte[][] commands = cmdInfo.commands;
 					MessageContext[] msgCtx = cmdInfo.msgCtx;
@@ -292,7 +293,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 				}
 
 			}
-			System.out.println("--- Installed");
+			LOGGER.info("--- Installed");
 			stateLock.unlock();
 
 		}
@@ -314,14 +315,14 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	private void saveState(byte[] snapshot, int lastCID) {
 		logLock.lock();
 
-		Logger.println("(TOMLayer.saveState) Saving state of CID " + lastCID);
+		LOGGER.info("(TOMLayer.saveState) Saving state of CID " + lastCID);
 
 		log.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
 		log.setLastCID(-1);
 		log.setLastCheckpointCID(lastCID);
 
 		logLock.unlock();
-		Logger.println("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
+		LOGGER.info("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
 	}
 
 	/**
@@ -334,8 +335,8 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 			return;       
                 
                 if (commands.length != msgCtx.length) {
-                    System.out.println("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
-                    System.out.println("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
+                    LOGGER.error("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
+                    LOGGER.error("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
                 }
                 
                 logLock.lock();
@@ -349,12 +350,12 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 				log.addMessageBatch(batch, batchMsgCtx, cid);
 				log.setLastCID(cid, globalCheckpointPeriod, checkpointPortion);
 				//				if(batchStart > 0)
-				//					System.out.println("Last batch: " + commands.length + "," + batchStart + "-" + i + "," + batch.length);
+				//					LOGGER.info("Last batch: " + commands.length + "," + batchStart + "-" + i + "," + batch.length);
 			} else {
 				if(msgCtx[i].getConsensusId() > cid) { // saves commands when the CID changes or when it is the last batch
 					byte[][] batch = Arrays.copyOfRange(commands, batchStart, i);
 					MessageContext[] batchMsgCtx = Arrays.copyOfRange(msgCtx, batchStart, i);
-					//					System.out.println("THERE IS MORE THAN ONE CID in this batch." + commands.length + "," + batchStart + "-" + i + "," + batch.length);
+					//					LOGGER.info("THERE IS MORE THAN ONE CID in this batch." + commands.length + "," + batchStart + "-" + i + "," + batch.length);
 					log.addMessageBatch(batch, batchMsgCtx, cid);
 					log.setLastCID(cid, globalCheckpointPeriod, checkpointPortion);
 					cid = msgCtx[i].getConsensusId();
@@ -389,11 +390,11 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 				log = new DurableStateLog(replicaId, null, null, isToLog, syncLog, syncCkp);
 				CSTState storedState = log.loadDurableState();
 				if(storedState.getLastCID() > -1) {
-					System.out.println("LAST CID RECOVERED FROM LOG: " + storedState.getLastCID());
+					LOGGER.info("LAST CID RECOVERED FROM LOG: " + storedState.getLastCID());
 					setState(storedState);
 					getStateManager().setLastCID(storedState.getLastCID());
 				} else {
-					System.out.println("REPLICA IS IN INITIAL STATE");
+					LOGGER.info("REPLICA IS IN INITIAL STATE");
 				}
 			}
 			getStateManager().askCurrentConsensusId();
@@ -436,7 +437,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 		}
-		System.out.println("--- State size: " + currentState.length + " Current state Hash: " + Arrays.toString(currentStateHash));
+		LOGGER.info("--- State size: " + currentState.length + " Current state Hash: " + Arrays.toString(currentStateHash));
 		return currentStateHash;
 	}
 

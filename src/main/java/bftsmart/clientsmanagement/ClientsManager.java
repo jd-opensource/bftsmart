@@ -20,7 +20,6 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.RequestVerifier;
-import bftsmart.tom.util.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
@@ -83,7 +82,7 @@ public class ClientsManager {
         ClientData clientData = clientsData.get(clientId);
 
         if (clientData == null) {
-            Logger.println("(ClientsManager.getClientData) Creating new client data, client id=" + clientId);
+           LOGGER.info("(ClientsManager.getClientData) Creating new client data, client id=" + clientId);
 
             //******* EDUARDO BEGIN **************//
             clientData = new ClientData(clientId,
@@ -385,11 +384,11 @@ public class ClientsManager {
      */
     public void requestsOrdered(TOMMessage[] requests) {
         clientsLock.lock();
-        Logger.println("(ClientsManager.requestOrdered) Updating client manager");
+       LOGGER.info("(ClientsManager.requestOrdered) Updating client manager");
         for (TOMMessage request : requests) {
             requestOrdered(request);
         }
-        Logger.println("(ClientsManager.requestOrdered) Finished updating client manager");
+       LOGGER.info("(ClientsManager.requestOrdered) Finished updating client manager");
         clientsLock.unlock();
     }
 
@@ -410,7 +409,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removeOrderedRequest(request)) {
-            Logger.println("(ClientsManager.requestOrdered) Request "
+           LOGGER.info("(ClientsManager.requestOrdered) Request "
                     + request + " does not exist in pending requests");
         }
 
@@ -429,11 +428,11 @@ public class ClientsManager {
      */
     public void requestsPending(TOMMessage[] requests) {
         clientsLock.lock();
-        Logger.println("(ClientsManager.requestOrdered) Updating client manager");
+       LOGGER.info("(ClientsManager.requestOrdered) Updating client manager");
         for (TOMMessage request : requests) {
             requestPending(request);
         }
-        Logger.println("(ClientsManager.requestOrdered) Finished updating client manager");
+       LOGGER.info("(ClientsManager.requestOrdered) Finished updating client manager");
         clientsLock.unlock();
     }
 
@@ -454,7 +453,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removePendingRequest(request)) {
-            Logger.println("(ClientsManager.requestPending) Request "
+           LOGGER.info("(ClientsManager.requestPending) Request "
                     + request + " does not exist in pending requests");
         }
 

@@ -25,7 +25,6 @@ import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.SingleExecutable;
-import bftsmart.tom.util.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
@@ -95,7 +94,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         
         if(msgCtx.isLastInBatch()) {
 	        if ((cid > 0) && ((cid % checkpointPeriod) == 0)) {
-	            Logger.println("(DefaultSingleRecoverable.executeOrdered) Performing checkpoint for consensus " + cid);
+	           LOGGER.info("(DefaultSingleRecoverable.executeOrdered) Performing checkpoint for consensus " + cid);
 	            stateLock.lock();
 	            byte[] snapshot = getSnapshot();
 	            stateLock.unlock();
@@ -131,7 +130,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 
         logLock.lock();
 
-        Logger.println("(TOMLayer.saveState) Saving state of CID " + lastCID);
+       LOGGER.info("(TOMLayer.saveState) Saving state of CID " + lastCID);
 
         thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
         thisLog.setLastCID(-1);
@@ -141,7 +140,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         /*System.out.println("fiz checkpoint");
         System.out.println("tamanho do snapshot: " + snapshot.length);
         System.out.println("tamanho do log: " + thisLog.getMessageBatches().length);*/
-        Logger.println("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
+       LOGGER.info("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
     }
 
     private void saveCommands(byte[][] commands, MessageContext[] msgCtx) {
@@ -206,7 +205,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             
             lastCID = state.getLastCID();
 
-            bftsmart.tom.util.Logger.println("(DefaultSingleRecoverable.setState) I'm going to update myself from CID "
+            LOGGER.info("(DefaultSingleRecoverable.setState) I'm going to update myself from CID "
                     + lastCheckpointCID + " to CID " + lastCID);
 
             stateLock.lock();
@@ -214,7 +213,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 
             for (int cid = lastCheckpointCID + 1; cid <= lastCID; cid++) {
                 try {
-                    bftsmart.tom.util.Logger.println("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID " + cid);
+                    LOGGER.info("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID " + cid);
 
                     CommandsInfo cmdInfo = state.getMessageBatch(cid); 
                     byte[][] cmds = cmdInfo.commands; // take a batch

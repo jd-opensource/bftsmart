@@ -16,8 +16,8 @@ limitations under the License.
 package bftsmart.clientsmanagement;
 
 import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.security.PublicKey;
 import java.security.Signature;
@@ -27,6 +27,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 
 public class ClientData {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ClientData.class);
 
     ReentrantLock clientLock = new ReentrantLock();
 
@@ -59,7 +61,7 @@ public class ClientData {
             try {
                 signatureVerificator = Signature.getInstance("SHA1withRSA");
                 signatureVerificator.initVerify(publicKey);
-                Logger.println("Signature verifier initialized for client "+clientId);
+                LOGGER.info("Signature verifier initialized for client "+clientId);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }

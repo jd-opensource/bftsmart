@@ -31,7 +31,6 @@ import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.server.Recoverable;
-import bftsmart.tom.util.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
@@ -199,7 +198,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                     stateLock.unlock();
                 }
 
-                Logger.println("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus " + cid);
+                LOGGER.info("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus " + cid);
                 saveCommands(secondHalf, secondHalfMsgCtx);
 
 //                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
@@ -235,14 +234,14 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
         logLock.lock();
 
-        Logger.println("(TOMLayer.saveState) Saving state of CID " + lastCID);
+        LOGGER.info("(TOMLayer.saveState) Saving state of CID " + lastCID);
 
         thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
         thisLog.setLastCID(lastCID);
         thisLog.setLastCheckpointCID(lastCID);
 
         logLock.unlock();
-        Logger.println("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
+        LOGGER.info("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
     }
 
     /**
@@ -312,7 +311,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID "
                     + lastCheckpointCID + " to CID " + lastCID);
             
-            bftsmart.tom.util.Logger.println("(DefaultRecoverable.setState) I'm going to update myself from CID "
+            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID "
                     + lastCheckpointCID + " to CID " + lastCID);
 
             stateLock.lock();
@@ -330,7 +329,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             for (int cid = currentCid + 1; cid <= lastCID; cid++) {
                 try {
 
-                    bftsmart.tom.util.Logger.println("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid " + cid);
+                    LOGGER.info("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid " + cid);
                     if (state.getMessageBatch(cid) == null) {
                         LOGGER.error("(DefaultRecoverable.setState) " + cid + " NULO!!!");
                     }
