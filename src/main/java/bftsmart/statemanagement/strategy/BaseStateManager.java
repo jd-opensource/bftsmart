@@ -166,7 +166,7 @@ public abstract class BaseStateManager implements StateManager {
     public void requestAppState(int cid) {
         lastCID = cid + 1;
         waitingCID = cid;
-        LOGGER.info("waitingcid is now " + cid);
+        LOGGER.info("waitingcid is now {}", cid);
         appStateOnly = true;
         requestState();
     }
@@ -177,10 +177,10 @@ public abstract class BaseStateManager implements StateManager {
         if (waitingCID == -1) {
            LOGGER.info("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {
-                LOGGER.info("BaseStateManager.analyzeState: I have now more than " + SVController.getCurrentViewF() + " messages for CID " + cid + " which are beyond CID " + lastCID);
+                LOGGER.info("BaseStateManager.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", SVController.getCurrentViewF(), cid, lastCID);
                 lastCID = cid;
                 waitingCID = cid - 1;
-                LOGGER.info("analyzeState " + waitingCID);
+                LOGGER.info("analyzeState {}", waitingCID);
                 requestState();
             }
         }

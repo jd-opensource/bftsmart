@@ -91,7 +91,7 @@ public class NettyTOMMessageEncoder extends MessageToByteEncoder<TOMMessage> {
     byte[] produceMAC(int id, byte[] data, int me) {
         NettyClientServerSession session = (NettyClientServerSession)sessionTable.get(id);
         if(session == null) {
-        	LOGGER.error("NettyTOMMessageEncoder.produceMAC(). session for client " + id + " is null");
+        	LOGGER.error("NettyTOMMessageEncoder.produceMAC(). session for client {} is null", id);
         	return null;
         }
         Mac macSend = session.getMacSend();

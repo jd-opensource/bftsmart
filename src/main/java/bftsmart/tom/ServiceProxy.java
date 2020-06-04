@@ -249,9 +249,9 @@ public class ServiceProxy extends TOMSender {
 			} else {
 				if (!this.sm.tryAcquire(invokeTimeout, TimeUnit.SECONDS)) {
 					LOGGER.error("###################TIMEOUT#######################");
-					LOGGER.error("Reply timeout for reqId=" + reqId);
-					LOGGER.error(getProcessId() + " // " + reqId + " // TIMEOUT // ");
-					LOGGER.error("Replies received: " + receivedReplies);
+					LOGGER.error("Reply timeout for reqId is {}", reqId);
+					LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
+					LOGGER.error("Replies received: {}", receivedReplies);
 					canSendLock.unlock();
 
 					return null;
@@ -261,7 +261,7 @@ public class ServiceProxy extends TOMSender {
 			ex.printStackTrace();
 		}
 
-		LOGGER.info("Response extracted = " + response);
+		LOGGER.info("Response extracted {}", response);
 
 		byte[] ret = null;
 

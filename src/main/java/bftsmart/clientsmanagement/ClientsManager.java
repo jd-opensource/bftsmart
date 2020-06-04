@@ -82,7 +82,7 @@ public class ClientsManager {
         ClientData clientData = clientsData.get(clientId);
 
         if (clientData == null) {
-           LOGGER.info("(ClientsManager.getClientData) Creating new client data, client id=" + clientId);
+           LOGGER.info("(ClientsManager.getClientData) Creating new client data, client id = {}", clientId);
 
             //******* EDUARDO BEGIN **************//
             clientData = new ClientData(clientId,
@@ -215,7 +215,7 @@ public class ClientsManager {
                             else {
                                 clientData.removePendingRequest(msg);
                                 timer.unwatch(msg);
-                                LOGGER.error("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
+                                LOGGER.error("(ClientsManager.clearObsoleteRequests) I am proc {}, the client data total is too big, need clear!", this.controller.getStaticConf().getProcessId());
                             }
                         }
                     }
@@ -354,7 +354,7 @@ public class ClientsManager {
                 if (reply != null && cs != null) {
 
                     if (reply.recvFromClient && fromClient) {
-                        LOGGER.info("[CACHE] re-send reply [Sender: " + reply.getSender() + ", sequence: " + reply.getSequence()+", session: " + reply.getSession()+ "]");
+                        LOGGER.info("[CACHE] re-send reply [Sender: {}, sequence: {}, session: {}", reply.getSender(), reply.getSequence(), reply.getSession());
                         cs.send(new int[]{request.getSender()}, reply);
 
                     } 
@@ -409,8 +409,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removeOrderedRequest(request)) {
-           LOGGER.info("(ClientsManager.requestOrdered) Request "
-                    + request + " does not exist in pending requests");
+           LOGGER.info("(ClientsManager.requestOrdered) Request {} does not exist in pending requests", request);
         }
 
         clientDatasTotal.getAndDecrement();
@@ -453,8 +452,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removePendingRequest(request)) {
-           LOGGER.info("(ClientsManager.requestPending) Request "
-                    + request + " does not exist in pending requests");
+           LOGGER.info("(ClientsManager.requestPending) Request {} does not exist in pending requests", request);
         }
 
         clientDatasTotal.getAndDecrement();

@@ -65,7 +65,7 @@ public class FileSystemViewStorage implements ViewStorage {
 				this.view = view;
 				return true;
 			} catch (Exception e) {
-				LOGGER.error("Store view error! --" + e.getMessage(), e);
+				LOGGER.error("Store view error! -- {}, {}", e.getMessage(), e);
 				return false;
 			}
 		}
@@ -88,7 +88,7 @@ public class FileSystemViewStorage implements ViewStorage {
 			this.view = ret;
 			return ret;
 		} catch (Exception e) {
-			LOGGER.error("Read view error! --" + e.getMessage(), e);
+			LOGGER.error("Read view error! -- {}, {}", e.getMessage(), e);
 			return null;
 		}
 	}

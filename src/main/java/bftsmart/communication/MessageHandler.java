@@ -117,10 +117,10 @@ public class MessageHandler {
                 if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC))
                     acceptor.deliver(consMsg);
                 else {
-                    LOGGER.error("(MessageHandler.processData) WARNING: invalid MAC from " + sm.getSender());
+                    LOGGER.error("(MessageHandler.processData) WARNING: invalid MAC from {}", sm.getSender());
                 }
             } else {
-                LOGGER.error("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
+                LOGGER.error("(MessageHandler.processData) Discarding unauthenticated message from {}", sm.getSender());
             }
 
         } else if (sm instanceof HeartBeatMessage) {
@@ -190,10 +190,10 @@ public class MessageHandler {
                     }
                     /******************************************************************/
                 } else {
-                    LOGGER.error("UNKNOWN MESSAGE TYPE: " + sm);
+                    LOGGER.error("UNKNOWN MESSAGE TYPE: {}", sm);
                 }
             } else {
-                LOGGER.error("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
+                LOGGER.error("(MessageHandler.processData) Discarding unauthenticated message from {}", sm.getSender());
             }
         }
     }

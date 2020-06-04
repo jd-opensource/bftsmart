@@ -336,7 +336,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
                 
                 if (commands.length != msgCtx.length) {
                     LOGGER.error("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
-                    LOGGER.error("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
+                    LOGGER.error("----COMMANDS: {}, CONTEXTS: {} ----", commands.length, msgCtx.length);
                 }
                 
                 logLock.lock();

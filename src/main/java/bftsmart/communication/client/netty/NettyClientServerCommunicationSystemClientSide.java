@@ -128,13 +128,13 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, currV[i]);
                     sessionTable.put(currV[i], cs);
 
-                    LOGGER.info("Connecting to replica " + currV[i] + " at " + controller.getRemoteAddress(currV[i]));
+                    LOGGER.info("Connecting to replica {} at {}", currV[i], controller.getRemoteAddress(currV[i]));
                     //******* EDUARDO END **************//
 
                     future.awaitUninterruptibly();
 
                     if (!future.isSuccess()) {
-                            LOGGER.error("Impossible to connect to " + currV[i]);
+                            LOGGER.error("Impossible to connect to {}", currV[i]);
                     }
 
                 } catch (NullPointerException ex) {
@@ -198,13 +198,13 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, currV[i]);
                         sessionTable.put(currV[i], cs);
 
-                        LOGGER.info("Connecting to replica " + currV[i] + " at " + controller.getRemoteAddress(currV[i]));
+                        LOGGER.info("Connecting to replica {} at {}", currV[i], controller.getRemoteAddress(currV[i]));
                         //******* EDUARDO END **************//
 
                         future.awaitUninterruptibly();
 
                         if (!future.isSuccess()) {
-                            LOGGER.error("Impossible to connect to " + currV[i]);
+                            LOGGER.error("Impossible to connect to {}", currV[i]);
                         }
 
                     } catch (InvalidKeyException ex) {
@@ -339,7 +339,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 dos.flush();
                 sm.serializedMessage = baos.toByteArray();
             } catch (IOException ex) {
-                LOGGER.error("Impossible to serialize message: " + sm);
+                LOGGER.error("Impossible to serialize message: {}", sm);
             } finally {
                 try {
                     dos.close();
@@ -372,7 +372,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 
                 sent++;
             } else {
-                LOGGER.error("Channel to " + targets[i] + " is not connected");
+                LOGGER.error("Channel to {} is not connected", targets[i]);
             }
 
             try {

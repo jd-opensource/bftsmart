@@ -147,7 +147,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         
         if (commands.length != msgCtx.length) {
             LOGGER.error("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
-            LOGGER.error("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
+            LOGGER.error("----COMMANDS: {}, CONTEXTS: {} ----", commands.length, msgCtx.length);
         }
         logLock.lock();
 
@@ -229,10 +229,10 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
                 } catch (Exception e) {
                     e.printStackTrace(System.err);
                     if (e instanceof ArrayIndexOutOfBoundsException) {
-                        LOGGER.error("CID do ultimo checkpoint: " + state.getLastCheckpointCID());
-                        LOGGER.error("CID do ultimo consenso: " + state.getLastCID());
-                        LOGGER.error("numero de mensagens supostamente no batch: " + (state.getLastCID() - state.getLastCheckpointCID() + 1));
-                        LOGGER.error("numero de mensagens realmente no batch: " + state.getMessageBatches().length);
+                        LOGGER.error("CID do ultimo checkpoint: {}", state.getLastCheckpointCID());
+                        LOGGER.error("CID do ultimo consenso: {}", state.getLastCID());
+                        LOGGER.error("numero de mensagens supostamente no batch: {}", (state.getLastCID() - state.getLastCheckpointCID() + 1));
+                        LOGGER.error("numero de mensagens realmente no batch: {}", state.getMessageBatches().length);
                     }
                 }
             }

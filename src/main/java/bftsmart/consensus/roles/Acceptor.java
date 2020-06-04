@@ -129,11 +129,11 @@ public final class Acceptor {
     public final void deliver(ConsensusMessage msg) {
         if (executionManager.checkLimits(msg)) {
 //            LOGGER.info("processing paxos msg with id " + msg.getNumber());
-            LOGGER.debug("processing paxos msg with id {}",msg.getNumber());
+            LOGGER.debug("processing paxos msg with id {}", msg.getNumber());
             processMessage(msg);
         } else {
 //            LOGGER.info("out of context msg with id " + msg.getNumber());
-            LOGGER.debug("out of context msg with id {}",msg.getNumber());
+            LOGGER.debug("out of context msg with id {}", msg.getNumber());
             tomLayer.processOutOfContext();
         }
     }
@@ -493,7 +493,7 @@ public final class Acceptor {
                     do {
                         key = communication.getServersConn().getSecretKey(id);
                         if (key == null) {
-                            LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with " + id + ". Retrying.");
+                            LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with {} . Retrying.", id);
                             Thread.sleep(1000);
                         }
 
@@ -508,7 +508,7 @@ public final class Acceptor {
                     ex.printStackTrace();
                 } catch (InvalidKeyException ex) {
 
-                   LOGGER.error("Problem with secret key from " + id);
+                   LOGGER.error("Problem with secret key from {}", id);
                     ex.printStackTrace();
                 }
             }
@@ -601,7 +601,7 @@ public final class Acceptor {
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
-                        LOGGER.error("I am proc " + controller.getStaticConf().getProcessId() + ", flush storage fail, will rollback!");
+                        LOGGER.error("I am proc {} , flush storage fail, will rollback!", controller.getStaticConf().getProcessId());
                         getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
@@ -613,8 +613,8 @@ public final class Acceptor {
                     createResponses(epoch, epoch.getAsyncResponseLinkedList());
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                     //Leader does evil to me only, need to roll back
-                    LOGGER.error("(computeAccept) I am proc " + controller.getStaticConf().getProcessId() + ", My last regency is  " + tomLayer.getSynchronizer().getLCManager().getLastReg() + ", Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
-                    LOGGER.error("(computeAccept) I am proc " + controller.getStaticConf().getProcessId() + ", my cid is " + cid + ", my propose value hash is  " + epoch.propAndAppValueHash + ", recv propose value hash is " + value + ", my epoc timestamp is " + epoch.getTimestamp());
+                    LOGGER.error("(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!", controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
+                    LOGGER.error("(computeAccept) I am proc {}, my cid is {}, my propose value hash is {}, recv propose value hash is {}, my epoc timestamp is {}", controller.getStaticConf().getProcessId(), cid, epoch.propAndAppValueHash, value, epoch.getTimestamp());
                     // rollback
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     //This round of consensus has been rolled back, mark it

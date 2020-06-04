@@ -176,7 +176,7 @@ public class HeartBeatTimer {
                 }
             } else {
                 // 收到的心跳信息有问题，打印日志
-                LOGGER.error("I am proc %s , receive leader response from %s last sequence = %s, receive sequence = %s \r\n",
+                LOGGER.error("I am proc {} , receive leader response from {}, last sequence {}, receive sequence {}",
                         tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSender(),
                         lastLeaderRequestSequence, msgSeq);
             }

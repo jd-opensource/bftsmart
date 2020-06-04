@@ -247,7 +247,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			try {
 				dos.close();
 			} catch (IOException ex) {
-				LOGGER.error("Exception closing DataOutputStream: " + ex.getMessage());
+				LOGGER.error("Exception closing DataOutputStream: {}", ex.getMessage());
 			}
 		}
 

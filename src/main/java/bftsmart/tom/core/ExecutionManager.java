@@ -255,8 +255,8 @@ public final class ExecutionManager {
                         (inExec != -1 && inExec < msg.getNumber()) || 
                         (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus
 
-                    LOGGER.error("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + ", Message for consensus " +
-                            msg.getNumber() + " is out of context, adding it to out of context set" + ", last cid is " + lastConsId + ", in exe cid is " + inExec);
+                    LOGGER.error("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}", controller.getStaticConf().getProcessId(),
+                            msg.getNumber(), lastConsId, inExec);
 
 
                     //System.out.println("(ExecutionManager.checkLimits) Message for consensus " + 
@@ -276,12 +276,11 @@ public final class ExecutionManager {
                 (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
                 (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
-            LOGGER.error("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + ", start state transfer"+ ", last cid is " + lastConsId + ", recv msg cid is " + msg.getNumber() + ", in cid is " + inExec);
-            LOGGER.error("I am proc " + controller.getStaticConf().getProcessId() + ", revivalHighMark = " + revivalHighMark + ", paxosHighMark = " + paxosHighMark + ", timeoutHighMark = " + timeoutHighMark);
+            LOGGER.error("(ExecutionManager.checkLimits) I am proc {}, start state transfer, last cid is {}, recv msg cid is {}, in cid is {}", controller.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
+            LOGGER.error("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", controller.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
             //Start state transfer
             /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
-            LOGGER.error("(ExecutionManager.checkLimits) Message for consensus "
-                    + msg.getNumber() + " is beyond the paxos highmark, adding it to out of context set");
+            LOGGER.error("(ExecutionManager.checkLimits) Message for consensus {} is beyond the paxos highmark, adding it to out of context set", msg.getNumber());
             addOutOfContextMessage(msg);
 
             if (controller.getStaticConf().isStateTransferEnabled()) {
@@ -293,7 +292,7 @@ public final class ExecutionManager {
                 LOGGER.error("- Ahead-of-time message discarded");
                 LOGGER.error("- If many messages of the same consensus are discarded, the replica can halt!");
                 LOGGER.error("- Try to increase the 'system.paxos.highMarc' configuration parameter.");
-                LOGGER.error("- Last consensus executed: " + lastConsId);
+                LOGGER.error("- Last consensus executed: {}", lastConsId);
                 LOGGER.error("##################################################################################");
             }
             /******************************************************************/

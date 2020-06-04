@@ -92,8 +92,7 @@ public class DurableStateManager extends BaseStateManager {
 		tomLayer.getCommunication().send(
 				SVController.getCurrentViewOtherAcceptors(), cstMsg);
 
-		LOGGER.info("(TOMLayer.requestState) I just sent a request to the other replicas for the state up to CID "
-				+ waitingCID);
+		LOGGER.info("(TOMLayer.requestState) I just sent a request to the other replicas for the state up to CID {}", waitingCID);
 
 		TimerTask stateTask = new TimerTask() {
 			public void run() {
@@ -131,8 +130,7 @@ public class DurableStateManager extends BaseStateManager {
 		if (SVController.getStaticConf().isStateTransferEnabled()
 				&& dt.getRecoverer() != null) {
 			LOGGER.info("(TOMLayer.SMRequestDeliver) The state transfer protocol is enabled");
-			LOGGER.info("(TOMLayer.SMRequestDeliver) I received a state request for CID "
-					+ msg.getCID() + " from replica " + msg.getSender());
+			LOGGER.info("(TOMLayer.SMRequestDeliver) I received a state request for CID {} from replica {}", msg.getCID(), msg.getSender());
 			CSTSMMessage cstMsg = (CSTSMMessage) msg;
 			CSTRequestF1 cstConfig = cstMsg.getCstConfig();
 			boolean sendState = cstConfig.getCheckpointReplica() == SVController
@@ -171,13 +169,9 @@ public class DurableStateManager extends BaseStateManager {
 		CSTSMMessage reply = (CSTSMMessage) msg;
 		if (SVController.getStaticConf().isStateTransferEnabled()) {
 			LOGGER.info("(TOMLayer.SMReplyDeliver) The state transfer protocol is enabled");
-			LOGGER.info("(TOMLayer.SMReplyDeliver) I received a state reply for CID "
-					+ reply.getCID()
-					+ " from replica "
-					+ reply.getSender());
+			LOGGER.info("(TOMLayer.SMReplyDeliver) I received a state reply for CID {} from replica {}", reply.getCID(), reply.getSender());
 
-			LOGGER.info("--- Received CID: " + reply.getCID()
-					+ ". Waiting " + waitingCID);
+			LOGGER.info("--- Received CID: {}, Waiting CID: {}", reply.getCID(), waitingCID);
 			if (waitingCID != -1 && reply.getCID() == waitingCID) {
 
 				int currentRegency = -1;
@@ -247,18 +241,16 @@ public class DurableStateManager extends BaseStateManager {
 					CommandsInfo[] upperLog = stateUpper.getLogUpper();
 					LOGGER.info("lowerLog ");
 					if (lowerLog != null)
-						LOGGER.info("Lower log length size: " + lowerLog.length);
+						LOGGER.info("Lower log length size: {} ", lowerLog.length);
 					LOGGER.info("upperLog ");
 					if (upperLog != null)
-						LOGGER.info("Upper log length size: " + upperLog.length);
+						LOGGER.info("Upper log length size: {} ", upperLog.length);
 
 					boolean haveState = false;
 					byte[] lowerbytes = TOMUtil.getBytes(lowerLog);
-					LOGGER.info("Log lower bytes size: "
-							+ lowerbytes.length);
+					LOGGER.info("Log lower bytes size: {}", lowerbytes.length);
 					byte[] upperbytes = TOMUtil.getBytes(upperLog);
-					LOGGER.info("Log upper bytes size: "
-							+ upperbytes.length);
+					LOGGER.info("Log upper bytes size: {}", upperbytes.length);
 
 					byte[] lowerLogHash = new byte[0];
 					byte[] upperLogHash = new byte[0];
@@ -296,16 +288,16 @@ public class DurableStateManager extends BaseStateManager {
 						}
 					}
 
-					LOGGER.info("-- current regency: " + currentRegency);
-					LOGGER.info("-- current leader: " + currentLeader);
-					LOGGER.info("-- current view: " + currentView);
+					LOGGER.info("-- current regency: {} ", currentRegency);
+					LOGGER.info("-- current leader: {}", currentLeader);
+					LOGGER.info("-- current view: {}", currentView);
 					if (currentRegency > -1 && currentLeader > -1
 							&& currentView != null && haveState && (!isBFT || /*currentProof != null ||*/ appStateOnly)) {
 						LOGGER.info("---- RECEIVED VALID STATE ----");
 
 						LOGGER.info("(TOMLayer.SMReplyDeliver) The state of those replies is good!");
-						LOGGER.info("(TOMLayer.SMReplyDeliver) CID State requested: " + reply.getCID());
-						LOGGER.info("(TOMLayer.SMReplyDeliver) CID State received: "	+ stateUpper.getLastCID());
+						LOGGER.info("(TOMLayer.SMReplyDeliver) CID State requested: {}", reply.getCID());
+						LOGGER.info("(TOMLayer.SMReplyDeliver) CID State received: {}", stateUpper.getLastCID());
 
 						tomLayer.getSynchronizer().getLCManager().setLastReg(currentRegency);
 						tomLayer.getSynchronizer().getLCManager().setNextReg(currentRegency);

@@ -108,7 +108,7 @@ public class StandardStateManager extends BaseStateManager {
                 waitingCID, TOMUtil.SM_REQUEST, replica, null, null, -1, -1);
         tomLayer.getCommunication().send(SVController.getCurrentViewOtherAcceptors(), smsg);
 
-        LOGGER.info("(StandardStateManager.requestState) I just sent a request to the other replicas for the state up to CID " + waitingCID);
+        LOGGER.info("(StandardStateManager.requestState) I just sent a request to the other replicas for the state up to CID {}", waitingCID);
 
         TimerTask stateTask =  new TimerTask() {
             public void run() {
@@ -143,7 +143,7 @@ public class StandardStateManager extends BaseStateManager {
         	StandardSMMessage stdMsg = (StandardSMMessage)msg;
             boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
             
-            LOGGER.info("-- Should I send the state? " + sendState);
+            LOGGER.info("-- Should I send the state? {}", sendState);
             
             ApplicationState thisState = dt.getRecoverer().getState(msg.getCID(), sendState);
             if (thisState == null) {
@@ -152,7 +152,7 @@ public class StandardStateManager extends BaseStateManager {
               thisState = dt.getRecoverer().getState(-1, sendState);
             }
             else {
-                LOGGER.info(String.valueOf("-- Will I send the state? " + thisState.getSerializedState() != null));
+                LOGGER.info("-- Will I send the state? {}", thisState.getSerializedState() != null);
             }
             int[] targets = { msg.getSender() };
             SMMessage smsg = new StandardSMMessage(SVController.getStaticConf().getProcessId(),
@@ -203,7 +203,7 @@ public class StandardStateManager extends BaseStateManager {
                 if (enoughReplies()) {
                     LOGGER.info("More than F confirmed");
                     ApplicationState otherReplicaState = getOtherReplicaState();
-                    LOGGER.info("State != null: " + (state != null) + ", recvState != null: " + (otherReplicaState != null));
+                    LOGGER.info("State != null: {}, recvState != null: {}",(state != null), (otherReplicaState != null));
                     int haveState = 0;
                         if(state != null) {
                             byte[] hash = null;
@@ -215,7 +215,7 @@ public class StandardStateManager extends BaseStateManager {
                             }
                         }
                     
-                    LOGGER.info("haveState: " + haveState);
+                    LOGGER.info("haveState: {}", haveState);
                                             
                     if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
                             //此行将导致currentProof==null时无法进行下面的处理；
@@ -231,7 +231,7 @@ public class StandardStateManager extends BaseStateManager {
                         
                         if (currentProof != null && !appStateOnly) {
                             
-                            LOGGER.info("Installing proof for consensus " + waitingCID);
+                            LOGGER.info("Installing proof for consensus {}", waitingCID);
 
                             Consensus cons = execManager.getConsensus(waitingCID);
                             Epoch e = null;
@@ -265,10 +265,10 @@ public class StandardStateManager extends BaseStateManager {
                                 e.deserializedPropValue = tomLayer.checkProposedValue(currentProof.getDecision(), false);
                                  cons.decided(e, false);
                                  
-                                LOGGER.info("Successfully installed proof for consensus " + waitingCID);
+                                LOGGER.info("Successfully installed proof for consensus {}", waitingCID);
 
                             } else {
-                                LOGGER.error("Failed to install proof for consensus " + waitingCID);
+                                LOGGER.error("Failed to install proof for consensus {}", waitingCID);
 
                             }
 

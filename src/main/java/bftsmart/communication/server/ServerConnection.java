@@ -120,7 +120,7 @@ public class ServerConnection {
                 socketOutStream = new DataOutputStream(this.socket.getOutputStream());
                 socketInStream = new DataInputStream(this.socket.getInputStream());
             } catch (IOException ex) {
-                LOGGER.error("Error creating connection to "+remoteId);
+                LOGGER.error("Error creating connection to {}", remoteId);
                 ex.printStackTrace();
             }
         }
@@ -217,7 +217,7 @@ public class ServerConnection {
      * Stop message sending and reception.
      */
     public void shutdown() {
-        LOGGER.error("SHUTDOWN for "+remoteId);
+        LOGGER.error("SHUTDOWN for {}", remoteId);
         
         doWork = false;
         closeSocket();
@@ -230,12 +230,12 @@ public class ServerConnection {
         if (useSenderThread) {
             //only enqueue messages if there queue is not full
             if (!useMAC) {
-                LOGGER.info("(ServerConnection.send) Not sending defaultMAC " + System.identityHashCode(data));
+                LOGGER.info("(ServerConnection.send) Not sending defaultMAC {}", System.identityHashCode(data));
                 noMACs.add(System.identityHashCode(data));
             }
 
             if (!outQueue.offer(data)) {
-                LOGGER.error("(ServerConnection.send) out queue for " + remoteId + " full (message discarded).");
+                LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", remoteId);
             }
         } else {
             sendLock.lock();
@@ -364,7 +364,7 @@ public class ServerConnection {
                 ex.printStackTrace();
             } catch (IOException ex) {
                 
-                LOGGER.error("Impossible to reconnect to replica " + remoteId);
+                LOGGER.error("Impossible to reconnect to replica {}", remoteId);
                 //ex.printStackTrace();
             }
 
@@ -447,7 +447,7 @@ public class ServerConnection {
             
             if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
                 
-                LOGGER.error(remoteId + " sent an invalid signature!");
+                LOGGER.error("{} sent an invalid signature!", remoteId);
                 shutdown();
                 return;
             }
@@ -458,7 +458,7 @@ public class ServerConnection {
             BigInteger secretKey =
                     remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
             
-           LOGGER.info("-- Diffie-Hellman complete with " + remoteId);
+           LOGGER.info("-- Diffie-Hellman complete with {}", remoteId);
             
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
             PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
@@ -483,7 +483,7 @@ public class ServerConnection {
                 socketOutStream.flush();
                 socket.close();
             } catch (IOException ex) {
-                LOGGER.error("Error closing socket to "+remoteId);
+                LOGGER.error("Error closing socket to {}", remoteId);
             } catch (NullPointerException npe) {
             	LOGGER.error("Socket already closed");
             }
@@ -537,12 +537,12 @@ public class ServerConnection {
                     //sendBytes(data, noMACs.contains(System.identityHashCode(data)));
                     int ref = System.identityHashCode(data);
                     boolean sendMAC = !noMACs.remove(ref);
-                    LOGGER.info("(ServerConnection.run) " + (sendMAC ? "Sending" : "Not sending") + " MAC for data " + ref);
+                    LOGGER.info("(ServerConnection.run) {} MAC for data {}", (sendMAC ? "Sending" : "Not sending"), ref);
                     sendBytes(data, sendMAC);
                 }
             }
 
-            LOGGER.info("Sender for " + remoteId + " stopped!");
+            LOGGER.info("Sender for {} stopped!", remoteId);
         }
     }
 
@@ -599,7 +599,7 @@ public class ServerConnection {
                                 MessageQueue.MSG_TYPE msgType = MessageQueueFactory.msgType(sm);
 
                                 if (!messageInQueue.offer(msgType, sm)) {
-                                    LOGGER.error("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
+                                    LOGGER.error("(ReceiverThread.run) in queue full (message from {} discarded).", remoteId);
                                 }
                             }
                         } else {
