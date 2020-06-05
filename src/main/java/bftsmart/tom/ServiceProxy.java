@@ -351,7 +351,7 @@ public class ServiceProxy extends TOMSender {
 		try {
 			canReceiveLock.lock();
 			if (reqId == -1) {// no message being expected
-				LOGGER.error("throwing out request: sender=" + reply.getSender() + " reqId=" + reply.getSequence());
+				LOGGER.info("throwing out request: sender=" + reply.getSender() + " reqId=" + reply.getSequence());
 				canReceiveLock.unlock();
 				return;
 			}
