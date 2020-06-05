@@ -61,7 +61,7 @@ public class ClientData {
             try {
                 signatureVerificator = Signature.getInstance("SHA1withRSA");
                 signatureVerificator.initVerify(publicKey);
-                LOGGER.info("Signature verifier initialized for client {}", clientId);
+                LOGGER.debug("Signature verifier initialized for client {}", clientId);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }

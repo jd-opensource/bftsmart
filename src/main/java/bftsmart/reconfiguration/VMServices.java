@@ -31,13 +31,13 @@ public class VMServices {
 
 
 		if(args.length == 1){
-			LOGGER.info("####Tpp Service[Disjoint]####");
+			LOGGER.debug("####Tpp Service[Disjoint]####");
 
 			int smartId = Integer.parseInt(args[0]);
 
 			viewManager.removeServer(smartId);
 		}else if(args.length == 3){
-			LOGGER.info("####Tpp Service[Join]####");
+			LOGGER.debug("####Tpp Service[Join]####");
 
 			int smartId = Integer.parseInt(args[0]);
 			String ipAddress = args[1];
@@ -46,7 +46,7 @@ public class VMServices {
 			viewManager.addServer(smartId, ipAddress,port);
 
 		}else{
-			LOGGER.info("Usage: java -jar TppServices <smart id> [ip address] [port]");
+			LOGGER.debug("Usage: java -jar TppServices <smart id> [ip address] [port]");
 			System.exit(1);
 		}
 

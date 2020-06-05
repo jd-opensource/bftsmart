@@ -151,7 +151,7 @@ public class Synchronizer {
                 } else {
                     out.writeBoolean(false);
 
-                    LOGGER.info("(Synchronizer.triggerTimeout) I am proc " + controller.getStaticConf().getProcessId() + " Strange... did not include any request in my STOP message for regency " + regency);
+                    LOGGER.debug("(Synchronizer.triggerTimeout) I am proc " + controller.getStaticConf().getProcessId() + " Strange... did not include any request in my STOP message for regency " + regency);
                 }
 
                 byte[] payload = bos.toByteArray();
@@ -412,7 +412,7 @@ public class Synchronizer {
             }
         }
 
-        LOGGER.info("(Synchronizer.getRequestsToRelay) I need to relay " + messages.size() + " requests");
+        LOGGER.debug("(Synchronizer.getRequestsToRelay) I need to relay " + messages.size() + " requests");
 
         return messages;
     }
@@ -423,7 +423,7 @@ public class Synchronizer {
         List<TOMMessage> messagesFromSTOP = lcManager.getRequestsFromSTOP();
         if (messagesFromSTOP != null) {
 
-            LOGGER.info("(Synchronizer.addRequestsToClientManager) Adding to client manager the requests contained in STOP messages");
+            LOGGER.debug("(Synchronizer.addRequestsToClientManager) Adding to client manager the requests contained in STOP messages");
 
             for (TOMMessage m : messagesFromSTOP) {
                 tom.requestReceived(m);
@@ -506,7 +506,7 @@ public class Synchronizer {
                         out.writeObject(serialized);
                     } else {
                         out.writeBoolean(false);
-                        LOGGER.info("(Synchronizer.startSynchronization) Strange... did not include any request in my STOP message for regency " + regency);
+                        LOGGER.debug("(Synchronizer.startSynchronization) Strange... did not include any request in my STOP message for regency " + regency);
                     }
 
                     out.flush();
@@ -606,21 +606,21 @@ public class Synchronizer {
 
                             ////// THIS IS TO CATCH A BUG!!!!!
                             if (last > -1) {
-                                LOGGER.debug("[DEBUG INFO FOR LAST CID #1]");
+                                LOGGER.error("[DEBUG INFO FOR LAST CID #1]");
 
                                 if (cons == null) {
-                                    if (last > -1) LOGGER.debug("No consensus instance for cid {}", last);
+                                    if (last > -1) LOGGER.error("No consensus instance for cid {}", last);
 
                                 }
                                 else if (cons.getDecisionEpoch() == null) {
-                                    LOGGER.debug("No decision epoch for cid {}", last);
+                                    LOGGER.error("No decision epoch for cid {}", last);
                                 } else {
-                                    LOGGER.debug("epoch for cid: {} : {}", last, cons.getDecisionEpoch().toString());
+                                    LOGGER.error("epoch for cid: {} : {}", last, cons.getDecisionEpoch().toString());
 
                                     if (cons.getDecisionEpoch().propValue == null) {
-                                        LOGGER.debug("No propose for cid {}", last);
+                                        LOGGER.error("No propose for cid {}", last);
                                     } else {
-                                        LOGGER.debug("Propose hash for cid {} : {}", last, Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
+                                        LOGGER.error("Propose hash for cid {} : {}", last, Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
                                     }
                                 }
                             }
@@ -637,7 +637,7 @@ public class Synchronizer {
                             //int ets = cons.getEts();
                             //cons.createEpoch(ets, controller);
                             cons.createEpoch(regency, controller);
-                            LOGGER.info("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in > -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
+                            LOGGER.debug("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in > -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
 
                             TimestampValuePair quorumWrites;
                             if (cons.getQuorumWrites() != null) {
@@ -669,7 +669,7 @@ public class Synchronizer {
                             //cons.createEpoch(ets, controller);
                             cons.createEpoch(regency, controller);
                             //Logger.println("(Synchronizer.startSynchronization) incrementing ets of consensus " + cons.getId() + " to " + ets);
-                            LOGGER.info("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in = -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
+                            LOGGER.debug("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " in = -1, incrementing ets of consensus " + cons.getId() + " to " + regency);
 
                             //CollectData collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, ets, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
                             CollectData collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, regency, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
@@ -717,7 +717,7 @@ public class Synchronizer {
                     if (sync.size() > 0) {
                         LOGGER.info("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " Processing out of context SYNC for regency " + regency);
                     } else {
-                        LOGGER.info("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " No out of context SYNC for regency " + regency);
+                        LOGGER.debug("(Synchronizer.startSynchronization) I am proc " + controller.getStaticConf().getProcessId() + " No out of context SYNC for regency " + regency);
                     }
 
                     for (LCMessage m : sync) {
@@ -754,21 +754,21 @@ public class Synchronizer {
 
                         ////// THIS IS TO CATCH A BUG!!!!!
                         if (last > -1) {
-                            LOGGER.debug("[DEBUG INFO FOR LAST CID #2]");
+                            LOGGER.error("[DEBUG INFO FOR LAST CID #2]");
 
                             if (cons == null) {
-                                if (last > -1) LOGGER.debug("No consensus instance for cid {}", last);
+                                if (last > -1) LOGGER.error("No consensus instance for cid {}", last);
 
                             }
                             else if (cons.getDecisionEpoch() == null) {
-                                LOGGER.debug("No decision epoch for cid {}", last);
+                                LOGGER.error("No decision epoch for cid {}", last);
                             } else {
-                                LOGGER.debug("epoch for cid: {} : {}", last, cons.getDecisionEpoch().toString());
+                                LOGGER.error("epoch for cid: {} : {}", last, cons.getDecisionEpoch().toString());
 
                                 if (cons.getDecisionEpoch().propValue == null) {
-                                    LOGGER.debug("No propose for cid {}", last);
+                                    LOGGER.error("No propose for cid {}", last);
                                 } else {
-                                    LOGGER.debug("Propose hash for cid {} : {}", last, Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
+                                    LOGGER.error("Propose hash for cid {} : {}", last, Base64.encodeBase64String(tom.computeHash(cons.getDecisionEpoch().propValue)));
                                 }
                             }
                             //maybe occur null pointer exception
@@ -791,7 +791,7 @@ public class Synchronizer {
                         //int ets = cons.getEts();
                         //cons.createEpoch(ets, controller);
                         cons.createEpoch(regency, controller);
-                        LOGGER.info("(Synchronizer.startSynchronization) I am proc {}, in > -1, incrementing ets of consensus {} to {}", controller.getStaticConf().getProcessId(), cons.getId(), regency);
+                        LOGGER.debug("(Synchronizer.startSynchronization) I am proc {}, in > -1, incrementing ets of consensus {} to {}", controller.getStaticConf().getProcessId(), cons.getId(), regency);
                         TimestampValuePair quorumWrites;
 
                         if (cons.getQuorumWrites() != null) {
@@ -816,7 +816,7 @@ public class Synchronizer {
                         //int ets = cons.getEts();
                         //cons.createEpoch(ets, controller);
                         cons.createEpoch(regency, controller);
-                        LOGGER.info("(Synchronizer.startSynchronization) I am proc {}, in = -1, incrementing ets of consensus {} to {}", controller.getStaticConf().getProcessId(), cons.getId(), regency);
+                        LOGGER.debug("(Synchronizer.startSynchronization) I am proc {}, in = -1, incrementing ets of consensus {} to {}", controller.getStaticConf().getProcessId(), cons.getId(), regency);
 
                         //collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, ets, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
                         collect = new CollectData(this.controller.getStaticConf().getProcessId(), last + 1, regency, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>());
@@ -956,7 +956,7 @@ public class Synchronizer {
     // and also sends the message
     private void catch_up(int regency) {
 
-        LOGGER.info("(Synchronizer.catch_up) I am proc " + controller.getStaticConf().getProcessId() + " verify STOPDATA info");
+        LOGGER.debug("(Synchronizer.catch_up) I am proc " + controller.getStaticConf().getProcessId() + " verify STOPDATA info");
         ObjectOutputStream out = null;
         ByteArrayOutputStream bos = null;
 
@@ -1158,7 +1158,7 @@ public class Synchronizer {
 
         // getBindValue的目的就是找一个处于当前共识currentCID中的序列化后的提议值，如果currentCID中所有节点都没有收到过propose, write，则会返回空，tmpval为空，则会使用从客户端请求队列中创建的新propose, 也是finalise传进来的参数
         tmpval = lcManager.getBindValue(selectedColls);
-        LOGGER.info("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " Trying to find a binded value");
+        LOGGER.debug("(Synchronizer.finalise) I am proc " + controller.getStaticConf().getProcessId() + " Trying to find a binded value");
 
         // If such value does not exist, obtain the value written by the arguments
         if (tmpval == null && lcManager.unbound(selectedColls) && batchSize > 0) {
@@ -1251,7 +1251,7 @@ public class Synchronizer {
                 e.setAccept(me, hash);
 
                 /********* LEADER CHANGE CODE ********/
-                LOGGER.info("(Synchronizer.finalise) [CFT Mode] Setting consensus " + currentCID + " QuorumWrite tiemstamp to " + e.getConsensus().getEts() + " and value " + Arrays.toString(hash));
+                LOGGER.debug("(Synchronizer.finalise) [CFT Mode] Setting consensus " + currentCID + " QuorumWrite tiemstamp to " + e.getConsensus().getEts() + " and value " + Arrays.toString(hash));
  	        e.getConsensus().setQuorumWrites(hash);
                 /*************************************/
 

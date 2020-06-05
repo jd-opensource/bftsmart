@@ -480,7 +480,7 @@ public class ServiceReplica {
 			noop = true;
 			for (TOMMessage request : requestsFromConsensus) {
 
-				LOGGER.info("(ServiceReplica.receiveMessages) Processing TOMMessage from client "
+				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client "
 						+ request.getSender() + " with sequence number " + request.getSequence() + " for session "
 						+ request.getSession() + " decided in consensus " + consId[consensusCount]);
 
@@ -505,7 +505,7 @@ public class ServiceReplica {
 						request.deliveryTime = System.nanoTime();
 						if (executor instanceof PreComputeBatchExecutable) {
 
-							LOGGER.info(
+							LOGGER.debug(
 									"(ServiceReplica.receiveMessages) Batching request from " + request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
@@ -522,7 +522,7 @@ public class ServiceReplica {
 							toBatch.add(request);
 						} else if (executor instanceof FIFOExecutable) {
 
-							LOGGER.info("(ServiceReplica.receiveMessages) Delivering request from "
+							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from "
 									+ request.getSender() + " via FifoExecutable");
 
 							// This is used to deliver the content decided by a consensus instance directly
@@ -545,12 +545,12 @@ public class ServiceReplica {
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
 									request.getOperationId(), response, SVController.getCurrentViewId(),
 									request.getReqType());
-							LOGGER.info(
+							LOGGER.debug(
 									"(ServiceReplica.receiveMessages) sending reply to " + request.getSender());
 							replier.manageReply(request, msgCtx);
 						} else if (executor instanceof SingleExecutable) {
 
-							LOGGER.info("(ServiceReplica.receiveMessages) Delivering request from "
+							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from "
 									+ request.getSender() + " via SingleExecutable");
 
 							// This is used to deliver the content decided by a consensus instance directly
@@ -573,7 +573,7 @@ public class ServiceReplica {
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
 									request.getOperationId(), response, SVController.getCurrentViewId(),
 									request.getReqType());
-							LOGGER.info(
+							LOGGER.debug(
 									"(ServiceReplica.receiveMessages) sending reply to " + request.getSender());
 							replier.manageReply(request, msgCtx);
 						} else {
@@ -605,11 +605,11 @@ public class ServiceReplica {
 			// hence the invocation of "noop"
 			if (noop && this.recoverer != null) {
 
-				LOGGER.info("(ServiceReplica.receiveMessages) Delivering a no-op to the recoverer");
+				LOGGER.debug("(ServiceReplica.receiveMessages) Delivering a no-op to the recoverer");
 
-				LOGGER.info(
+				LOGGER.debug(
 						" --- A consensus instance finished, but there were no commands to deliver to the application.");
-				LOGGER.info(" --- Notifying recoverable about a blank consensus.");
+				LOGGER.debug(" --- Notifying recoverable about a blank consensus.");
 
 				byte[][] batch = null;
 				MessageContext[] msgCtx = null;
@@ -687,12 +687,12 @@ public class ServiceReplica {
 						request.getReqType());
 
 				if (SVController.getStaticConf().getNumRepliers() > 0) {
-					LOGGER.info("(ServiceReplica.receiveMessages) sending reply to "
+					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to "
 							+ request.getSender() + " with sequence number " + request.getSequence()
 							+ " and operation ID " + request.getOperationId() + " via ReplyManager");
 					repMan.send(request);
 				} else {
-					LOGGER.info("(ServiceReplica.receiveMessages) sending reply to "
+					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to "
 							+ request.getSender() + " with sequence number " + request.getSequence()
 							+ " and operation ID " + request.getOperationId());
 					replier.manageReply(request, msgContexts[index]);
@@ -701,7 +701,7 @@ public class ServiceReplica {
 			}
 
 			// DEBUG
-			LOGGER.info("BATCHEXECUTOR END");
+			LOGGER.debug("BATCHEXECUTOR END");
 		}
 	}
 

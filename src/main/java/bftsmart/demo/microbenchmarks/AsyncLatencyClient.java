@@ -64,7 +64,7 @@
 //                ex.printStackTrace();
 //            }
 //
-//           LOGGER.info("Launching client " + (initId + i));
+//           LOGGER.debug("Launching client " + (initId + i));
 //            clients[i] = new AsyncLatencyClient.Client(initId + i, numberOfOps, requestSize, interval, readOnly, verbose);
 //        }
 //
@@ -87,7 +87,7 @@
 //
 //        exec.shutdown();
 //
-//        LOGGER.info("All clients done.");
+//        LOGGER.debug("All clients done.");
 //
 //    }
 //
@@ -120,7 +120,7 @@
 //
 //                Storage st = new Storage(this.numberOfOps / 2);
 //
-//                if (this.verbose) LOGGER.info("Executing experiment for " + this.numberOfOps + " ops");
+//                if (this.verbose) LOGGER.debug("Executing experiment for " + this.numberOfOps + " ops");
 //
 //                for (int i = 0; i < this.numberOfOps; i++) {
 //
@@ -132,7 +132,7 @@
 //                        @Override
 //                        public void reset() {
 //
-//                            if (verbose) LOGGER.info("[RequestContext] The proxy is re-issuing the request to the replicas");
+//                            if (verbose) LOGGER.debug("[RequestContext] The proxy is re-issuing the request to the replicas");
 //                            replies = 0;
 //                        }
 //
@@ -141,14 +141,14 @@
 //                            StringBuilder builder = new StringBuilder();
 //                            builder.append("[RequestContext] id: " + context.getReqId() + " type: " + context.getRequestType());
 //                            builder.append("[TOMMessage reply] sender id: " + reply.getSender() + " Hash content: " + Arrays.toString(reply.getContent()));
-//                            if (verbose) LOGGER.info(builder.toString());
+//                            if (verbose) LOGGER.debug(builder.toString());
 //
 //                            replies++;
 //
 //                            double q = Math.ceil((double) (serviceProxy.getViewManager().getCurrentViewN() + serviceProxy.getViewManager().getCurrentViewF() + 1) / 2.0);
 //
 //                            if (replies >= q) {
-//                                if (verbose) LOGGER.info("[RequestContext] clean request context id: " + context.getReqId());
+//                                if (verbose) LOGGER.debug("[RequestContext] clean request context id: " + context.getReqId());
 //                                serviceProxy.cleanAsynchRequest(context.getOperationId());
 //                            }
 //                        }
@@ -159,17 +159,17 @@
 //                        Thread.sleep(this.interval);
 //                    }
 //
-//                    if (this.verbose) LOGGER.info("Sending " + (i + 1) + "th op");
+//                    if (this.verbose) LOGGER.debug("Sending " + (i + 1) + "th op");
 //                }
 //
 //                Thread.sleep(100);//wait 100ms to receive the last replies
 //
 //                if(this.id == initId) {
-//                    LOGGER.info(this.id + " // Average time for " + numberOfOps / 2 + " executions (-10%) = " + st.getAverage(true) / 1000 + " us ");
-//                    LOGGER.info(this.id + " // Standard desviation for " + numberOfOps / 2 + " executions (-10%) = " + st.getDP(true) / 1000 + " us ");
-//                    LOGGER.info(this.id + " // Average time for " + numberOfOps / 2 + " executions (all samples) = " + st.getAverage(false) / 1000 + " us ");
-//                    LOGGER.info(this.id + " // Standard desviation for " + numberOfOps / 2 + " executions (all samples) = " + st.getDP(false) / 1000 + " us ");
-//                    LOGGER.info(this.id + " // Maximum time for " + numberOfOps / 2 + " executions (all samples) = " + st.getMax(false) / 1000 + " us ");
+//                    LOGGER.debug(this.id + " // Average time for " + numberOfOps / 2 + " executions (-10%) = " + st.getAverage(true) / 1000 + " us ");
+//                    LOGGER.debug(this.id + " // Standard desviation for " + numberOfOps / 2 + " executions (-10%) = " + st.getDP(true) / 1000 + " us ");
+//                    LOGGER.debug(this.id + " // Average time for " + numberOfOps / 2 + " executions (all samples) = " + st.getAverage(false) / 1000 + " us ");
+//                    LOGGER.debug(this.id + " // Standard desviation for " + numberOfOps / 2 + " executions (all samples) = " + st.getDP(false) / 1000 + " us ");
+//                    LOGGER.debug(this.id + " // Maximum time for " + numberOfOps / 2 + " executions (all samples) = " + st.getMax(false) / 1000 + " us ");
 //                }
 //
 //            } catch (Exception e) {

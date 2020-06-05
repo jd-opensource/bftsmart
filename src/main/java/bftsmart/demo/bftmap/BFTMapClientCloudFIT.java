@@ -145,7 +145,7 @@
 //			}
 //		}
 //
-//		BFTMapClientCloudFIT.logger.info("Client id["+id+"] operations: "+inc);
+//		BFTMapClientCloudFIT.LOGGER.debug("Client id["+id+"] operations: "+inc);
 //		return;
 //	}
 //

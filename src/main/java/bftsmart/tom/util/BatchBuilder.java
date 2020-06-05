@@ -91,7 +91,7 @@ public final class BatchBuilder {
                 
 		for (TOMMessage msg : msgs) {
 			//TOMMessage msg = msgs.next();
-			LOGGER.info("(BatchBuilder.makeBatch) adding request from client " + msg.getSender() + " with sequence number " + msg.getSequence() + " for session " + msg.getSession() + " to PROPOSE");
+			LOGGER.debug("(BatchBuilder.makeBatch) adding request from client " + msg.getSender() + " with sequence number " + msg.getSequence() + " for session " + msg.getSession() + " to PROPOSE");
 			messages[i] = msg.serializedMessage;
 			signatures[i] = msg.serializedMessageSignature;
 
@@ -117,7 +117,7 @@ public final class BatchBuilder {
                 
 		for (TOMMessage msg : msgs) {
 			//TOMMessage msg = msgs.next();
-			//LOGGER.info("(TOMLayer.run) adding req " + msg + " to PROPOSE");
+			//LOGGER.debug("(TOMLayer.run) adding req " + msg + " to PROPOSE");
 			messages[i] = msg.serializedMessage;
 			signatures[i] = msg.serializedMessageSignature;
 

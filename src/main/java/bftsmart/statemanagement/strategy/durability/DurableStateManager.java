@@ -125,11 +125,10 @@ public class DurableStateManager extends BaseStateManager {
 
 	@Override
 	public void SMRequestDeliver(SMMessage msg, boolean isBFT) {
-		LOGGER.info("(TOMLayer.SMRequestDeliver) invoked method");
-		LOGGER.info("(TOMLayer.SMRequestDeliver) invoked method");
+		LOGGER.debug("(TOMLayer.SMRequestDeliver) invoked method");
 		if (SVController.getStaticConf().isStateTransferEnabled()
 				&& dt.getRecoverer() != null) {
-			LOGGER.info("(TOMLayer.SMRequestDeliver) The state transfer protocol is enabled");
+			LOGGER.debug("(TOMLayer.SMRequestDeliver) The state transfer protocol is enabled");
 			LOGGER.info("(TOMLayer.SMRequestDeliver) I received a state request for CID {} from replica {}", msg.getCID(), msg.getSender());
 			CSTSMMessage cstMsg = (CSTSMMessage) msg;
 			CSTRequestF1 cstConfig = cstMsg.getCstConfig();
@@ -138,7 +137,7 @@ public class DurableStateManager extends BaseStateManager {
 			if (sendState)
 				LOGGER.info("(TOMLayer.SMRequestDeliver) I should be the one sending the state");
 
-			LOGGER.info("--- state asked");
+			LOGGER.debug("--- state asked");
 
 			int[] targets = { msg.getSender() };
 			InetSocketAddress address = SVController.getCurrentView().getAddress(
@@ -168,7 +167,7 @@ public class DurableStateManager extends BaseStateManager {
 		lockTimer.lock();
 		CSTSMMessage reply = (CSTSMMessage) msg;
 		if (SVController.getStaticConf().isStateTransferEnabled()) {
-			LOGGER.info("(TOMLayer.SMReplyDeliver) The state transfer protocol is enabled");
+			LOGGER.debug("(TOMLayer.SMReplyDeliver) The state transfer protocol is enabled");
 			LOGGER.info("(TOMLayer.SMReplyDeliver) I received a state reply for CID {} from replica {}", reply.getCID(), reply.getSender());
 
 			LOGGER.info("--- Received CID: {}, Waiting CID: {}", reply.getCID(), waitingCID);
@@ -239,18 +238,18 @@ public class DurableStateManager extends BaseStateManager {
 
 					CommandsInfo[] lowerLog = stateLower.getLogLower();
 					CommandsInfo[] upperLog = stateUpper.getLogUpper();
-					LOGGER.info("lowerLog ");
+					LOGGER.debug("lowerLog ");
 					if (lowerLog != null)
-						LOGGER.info("Lower log length size: {} ", lowerLog.length);
-					LOGGER.info("upperLog ");
+						LOGGER.debug("Lower log length size: {} ", lowerLog.length);
+					LOGGER.debug("upperLog ");
 					if (upperLog != null)
-						LOGGER.info("Upper log length size: {} ", upperLog.length);
+						LOGGER.debug("Upper log length size: {} ", upperLog.length);
 
 					boolean haveState = false;
 					byte[] lowerbytes = TOMUtil.getBytes(lowerLog);
-					LOGGER.info("Log lower bytes size: {}", lowerbytes.length);
+					LOGGER.debug("Log lower bytes size: {}", lowerbytes.length);
 					byte[] upperbytes = TOMUtil.getBytes(upperLog);
-					LOGGER.info("Log upper bytes size: {}", upperbytes.length);
+					LOGGER.debug("Log upper bytes size: {}", upperbytes.length);
 
 					byte[] lowerLogHash = new byte[0];
 					byte[] upperLogHash = new byte[0];
@@ -279,7 +278,7 @@ public class DurableStateManager extends BaseStateManager {
 							stateCkp.getCheckpointCID(), stateUpper.getCheckpointCID(), SVController.getStaticConf().getProcessId());
 
 					if (haveState) { // validate checkpoint
-						LOGGER.info("validating checkpoint!!!");
+						LOGGER.debug("validating checkpoint!!!");
 						dt.getRecoverer().setState(statePlusLower);
 						byte[] currentStateHash = ((DurabilityCoordinator) dt.getRecoverer()).getCurrentStateHash();
 						if (!Arrays.equals(currentStateHash, stateUpper.getHashCheckpoint())) {
@@ -307,7 +306,7 @@ public class DurableStateManager extends BaseStateManager {
 
 //						if (currentProof != null && !appStateOnly) {
 //
-//							LOGGER.info("Installing proof for consensus " + waitingCID);
+//							LOGGER.debug("Installing proof for consensus " + waitingCID);
 //
 //							Consensus cons = execManager.getConsensus(waitingCID);
 //							Epoch e = null;
@@ -317,7 +316,7 @@ public class DurableStateManager extends BaseStateManager {
 //								e = cons.getEpoch(cm.getEpoch(), true, SVController);
 //								if (e.getTimestamp() != cm.getEpoch()) {
 //
-//									LOGGER.info("Strange... proof contains messages from more than just one epoch");
+//									LOGGER.debug("Strange... proof contains messages from more than just one epoch");
 //									e = cons.getEpoch(cm.getEpoch(), true, SVController);
 //								}
 //								e.addToProof(cm);
@@ -341,10 +340,10 @@ public class DurableStateManager extends BaseStateManager {
 //								e.deserializedPropValue = tomLayer.checkProposedValue(currentProof.getDecision(), false);
 //								cons.decided(e, false);
 //
-//								LOGGER.info("Successfully installed proof for consensus " + waitingCID);
+//								LOGGER.debug("Successfully installed proof for consensus " + waitingCID);
 //
 //							} else {
-//								LOGGER.info("Failed to install proof for consensus " + waitingCID);
+//								LOGGER.debug("Failed to install proof for consensus " + waitingCID);
 //
 //							}
 //
@@ -355,9 +354,9 @@ public class DurableStateManager extends BaseStateManager {
 						// stop my re-transmission of STOP messages for all regencies up to the current one
 						if (currentRegency > 0) tomLayer.getSynchronizer().removeSTOPretransmissions(currentRegency - 1);
 
-						LOGGER.info("trying to acquire deliverlock");
+						LOGGER.debug("trying to acquire deliverlock");
 						dt.deliverLock();
-						LOGGER.info("acquired");
+						LOGGER.debug("acquired");
 
 						// this makes the isRetrievingState() evaluates to false
 						waitingCID = -1;

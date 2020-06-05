@@ -183,7 +183,7 @@ public class ServerConnection {
 //                socketOutStream = new DataOutputStream(this.socket.getOutputStream());
 //                socketInStream = new DataInputStream(this.socket.getInputStream());
 //            } catch (IOException ex) {
-//                LOGGER.info("Error creating connection to "+remoteId);
+//                LOGGER.debug("Error creating connection to "+remoteId);
 //                ex.printStackTrace();
 //            }
 //        }
@@ -230,7 +230,7 @@ public class ServerConnection {
         if (useSenderThread) {
             //only enqueue messages if there queue is not full
             if (!useMAC) {
-                LOGGER.info("(ServerConnection.send) Not sending defaultMAC {}", System.identityHashCode(data));
+                LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", System.identityHashCode(data));
                 noMACs.add(System.identityHashCode(data));
             }
 
@@ -458,7 +458,7 @@ public class ServerConnection {
             BigInteger secretKey =
                     remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
             
-           LOGGER.info("-- Diffie-Hellman complete with {}", remoteId);
+           LOGGER.info("-- Diffie-Hellman complete with proc id {}, with port {}", remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
             
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
             PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
@@ -537,12 +537,12 @@ public class ServerConnection {
                     //sendBytes(data, noMACs.contains(System.identityHashCode(data)));
                     int ref = System.identityHashCode(data);
                     boolean sendMAC = !noMACs.remove(ref);
-                    LOGGER.info("(ServerConnection.run) {} MAC for data {}", (sendMAC ? "Sending" : "Not sending"), ref);
+                    LOGGER.debug("(ServerConnection.run) {} MAC for data {}", (sendMAC ? "Sending" : "Not sending"), ref);
                     sendBytes(data, sendMAC);
                 }
             }
 
-            LOGGER.info("Sender for {} stopped!", remoteId);
+            LOGGER.debug("Sender for {} stopped!", remoteId);
         }
     }
 
@@ -667,7 +667,7 @@ public class ServerConnection {
                         byte hasMAC = socketInStream.readByte();
                         if (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
                             
-                            LOGGER.info("TTP CON USEMAC");
+                            LOGGER.debug("TTP CON USEMAC");
                             read = 0;
                             do {
                                 read += socketInStream.read(receivedMac, read, macSize - read);
@@ -680,10 +680,10 @@ public class ServerConnection {
                             SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data)).readObject());
 
                             if (sm.getSender() == remoteId) {
-                                //LOGGER.info("Mensagem recebia de: "+remoteId);
+                                //LOGGER.debug("Mensagem recebia de: "+remoteId);
                                 /*if (!inQueue.offer(sm)) {
-                                bftsmart.tom.util.LOGGER.info("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
-                                LOGGER.info("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
+                                bftsmart.tom.util.LOGGER.debug("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
+                                LOGGER.debug("(ReceiverThread.run) in queue full (message from " + remoteId + " discarded).");
                                 }*/
                                 this.replica.joinMsgReceived((VMMessage) sm);
                             }

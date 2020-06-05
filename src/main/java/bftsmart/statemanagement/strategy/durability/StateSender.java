@@ -43,9 +43,9 @@ public class StateSender implements Runnable {
 		try {
 			OutputStream os = socket.getOutputStream();
 			ObjectOutputStream oos = new ObjectOutputStream(os);
-			LOGGER.info("--- Sending state in different socket");
+			LOGGER.debug("--- Sending state in different socket");
 			oos.writeObject(state);
-			LOGGER.info("--- Sent state in different socket");
+			LOGGER.debug("--- Sent state in different socket");
 			oos.close();
 			socket.close();
 		} catch (IOException e) {

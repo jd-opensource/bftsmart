@@ -169,7 +169,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 stateLock.unlock();
             }
 
-           LOGGER.info("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus " + cid);
+           LOGGER.debug("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus " + cid);
             stateLock.lock();
             byte[] snapshot = getSnapshot();
             stateLock.unlock();
@@ -198,7 +198,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                     stateLock.unlock();
                 }
 
-                LOGGER.info("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus " + cid);
+                LOGGER.debug("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus " + cid);
                 saveCommands(secondHalf, secondHalfMsgCtx);
 
 //                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
@@ -234,14 +234,14 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
         logLock.lock();
 
-        LOGGER.info("(TOMLayer.saveState) Saving state of CID " + lastCID);
+        LOGGER.debug("(TOMLayer.saveState) Saving state of CID " + lastCID);
 
         thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
         thisLog.setLastCID(lastCID);
         thisLog.setLastCheckpointCID(lastCID);
 
         logLock.unlock();
-        LOGGER.info("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
+        LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
     }
 
     /**
@@ -308,15 +308,15 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             int lastCheckpointCID = state.getLastCheckpointCID();
             lastCID = state.getLastCID();
 
-            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID "
+            LOGGER.debug("(DefaultRecoverable.setState) I'm going to update myself from CID "
                     + lastCheckpointCID + " to CID " + lastCID);
             
-            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID "
+            LOGGER.debug("(DefaultRecoverable.setState) I'm going to update myself from CID "
                     + lastCheckpointCID + " to CID " + lastCID);
 
             stateLock.lock();
             if (state.getSerializedState() != null) {
-                LOGGER.info("The state is not null. Will install it");
+                LOGGER.debug("The state is not null. Will install it");
                 initLog();
                 log.update(state);
                 installSnapshot(state.getSerializedState());
@@ -324,12 +324,12 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
             int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
 
-            LOGGER.info("I am proc " + controller.getStaticConf().getProcessId() + ", my currentcid = %d,  from other nodes lastestcid  = %d\r\n", currentCid, lastCID);
+            LOGGER.debug("I am proc " + controller.getStaticConf().getProcessId() + ", my currentcid = %d,  from other nodes lastestcid  = %d\r\n", currentCid, lastCID);
 
             for (int cid = currentCid + 1; cid <= lastCID; cid++) {
                 try {
 
-                    LOGGER.info("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid " + cid);
+                    LOGGER.debug("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid " + cid);
                     if (state.getMessageBatch(cid) == null) {
                         LOGGER.error("(DefaultRecoverable.setState) {} NULO!!!", cid);
                     }
@@ -434,7 +434,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             }
             index++;
         }
-        LOGGER.info("--- Checkpoint is in position " + index);
+        LOGGER.debug("--- Checkpoint is in position " + index);
         return index;
     }
    

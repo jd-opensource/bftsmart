@@ -125,7 +125,7 @@ public class LCManager {
             }
         } while(!SVController.isCurrentViewMember(currentLeader));
 
-        LOGGER.info("I am proc %s , get new leader = %s \r\n",
+        LOGGER.debug("I am proc %s , get new leader = %s \r\n",
                 tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
 
         return currentLeader;
@@ -399,7 +399,7 @@ public class LCManager {
 
         for (CollectData c : collects) { // organize all existing timestamps and values separately
             
-            LOGGER.info("(LCManager.sound) Context for replica "+c.getPid()+": CID["+c.getCid()+"] WRITESET["+c.getWriteSet()+"] (VALTS,VAL)[" + c.getQuorumWrites() +"]");
+            LOGGER.debug("(LCManager.sound) Context for replica "+c.getPid()+": CID["+c.getCid()+"] WRITESET["+c.getWriteSet()+"] (VALTS,VAL)[" + c.getQuorumWrites() +"]");
             
             timestamps.add(c.getQuorumWrites().getTimestamp()); //store timestamp received from a Byzatine quorum of WRITES
             
@@ -431,24 +431,24 @@ public class LCManager {
 
         }
 
-        LOGGER.info("(LCManager.sound) number of timestamps: "+timestamps.size());
-        LOGGER.info("(LCManager.sound) number of values: "+values.size());
+        LOGGER.debug("(LCManager.sound) number of timestamps: "+timestamps.size());
+        LOGGER.debug("(LCManager.sound) number of values: "+values.size());
 
         // after having organized all timestamps and values, properly apply the predicate
         for (int r : timestamps) {
             for (byte[] v : values) {
 
-                LOGGER.info("(LCManager.sound) testing predicate BIND for timestamp/value pair (" + r + " , " + Arrays.toString(v) + ")");
+                LOGGER.debug("(LCManager.sound) testing predicate BIND for timestamp/value pair (" + r + " , " + Arrays.toString(v) + ")");
                 if (binds(r, v, collects)) {
 
-                    LOGGER.info("(LCManager.sound) Predicate BIND is true for timestamp/value pair (" + r + " , " + Arrays.toString(v) + ")");
-                    LOGGER.info("(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
+                    LOGGER.debug("(LCManager.sound) Predicate BIND is true for timestamp/value pair (" + r + " , " + Arrays.toString(v) + ")");
+                    LOGGER.debug("(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
                     return true;
                 }
             }
         }
 
-        LOGGER.info("(LCManager.sound) No timestamp/value pair passed on the BIND predicate");
+        LOGGER.debug("(LCManager.sound) No timestamp/value pair passed on the BIND predicate");
         
         boolean unbound = unbound(collects);
         
@@ -624,13 +624,13 @@ public class LCManager {
             }
         }
 
-        if (appears) LOGGER.info("(LCManager.quorumHighest) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) + ") appears in at least one replica context");
+        if (appears) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) + ") appears in at least one replica context");
         
         int count = 0;
         for (CollectData c : collects) {
 
-            //LOGGER.info(("\t\t[QUORUM HIGHEST] ts' < ts : " + (c.getQuorumWrites().getTimestamp() < timestamp));
-            //LOGGER.info(("\t\t[QUORUM HIGHEST] ts' = ts && val' = val : " + (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value, c.getQuorumWrites().getValue())));
+            //LOGGER.debug(("\t\t[QUORUM HIGHEST] ts' < ts : " + (c.getQuorumWrites().getTimestamp() < timestamp));
+            //LOGGER.debug(("\t\t[QUORUM HIGHEST] ts' = ts && val' = val : " + (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value, c.getQuorumWrites().getValue())));
             
             if ((c.getQuorumWrites().getTimestamp() < timestamp)
                     || (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value, c.getQuorumWrites().getValue())))
@@ -644,7 +644,7 @@ public class LCManager {
         else {
             quorum = count > ((SVController.getCurrentViewN())/2);
         }
-        if (quorum) LOGGER.info("(LCManager.quorumHighest) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) +
+        if (quorum) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) +
                 ") has the highest timestamp among a " + (SVController.getStaticConf().isBFT() ? "Byzantine" : "simple") + " quorum of replica contexts");
         return appears && quorum;
     }
@@ -671,8 +671,8 @@ public class LCManager {
 
             for (TimestampValuePair pv : c.getWriteSet()) {
 
-//                LOGGER.info(("\t\t[CERTIFIED VALUE] " + pv.getTimestamp() + "  >= " + timestamp);
-//                LOGGER.info(("\t\t[CERTIFIED VALUE] " + Arrays.toString(value) + "  == " + Arrays.toString(pv.getValue()));
+//                LOGGER.debug(("\t\t[CERTIFIED VALUE] " + pv.getTimestamp() + "  >= " + timestamp);
+//                LOGGER.debug(("\t\t[CERTIFIED VALUE] " + Arrays.toString(value) + "  == " + Arrays.toString(pv.getValue()));
                 if (pv.getTimestamp() >= timestamp && Arrays.equals(value, pv.getHashedValue()))
                     count++;
             }
@@ -684,7 +684,7 @@ public class LCManager {
         } else {
             certified = count > 0;
         }
-        if (certified) LOGGER.info("(LCManager.certifiedValue) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) +
+        if (certified) LOGGER.debug("(LCManager.certifiedValue) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) +
                 ") has been written by at least " + count + " replica(s)");
 
         return certified;
@@ -812,7 +812,7 @@ public class LCManager {
         if (cDec.getCID() == -1 || cDec.getDecision() == null || cDec.getConsMessages() == null) return true; // If the last CID is -1 it means the replica
                                              // did not complete any consensus and cannot have
                                              // any proof
-        LOGGER.info("I am %s, pid = %s, cid = %s, consmsg = %s \r\n",
+        LOGGER.debug("I am %s, pid = %s, cid = %s, consmsg = %s \r\n",
                 tomLayer.controller.getStaticConf().getProcessId(), cDec.getPID(), cDec.getCID(),
                 cDec.getConsMessages() == null ? "null" : cDec.getConsMessages().size());
 
@@ -851,7 +851,7 @@ public class LCManager {
 
             if (consMsg.getProof() instanceof HashMap) { // Certificate is made of MAC vector
                 
-                LOGGER.info("(LCManager.hasValidProof) Proof made of MAC vector");
+                LOGGER.debug("(LCManager.hasValidProof) Proof made of MAC vector");
             
                 HashMap<Integer, byte[]> macVector = (HashMap<Integer, byte[]>) consMsg.getProof();
                                
@@ -876,7 +876,7 @@ public class LCManager {
                 }
             } else if (consMsg.getProof() instanceof byte[]) { // certificate is made of signatures
                 
-                LOGGER.info("(LCManager.hasValidProof) Proof made of Signatures");
+                LOGGER.debug("(LCManager.hasValidProof) Proof made of Signatures");
                 pubRSAKey = SVController.getStaticConf().getRSAPublicKey(consMsg.getSender());
                    
                 byte[] signature = (byte[]) consMsg.getProof();
@@ -897,12 +897,12 @@ public class LCManager {
         // To understand why this is important, check the comments in Acceptor.computeWrite()
                 
         if (certificateLastView != -1 && pubRSAKey != null)
-            LOGGER.info("(LCManager.hasValidProof) Computing certificate based on previous view");
+            LOGGER.debug("(LCManager.hasValidProof) Computing certificate based on previous view");
         
         //return countValid >= certificateCurrentView;
 
         boolean result = countValid >=  (certificateLastView != -1 && pubRSAKey != null ? certificateLastView : certificateCurrentView);
-        LOGGER.info("Proof is valid ? "+result);
+        LOGGER.debug("Proof is valid ? "+result);
         return result;
     }
 

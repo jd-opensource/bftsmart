@@ -158,7 +158,7 @@ public class MessageHandler {
                             break;
                     }
 
-//	                LOGGER.info("(MessageHandler.processData) LC_MSG received: type " + type + ", regency " + lcMsg.getReg() + ", (replica " + lcMsg.getSender() + ")");
+//	                LOGGER.debug("(MessageHandler.processData) LC_MSG received: type " + type + ", regency " + lcMsg.getReg() + ", (replica " + lcMsg.getSender() + ")");
                     if (lcMsg.TRIGGER_LC_LOCALLY) tomLayer.requestsTimer.run_lc_protocol();
                     else tomLayer.getSynchronizer().deliverTimeoutRequest(lcMsg);
                     /**************************************************************/
@@ -170,7 +170,7 @@ public class MessageHandler {
                     /** This is Joao's code, to handle state transfer */
                 } else if (sm instanceof SMMessage) {
                     SMMessage smsg = (SMMessage) sm;
-                    // LOGGER.info("(MessageHandler.processData) SM_MSG received: type " + smsg.getType() + ", regency " + smsg.getRegency() + ", (replica " + smsg.getSender() + ")");
+                    // LOGGER.debug("(MessageHandler.processData) SM_MSG received: type " + smsg.getType() + ", regency " + smsg.getRegency() + ", (replica " + smsg.getSender() + ")");
                     switch(smsg.getType()) {
                         case TOMUtil.SM_REQUEST:
                             tomLayer.getStateManager().SMRequestDeliver(smsg, tomLayer.controller.getStaticConf().isBFT());

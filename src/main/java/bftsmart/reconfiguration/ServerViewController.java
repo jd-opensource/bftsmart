@@ -64,11 +64,11 @@ public class ServerViewController extends ViewController {
 		// View cv = getViewStore().readView();
 		// if(cv == null){
 		//
-		// LOGGER.info("-- Creating current view from configuration file");
+		// LOGGER.debug("-- Creating current view from configuration file");
 		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
 		// getStaticConf().getF(), getInitAdddresses()));
 		// }else{
-		// LOGGER.info("-- Using view stored on disk");
+		// LOGGER.debug("-- Using view stored on disk");
 		// reconfigureTo(cv);
 		// }
 
@@ -84,10 +84,10 @@ public class ServerViewController extends ViewController {
 		View cv = getViewStore().readView();
 		if (cv == null) {
 
-			LOGGER.info("-- Creating current view from configuration file");
+			LOGGER.debug("-- Creating current view from configuration file");
 			reconfigureTo(new View(0, getStaticConf().getInitialView(), getStaticConf().getF(), getInitAdddresses()));
 		} else {
-			LOGGER.info("-- Using view stored on disk");
+			LOGGER.debug("-- Using view stored on disk");
 			reconfigureTo(cv);
 		}
 	}
@@ -250,9 +250,9 @@ public class ServerViewController extends ViewController {
 
 		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-		LOGGER.info("new view: {}", newV);
-		LOGGER.info("installed on CID: {}", cid);
-		LOGGER.info("lastJoinSet: {}", jSet);
+		LOGGER.debug("new view: {}", newV);
+		LOGGER.debug("installed on CID: {}", cid);
+		LOGGER.debug("lastJoinSet: {}", jSet);
 
 		// TODO:Remove all information stored about each process in rSet
 		// processes execute the leave!!!
@@ -261,7 +261,7 @@ public class ServerViewController extends ViewController {
 		if (forceLC) {
 
 			// TODO: Reactive it and make it work
-			LOGGER.info("Shortening LC timeout");
+			LOGGER.debug("Shortening LC timeout");
 //			tomLayer.requestsTimer.stopTimer();
 			tomLayer.requestsTimer.setShortTimeout(3000);
 //			tomLayer.requestsTimer.startTimer();

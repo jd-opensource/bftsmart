@@ -86,7 +86,7 @@ public final class DeliveryThread extends Thread {
     public void delivery(Decision dec) {
         if (!containsGoodReconfig(dec)) {
 
-            LOGGER.info("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
+            LOGGER.debug("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
             //set this decision as the last one from this replica
             tomLayer.setLastExec(dec.getConsensusId());
             //define that end of this execution
@@ -105,7 +105,7 @@ public final class DeliveryThread extends Thread {
             
             notEmptyQueue.signalAll();
             decidedLock.unlock();
-            LOGGER.info("(DeliveryThread.delivery) Consensus " + dec.getConsensusId() + " finished. Decided size=" + decided.size());
+            LOGGER.debug("(DeliveryThread.delivery) Consensus " + dec.getConsensusId() + " finished. Decided size=" + decided.size());
         } catch (Exception e) {
             e.printStackTrace(System.out);
         }
@@ -150,7 +150,7 @@ public final class DeliveryThread extends Thread {
         int lastCID =  recoverer.setState(state);
 
         //set this decision as the last one from this replica
-        LOGGER.info("Setting last CID to " + lastCID);
+        LOGGER.debug("Setting last CID to " + lastCID);
         tomLayer.setLastExec(lastCID);
 
         //define the last stable consensus... the stable consensus can
@@ -164,10 +164,10 @@ public final class DeliveryThread extends Thread {
         //stateManager.setWaiting(-1);
         tomLayer.setNoExec();
 
-        LOGGER.info("Current decided size: " + decided.size());
+        LOGGER.debug("Current decided size: " + decided.size());
         decided.clear();
 
-        LOGGER.info("(DeliveryThread.update) All finished up to " + lastCID);
+        LOGGER.debug("(DeliveryThread.update) All finished up to " + lastCID);
     }
 
     /**
@@ -180,11 +180,11 @@ public final class DeliveryThread extends Thread {
             /** THIS IS JOAO'S CODE, TO HANDLE STATE TRANSFER */
             deliverLock();
             while (tomLayer.isRetrievingState()) {
-                LOGGER.info("-- Retrieving State");
+                LOGGER.debug("-- Retrieving State");
                 canDeliver.awaitUninterruptibly();
                 
                 if (tomLayer.getLastExec() == -1)
-                    LOGGER.info("-- Ready to process operations");
+                    LOGGER.debug("-- Ready to process operations");
             }
             try {
                 ArrayList<Decision> decisions = new ArrayList<Decision>();
@@ -281,14 +281,14 @@ public final class DeliveryThread extends Thread {
             // this may happen if this batch proposal was not verified
             // TODO: this condition is possible?
 
-            LOGGER.info("(DeliveryThread.run) interpreting and verifying batched requests.");
+            LOGGER.debug("(DeliveryThread.run) interpreting and verifying batched requests.");
 
             // obtain an array of requests from the decisions obtained
             BatchReader batchReader = new BatchReader(dec.getValue(),
                             controller.getStaticConf().getUseSignatures() == 1);
             requests = batchReader.deserialiseRequests(controller);
     	} else {
-            LOGGER.info("(DeliveryThread.run) using cached requests from the propose.");
+            LOGGER.debug("(DeliveryThread.run) using cached requests from the propose.");
     	}
 
     	return requests;

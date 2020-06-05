@@ -130,7 +130,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
         @Override
         public void shutdown() {
             
-            LOGGER.info("Shutting down Netty system");
+            LOGGER.debug("Shutting down Netty system");
             
             this.closed = true;
 
@@ -176,7 +176,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                             
                 //delivers message to TOMLayer
 		if (requestReceiver == null)
-			LOGGER.info("RECEIVER NULO!!!!!!!!!!!!");
+			LOGGER.debug("RECEIVER NULO!!!!!!!!!!!!");
 		else requestReceiver.requestReceived(sm);
 	}
 
@@ -187,7 +187,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                     closeChannelAndEventLoop(ctx.channel());
                     return;
                 }
-		LOGGER.info("Session Created, active clients=" + sessionTable.size());
+		LOGGER.debug("Session Created, active clients=" + sessionTable.size());
 	}
 
 	@Override
@@ -207,9 +207,9 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 				NettyClientServerSession value = (NettyClientServerSession) m.getValue();
 				if (ctx.channel().equals(value.getChannel())) {
 					int key = (Integer) m.getKey();
-					LOGGER.info("#Removing client channel with ID= " + key);
+					LOGGER.debug("#Removing client channel with ID= " + key);
 					sessionTable.remove(key);
-					LOGGER.info("#active clients=" + sessionTable.size());
+					LOGGER.debug("#active clients=" + sessionTable.size());
 					break;
 				}
 			}
@@ -219,7 +219,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 		} finally {
 			rl.writeLock().unlock();
 		}
-		LOGGER.info("Session Closed, active clients=" + sessionTable.size());
+		LOGGER.debug("Session Closed, active clients=" + sessionTable.size());
 	}
 
 	@Override
@@ -282,7 +282,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                                                                                         
                                             public void run() {
                                                 
-                                                LOGGER.info("Received request from " + id + " before establishing Netty connection. Re-trying until connection is established");
+                                                LOGGER.debug("Received request from " + id + " before establishing Netty connection. Re-trying until connection is established");
 
                                                 NettyClientServerSession ncss = null;
                                                 while (ncss == null) {
@@ -307,7 +307,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                                                     
                                                 }
                                                  
-                                                LOGGER.info("Connection with " + id + " established!");
+                                                LOGGER.debug("Connection with " + id + " established!");
 
                                                 
                                             }
@@ -317,7 +317,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                                         t.start();
                                         ///////////////////////////////////////////
 				} else {
-                                    LOGGER.info("!!!!!!!!NettyClientServerSession NULL !!!!!! sequence: " + sm.getSequence() + ", ID; " + targets[i]);
+                                    LOGGER.debug("!!!!!!!!NettyClientServerSession NULL !!!!!! sequence: " + sm.getSequence() + ", ID; " + targets[i]);
                                 }
 			} finally {
 				//sendLock.unlock();

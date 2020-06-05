@@ -215,14 +215,14 @@ public class StandardStateManager extends BaseStateManager {
                             }
                         }
                     
-                    LOGGER.info("haveState: {}", haveState);
+                    LOGGER.debug("haveState: {}", haveState);
                                             
                     if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
                             //此行将导致currentProof==null时无法进行下面的处理；
 //                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
                             currentLeader > -1 && currentView != null ) {
 
-                    	LOGGER.info("Received state. Will install it");
+                    	LOGGER.debug("Received state. Will install it");
                     	
                         tomLayer.getSynchronizer().getLCManager().setLastReg(currentRegency);
                         tomLayer.getSynchronizer().getLCManager().setNextReg(currentRegency);
@@ -231,7 +231,7 @@ public class StandardStateManager extends BaseStateManager {
                         
                         if (currentProof != null && !appStateOnly) {
                             
-                            LOGGER.info("Installing proof for consensus {}", waitingCID);
+                            LOGGER.debug("Installing proof for consensus {}", waitingCID);
 
                             Consensus cons = execManager.getConsensus(waitingCID);
                             Epoch e = null;
@@ -241,7 +241,7 @@ public class StandardStateManager extends BaseStateManager {
                                 e = cons.getEpoch(cm.getEpoch(), true, SVController);
                                 if (e.getTimestamp() != cm.getEpoch()) {
 
-                                    LOGGER.info("Strange... proof contains messages from more than just one epoch");
+                                    LOGGER.debug("Strange... proof contains messages from more than just one epoch");
                                     e = cons.getEpoch(cm.getEpoch(), true, SVController);
                                 }
                                 e.addToProof(cm);
@@ -265,7 +265,7 @@ public class StandardStateManager extends BaseStateManager {
                                 e.deserializedPropValue = tomLayer.checkProposedValue(currentProof.getDecision(), false);
                                  cons.decided(e, false);
                                  
-                                LOGGER.info("Successfully installed proof for consensus {}", waitingCID);
+                                LOGGER.debug("Successfully installed proof for consensus {}", waitingCID);
 
                             } else {
                                 LOGGER.error("Failed to install proof for consensus {}", waitingCID);
@@ -345,7 +345,7 @@ public class StandardStateManager extends BaseStateManager {
                         waitingCID = -1;
                         //requestState();
                     } else {
-                        LOGGER.info(" -- State transfer not yet finished");
+                        LOGGER.debug(" -- State transfer not yet finished");
 
                     }
                 }

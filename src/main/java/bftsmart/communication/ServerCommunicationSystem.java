@@ -139,13 +139,13 @@ public class ServerCommunicationSystem extends Thread {
 //        while (doWork) {
 //            try {
 //                if (count % 1000 == 0 && count > 0) {
-//                    LOGGER.info("(ServerCommunicationSystem.run) After " + count + " messages, inQueue size=" + inQueue.size());
+//                    LOGGER.debug("(ServerCommunicationSystem.run) After " + count + " messages, inQueue size=" + inQueue.size());
 //                }
 //
 //                SystemMessage sm = inQueue.poll(MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
 //
 //                if (sm != null) {
-//                    LOGGER.info("<-------receiving---------- " + sm);
+//                    LOGGER.debug("<-------receiving---------- " + sm);
 //                    messageHandler.processData(sm);
 //                    count++;
 //                } else {
@@ -171,7 +171,7 @@ public class ServerCommunicationSystem extends Thread {
         if (sm instanceof TOMMessage) {
             clientsConn.send(targets, (TOMMessage) sm, false);
         } else {
-            LOGGER.info("--------sending----------> " + sm);
+            LOGGER.debug("--------sending----------> " + sm);
             serversConn.send(targets, sm, true);
         }
     }

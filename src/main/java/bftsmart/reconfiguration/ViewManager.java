@@ -107,7 +107,7 @@ public class ViewManager {
         connect();
         ReconfigureReply r = rec.execute();
         View v = r.getView();
-        LOGGER.info("New view f: {}", v.getF());
+        LOGGER.debug("New view f: {}", v.getF());
 
         VMMessage msg = new VMMessage(id, r);
 

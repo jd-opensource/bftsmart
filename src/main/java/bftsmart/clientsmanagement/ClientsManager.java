@@ -82,7 +82,7 @@ public class ClientsManager {
         ClientData clientData = clientsData.get(clientId);
 
         if (clientData == null) {
-           LOGGER.info("(ClientsManager.getClientData) Creating new client data, client id = {}", clientId);
+           LOGGER.debug("(ClientsManager.getClientData) Creating new client data, client id = {}", clientId);
 
             //******* EDUARDO BEGIN **************//
             clientData = new ClientData(clientId,
@@ -384,11 +384,11 @@ public class ClientsManager {
      */
     public void requestsOrdered(TOMMessage[] requests) {
         clientsLock.lock();
-       LOGGER.info("(ClientsManager.requestOrdered) Updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Updating client manager");
         for (TOMMessage request : requests) {
             requestOrdered(request);
         }
-       LOGGER.info("(ClientsManager.requestOrdered) Finished updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Finished updating client manager");
         clientsLock.unlock();
     }
 
@@ -409,7 +409,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removeOrderedRequest(request)) {
-           LOGGER.info("(ClientsManager.requestOrdered) Request {} does not exist in pending requests", request);
+           LOGGER.debug("(ClientsManager.requestOrdered) Request {} does not exist in pending requests", request);
         }
 
         clientDatasTotal.getAndDecrement();
@@ -427,11 +427,11 @@ public class ClientsManager {
      */
     public void requestsPending(TOMMessage[] requests) {
         clientsLock.lock();
-       LOGGER.info("(ClientsManager.requestOrdered) Updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Updating client manager");
         for (TOMMessage request : requests) {
             requestPending(request);
         }
-       LOGGER.info("(ClientsManager.requestOrdered) Finished updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Finished updating client manager");
         clientsLock.unlock();
     }
 
@@ -452,7 +452,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removePendingRequest(request)) {
-           LOGGER.info("(ClientsManager.requestPending) Request {} does not exist in pending requests", request);
+           LOGGER.debug("(ClientsManager.requestPending) Request {} does not exist in pending requests", request);
         }
 
         clientDatasTotal.getAndDecrement();
