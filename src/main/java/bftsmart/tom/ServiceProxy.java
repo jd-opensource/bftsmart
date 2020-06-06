@@ -349,7 +349,7 @@ public class ServiceProxy extends TOMSender {
 		try {
 			canReceiveLock.lock();
 			if (reqId == -1) {// no message being expected
-				LOGGER.info("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
+				LOGGER.debug("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
 				canReceiveLock.unlock();
 				return;
 			}
