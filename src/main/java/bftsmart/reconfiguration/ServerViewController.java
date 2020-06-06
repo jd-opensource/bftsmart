@@ -250,9 +250,9 @@ public class ServerViewController extends ViewController {
 
 		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-		LOGGER.debug("new view: {}", newV);
-		LOGGER.debug("installed on CID: {}", cid);
-		LOGGER.debug("lastJoinSet: {}", jSet);
+		LOGGER.debug("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+		LOGGER.debug("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+		LOGGER.debug("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
 		// TODO:Remove all information stored about each process in rSet
 		// processes execute the leave!!!
