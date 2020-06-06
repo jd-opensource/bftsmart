@@ -177,7 +177,7 @@ public final class ExecutionManager {
             //stoppedEpoch.getTimeoutTask().cancel();
 //            if (stoppedEpoch != null) LOGGER.debug("(ExecutionManager.stop) Stoping epoch " + stoppedEpoch.getTimestamp() + " of consensus " + tomLayer.getInExec());
 
-            if (stoppedEpoch != null) LOGGER.debug("(ExecutionManager.stop) I am proc  " + controller.getStaticConf().getProcessId() + " Stoping epoch " + stoppedEpoch.getTimestamp() + " of consensus " + tomLayer.getInExec());
+            if (stoppedEpoch != null) LOGGER.debug("(ExecutionManager.stop) I am proc {} Stoping epoch {} of consensus {}", controller.getStaticConf().getProcessId(), stoppedEpoch.getTimestamp(), tomLayer.getInExec());
 //            if (stoppedEpoch != null) System.out.println("(ExecutionManager.stop) I am proc  " + controller.getStaticConf().getProcessId() + " Stoping epoch " + stoppedEpoch.getTimestamp() + " of consensus " + tomLayer.getInExec());
         }
         stoppedMsgsLock.unlock();
@@ -219,9 +219,9 @@ public final class ExecutionManager {
         // If rollback occurs, this node no longer processes new messages, wait state transfer
         boolean rollHappend = tomLayer.execManager.getConsensus(lastConsId).getPrecomputeRolled();
         
-        LOGGER.debug("(ExecutionManager.checkLimits) Received message  " + msg);
-        LOGGER.debug("(ExecutionManager.checkLimits) I'm at consensus " +
-                inExec + " and my last consensus is " + lastConsId);
+        LOGGER.debug("(ExecutionManager.checkLimits) Received message {}", msg);
+        LOGGER.debug("(ExecutionManager.checkLimits) I'm at consensus {} and my last consensus is {}",
+                inExec, lastConsId);
         
         boolean isRetrievingState = tomLayer.isRetrievingState();
 
@@ -242,7 +242,7 @@ public final class ExecutionManager {
             if (stopped) {//just an optimization to avoid calling the lock in normal case
                 stoppedMsgsLock.lock();
                 if (stopped) {
-                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stopped" + ", is retrive state : " + isRetrievingState + ", last cid is " + lastConsId + ", in exe cid is " + inExec);
+                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, last cid is {}, in exe cid is {}", controller.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, lastConsId, inExec);
 //                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped");
                     //the execution manager was stopped, the messages should be stored
                     //for later processing (when the consensus is restarted)
@@ -265,8 +265,7 @@ public final class ExecutionManager {
                     
                     addOutOfContextMessage(msg);
                 } else if (!rollHappend){ //can process!
-                    LOGGER.debug("(ExecutionManager.checkLimits) message for consensus " +
-                            msg.getNumber() + " can be processed");
+                    LOGGER.debug("(ExecutionManager.checkLimits) message for consensus {} can be processed", msg.getNumber());
             
                     //Logger.debug = false;
                     canProcessTheMessage = true;
@@ -478,8 +477,7 @@ public final class ExecutionManager {
         
         ConsensusMessage prop = outOfContextProposes.remove(consensus.getId());
         if (prop != null) {
-            LOGGER.debug("(ExecutionManager.processOutOfContextPropose) (" + consensus.getId()
-                    + ") Processing out of context propose");
+            LOGGER.debug("(ExecutionManager.processOutOfContextPropose) {} Processing out of context propose", consensus.getId());
             acceptor.processMessage(prop);
         }
 
@@ -494,20 +492,16 @@ public final class ExecutionManager {
         //then we have to put the pending paxos messages
         List<ConsensusMessage> messages = outOfContext.remove(consensus.getId());
         if (messages != null) {
-            LOGGER.debug("(ExecutionManager.processOutOfContext) (" + consensus.getId()
-                    + ") Processing other " + messages.size()
-                    + " out of context messages.");
+            LOGGER.debug("(ExecutionManager.processOutOfContext) {} Processing other {} out of context messages.", consensus.getId(), messages.size());
 
             for (Iterator<ConsensusMessage> i = messages.iterator(); i.hasNext();) {
                 acceptor.processMessage(i.next());
                 if (consensus.isDecided()) {
-                    LOGGER.debug("(ExecutionManager.processOutOfContext) consensus "
-                            + consensus.getId() + " decided.");
+                    LOGGER.debug("(ExecutionManager.processOutOfContext) consensus {} decided.", consensus.getId());
                     break;
                 }
             }
-            LOGGER.debug("(ExecutionManager.processOutOfContext) (" + consensus.getId()
-                    + ") Finished out of context processing");
+            LOGGER.debug("(ExecutionManager.processOutOfContext) cid {} Finished out of context processing", consensus.getId());
         }
 
         /******* END OUTOFCONTEXT CRITICAL SECTION *******/
@@ -524,7 +518,7 @@ public final class ExecutionManager {
         outOfContextLock.lock();
         /******* BEGIN OUTOFCONTEXT CRITICAL SECTION *******/
         if (m.getType() == MessageFactory.PROPOSE) {
-            LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding " + m);
+            LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding {}", m);
             outOfContextProposes.put(m.getNumber(), m);
         } else {
             List<ConsensusMessage> messages = outOfContext.get(m.getNumber());
@@ -532,7 +526,7 @@ public final class ExecutionManager {
                 messages = new LinkedList<ConsensusMessage>();
                 outOfContext.put(m.getNumber(), messages);
             }
-            LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding " + m);
+            LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding {}", m);
             messages.add(m);
 
         }

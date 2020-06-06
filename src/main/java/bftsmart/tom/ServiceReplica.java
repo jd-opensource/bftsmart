@@ -336,14 +336,14 @@ public class ServiceReplica {
 		}
 
 		if (this.SVController.isInCurrentView()) {
-			LOGGER.info("-- In current view: " + this.SVController.getCurrentView());
+			LOGGER.info("-- In current view: {}", this.SVController.getCurrentView());
 			initTOMLayer(); // initiaze the TOM layer
 		} else {
-			LOGGER.error("-- Not in current view: " + this.SVController.getCurrentView());
+			LOGGER.error("-- Not in current view: {}", this.SVController.getCurrentView());
 
 			// Not in the initial view, just waiting for the view where the join has been
 			// executed
-			LOGGER.error("-- Waiting for the TTP: " + this.SVController.getCurrentView());
+			LOGGER.error("-- Waiting for the TTP: {}", this.SVController.getCurrentView());
 			waitTTPJoinMsgLock.lock();
 			try {
 				canProceed.awaitUninterruptibly();
@@ -480,9 +480,8 @@ public class ServiceReplica {
 			noop = true;
 			for (TOMMessage request : requestsFromConsensus) {
 
-				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client "
-						+ request.getSender() + " with sequence number " + request.getSequence() + " for session "
-						+ request.getSession() + " decided in consensus " + consId[consensusCount]);
+				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}"
+						, request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
 
 				if (request.getViewID() == SVController.getCurrentViewId()) {
 
@@ -505,8 +504,7 @@ public class ServiceReplica {
 						request.deliveryTime = System.nanoTime();
 						if (executor instanceof PreComputeBatchExecutable) {
 
-							LOGGER.debug(
-									"(ServiceReplica.receiveMessages) Batching request from " + request.getSender());
+							LOGGER.debug("(ServiceReplica.receiveMessages) Batching request from {}", request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
 							// to
@@ -522,8 +520,7 @@ public class ServiceReplica {
 							toBatch.add(request);
 						} else if (executor instanceof FIFOExecutable) {
 
-							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from "
-									+ request.getSender() + " via FifoExecutable");
+							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from {} via FifoExecutable", request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
 							// to
@@ -545,13 +542,11 @@ public class ServiceReplica {
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
 									request.getOperationId(), response, SVController.getCurrentViewId(),
 									request.getReqType());
-							LOGGER.debug(
-									"(ServiceReplica.receiveMessages) sending reply to " + request.getSender());
+							LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {}", request.getSender());
 							replier.manageReply(request, msgCtx);
 						} else if (executor instanceof SingleExecutable) {
 
-							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from "
-									+ request.getSender() + " via SingleExecutable");
+							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from {} via SingleExecutable", request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
 							// to
@@ -573,8 +568,7 @@ public class ServiceReplica {
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
 									request.getOperationId(), response, SVController.getCurrentViewId(),
 									request.getReqType());
-							LOGGER.debug(
-									"(ServiceReplica.receiveMessages) sending reply to " + request.getSender());
+							LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {}", request.getSender());
 							replier.manageReply(request, msgCtx);
 						} else {
 							throw new UnsupportedOperationException("Non-existent interface");
@@ -607,8 +601,7 @@ public class ServiceReplica {
 
 				LOGGER.debug("(ServiceReplica.receiveMessages) Delivering a no-op to the recoverer");
 
-				LOGGER.debug(
-						" --- A consensus instance finished, but there were no commands to deliver to the application.");
+				LOGGER.debug(" --- A consensus instance finished, but there were no commands to deliver to the application.");
 				LOGGER.debug(" --- Notifying recoverable about a blank consensus.");
 
 				byte[][] batch = null;
@@ -687,14 +680,12 @@ public class ServiceReplica {
 						request.getReqType());
 
 				if (SVController.getStaticConf().getNumRepliers() > 0) {
-					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to "
-							+ request.getSender() + " with sequence number " + request.getSequence()
-							+ " and operation ID " + request.getOperationId() + " via ReplyManager");
+					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {} via ReplyManager"
+							, request.getSender(), request.getSequence(), request.getOperationId());
 					repMan.send(request);
 				} else {
-					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to "
-							+ request.getSender() + " with sequence number " + request.getSequence()
-							+ " and operation ID " + request.getOperationId());
+					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
+							, request.getSender(), request.getSequence(), request.getOperationId());
 					replier.manageReply(request, msgContexts[index]);
 					// cs.send(new int[]{request.getSender()}, request.reply);
 				}

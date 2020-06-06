@@ -190,9 +190,9 @@ public class DiskStateLog extends StateLog {
 
 		int lastCheckpointCID = getLastCheckpointCID();
 		int lastCID = getLastCID();
-		LOGGER.debug("LAST CKP CID = " + lastCheckpointCID);
-		LOGGER.debug("CID = " + cid);
-		LOGGER.debug("LAST CID = " + lastCID);
+		LOGGER.debug("LAST CKP CID = {}", lastCheckpointCID);
+		LOGGER.debug("CID = {}", cid);
+		LOGGER.debug("LAST CID = {}", lastCID);
 		if (cid >= lastCheckpointCID && cid <= lastCID) {
 
 			int size = cid - lastCheckpointCID;
@@ -242,7 +242,7 @@ public class DiskStateLog extends StateLog {
 		if((cid % checkpointPeriod) % checkpointPortion == checkpointPortion -1) {
 			int ckpReplicaIndex = (((cid % checkpointPeriod) + 1) / checkpointPortion) -1;
 			try {
-				LOGGER.debug(" --- Replica " + ckpReplicaIndex + " took checkpoint. My current log pointer is " + log.getFilePointer());
+				LOGGER.debug(" --- Replica {} took checkpoint. My current log pointer is {}", ckpReplicaIndex, log.getFilePointer());
 				logPointers.put(ckpReplicaIndex, log.getFilePointer());
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -276,7 +276,7 @@ public class DiskStateLog extends StateLog {
 			log = fr.getLogState(0, logPath);
 		int ckpLastConsensusId = fr.getCkpLastConsensusId();
 		int logLastConsensusId = fr.getLogLastConsensusId();
-		LOGGER.debug("log last consensus di: " + logLastConsensusId);
+		LOGGER.debug("log last consensus id: {}", logLastConsensusId);
 		ApplicationState state = new DefaultApplicationState(log, ckpLastConsensusId,
 				logLastConsensusId, checkpoint, fr.getCkpStateHash(), this.id);
 		if(logLastConsensusId > ckpLastConsensusId) {

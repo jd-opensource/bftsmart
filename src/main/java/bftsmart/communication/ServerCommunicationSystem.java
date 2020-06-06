@@ -171,7 +171,7 @@ public class ServerCommunicationSystem extends Thread {
         if (sm instanceof TOMMessage) {
             clientsConn.send(targets, (TOMMessage) sm, false);
         } else {
-            LOGGER.debug("--------sending----------> " + sm);
+            LOGGER.debug("--------sending----------> {}", sm);
             serversConn.send(targets, sm, true);
         }
     }

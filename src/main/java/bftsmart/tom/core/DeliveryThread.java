@@ -86,7 +86,7 @@ public final class DeliveryThread extends Thread {
     public void delivery(Decision dec) {
         if (!containsGoodReconfig(dec)) {
 
-            LOGGER.debug("(DeliveryThread.delivery) Decision from consensus " + dec.getConsensusId() + " does not contain good reconfiguration");
+            LOGGER.debug("(DeliveryThread.delivery) Decision from consensus {} does not contain good reconfiguration", dec.getConsensusId());
             //set this decision as the last one from this replica
             tomLayer.setLastExec(dec.getConsensusId());
             //define that end of this execution
@@ -105,7 +105,7 @@ public final class DeliveryThread extends Thread {
             
             notEmptyQueue.signalAll();
             decidedLock.unlock();
-            LOGGER.debug("(DeliveryThread.delivery) Consensus " + dec.getConsensusId() + " finished. Decided size=" + decided.size());
+            LOGGER.debug("(DeliveryThread.delivery) Consensus {}, finished. Decided size {}", dec.getConsensusId(), decided.size());
         } catch (Exception e) {
             e.printStackTrace(System.out);
         }
@@ -150,7 +150,7 @@ public final class DeliveryThread extends Thread {
         int lastCID =  recoverer.setState(state);
 
         //set this decision as the last one from this replica
-        LOGGER.debug("Setting last CID to " + lastCID);
+        LOGGER.debug("Setting last CID to {}", lastCID);
         tomLayer.setLastExec(lastCID);
 
         //define the last stable consensus... the stable consensus can
@@ -164,10 +164,10 @@ public final class DeliveryThread extends Thread {
         //stateManager.setWaiting(-1);
         tomLayer.setNoExec();
 
-        LOGGER.debug("Current decided size: " + decided.size());
+        LOGGER.debug("Current decided size {}", decided.size());
         decided.clear();
 
-        LOGGER.debug("(DeliveryThread.update) All finished up to " + lastCID);
+        LOGGER.debug("(DeliveryThread.update) All finished up to {}", lastCID);
     }
 
     /**

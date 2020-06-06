@@ -91,7 +91,7 @@ public final class BatchBuilder {
                 
 		for (TOMMessage msg : msgs) {
 			//TOMMessage msg = msgs.next();
-			LOGGER.debug("(BatchBuilder.makeBatch) adding request from client " + msg.getSender() + " with sequence number " + msg.getSequence() + " for session " + msg.getSession() + " to PROPOSE");
+			LOGGER.debug("(BatchBuilder.makeBatch) adding request from client {} with sequence number {} for session {} to PROPOSE", msg.getSender(), msg.getSequence(), msg.getSession());
 			messages[i] = msg.serializedMessage;
 			signatures[i] = msg.serializedMessageSignature;
 

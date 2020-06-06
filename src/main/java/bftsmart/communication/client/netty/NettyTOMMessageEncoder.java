@@ -57,7 +57,7 @@ public class NettyTOMMessageEncoder extends MessageToByteEncoder<TOMMessage> {
             //signature was already produced before            
             signatureData = sm.serializedMessageSignature;
             if (signatureData.length != signatureLength)
-                LOGGER.warn("WARNING: message signature has size "+signatureData.length+" and should have "+signatureLength);
+                LOGGER.warn("WARNING: message signature has size {} and should have {}", signatureData.length, signatureLength);
         }
         
         if (useMAC) {

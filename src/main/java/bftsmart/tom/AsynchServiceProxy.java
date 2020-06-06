@@ -133,8 +133,7 @@ public class AsynchServiceProxy extends ServiceProxy {
 	 */
 	@Override
 	public void replyReceived(TOMMessage reply) {
-		LOGGER.debug("Asynchronously received reply from " + reply.getSender() + " with sequence number "
-				+ reply.getSequence() + " and operation ID " + reply.getOperationId());
+		LOGGER.debug("Asynchronously received reply from {} with sequence number {} and operation ID {}", reply.getSender(), reply.getSequence(), reply.getOperationId());
 
 		try {
 			canReceiveLock.lock();
@@ -151,8 +150,7 @@ public class AsynchServiceProxy extends ServiceProxy {
 					// && (reply.getOperationId() == requestContext.getOperationId())
 					&& (reply.getReqType().compareTo(requestContext.getRequestType())) == 0) {
 
-				LOGGER.debug("Deliverying message from " + reply.getSender() + " with sequence number "
-						+ reply.getSequence() + " and operation ID " + reply.getOperationId() + " to the listener");
+				LOGGER.debug("Deliverying message from {} with sequence number {} and operation ID {} to the listener", reply.getSender(), reply.getSequence(), reply.getOperationId());
 
 				ReplyListener replyListener = requestContext.getReplyListener();
 
@@ -233,7 +231,7 @@ public class AsynchServiceProxy extends ServiceProxy {
 	 */
 	private int invokeAsynch(byte[] request, int[] targets, ReplyListener replyListener, TOMMessageType reqType) {
 
-		LOGGER.debug("Asynchronously sending request to " + Arrays.toString(targets));
+		LOGGER.debug("Asynchronously sending request to {}", Arrays.toString(targets));
 
 		RequestContext requestContext = null;
 
@@ -243,7 +241,7 @@ public class AsynchServiceProxy extends ServiceProxy {
 				System.currentTimeMillis(), replyListener, request);
 
 		try {
-			LOGGER.debug("Storing request context for " + requestContext.getOperationId());
+			LOGGER.debug("Storing request context for {}", requestContext.getOperationId());
 			requestsContext.put(requestContext.getOperationId(), requestContext);
 			requestsReplies.put(requestContext.getOperationId(),
 					new TOMMessage[super.getViewManager().getCurrentViewN()]);

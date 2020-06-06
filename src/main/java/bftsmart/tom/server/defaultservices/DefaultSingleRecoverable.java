@@ -94,7 +94,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         
         if(msgCtx.isLastInBatch()) {
 	        if ((cid > 0) && ((cid % checkpointPeriod) == 0)) {
-	           LOGGER.debug("(DefaultSingleRecoverable.executeOrdered) Performing checkpoint for consensus " + cid);
+	           LOGGER.debug("(DefaultSingleRecoverable.executeOrdered) Performing checkpoint for consensus {}", cid);
 	            stateLock.lock();
 	            byte[] snapshot = getSnapshot();
 	            stateLock.unlock();
@@ -130,7 +130,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 
         logLock.lock();
 
-       LOGGER.debug("(TOMLayer.saveState) Saving state of CID " + lastCID);
+       LOGGER.debug("(TOMLayer.saveState) Saving state of CID {}", lastCID);
 
         thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
         thisLog.setLastCID(-1);
@@ -140,7 +140,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         /*System.out.println("fiz checkpoint");
         System.out.println("tamanho do snapshot: " + snapshot.length);
         System.out.println("tamanho do log: " + thisLog.getMessageBatches().length);*/
-       LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
+       LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID {}", lastCID);
     }
 
     private void saveCommands(byte[][] commands, MessageContext[] msgCtx) {
@@ -182,7 +182,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         // of not storing anything after a checkpoint and before logging more requests        
         if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) ret = new DefaultApplicationState();
 
-        LOGGER.debug("Getting log until CID " + cid + ", null: " + (ret == null));
+        LOGGER.debug("Getting log until CID {}, null? {} ", cid, (ret == null));
         logLock.unlock();
         return ret;
     }
@@ -194,7 +194,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             
             DefaultApplicationState state = (DefaultApplicationState) recvState;
             
-            LOGGER.debug("(DefaultSingleRecoverable.setState) last CID in state: " + state.getLastCID());
+            LOGGER.debug("(DefaultSingleRecoverable.setState) last CID in state: {}", state.getLastCID());
             
             logLock.lock();
             initLog();
@@ -205,15 +205,15 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             
             lastCID = state.getLastCID();
 
-            LOGGER.debug("(DefaultSingleRecoverable.setState) I'm going to update myself from CID "
-                    + lastCheckpointCID + " to CID " + lastCID);
+            LOGGER.debug("(DefaultSingleRecoverable.setState) I'm going to update myself from CID {} to CID"
+                    , lastCheckpointCID, lastCID);
 
             stateLock.lock();
             installSnapshot(state.getState());
 
             for (int cid = lastCheckpointCID + 1; cid <= lastCID; cid++) {
                 try {
-                    LOGGER.debug("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID " + cid);
+                    LOGGER.debug("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID {}", cid);
 
                     CommandsInfo cmdInfo = state.getMessageBatch(cid); 
                     byte[][] cmds = cmdInfo.commands; // take a batch

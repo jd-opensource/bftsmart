@@ -308,7 +308,7 @@ public class RequestsTimer {
          */
         public void run() {
 
-                LOGGER.info("(SendStopTask.run) %s Re-transmitting STOP message to install regency %s \r\n",
+                LOGGER.info("(SendStopTask.run) {} Re-transmitting STOP message to install regency {}",
                         controller.getStaticConf().getProcessId(), stop.getReg());
                 communication.send(controller.getCurrentViewOtherAcceptors(),this.stop);
 

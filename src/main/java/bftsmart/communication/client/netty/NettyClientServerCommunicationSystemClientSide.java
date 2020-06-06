@@ -297,7 +297,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         sessionTable.remove(ncss.getReplicaId());
                         sessionTable.put(ncss.getReplicaId(), cs);
 
-                        LOGGER.debug("re-connecting to replica "+ncss.getReplicaId()+" at " + controller.getRemoteAddress(ncss.getReplicaId()));
+                        LOGGER.info("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
                     } else {
                         // This cleans an olde server from the session table
                         sessionTable.remove(ncss.getReplicaId());
@@ -326,7 +326,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
         listener.waitForChannels(targets.length); // wait for the previous transmission to complete
         
-        LOGGER.debug("Sending request from " + sm.getSender() + " with sequence number " + sm.getSequence() + " to " + Arrays.toString(targets));
+        LOGGER.debug("Sending request from {} with sequence number {} to {}", sm.getSender(), sm.getSequence(), Arrays.toString(targets));
                 
         if (sm.serializedMessage == null) {
 
@@ -533,7 +533,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     this.enoughCompleted.signalAll();
                 }
 
-                LOGGER.debug("(SyncListener.operationComplete) " + this.remainingFutures + " channel operations remaining to complete");
+                LOGGER.debug("(SyncListener.operationComplete) {} channel operations remaining to complete", this.remainingFutures);
                 
                 this.futureLock.unlock();
               
@@ -544,7 +544,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 this.futureLock.lock();
                 if (this.remainingFutures > 0) {
                     
-                    LOGGER.debug("(SyncListener.waitForChannels)  There are still " + this.remainingFutures + " channel operations pending, waiting to complete");
+                    LOGGER.debug("(SyncListener.waitForChannels)  There are still {} channel operations pending, waiting to complete", this.remainingFutures);
                     
                     try {
                         this.enoughCompleted.await(1000, TimeUnit.MILLISECONDS); // timeout if a malicous replica refuses to acknowledge the operation as completed

@@ -218,8 +218,7 @@ public class ServiceProxy extends TOMSender {
 		if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 
 			replyServer = getRandomlyServerId();
-			LOGGER.debug("[" + this.getClass().getName() + "] replyServerId(" + replyServer + ") " + "pos("
-					+ getViewManager().getCurrentViewPos(replyServer) + ")");
+			LOGGER.debug("[{}] replyServerId {} pos at {}", this.getClass().getName(), replyServer, getViewManager().getCurrentViewPos(replyServer));
 
 			hashResponseController = new HashResponseController(getViewManager().getCurrentViewPos(replyServer),
 					getViewManager().getCurrentViewProcesses().length);
@@ -233,8 +232,8 @@ public class ServiceProxy extends TOMSender {
 			TOMulticast(request, reqId, operationId, reqType);
 		}
 
-		LOGGER.debug("Sending request (" + reqType + ") with reqId=" + reqId);
-		LOGGER.debug("Expected number of matching replies: " + replyQuorum);
+		LOGGER.debug("Sending request {} with reqId {}", reqType, reqId);
+		LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
 		// This instruction blocks the thread, until a response is obtained.
 		// The thread will be unblocked when the method replyReceived is invoked
@@ -329,7 +328,7 @@ public class ServiceProxy extends TOMSender {
 
 	// ******* EDUARDO BEGIN **************//
 	protected void reconfigureTo(View v) {
-		LOGGER.debug("Installing a most up-to-date view with id=" + v.getId());
+		LOGGER.debug("Installing a most up-to-date view with id {}", v.getId());
 		getViewManager().reconfigureTo(v);
 		getViewManager().getViewStore().storeView(v);
 		replies = new TOMMessage[getViewManager().getCurrentViewN()];
@@ -345,13 +344,12 @@ public class ServiceProxy extends TOMSender {
 	 */
 	@Override
 	public void replyReceived(TOMMessage reply) {
-		LOGGER.debug("Synchronously received reply from " + reply.getSender() + " with sequence number "
-				+ reply.getSequence());
+		LOGGER.debug("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
 
 		try {
 			canReceiveLock.lock();
 			if (reqId == -1) {// no message being expected
-				LOGGER.info("throwing out request: sender=" + reply.getSender() + " reqId=" + reply.getSequence());
+				LOGGER.info("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
 				canReceiveLock.unlock();
 				return;
 			}
@@ -366,8 +364,7 @@ public class ServiceProxy extends TOMSender {
 			int sameContent = 1;
 			if (reply.getSequence() == reqId && reply.getReqType() == requestType) {
 
-				LOGGER.debug("Receiving reply from " + reply.getSender() + " with reqId:" + reply.getSequence()
-						+ ". Putting on pos=" + pos);
+				LOGGER.debug("Receiving reply from {} with reqId {}. Putting on pos {}", reply.getSender(), reply.getSequence(), pos);
 
 				if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 					response = hashResponseController.getResponse(pos, reply);
@@ -420,8 +417,7 @@ public class ServiceProxy extends TOMSender {
 						}
 					}
 				}
-			} else {
-				LOGGER.error("Ignoring reply from " + reply.getSender() + " with reqId:" + reply.getSequence()
+			} else { ("Ignoring reply from " + reply.getSender() + " with reqId:" + reply.getSequence()
 						+ ". Currently wait reqId= " + reqId);
 
 			}
@@ -479,8 +475,7 @@ public class ServiceProxy extends TOMSender {
 			} else {
 				hashReplies[pos] = tomMessage.getContent();
 			}
-			LOGGER.debug("[" + this.getClass().getName() + "] hashReplies[" + pos + "]="
-					+ Arrays.toString(hashReplies[pos]));
+			LOGGER.debug("[{}] hashReplies[{}] = {}", this.getClass().getName(), pos, Arrays.toString(hashReplies[pos]));
 
 			if (hashReplies[replyServerPos] != null) {
 				int sameContent = 1;

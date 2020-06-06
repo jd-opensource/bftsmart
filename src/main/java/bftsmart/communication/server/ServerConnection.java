@@ -604,7 +604,7 @@ public class ServerConnection {
                             }
                         } else {
                             //TODO: violation of authentication... we should do something
-                            LOGGER.warn("WARNING: Violation of authentication in message received from " + remoteId);
+                            LOGGER.warn("WARNING: Violation of authentication in message received from {}", remoteId);
                         }
                     } catch (ClassNotFoundException ex) {
                         //invalid message sent, just ignore;
@@ -689,7 +689,7 @@ public class ServerConnection {
                             }
                         } else {
                             //TODO: violation of authentication... we should do something
-                            LOGGER.warn("WARNING: Violation of authentication in message received from " + remoteId);
+                            LOGGER.warn("WARNING: Violation of authentication in message received from {}", remoteId);
                         }
                     } catch (ClassNotFoundException ex) {
                         ex.printStackTrace();

@@ -77,7 +77,7 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
         this.rl = rl;
         this.signatureSize = signatureLength;
         this.useMAC = useMAC;
-        LOGGER.debug("new NettyTOMMessageDecoder!!, isClient=" + isClient);
+        LOGGER.debug("new NettyTOMMessageDecoder!!, isClient {} ", isClient);
     }
 
     @Override
@@ -168,8 +168,8 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
                     }
                 } else {
                     //creates MAC/publick key stuff if it's the first message received from the client
-                    LOGGER.debug("Creating MAC/public key stuff, first message from client" + sm.getSender());
-                    LOGGER.debug("sessionTable size=" + sessionTable.size());
+                    LOGGER.debug("Creating MAC/public key stuff, first message from client {}", sm.getSender());
+                    LOGGER.debug("sessionTable size {}", sessionTable.size());
 
                     rl.readLock().unlock();
                     
@@ -187,7 +187,7 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
                     rl.writeLock().lock();
 //                    LOGGER.debug("PUT INTO SESSIONTABLE - [client id]:"+sm.getSender()+" [channel]: "+cs.getChannel());
                     sessionTable.put(sm.getSender(), cs);
-                    LOGGER.debug("#active clients " + sessionTable.size());
+                    LOGGER.debug("#active clients {}", sessionTable.size());
                     rl.writeLock().unlock();
                     if (useMAC && !verifyMAC(sm.getSender(), data, digest)) {
                         LOGGER.error("MAC error: message discarded");
@@ -195,11 +195,10 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
                     }
                 }
             }
-            LOGGER.debug("Decoded reply from " + sm.getSender() + " with sequence number " + sm.getSequence());
+            LOGGER.debug("Decoded reply from {} with sequence number {}", sm.getSender(), sm.getSequence());
             list.add(sm);
         } catch (Exception ex) {
-            LOGGER.error("Impossible to decode message: "+
-                    ex.getMessage());
+            LOGGER.error("Impossible to decode message: {} ", ex.getMessage());
             ex.printStackTrace();
         }
         return;

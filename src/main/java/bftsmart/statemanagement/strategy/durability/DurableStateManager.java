@@ -404,9 +404,7 @@ public class DurableStateManager extends BaseStateManager {
 							&& (SVController.getCurrentViewN() / 2) < getReplies()) {
 						LOGGER.error("---- DIDNT RECEIVE STATE ----");
 
-						LOGGER.error("(TOMLayer.SMReplyDeliver) I have more than "
-								+ (SVController.getCurrentViewN() / 2)
-								+ " messages that are no good!");
+						LOGGER.error("(TOMLayer.SMReplyDeliver) I have more than {} messages that are no good!", (SVController.getCurrentViewN() / 2));
 
 						waitingCID = -1;
 						reset();

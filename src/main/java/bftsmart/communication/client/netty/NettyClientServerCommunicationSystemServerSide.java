@@ -101,12 +101,12 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					controller.getStaticConf().getProcessId()),
 					controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()))).sync(); 
 
-			LOGGER.info("-- ID = " + controller.getStaticConf().getProcessId());
-			LOGGER.info("-- N = " + controller.getCurrentViewN());
-			LOGGER.info("-- F = " + controller.getCurrentViewF());
-        		LOGGER.info("-- Port = " + controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
-			LOGGER.info("-- requestTimeout = " + controller.getStaticConf().getRequestTimeout());
-			LOGGER.info("-- maxBatch = " + controller.getStaticConf().getMaxBatchSize());
+			LOGGER.info("-- ID = {}", controller.getStaticConf().getProcessId());
+			LOGGER.info("-- N = {}", controller.getCurrentViewN());
+			LOGGER.info("-- F = {}", controller.getCurrentViewF());
+        		LOGGER.info("-- Port = {}", controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
+			LOGGER.info("-- requestTimeout = {}", controller.getStaticConf().getRequestTimeout());
+			LOGGER.info("-- maxBatch = {}", controller.getStaticConf().getMaxBatchSize());
 			if (controller.getStaticConf().getUseMACs() == 1) LOGGER.info("-- Using MACs");
 			if(controller.getStaticConf().getUseSignatures() == 1) LOGGER.info("-- Using Signatures");
 			//******* EDUARDO END **************//
@@ -187,7 +187,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                     closeChannelAndEventLoop(ctx.channel());
                     return;
                 }
-		LOGGER.debug("Session Created, active clients=" + sessionTable.size());
+		LOGGER.debug("Session Created, active clients {} ", sessionTable.size());
 	}
 
 	@Override
@@ -207,9 +207,9 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 				NettyClientServerSession value = (NettyClientServerSession) m.getValue();
 				if (ctx.channel().equals(value.getChannel())) {
 					int key = (Integer) m.getKey();
-					LOGGER.debug("#Removing client channel with ID= " + key);
+					LOGGER.debug("#Removing client channel with ID {} ", key);
 					sessionTable.remove(key);
-					LOGGER.debug("#active clients=" + sessionTable.size());
+					LOGGER.debug("#active clients {}", sessionTable.size());
 					break;
 				}
 			}
@@ -219,7 +219,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 		} finally {
 			rl.writeLock().unlock();
 		}
-		LOGGER.debug("Session Closed, active clients=" + sessionTable.size());
+		LOGGER.debug("Session Closed, active clients {}", sessionTable.size());
 	}
 
 	@Override
@@ -282,7 +282,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                                                                                         
                                             public void run() {
                                                 
-                                                LOGGER.debug("Received request from " + id + " before establishing Netty connection. Re-trying until connection is established");
+                                                LOGGER.debug("Received request from {} before establishing Netty connection. Re-trying until connection is established", id);
 
                                                 NettyClientServerSession ncss = null;
                                                 while (ncss == null) {
@@ -307,7 +307,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                                                     
                                                 }
                                                  
-                                                LOGGER.debug("Connection with " + id + " established!");
+                                                LOGGER.debug("Connection with {} established", id);
 
                                                 
                                             }
@@ -317,7 +317,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                                         t.start();
                                         ///////////////////////////////////////////
 				} else {
-                                    LOGGER.debug("!!!!!!!!NettyClientServerSession NULL !!!!!! sequence: " + sm.getSequence() + ", ID; " + targets[i]);
+                                    LOGGER.debug("!!!!!!!!NettyClientServerSession NULL !!!!!! sequence: {}, ID: {}", sm.getSequence(), targets[i]);
                                 }
 			} finally {
 				//sendLock.unlock();

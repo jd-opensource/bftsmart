@@ -264,7 +264,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
      */
     public void setInExec(int inEx) {
         proposeLock.lock();
-        LOGGER.debug("(TOMLayer.setInExec) modifying inExec from " + this.inExecution + " to " + inEx);
+        LOGGER.debug("(TOMLayer.setInExec) modifying inExec from {} to {}", this.inExecution, inEx);
         this.inExecution = inEx;
         if (inEx == -1 && !isRetrievingState()) {
             canPropose.signalAll();
@@ -307,11 +307,11 @@ public class TOMLayer extends Thread implements RequestReceiver {
         boolean readOnly = (msg.getReqType() == TOMMessageType.UNORDERED_REQUEST
                 || msg.getReqType() == TOMMessageType.UNORDERED_HASHED_REQUEST);
         if (readOnly) {
-            LOGGER.debug("(TOMLayer.requestReceived) Received read-only TOMMessage from client " + msg.getSender() + " with sequence number " + msg.getSequence() + " for session " + msg.getSession());
+            LOGGER.debug("(TOMLayer.requestReceived) Received read-only TOMMessage from client {} with sequence number {} for session {}", msg.getSender(), msg.getSequence(), msg.getSession());
 
             dt.deliverUnordered(msg, syncher.getLCManager().getLastReg());
         } else {
-            LOGGER.debug("(TOMLayer.requestReceived) Received TOMMessage from client " + msg.getSender() + " with sequence number " + msg.getSequence() + " for session " + msg.getSession());
+            LOGGER.debug("(TOMLayer.requestReceived) Received TOMMessage from client {} with sequence number {} for session {}", msg.getSender(), msg.getSequence(), msg.getSession());
 
             if (clientsManager.requestReceived(msg, true, communication)) {
                 haveMessages();
@@ -342,7 +342,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
         }
         dec.batchSize = numberOfMessages;
 
-        LOGGER.debug("(TOMLayer.run) creating a PROPOSE with " + numberOfMessages + " msgs");
+        LOGGER.debug("(TOMLayer.run) creating a PROPOSE with {} msgs", numberOfMessages);
 
         return bb.makeBatch(pendingRequests, numberOfNonces, System.currentTimeMillis(), controller);
     }
@@ -379,7 +379,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
                 // blocks until this replica learns to be the leader for the current epoch of the current consensus
                 leaderLock.lock();
-                LOGGER.debug("Next leader for CID=" + (getLastExec() + 1) + ": " + execManager.getCurrentLeader());
+                LOGGER.debug("Next leader for CID {} : {}", (getLastExec() + 1), execManager.getCurrentLeader());
 
                 //******* EDUARDO BEGIN **************//
                 if (execManager.getCurrentLeader() != this.controller.getStaticConf().getProcessId()) {
@@ -395,7 +395,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
                 proposeLock.lock();
 
                 if (getInExec() != -1) { //there is some consensus running
-                    LOGGER.debug("(TOMLayer.run) Waiting for consensus " + getInExec() + " termination.");
+                    LOGGER.debug("(TOMLayer.run) Waiting for consensus {} termination.", getInExec());
                     canPropose.awaitUninterruptibly();
                 }
                 proposeLock.unlock();
@@ -548,7 +548,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
     public void forwardRequestToLeader(TOMMessage request) {
         int leaderId = execManager.getCurrentLeader();
         if (this.controller.isCurrentViewMember(leaderId)) {
-            LOGGER.debug("(TOMLayer.forwardRequestToLeader) forwarding " + request + " to " + leaderId);
+            LOGGER.debug("(TOMLayer.forwardRequestToLeader) forwarding {} to {}", request, leaderId);
             communication.send(new int[]{leaderId},
                     new ForwardedMessage(this.controller.getStaticConf().getProcessId(), request));
         }
@@ -563,7 +563,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
     }
 
     public void setNoExec() {
-        LOGGER.debug("(TOMLayer.setNoExec) modifying inExec from " + this.inExecution + " to " + -1);
+        LOGGER.debug("(TOMLayer.setNoExec) modifying inExec from {} to -1", this.inExecution);
 
         proposeLock.lock();
         this.inExecution = -1;

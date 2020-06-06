@@ -350,7 +350,7 @@ public class HeartBeatTimer {
 //                    System.out.printf("I am proc %s check heart beat message , check time = %s \r\n", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
                     if (innerHeartBeatMessage == null) {
                         // todo 此处触发超时
-                        LOGGER.info("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout1");
+                        LOGGER.info("I am proc {} trigger hb timeout1", tomLayer.controller.getStaticConf().getProcessId());
                         if (tomLayer.requestsTimer != null) {
                             tomLayer.requestsTimer.run_lc_protocol();
                         }
@@ -359,7 +359,7 @@ public class HeartBeatTimer {
                         long lastTime = innerHeartBeatMessage.getTime();
                         if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
                             // todo 此处触发超时
-                            LOGGER.info("I am proc " + tomLayer.controller.getStaticConf().getProcessId() + " trigger hb timeout2" + ", time = " + System.currentTimeMillis() + ", last hb time = " + innerHeartBeatMessage.getTime());
+                            LOGGER.info("I am proc {} trigger hb timeout2, time = {}, last hb time = {}", tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis(), innerHeartBeatMessage.getTime());
                             if (tomLayer.requestsTimer != null) {
                                 tomLayer.requestsTimer.run_lc_protocol();
                             }

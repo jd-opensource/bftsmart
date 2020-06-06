@@ -125,7 +125,7 @@ public class LCManager {
             }
         } while(!SVController.isCurrentViewMember(currentLeader));
 
-        LOGGER.debug("I am proc %s , get new leader = %s \r\n",
+        LOGGER.debug("I am proc {} , get new leader = {}",
                 tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
 
         return currentLeader;
@@ -137,7 +137,7 @@ public class LCManager {
      */
     public void setNewLeader(int leader) {
         currentLeader = leader;
-        LOGGER.info("I am proc %s , set new leader = %s \r\n",
+        LOGGER.info("I am proc {} , set new leader = {}",
                 tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
     }
     
@@ -390,7 +390,7 @@ public class LCManager {
      */
     public boolean sound(HashSet<CollectData> collects) {
 
-        LOGGER.info("(LCManager.sound) I collected the context from " + collects.size() + " replicas");
+        LOGGER.info("(LCManager.sound) I collected the context from {} replicas", collects.size());
         
         if (collects == null) return false;
         
@@ -399,7 +399,7 @@ public class LCManager {
 
         for (CollectData c : collects) { // organize all existing timestamps and values separately
             
-            LOGGER.debug("(LCManager.sound) Context for replica "+c.getPid()+": CID["+c.getCid()+"] WRITESET["+c.getWriteSet()+"] (VALTS,VAL)[" + c.getQuorumWrites() +"]");
+            LOGGER.debug("(LCManager.sound) Context for replica {}, CID {},WRITESET [{}], (VALTS,VAL) [{}]", c.getPid(), c.getCid(), c.getWriteSet(), c.getQuorumWrites());
             
             timestamps.add(c.getQuorumWrites().getTimestamp()); //store timestamp received from a Byzatine quorum of WRITES
             
@@ -431,17 +431,17 @@ public class LCManager {
 
         }
 
-        LOGGER.debug("(LCManager.sound) number of timestamps: "+timestamps.size());
-        LOGGER.debug("(LCManager.sound) number of values: "+values.size());
+        LOGGER.debug("(LCManager.sound) number of timestamps: {}", timestamps.size());
+        LOGGER.debug("(LCManager.sound) number of values: {}", values.size());
 
         // after having organized all timestamps and values, properly apply the predicate
         for (int r : timestamps) {
             for (byte[] v : values) {
 
-                LOGGER.debug("(LCManager.sound) testing predicate BIND for timestamp/value pair (" + r + " , " + Arrays.toString(v) + ")");
+                LOGGER.debug("(LCManager.sound) testing predicate BIND for timestamp/value pair [{}],[{}]", r, Arrays.toString(v));
                 if (binds(r, v, collects)) {
 
-                    LOGGER.debug("(LCManager.sound) Predicate BIND is true for timestamp/value pair (" + r + " , " + Arrays.toString(v) + ")");
+                    LOGGER.debug("(LCManager.sound) Predicate BIND is true for timestamp/value pair [{}],[{}]", r, Arrays.toString(v));
                     LOGGER.debug("(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
                     return true;
                 }
@@ -624,7 +624,7 @@ public class LCManager {
             }
         }
 
-        if (appears) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) + ") appears in at least one replica context");
+        if (appears) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair [{}],[{}] appears in at least one replica context", timestamp, Arrays.toString(value));
         
         int count = 0;
         for (CollectData c : collects) {
@@ -644,8 +644,7 @@ public class LCManager {
         else {
             quorum = count > ((SVController.getCurrentViewN())/2);
         }
-        if (quorum) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) +
-                ") has the highest timestamp among a " + (SVController.getStaticConf().isBFT() ? "Byzantine" : "simple") + " quorum of replica contexts");
+        if (quorum) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair [{}], [{}] has the highest timestamp among a {} quorum of replica contexts", timestamp, Arrays.toString(value), (SVController.getStaticConf().isBFT() ? "Byzantine" : "simple");
         return appears && quorum;
     }
 
@@ -684,8 +683,7 @@ public class LCManager {
         } else {
             certified = count > 0;
         }
-        if (certified) LOGGER.debug("(LCManager.certifiedValue) timestamp/value pair (" + timestamp + " , " + Arrays.toString(value) +
-                ") has been written by at least " + count + " replica(s)");
+        if (certified) LOGGER.debug("(LCManager.certifiedValue) timestamp/value pair [{}], [{}] has been written by at least {} replica(s)", timestamp, Arrays.toString(value), count);
 
         return certified;
     }
@@ -812,7 +810,7 @@ public class LCManager {
         if (cDec.getCID() == -1 || cDec.getDecision() == null || cDec.getConsMessages() == null) return true; // If the last CID is -1 it means the replica
                                              // did not complete any consensus and cannot have
                                              // any proof
-        LOGGER.debug("I am %s, pid = %s, cid = %s, consmsg = %s \r\n",
+        LOGGER.debug("I am {}, pid = {}, cid = {}, consmsg = {}",
                 tomLayer.controller.getStaticConf().getProcessId(), cDec.getPID(), cDec.getCID(),
                 cDec.getConsMessages() == null ? "null" : cDec.getConsMessages().size());
 
@@ -902,7 +900,7 @@ public class LCManager {
         //return countValid >= certificateCurrentView;
 
         boolean result = countValid >=  (certificateLastView != -1 && pubRSAKey != null ? certificateLastView : certificateCurrentView);
-        LOGGER.debug("Proof is valid ? "+result);
+        LOGGER.debug("Proof is valid ? {}", result);
         return result;
     }
 
