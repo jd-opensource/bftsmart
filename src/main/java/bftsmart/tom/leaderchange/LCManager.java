@@ -644,7 +644,7 @@ public class LCManager {
         else {
             quorum = count > ((SVController.getCurrentViewN())/2);
         }
-        if (quorum) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair [{}], [{}] has the highest timestamp among a {} quorum of replica contexts", timestamp, Arrays.toString(value), (SVController.getStaticConf().isBFT() ? "Byzantine" : "simple");
+        if (quorum) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair [{}], [{}] has the highest timestamp among a {} quorum of replica contexts", timestamp, Arrays.toString(value), SVController.getStaticConf().isBFT() ? "Byzantine" : "simple");
         return appears && quorum;
     }
 

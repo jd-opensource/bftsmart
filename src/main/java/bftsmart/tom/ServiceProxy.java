@@ -417,8 +417,7 @@ public class ServiceProxy extends TOMSender {
 						}
 					}
 				}
-			} else { ("Ignoring reply from " + reply.getSender() + " with reqId:" + reply.getSequence()
-						+ ". Currently wait reqId= " + reqId);
+			} else { LOGGER.debug("Ignoring reply from {} with reqId {}. Currently wait reqId {}", reply.getSender(), reply.getSequence(), reqId);
 
 			}
 
