@@ -215,7 +215,7 @@ public final class Acceptor {
         int ets = executionManager.getConsensus(msg.getNumber()).getEts();
 //    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
 
-    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus {} ", cid);
+    	LOGGER.info("(Acceptor.proposeReceived) PROPOSE for consensus {} ", cid);
     	if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
                 && epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
     		executePropose(epoch, msg.getValue());
@@ -235,7 +235,7 @@ public final class Acceptor {
 
         try {
             int cid = epoch.getConsensus().getId();
-            LOGGER.debug("(Acceptor.executePropose) executing propose for cid : {}, epoch timestamp: {}", cid, epoch.getTimestamp());
+            LOGGER.info("(Acceptor.executePropose) executing propose for cid : {}, epoch timestamp: {}", cid, epoch.getTimestamp());
 
             long consensusStartTime = System.nanoTime();
 
@@ -344,7 +344,7 @@ public final class Acceptor {
         try {
             int writeAccepted = epoch.countWrite(value);
 
-            LOGGER.debug("(Acceptor.computeWrite) I have {} WRITEs for cid {}, epoch timestamp {}", writeAccepted, cid, epoch.getTimestamp());
+            LOGGER.info("(Acceptor.computeWrite) I have {} WRITEs for cid {}, epoch timestamp {}", writeAccepted, cid, epoch.getTimestamp());
 
             if (writeAccepted > controller.getQuorum()) {
 
@@ -587,13 +587,14 @@ public final class Acceptor {
     private void computeAccept(int cid, Epoch epoch, byte[] value) {
         try {
             List<byte[]> updatedResp;
-            LOGGER.debug("(Acceptor.computeAccept) I have {} ACCEPTs for cid {} and timestamp {}", epoch.countAccept(value), cid, epoch.getTimestamp());
+            LOGGER.info("(Acceptor.computeAccept) I have {} ACCEPTs for cid {} and timestamp {}", epoch.countAccept(value), cid, epoch.getTimestamp());
 
             if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
                 if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                     LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
                     try {
                         getDefaultExecutor().preComputeCommit(epoch.getBatchId());
+                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} msg to ledger", controller.getStaticConf().getProcessId(), cid);
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
@@ -604,6 +605,7 @@ public final class Acceptor {
                         createResponses(epoch, updatedResp);
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
+                    LOGGER.error("I am proc {} , precompute fail, will rollback", controller.getStaticConf().getProcessId());
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
                     createResponses(epoch, epoch.getAsyncResponseLinkedList());
