@@ -269,7 +269,7 @@ public class Synchronizer {
             boolean conditionCFT = (lcManager.getLastCIDsSize(regency) > cftQuorum && lcManager.getCollectsSize(regency) > cftQuorum);
 
             if (conditionBFT || conditionCFT) {
-                LOGGER.info("(Synchronizer.processSTOPDATA) I am proc {}, I recv >= 3 StopData, I will catch up regency {}, msg from {}", controller.getStaticConf().getProcessId(), regency, msg.getSender());
+                LOGGER.info("(Synchronizer.processSTOPDATA) I am proc {}, I recv >= 3 StopData, I will catch up regency {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), regency, msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                 catch_up(regency);
             }
 
@@ -858,12 +858,12 @@ public class Synchronizer {
         switch (msg.getType()) {
             case TOMUtil.STOP: { // message STOP
 
-                LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Recv Stop msg, Last regency {}, next regency {}, time {}, from {} ", controller.getStaticConf().getProcessId(), lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender());
+                LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Recv Stop msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
 
                 // this message is for the next leader change?
                 if (msg.getReg() == lcManager.getLastReg() + 1) {
 
-                   LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} received regency change request", controller.getStaticConf().getProcessId());
+                   LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} received regency change request, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
 
                     TOMMessage[] requests = deserializeTOMMessages(msg.getPayload());
 
@@ -881,11 +881,11 @@ public class Synchronizer {
 
                 } else if (msg.getReg() > lcManager.getLastReg()) { // send STOP to out of context if
                     // it is for a future regency
-                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} Keeping STOP message as out of context for regency {}", controller.getStaticConf().getProcessId(), msg.getReg());
+                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} Keeping STOP message as out of context for regency {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getReg(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                     outOfContextLC.add(msg);
 
                 } else {
-                    LOGGER.error("(Synchronizer.deliverTimeoutRequest) I am proc {} Discarding STOP message", controller.getStaticConf().getProcessId());
+                    LOGGER.error("(Synchronizer.deliverTimeoutRequest) I am proc {} Discarding STOP message, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                 }
             }
             break;
@@ -893,21 +893,21 @@ public class Synchronizer {
 
                 int regency = msg.getReg();
 
-                LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} Recv Stopdata msg, Last regency {}, next regency {}, time {}, from {}", controller.getStaticConf().getProcessId(), lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender());
+                LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} Recv Stopdata msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
 
                 // Am I the new leader, and am I expecting this messages?
                 if (regency == lcManager.getLastReg()
                         && this.controller.getStaticConf().getProcessId() == execManager.getCurrentLeader()/*(regency % this.reconfManager.getCurrentViewN())*/) {
 
-                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} I'm the new leader and I received a STOPDATA", controller.getStaticConf().getProcessId());
+                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} I'm the new leader and I received a STOPDATA, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                     processSTOPDATA(msg, regency);
                 } else if (msg.getReg() > lcManager.getLastReg()) { // send STOPDATA to out of context if
                                                                     // it is for a future regency
-                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} Keeping STOPDATA message as out of context for regency {}", controller.getStaticConf().getProcessId(), msg.getReg());
+                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {} Keeping STOPDATA message as out of context for regency {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getReg(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                     outOfContextLC.add(msg);
 
                 } else {
-                    LOGGER.error("(Synchronizer.deliverTimeoutRequest) I am proc {} Discarding STOPDATA message", controller.getStaticConf().getProcessId());
+                    LOGGER.error("(Synchronizer.deliverTimeoutRequest) I am proc {} Discarding STOPDATA message, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                 }
             }
             break;
@@ -915,7 +915,7 @@ public class Synchronizer {
 
                 int regency = msg.getReg();
 
-                LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Recv Sync msg, Last regency {}, next regency {}", controller.getStaticConf().getProcessId(), lcManager.getLastReg(), lcManager.getNextReg());
+                LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Recv Sync msg, Last regency {}, next regency {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), lcManager.getLastReg(), lcManager.getNextReg(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
 
                 // I am expecting this sync?
                 boolean isExpectedSync = (regency == lcManager.getLastReg() && regency == lcManager.getNextReg());
@@ -939,11 +939,11 @@ public class Synchronizer {
 
                 } else if (msg.getReg() > lcManager.getLastReg()) { // send SYNC to out of context if
                     // it is for a future regency
-                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Keeping SYNC message as out of context for regency {}", controller.getStaticConf().getProcessId(), msg.getReg());
+                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Keeping SYNC message as out of context for regency {}, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getReg(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                     outOfContextLC.add(msg);
 
                 } else {
-                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Discarding SYNC message", controller.getStaticConf().getProcessId());
+                    LOGGER.info("(Synchronizer.deliverTimeoutRequest) I am proc {}, Discarding SYNC message, from proc {}, from port {}", controller.getStaticConf().getProcessId(), msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getPort());
                 }
             }
             break;

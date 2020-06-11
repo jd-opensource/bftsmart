@@ -215,7 +215,7 @@ public final class Acceptor {
         int ets = executionManager.getConsensus(msg.getNumber()).getEts();
 //    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
 
-    	LOGGER.info("(Acceptor.proposeReceived) PROPOSE for consensus {} ", cid);
+    	LOGGER.info("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ", controller.getStaticConf().getProcessId(), cid);
     	if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
                 && epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
     		executePropose(epoch, msg.getValue());
@@ -235,7 +235,7 @@ public final class Acceptor {
 
         try {
             int cid = epoch.getConsensus().getId();
-            LOGGER.info("(Acceptor.executePropose) executing propose for cid : {}, epoch timestamp: {}", cid, epoch.getTimestamp());
+            LOGGER.info("(Acceptor.executePropose) I am proc {}, executing propose for cid : {}, epoch timestamp: {}", controller.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
 
             long consensusStartTime = System.nanoTime();
 
@@ -344,15 +344,15 @@ public final class Acceptor {
         try {
             int writeAccepted = epoch.countWrite(value);
 
-            LOGGER.info("(Acceptor.computeWrite) I have {} WRITEs for cid {}, epoch timestamp {}", writeAccepted, cid, epoch.getTimestamp());
 
             if (writeAccepted > controller.getQuorum()) {
+                LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
 
 //            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 
                 if (!epoch.isAcceptSetted(me) && Arrays.equals(value, epoch.propValueHash)) {
 
-                    LOGGER.debug("(Acceptor.computeWrite) sending WRITE for {}", cid);
+                    LOGGER.info("(Acceptor.computeWrite) I am proc {} sending WRITE for {}", this.controller.getStaticConf().getProcessId(), cid);
 
                     /**** LEADER CHANGE CODE! ******/
                     LOGGER.debug("(Acceptor.computeWrite) Setting consensus {} , QuorumWrite tiemstamp to {} and value {}", cid, epoch.getConsensus().getEts(), Arrays.toString(value));
@@ -587,14 +587,14 @@ public final class Acceptor {
     private void computeAccept(int cid, Epoch epoch, byte[] value) {
         try {
             List<byte[]> updatedResp;
-            LOGGER.info("(Acceptor.computeAccept) I have {} ACCEPTs for cid {} and timestamp {}", epoch.countAccept(value), cid, epoch.getTimestamp());
 
             if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
+                LOGGER.info("(Acceptor.computeAccept) I am proc {}, I have {} ACCEPTs for cid {} and timestamp {}", controller.getStaticConf().getProcessId(), epoch.countAccept(value), cid, epoch.getTimestamp());
                 if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
-                    LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
+                    LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
                         getDefaultExecutor().preComputeCommit(epoch.getBatchId());
-                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} msg to ledger", controller.getStaticConf().getProcessId(), cid);
+                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
