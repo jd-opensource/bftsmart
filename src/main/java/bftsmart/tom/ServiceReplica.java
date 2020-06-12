@@ -204,6 +204,11 @@ public class ServiceReplica {
 				executor, recoverer, null, new DefaultReplier(), lastCid);
 	}
 
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid, View lastView) {
+		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)),
+				executor, recoverer, null, new DefaultReplier(), lastCid);
+	}
+
 	/**
 	 * Constructor
 	 *

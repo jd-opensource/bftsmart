@@ -35,6 +35,11 @@ public class Reconfiguration {
          //proxy = new ServiceProxy(id);
         //request = new ReconfigureRequest(id);
     }
+
+    public Reconfiguration(int id, ServiceProxy serviceProxy) {
+        this.id = id;
+        this.proxy = serviceProxy;
+    }
     
     public void connect(){
         if(proxy == null){

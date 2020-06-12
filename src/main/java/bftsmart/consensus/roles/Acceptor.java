@@ -593,8 +593,12 @@ public final class Acceptor {
                 if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
-                        getDefaultExecutor().preComputeCommit(epoch.getBatchId());
                         LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
+                        if (isUpdateView(epoch)) {
+                            getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                        } else {
+                            getDefaultExecutor().preComputeCommit(epoch.getBatchId());
+                        }
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
@@ -647,6 +651,10 @@ public final class Acceptor {
             e.printStackTrace();
         }
 
+    }
+
+    private boolean isUpdateView(Epoch epoch) {
+        return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getReqType() == TOMMessageType.RECONFIG;
     }
 
     /**
