@@ -44,6 +44,7 @@ import java.io.ObjectOutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -346,7 +347,7 @@ public final class Acceptor {
 
 
             if (writeAccepted > controller.getQuorum()) {
-                LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
+                LOGGER.error("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
 
 //            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 
@@ -368,13 +369,21 @@ public final class Acceptor {
                     if(controller.getStaticConf().isBFT()){
 
                         DefaultRecoverable defaultExecutor = getDefaultExecutor();
-                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
+//                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
+                        List<byte[]> commands = new ArrayList<byte[]>();
 
                         for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
-                            commands[i] = epoch.deserializedPropValue[i].getContent();
+                            // 对于视图ID小于当前节点视图ID的请求，不进行预计算处理，待提交请求的共识客户端视图更新后再重新提交进行预计算
+                            if (epoch.deserializedPropValue[i].getViewID() < this.controller.getCurrentViewId()) {
+                                continue;
+                            }
+                            // 视图ID正常的请求才会继续进行后面的预计算过程
+                            commands.add(epoch.deserializedPropValue[i].getContent());
+                            epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
+
                         }
 
-                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands);
+                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands.toArray(new byte[commands.size()][]));
 
                         byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
 
@@ -536,16 +545,16 @@ public final class Acceptor {
 
         TOMMessage[] requests = epoch.deserializedPropValue;
 
-        if (requests == null) {
-            tomLayer.setLastExec(tomLayer.getInExec());
-
-            tomLayer.setInExec(-1);
-            return;
-        }
+//        if (requests == null) {
+//            tomLayer.setLastExec(tomLayer.getInExec());
+//
+//            tomLayer.setInExec(-1);
+//            return;
+//        }
 
         tomLayer.clientsManager.requestsPending(requests);
 
-        tomLayer.setLastExec(tomLayer.getInExec());
+//        tomLayer.setLastExec(tomLayer.getInExec());
 
         tomLayer.setInExec(-1);
 
@@ -553,7 +562,7 @@ public final class Acceptor {
 
     private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
 
-        TOMMessage[] requests = epoch.deserializedPropValue;
+        TOMMessage[] requests = epoch.deserializedPrecomputeValue.toArray(new TOMMessage[epoch.deserializedPrecomputeValue.size()]);
 
         Replier replier = getBatchReplier();
 
@@ -593,7 +602,7 @@ public final class Acceptor {
                 if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
-                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
+                        LOGGER.error("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
                         if (isUpdateView(epoch)) {
                             getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                         } else {
@@ -609,10 +618,14 @@ public final class Acceptor {
                         createResponses(epoch, updatedResp);
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
-                    LOGGER.error("I am proc {} , precompute fail, will rollback", controller.getStaticConf().getProcessId());
+                    LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback", controller.getStaticConf().getProcessId(), cid);
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
                     createResponses(epoch, epoch.getAsyncResponseLinkedList());
+                    // 这批消息里如果含有视图ID小于当前视图的消息，需要继续走后续的decide流程
+                    if (RequestWithExceptionViewId(epoch)) {
+                        decide(epoch);
+                    }
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                     //Leader does evil to me only, need to roll back
                     LOGGER.error("(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!", controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
@@ -651,6 +664,10 @@ public final class Acceptor {
             e.printStackTrace();
         }
 
+    }
+
+    private boolean RequestWithExceptionViewId(Epoch epoch) {
+        return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId();
     }
 
     private boolean isUpdateView(Epoch epoch) {

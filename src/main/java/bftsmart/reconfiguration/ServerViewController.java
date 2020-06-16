@@ -140,7 +140,7 @@ public class ServerViewController extends ViewController {
 						if (str.countTokens() > 2) {
 							int id = Integer.parseInt(str.nextToken());
 							if (id != request.getSender()) {
-								add = false;
+//								add = false;
 							}
 						} else {
 							add = false;
@@ -148,7 +148,7 @@ public class ServerViewController extends ViewController {
 					} else if (key == REMOVE_SERVER) {
 						if (isCurrentViewMember(Integer.parseInt(value))) {
 							if (Integer.parseInt(value) != request.getSender()) {
-								add = false;
+//								add = false;
 							}
 						} else {
 							add = false;
@@ -250,9 +250,9 @@ public class ServerViewController extends ViewController {
 
 		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-		LOGGER.debug("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
-		LOGGER.debug("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
-		LOGGER.debug("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
+		LOGGER.error("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+		LOGGER.error("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+		LOGGER.error("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
 		// TODO:Remove all information stored about each process in rSet
 		// processes execute the leave!!!

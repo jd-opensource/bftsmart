@@ -88,7 +88,11 @@ public final class DeliveryThread extends Thread {
 
             LOGGER.debug("(DeliveryThread.delivery) Decision from consensus {} does not contain good reconfiguration", dec.getConsensusId());
             //set this decision as the last one from this replica
-            tomLayer.setLastExec(dec.getConsensusId());
+            if (dec.getDecisionEpoch().deserializedPropValue.length == 1 && dec.getDecisionEpoch().deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId() && dec.getDecisionEpoch().deserializedPropValue[0].getReqType() != TOMMessageType.RECONFIG) {
+                tomLayer.execManager.removeConsensus(dec.getConsensusId());
+            } else {
+                tomLayer.setLastExec(dec.getConsensusId());
+            }
             //define that end of this execution
             tomLayer.setInExec(-1);
             
