@@ -37,6 +37,7 @@ import bftsmart.tom.server.RequestVerifier;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
 import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.security.MessageDigest;
@@ -100,6 +101,8 @@ public final class TOMLayer extends Thread implements RequestReceiver {
     private RequestVerifier verifier;
             
     private Synchronizer syncher;
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(TOMLayer.class);
 
     /**
      * Creates a new instance of TOMulticastLayer
@@ -326,7 +329,8 @@ public final class TOMLayer extends Thread implements RequestReceiver {
         }
         dec.batchSize = numberOfMessages;
 
-        Logger.println("(TOMLayer.run) creating a PROPOSE with " + numberOfMessages + " msgs");
+//        Logger.println("(TOMLayer.run) creating a PROPOSE with " + numberOfMessages + " msgs");
+        LOGGER.info("(TOMLayer.run) creating a PROPOSE with {} msgs, cid {}", numberOfMessages, dec.getConsensusId());
 
         return bb.makeBatch(pendingRequests, numberOfNonces, System.currentTimeMillis(), controller);
     }

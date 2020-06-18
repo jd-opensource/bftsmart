@@ -24,6 +24,7 @@ import bftsmart.consensus.roles.Acceptor;
 import bftsmart.consensus.roles.Proposer;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -66,6 +67,8 @@ public final class ExecutionManager {
     private int timeoutHighMark; // Paxos high mark for a timed-out replica
     
     private int lastRemovedCID = 0; // Addition to fix memory leak
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ExecutionManager.class);
         
     /******************************************************************/
     
@@ -258,7 +261,8 @@ public final class ExecutionManager {
 
                     //System.out.println("(ExecutionManager.checkLimits) Message for consensus " + 
                      //       msg.getNumber() + " is out of context, adding it to out of context set; isRetrievingState="+isRetrievingState);
-                    
+                    LOGGER.warn("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}, consensus msg type {}", controller.getStaticConf().getProcessId(),
+                            msg.getNumber(), lastConsId, inExec, msg.getType());
                     
                     addOutOfContextMessage(msg);
                 } else if (!rollHappend){ //can process!
@@ -277,6 +281,9 @@ public final class ExecutionManager {
             /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
             Logger.println("(ExecutionManager.checkLimits) Message for consensus "
                     + msg.getNumber() + " is beyond the paxos highmark, adding it to out of context set");
+
+            LOGGER.warn("(ExecutionManager.checkLimits) I am proc {}, start state transfer, last cid is {}, recv msg cid is {}, in cid is {}", controller.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
+            LOGGER.warn("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", controller.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
             addOutOfContextMessage(msg);
 
             if (controller.getStaticConf().isStateTransferEnabled()) {

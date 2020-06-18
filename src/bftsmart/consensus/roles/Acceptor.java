@@ -65,7 +65,7 @@ public final class Acceptor {
     private ServerViewController controller;
     //private Cipher cipher;
     private Mac mac;
-    private static org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Acceptor.class);
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Acceptor.class);
 
     /**
      * Creates a new instance of Acceptor.
@@ -175,7 +175,7 @@ public final class Acceptor {
         int ets = executionManager.getConsensus(msg.getNumber()).getEts();
 //    	Logger.println("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
 
-    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus {} ", cid);
+    	LOGGER.info("(Acceptor.proposeReceived) PROPOSE for consensus {} ", cid);
     	if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
                 && epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
     		executePropose(epoch, msg.getValue());
@@ -310,6 +310,7 @@ public final class Acceptor {
 
                 if (!epoch.isAcceptSetted(me)) {
 
+                    LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
                     Logger.println("(Acceptor.computeWrite) sending WRITE for " + cid);
 
                     /**** LEADER CHANGE CODE! ******/
@@ -541,13 +542,16 @@ public final class Acceptor {
 
         try {
             if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
+                LOGGER.info("(Acceptor.computeAccept) I am proc {}, I have {} ACCEPTs for cid {} and timestamp {}", controller.getStaticConf().getProcessId(), epoch.countAccept(value), cid, epoch.getTimestamp());
                 if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                     LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
                     try {
+                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
                         getDefaultExecutor().preComputeCommit(epoch.getBatchId());
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
+                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, storage exception, will rollback!", controller.getStaticConf().getProcessId(), cid);
                         getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
@@ -555,11 +559,13 @@ public final class Acceptor {
                         decide(epoch);
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
+                    LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, precompute fail, will rollback!", controller.getStaticConf().getProcessId(), cid);
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
                     decide(epoch);
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                     //Leader does evil to me only, need to roll back
+                    LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, leader do evil, will rollback!", controller.getStaticConf().getProcessId(), cid);
                     System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
                     // rollback
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
@@ -586,6 +592,7 @@ public final class Acceptor {
                     || ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < controller.getCurrentViewF() + 1)
                     && (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
 
+                LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, node's pre compute hash is inconsistent, will rollback!", controller.getStaticConf().getProcessId(), cid);
                 System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
                 getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                 updateConsensusSetting(epoch);

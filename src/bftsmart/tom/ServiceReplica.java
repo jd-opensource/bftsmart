@@ -39,6 +39,7 @@ import bftsmart.tom.server.*;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.security.NoSuchAlgorithmException;
@@ -86,6 +87,8 @@ public class ServiceReplica {
 	private ReplicaContext replicaCtx = null;
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
+
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
 
 	/**
 	 * Constructor
@@ -249,7 +252,7 @@ public class ServiceReplica {
 		}
 
 		if (this.SVController.isInCurrentView()) {
-			System.out.println("-- In current view: " + this.SVController.getCurrentView());
+			LOGGER.info("-- In current view: {}", this.SVController.getCurrentView());
 			initTOMLayer(); // initiaze the TOM layer
 		} else {
 			System.out.println("-- Not in current view: " + this.SVController.getCurrentView());

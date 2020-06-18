@@ -28,6 +28,7 @@ import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,6 +59,7 @@ public abstract class BaseStateManager implements StateManager {
 
     protected boolean isInitializing = true;
     private HashMap<Integer, Integer> senderCIDs = null;
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BaseStateManager.class);
 
     public BaseStateManager() {
         senderStates = new HashMap<>();
@@ -176,7 +178,7 @@ public abstract class BaseStateManager implements StateManager {
         if (waitingCID == -1) {
             Logger.println("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {
-                System.out.println("BaseStateManager.analyzeState: I have now more than " + SVController.getCurrentViewF() + " messages for CID " + cid + " which are beyond CID " + lastCID);
+                LOGGER.info("BaseStateManager.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", SVController.getCurrentViewF(), cid, lastCID);
                 lastCID = cid;
                 waitingCID = cid - 1;
                 System.out.println("analyzeState " + waitingCID);
@@ -250,7 +252,7 @@ public abstract class BaseStateManager implements StateManager {
             for (int key : cids.keySet()) {
                 if (cids.get(key) >= SVController.getQuorum()) {
                     if (key == lastCID) {
-                        System.out.println("-- Replica state is up to date");
+                        LOGGER.info("I am proc {} -- Replica state is up to date", SVController.getStaticConf().getProcessId());
                         dt.deliverLock();
                         isInitializing = false;
                         tomLayer.setLastExec(key);
@@ -259,7 +261,7 @@ public abstract class BaseStateManager implements StateManager {
                         break;
                     } else {
                         //ask for state
-                        System.out.println("-- Requesting state from other replicas");
+                        LOGGER.info("I am proc {} -- Requesting state from other replicas", SVController.getStaticConf().getProcessId());
                         lastCID = key + 1;
                         if (waitingCID == -1) {
                             waitingCID = key;

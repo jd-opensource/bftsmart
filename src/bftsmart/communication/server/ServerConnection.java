@@ -41,6 +41,7 @@ import bftsmart.reconfiguration.VMMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.security.PrivateKey;
@@ -78,6 +79,7 @@ public class ServerConnection {
     private Lock sendLock;
     private boolean doWork = true;
     private CountDownLatch latch = new CountDownLatch(1);
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
     public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
                             LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
@@ -273,9 +275,10 @@ public class ServerConnection {
      * (only used if processId is less than remoteId)
      */
     protected void reconnect(Socket newSocket) {
-        
+
         connectLock.lock();
 
+        LOGGER.info("[ServerConnection] I am proc {}, will reconnect!", this.controller.getStaticConf().getProcessId());
         if (socket == null || !socket.isConnected()) {
 
             try {
@@ -389,8 +392,8 @@ public class ServerConnection {
             //Create secret key
             BigInteger secretKey =
                     remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
-            
-           System.out.println("-- Diffie-Hellman complete with " + remoteId);
+
+            LOGGER.info("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
             
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
             PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());

@@ -28,6 +28,7 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -47,6 +48,7 @@ public class StandardStateManager extends BaseStateManager {
     
     //private LCManager lcManager;
     private ExecutionManager execManager;
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(StandardStateManager.class);
 
 
     @Override
@@ -102,11 +104,11 @@ public class StandardStateManager extends BaseStateManager {
                 waitingCID, TOMUtil.SM_REQUEST, replica, null, null, -1, -1);
         tomLayer.getCommunication().send(SVController.getCurrentViewOtherAcceptors(), smsg);
 
-        System.out.println("(StandardStateManager.requestState) I just sent a request to the other replicas for the state up to CID " + waitingCID);
+        LOGGER.info("(StandardStateManager.requestState) I just sent a request to the other replicas for the state up to CID {}", waitingCID);
 
         TimerTask stateTask =  new TimerTask() {
             public void run() {
-            	System.out.println("Timeout to retrieve state");
+                LOGGER.info("Timeout to retrieve state");
                 int[] myself = new int[1];
                 myself[0] = SVController.getStaticConf().getProcessId();
                 tomLayer.getCommunication().send(myself, new StandardSMMessage(-1, waitingCID, TOMUtil.TRIGGER_SM_LOCALLY, -1, null, null, -1, -1));
@@ -121,8 +123,8 @@ public class StandardStateManager extends BaseStateManager {
     @Override
     public void stateTimeout() {
         lockTimer.lock();
-        Logger.println("(StateManager.stateTimeout) Timeout for the replica that was supposed to send the complete state. Changing desired replica.");
-        System.out.println("Timeout no timer do estado!");
+        LOGGER.info("(StateManager.stateTimeout) Timeout for the replica that was supposed to send the complete state. Changing desired replica.");
+        LOGGER.info("Timeout no timer do estado!");
         if (stateTimer != null)
         	stateTimer.cancel();
         changeReplica();
@@ -197,7 +199,7 @@ public class StandardStateManager extends BaseStateManager {
                 if (enoughReplies()) {
                     System.out.println("More than F confirmed");
                     ApplicationState otherReplicaState = getOtherReplicaState();
-                    System.out.println("State != null: " + (state != null) + ", recvState != null: " + (otherReplicaState != null));
+                    LOGGER.info("State != null: {}, recvState != null: {}",(state != null), (otherReplicaState != null));
                     int haveState = 0;
                         if(state != null) {
                             byte[] hash = null;
@@ -208,15 +210,15 @@ public class StandardStateManager extends BaseStateManager {
                                     haveState = -1;
                             }
                         }
-                    
-                    System.out.println("haveState: " + haveState);
+
+                    LOGGER.info("haveState: {}", haveState);
                                             
                     if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
                             //此行将导致currentProof==null时无法进行下面的处理；
 //                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
                             currentLeader > -1 && currentView != null ) {
 
-                    	System.out.println("Received state. Will install it");
+                        LOGGER.info("Received state. Will install it");
                     	
                         tomLayer.getSynchronizer().getLCManager().setLastReg(currentRegency);
                         tomLayer.getSynchronizer().getLCManager().setNextReg(currentRegency);
@@ -224,8 +226,8 @@ public class StandardStateManager extends BaseStateManager {
                         tomLayer.execManager.setNewLeader(currentLeader);
                         
                         if (currentProof != null && !appStateOnly) {
-                            
-                            System.out.println("Installing proof for consensus " + waitingCID);
+
+                            LOGGER.info("Installing proof for consensus {}", waitingCID);
 
                             Consensus cons = execManager.getConsensus(waitingCID);
                             Epoch e = null;
@@ -258,11 +260,11 @@ public class StandardStateManager extends BaseStateManager {
                                 e.propValue = currentProof.getDecision();
                                 e.deserializedPropValue = tomLayer.checkProposedValue(currentProof.getDecision(), false);
                                  cons.decided(e, false);
-                                 
-                                System.out.println("Successfully installed proof for consensus " + waitingCID);
+
+                                LOGGER.info("Successfully installed proof for consensus {}", waitingCID);
 
                             } else {
-                                System.out.println("Failed to install proof for consensus " + waitingCID);
+                                LOGGER.error("Failed to install proof for consensus {}", waitingCID);
 
                             }
 
@@ -302,7 +304,7 @@ public class StandardStateManager extends BaseStateManager {
 
                         reset();
 
-                        System.out.println("I updated the state!");
+                        LOGGER.info("I updated the state!");
 
                         tomLayer.requestsTimer.Enabled(true);
                         tomLayer.requestsTimer.startTimer();
@@ -313,7 +315,7 @@ public class StandardStateManager extends BaseStateManager {
                             tomLayer.getSynchronizer().resumeLC();
                         }
                     } else if (otherReplicaState == null && (SVController.getCurrentViewN() / 2) < getReplies()) {
-                    	System.out.println("otherReplicaState == null && (SVController.getCurrentViewN() / 2) < getReplies()");
+                        LOGGER.info("otherReplicaState == null && (SVController.getCurrentViewN() / 2) < getReplies()");
                         waitingCID = -1;
                         reset();
  
@@ -323,8 +325,8 @@ public class StandardStateManager extends BaseStateManager {
                             requestState();
                         }
                     } else if (haveState == -1) {
-                        System.out.println("haveState == -1");
-                        Logger.println("(TOMLayer.SMReplyDeliver) The replica from which I expected the state, sent one which doesn't match the hash of the others, or it never sent it at all");
+                        LOGGER.error("haveState == -1");
+                        LOGGER.error("(TOMLayer.SMReplyDeliver) The replica from which I expected the state, sent one which doesn't match the hash of the others, or it never sent it at all");
 
                         changeReplica();
                         reset();
@@ -333,13 +335,13 @@ public class StandardStateManager extends BaseStateManager {
                         if (stateTimer != null) stateTimer.cancel();
                     } else if (haveState == 0 && (SVController.getCurrentViewN() - SVController.getCurrentViewF()) <= getReplies()) {
 
-                        Logger.println("(TOMLayer.SMReplyDeliver) Could not obtain the state, retrying");
+                        LOGGER.error("(TOMLayer.SMReplyDeliver) Could not obtain the state, retrying");
                         reset();
                         if (stateTimer != null) stateTimer.cancel();
                         waitingCID = -1;
                         //requestState();
                     } else {
-                        System.out.println(" -- State transfer not yet finished");
+                        LOGGER.error(" -- State transfer not yet finished");
 
                     }
                 }
