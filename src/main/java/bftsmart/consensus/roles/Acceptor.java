@@ -545,16 +545,16 @@ public final class Acceptor {
 
         TOMMessage[] requests = epoch.deserializedPropValue;
 
-//        if (requests == null) {
-//            tomLayer.setLastExec(tomLayer.getInExec());
-//
-//            tomLayer.setInExec(-1);
-//            return;
-//        }
+        if (requests == null) {
+            tomLayer.setLastExec(tomLayer.getInExec());
+
+            tomLayer.setInExec(-1);
+            return;
+        }
 
         tomLayer.clientsManager.requestsPending(requests);
 
-//        tomLayer.setLastExec(tomLayer.getInExec());
+        tomLayer.setLastExec(tomLayer.getInExec());
 
         tomLayer.setInExec(-1);
 
@@ -615,17 +615,19 @@ public final class Acceptor {
                         getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
-                        createResponses(epoch, updatedResp);
+                        epoch.setAsyncResponseLinkedList(updatedResp);
+//                        createResponses(epoch, updatedResp);
+                        decide(epoch);
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
                     LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback", controller.getStaticConf().getProcessId(), cid);
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
-                    createResponses(epoch, epoch.getAsyncResponseLinkedList());
+//                    createResponses(epoch, epoch.getAsyncResponseLinkedList());
                     // 这批消息里如果含有视图ID小于当前视图的消息，需要继续走后续的decide流程
-                    if (RequestWithExceptionViewId(epoch)) {
+//                    if (RequestWithExceptionViewId(epoch)) {
                         decide(epoch);
-                    }
+//                    }
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                     //Leader does evil to me only, need to roll back
                     LOGGER.error("(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!", controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
@@ -636,6 +638,8 @@ public final class Acceptor {
                     tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
                     updateConsensusSetting(epoch);
+
+                    decide(epoch);
 
                     //Pause processing of new messages, Waiting for trigger state transfer
 //                tomLayer.requestsTimer.Enabled(false);
@@ -658,7 +662,9 @@ public final class Acceptor {
                 updateConsensusSetting(epoch);
 
                 updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);
-                createResponses(epoch, updatedResp);
+                epoch.setAsyncResponseLinkedList(updatedResp);
+                decide(epoch);
+//                createResponses(epoch, updatedResp);
             }
         } catch (Throwable e) {
             e.printStackTrace();
