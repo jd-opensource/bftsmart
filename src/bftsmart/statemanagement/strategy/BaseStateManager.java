@@ -175,8 +175,9 @@ public abstract class BaseStateManager implements StateManager {
     @Override
     public void analyzeState(int cid) {
         Logger.println("(TOMLayer.analyzeState) The state transfer protocol is enabled");
+        LOGGER.info("(TOMLayer.analyzeState) The state transfer protocol is enabled");
         if (waitingCID == -1) {
-            Logger.println("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
+            LOGGER.info("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {
                 LOGGER.info("BaseStateManager.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", SVController.getCurrentViewF(), cid, lastCID);
                 lastCID = cid;
