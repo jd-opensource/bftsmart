@@ -373,38 +373,47 @@ public final class Acceptor {
                         List<byte[]> commands = new ArrayList<byte[]>();
 
                         for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
-                            // 对于视图ID小于当前节点视图ID的请求，不进行预计算处理，待提交请求的共识客户端视图更新后再重新提交进行预计算
-                            if (epoch.deserializedPropValue[i].getViewID() < this.controller.getCurrentViewId()) {
+                            // 对于视图ID落后于当前节点视图ID的请求，不进行预计算处理，待提交请求的共识客户端视图更新后再重新提交进行预计算;
+                            if (epoch.deserializedPropValue[i].getViewID() < this.controller.getCurrentViewId() && epoch.deserializedPropValue[i].getReqType() != TOMMessageType.RECONFIG) {
                                 continue;
                             }
-                            // 视图ID正常的请求才会继续进行后面的预计算过程
+                            // 视图ID正常的请求或者Reconfig请求才会继续进行后面的预计算过程
                             commands.add(epoch.deserializedPropValue[i].getContent());
                             epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
 
                         }
 
-                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands.toArray(new byte[commands.size()][]));
+                        ConsensusMessage cm = null;
+                        // 包含需要进行预计算的交易
+                        if (commands.size() > 0) {
+                            BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands.toArray(new byte[commands.size()][]));
+                            byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+                            epoch.propAndAppValue = result;
 
-                        byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+                            epoch.propAndAppValueHash = tomLayer.computeHash(result);
 
-                        epoch.propAndAppValue = result;
+                            epoch.preComputeRes = appHashResult.getErrprCode();
 
-                        epoch.propAndAppValueHash = tomLayer.computeHash(result);
+                            epoch.commonHash = appHashResult.getGenisHashBytes();
 
-                        epoch.preComputeRes = appHashResult.getErrprCode();
+                            tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
 
-                        epoch.commonHash = appHashResult.getGenisHashBytes();
+                            epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
 
-                        tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
+                            epoch.batchId = appHashResult.getBatchId();
 
-                        epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
+                            epoch.setAccept(me, epoch.propAndAppValueHash);
 
-                        epoch.batchId = appHashResult.getBatchId();
+                            cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
+                        } else {
+                            // 不包含需要进行预计算的交易， 视图更新的请求不需要进行预计算
+                            epoch.propAndAppValueHash = epoch.propValueHash;
 
-                        epoch.setAccept(me, epoch.propAndAppValueHash);
+                            epoch.setAccept(me, epoch.propValueHash);
 
-//                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept ,cid is " + cid);
-                        ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
+                            cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash);
+                        }
+
 
                         //add origin propose hash for accept type consensus msg
                         cm.setOrigPropValue(epoch.propValueHash);
@@ -419,7 +428,11 @@ public final class Acceptor {
 //                    communication.getServersConn().send(targets, cm, true);
 
                         epoch.addToProof(cm);
-                        computeAccept(cid, epoch, epoch.propAndAppValueHash);
+                        if (commands.size() > 0) {
+                            computeAccept(cid, epoch, epoch.propAndAppValueHash);
+                        } else {
+                            computeAccept(cid, epoch, epoch.propValueHash);
+                        }
                     }
                     else {
                         epoch.setAccept(me, value);
@@ -560,33 +573,33 @@ public final class Acceptor {
 
     }
 
-    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
-
-        TOMMessage[] requests = epoch.deserializedPrecomputeValue.toArray(new TOMMessage[epoch.deserializedPrecomputeValue.size()]);
-
-        Replier replier = getBatchReplier();
-
-        ReplyManager repMan = getReplyManager();
-
-        for (int index = 0; index < requests.length; index++) {
-            TOMMessage request = requests[index];
-            request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
-                    request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
-                    request.getReqType());
-
-            if (controller.getStaticConf().getNumRepliers() > 0) {
-                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and and operation ID {} via ReplyManager", request.getSender(), request.getSequence()
-                        , request.getOperationId());
-                repMan.send(request);
-            } else {
-                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
-                        , request.getSender(), request.getSequence(), request.getOperationId());
-                replier.manageReply(request, null);
-                // cs.send(new int[]{request.getSender()}, request.reply);
-            }
-        }
-
-    }
+//    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
+//
+//        TOMMessage[] requests = epoch.deserializedPrecomputeValue.toArray(new TOMMessage[epoch.deserializedPrecomputeValue.size()]);
+//
+//        Replier replier = getBatchReplier();
+//
+//        ReplyManager repMan = getReplyManager();
+//
+//        for (int index = 0; index < requests.length; index++) {
+//            TOMMessage request = requests[index];
+//            request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
+//                    request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
+//                    request.getReqType());
+//
+//            if (controller.getStaticConf().getNumRepliers() > 0) {
+//                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and and operation ID {} via ReplyManager", request.getSender(), request.getSequence()
+//                        , request.getOperationId());
+//                repMan.send(request);
+//            } else {
+//                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
+//                        , request.getSender(), request.getSequence(), request.getOperationId());
+//                replier.manageReply(request, null);
+//                // cs.send(new int[]{request.getSender()}, request.reply);
+//            }
+//        }
+//
+//    }
     /**
      * Computes ACCEPT values according to the Byzantine consensus
      * specification
@@ -603,8 +616,11 @@ public final class Acceptor {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
                         LOGGER.error("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
-                        if (isUpdateView(epoch)) {
+                        if (isReconfig(epoch)) {
+                            // 作为共识协议的控制消息不记入账本
                             getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                        } else if (ViewIdBackWard(epoch)) {
+                            // do nothing
                         } else {
                             getDefaultExecutor().preComputeCommit(epoch.getBatchId());
                         }
@@ -616,18 +632,13 @@ public final class Acceptor {
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
                         epoch.setAsyncResponseLinkedList(updatedResp);
-//                        createResponses(epoch, updatedResp);
                         decide(epoch);
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
                     LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback", controller.getStaticConf().getProcessId(), cid);
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
-//                    createResponses(epoch, epoch.getAsyncResponseLinkedList());
-                    // 这批消息里如果含有视图ID小于当前视图的消息，需要继续走后续的decide流程
-//                    if (RequestWithExceptionViewId(epoch)) {
-                        decide(epoch);
-//                    }
+                    decide(epoch);
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                     //Leader does evil to me only, need to roll back
                     LOGGER.error("(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!", controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
@@ -664,7 +675,6 @@ public final class Acceptor {
                 updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);
                 epoch.setAsyncResponseLinkedList(updatedResp);
                 decide(epoch);
-//                createResponses(epoch, updatedResp);
             }
         } catch (Throwable e) {
             e.printStackTrace();
@@ -672,11 +682,13 @@ public final class Acceptor {
 
     }
 
-    private boolean RequestWithExceptionViewId(Epoch epoch) {
-        return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId();
+    // 视图ID落后的非Reconfig请求
+    private boolean ViewIdBackWard(Epoch epoch) {
+        return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId() && epoch.deserializedPropValue[0].getReqType() != TOMMessageType.RECONFIG;
     }
 
-    private boolean isUpdateView(Epoch epoch) {
+    // Reconfig请求
+    private boolean isReconfig(Epoch epoch) {
         return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getReqType() == TOMMessageType.RECONFIG;
     }
 

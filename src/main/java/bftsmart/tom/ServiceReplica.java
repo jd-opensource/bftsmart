@@ -488,7 +488,8 @@ public class ServiceReplica {
 				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}"
 						, request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
 
-				if (request.getViewID() == SVController.getCurrentViewId()) {
+				// 暂时没有节点间的视图ID同步过程，在处理RECONFIG这类更新视图的操作时先不考虑视图ID落后的情况
+				if (request.getViewID() == SVController.getCurrentViewId() || request.getReqType() == TOMMessageType.RECONFIG) {
 
 					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST) {
 

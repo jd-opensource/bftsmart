@@ -88,15 +88,15 @@ public final class DeliveryThread extends Thread {
 
             LOGGER.debug("(DeliveryThread.delivery) Decision from consensus {} does not contain good reconfiguration", dec.getConsensusId());
             //set this decision as the last one from this replica
-            if (dec.getDecisionEpoch().deserializedPropValue.length == 1 && dec.getDecisionEpoch().deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId() && dec.getDecisionEpoch().deserializedPropValue[0].getReqType() != TOMMessageType.RECONFIG) {
+            if (dec.getDecisionEpoch().deserializedPropValue.length == 1 && dec.getDecisionEpoch().deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId()) {
                 tomLayer.execManager.removeConsensus(dec.getConsensusId());
             } else {
                 tomLayer.setLastExec(dec.getConsensusId());
+                tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
             }
             //define that end of this execution
             tomLayer.setInExec(-1);
-            
-            tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
+
 
         } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
         try {
@@ -119,8 +119,9 @@ public final class DeliveryThread extends Thread {
         TOMMessage[] decidedMessages = dec.getDeserializedValue();
 
         for (TOMMessage decidedMessage : decidedMessages) {
-            if (decidedMessage.getReqType() == TOMMessageType.RECONFIG
-                    && decidedMessage.getViewID() == controller.getCurrentViewId()) {
+            if (decidedMessage.getReqType() == TOMMessageType.RECONFIG)
+//                    && decidedMessage.getViewID() == controller.getCurrentViewId()) {   //缺少节点间的视图同步过程
+            {
                 return true;
             }
         }
