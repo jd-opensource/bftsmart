@@ -551,33 +551,33 @@ public final class Acceptor {
 
     }
 
-    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
-
-        TOMMessage[] requests = epoch.deserializedPropValue;
-
-        Replier replier = getBatchReplier();
-
-        ReplyManager repMan = getReplyManager();
-
-        for (int index = 0; index < requests.length; index++) {
-            TOMMessage request = requests[index];
-            request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
-                    request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
-                    request.getReqType());
-
-            if (controller.getStaticConf().getNumRepliers() > 0) {
-                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and and operation ID {} via ReplyManager", request.getSender(), request.getSequence()
-                        , request.getOperationId());
-                repMan.send(request);
-            } else {
-                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
-                        , request.getSender(), request.getSequence(), request.getOperationId());
-                replier.manageReply(request, null);
-                // cs.send(new int[]{request.getSender()}, request.reply);
-            }
-        }
-
-    }
+//    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
+//
+//        TOMMessage[] requests = epoch.deserializedPropValue;
+//
+//        Replier replier = getBatchReplier();
+//
+//        ReplyManager repMan = getReplyManager();
+//
+//        for (int index = 0; index < requests.length; index++) {
+//            TOMMessage request = requests[index];
+//            request.reply = new TOMMessage(me, request.getSession(), request.getSequence(),
+//                    request.getOperationId(), updatedResp.get(index), controller.getCurrentViewId(),
+//                    request.getReqType());
+//
+//            if (controller.getStaticConf().getNumRepliers() > 0) {
+//                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and and operation ID {} via ReplyManager", request.getSender(), request.getSequence()
+//                        , request.getOperationId());
+//                repMan.send(request);
+//            } else {
+//                LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
+//                        , request.getSender(), request.getSequence(), request.getOperationId());
+//                replier.manageReply(request, null);
+//                // cs.send(new int[]{request.getSender()}, request.reply);
+//            }
+//        }
+//
+//    }
     /**
      * Computes ACCEPT values according to the Byzantine consensus
      * specification
@@ -602,13 +602,14 @@ public final class Acceptor {
                         getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
-                        createResponses(epoch, updatedResp);
+                        epoch.setAsyncResponseLinkedList(updatedResp);
+                        decide(epoch);
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
                     LOGGER.error("I am proc {} , precompute fail, will rollback", controller.getStaticConf().getProcessId());
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     updateConsensusSetting(epoch);
-                    createResponses(epoch, epoch.getAsyncResponseLinkedList());
+                    decide(epoch);
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
                     //Leader does evil to me only, need to roll back
                     LOGGER.error("(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!", controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
@@ -617,8 +618,8 @@ public final class Acceptor {
                     getDefaultExecutor().preComputeRollback(epoch.getBatchId());
                     //This round of consensus has been rolled back, mark it
                     tomLayer.execManager.updateConsensus(tomLayer.getInExec());
-
                     updateConsensusSetting(epoch);
+                    decide(epoch);
 
                     //Pause processing of new messages, Waiting for trigger state transfer
 //                tomLayer.requestsTimer.Enabled(false);
@@ -641,7 +642,8 @@ public final class Acceptor {
                 updateConsensusSetting(epoch);
 
                 updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);
-                createResponses(epoch, updatedResp);
+                epoch.setAsyncResponseLinkedList(updatedResp);
+                decide(epoch);
             }
         } catch (Throwable e) {
             e.printStackTrace();
