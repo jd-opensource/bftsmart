@@ -233,9 +233,8 @@ public class ServerViewController extends ViewController {
 			if (!contains(currentView.getProcesses()[i], rSet)) {
 				nextV[p++] = currentView.getProcesses()[i];
 			} else if (tomLayer.execManager.getCurrentLeader() == currentView.getProcesses()[i]) {
-
+				// 如果要删除的参与方集合中包含了当前的领导者，则需要强制触发领导者切换流程；
 				forceLC = true;
-
 			}
 		}
 
@@ -248,7 +247,10 @@ public class ServerViewController extends ViewController {
 		for (int i = 0; i < nextV.length; i++)
 			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
 
-		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
+//		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
+
+		// f的值需要动态计算
+		View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
 
 		LOGGER.error("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
 		LOGGER.error("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);

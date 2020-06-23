@@ -373,11 +373,11 @@ public final class Acceptor {
                         List<byte[]> commands = new ArrayList<byte[]>();
 
                         for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
-                            // 对于视图ID落后于当前节点视图ID的请求，不进行预计算处理，待提交请求的共识客户端视图更新后再重新提交进行预计算;
-                            if (epoch.deserializedPropValue[i].getViewID() < this.controller.getCurrentViewId() && epoch.deserializedPropValue[i].getReqType() != TOMMessageType.RECONFIG) {
+                            // 对于视图ID落后于当前节点视图ID的请求或者Reconfig请求不进行预计算处理
+                            if (ViewIdBackWard(epoch.deserializedPropValue[i]) || isReconfig(epoch.deserializedPropValue[i])) {
                                 continue;
                             }
-                            // 视图ID正常的请求或者Reconfig请求才会继续进行后面的预计算过程
+                            // 视图ID正常的请求才会继续进行后面的预计算过程
                             commands.add(epoch.deserializedPropValue[i].getContent());
                             epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
 
@@ -616,12 +616,8 @@ public final class Acceptor {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
                         LOGGER.error("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
-                        if (isReconfig(epoch)) {
-                            // 作为共识协议的控制消息不记入账本
-                            getDefaultExecutor().preComputeRollback(epoch.getBatchId());
-                        } else if (ViewIdBackWard(epoch)) {
-                            // do nothing
-                        } else {
+                        // 发生过预计算才会进行commit的操作
+                        if (tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).getPrecomputed()) {
                             getDefaultExecutor().preComputeCommit(epoch.getBatchId());
                         }
                         decide(epoch);
@@ -683,13 +679,13 @@ public final class Acceptor {
     }
 
     // 视图ID落后的非Reconfig请求
-    private boolean ViewIdBackWard(Epoch epoch) {
-        return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getViewID() < this.controller.getCurrentViewId() && epoch.deserializedPropValue[0].getReqType() != TOMMessageType.RECONFIG;
+    private boolean ViewIdBackWard(TOMMessage tomMessage) {
+        return tomMessage.getViewID() < this.controller.getCurrentViewId() && tomMessage.getReqType() != TOMMessageType.RECONFIG;
     }
 
     // Reconfig请求
-    private boolean isReconfig(Epoch epoch) {
-        return epoch.deserializedPropValue.length == 1 && epoch.deserializedPropValue[0].getReqType() == TOMMessageType.RECONFIG;
+    private boolean isReconfig(TOMMessage tomMessage) {
+        return tomMessage.getReqType() == TOMMessageType.RECONFIG;
     }
 
     /**
