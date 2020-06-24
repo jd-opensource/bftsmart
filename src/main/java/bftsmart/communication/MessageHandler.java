@@ -27,8 +27,8 @@ import bftsmart.tom.leaderchange.HeartBeatMessage;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LeaderRequestMessage;
 import bftsmart.tom.leaderchange.LeaderResponseMessage;
-import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -50,6 +50,7 @@ public class MessageHandler {
     private TOMLayer tomLayer;
     //private Cipher cipher;
     private Mac mac;
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
     public MessageHandler() {
         try {
@@ -116,12 +117,10 @@ public class MessageHandler {
                 if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC))
                     acceptor.deliver(consMsg);
                 else {
-                    Logger.println("(MessageHandler.processData) WARNING: invalid MAC from " + sm.getSender());
-                    System.out.println("(MessageHandler.processData) WARNING: invalid MAC from " + sm.getSender());
+                    LOGGER.error("(MessageHandler.processData) WARNING: invalid MAC from {}", sm.getSender());
                 }
             } else {
-                System.out.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
-                Logger.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
+                LOGGER.error("(MessageHandler.processData) Discarding unauthenticated message from {}", sm.getSender());
             }
 
         } else if (sm instanceof HeartBeatMessage) {
@@ -159,7 +158,7 @@ public class MessageHandler {
                             break;
                     }
 
-//	                System.out.println("(MessageHandler.processData) LC_MSG received: type " + type + ", regency " + lcMsg.getReg() + ", (replica " + lcMsg.getSender() + ")");
+//	                LOGGER.debug("(MessageHandler.processData) LC_MSG received: type " + type + ", regency " + lcMsg.getReg() + ", (replica " + lcMsg.getSender() + ")");
                     if (lcMsg.TRIGGER_LC_LOCALLY) tomLayer.requestsTimer.run_lc_protocol();
                     else tomLayer.getSynchronizer().deliverTimeoutRequest(lcMsg);
                     /**************************************************************/
@@ -171,7 +170,7 @@ public class MessageHandler {
                     /** This is Joao's code, to handle state transfer */
                 } else if (sm instanceof SMMessage) {
                     SMMessage smsg = (SMMessage) sm;
-                    // System.out.println("(MessageHandler.processData) SM_MSG received: type " + smsg.getType() + ", regency " + smsg.getRegency() + ", (replica " + smsg.getSender() + ")");
+                    // LOGGER.debug("(MessageHandler.processData) SM_MSG received: type " + smsg.getType() + ", regency " + smsg.getRegency() + ", (replica " + smsg.getSender() + ")");
                     switch(smsg.getType()) {
                         case TOMUtil.SM_REQUEST:
                             tomLayer.getStateManager().SMRequestDeliver(smsg, tomLayer.controller.getStaticConf().isBFT());
@@ -191,10 +190,10 @@ public class MessageHandler {
                     }
                     /******************************************************************/
                 } else {
-                    System.out.println("UNKNOWN MESSAGE TYPE: " + sm);
+                    LOGGER.error("UNKNOWN MESSAGE TYPE: {}", sm);
                 }
             } else {
-                System.out.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
+                LOGGER.error("(MessageHandler.processData) Discarding unauthenticated message from {}", sm.getSender());
             }
         }
     }

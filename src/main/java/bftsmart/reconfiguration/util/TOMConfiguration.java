@@ -15,8 +15,6 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
-import bftsmart.tom.util.Logger;
-
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Properties;
@@ -224,18 +222,6 @@ public class TOMConfiguration extends Configuration {
 				maxBatchSize = 100;
 			} else {
 				maxBatchSize = Integer.parseInt(s);
-			}
-
-			s = (String) configs.remove("system.debug");
-			if (s == null) {
-				Logger.debug = false;
-			} else {
-				debug = Integer.parseInt(s);
-				if (debug == 0) {
-					Logger.debug = false;
-				} else {
-					Logger.debug = true;
-				}
 			}
 
 			s = (String) configs.remove("system.totalordermulticast.replayVerificationTime");

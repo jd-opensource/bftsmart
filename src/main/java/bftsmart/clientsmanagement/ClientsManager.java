@@ -20,7 +20,7 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.RequestVerifier;
-import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,6 +45,7 @@ public class ClientsManager {
     private AtomicLong clientDatasTotal = new AtomicLong(0);
 
     private ReentrantLock clientsLock = new ReentrantLock();
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ClientsManager.class);
 
     public ClientsManager(ServerViewController controller, RequestsTimer timer, RequestVerifier verifier) {
         this.controller = controller;
@@ -81,7 +82,7 @@ public class ClientsManager {
         ClientData clientData = clientsData.get(clientId);
 
         if (clientData == null) {
-            Logger.println("(ClientsManager.getClientData) Creating new client data, client id=" + clientId);
+           LOGGER.debug("(ClientsManager.getClientData) Creating new client data, client id = {}", clientId);
 
             //******* EDUARDO BEGIN **************//
             clientData = new ClientData(clientId,
@@ -214,7 +215,7 @@ public class ClientsManager {
                             else {
                                 clientData.removePendingRequest(msg);
                                 timer.unwatch(msg);
-                                System.out.println("(ClientsManager.clearObsoleteRequests) I am proc " + this.controller.getStaticConf().getProcessId() + " ,the client data total is too big, need clear! ");
+                                LOGGER.error("(ClientsManager.clearObsoleteRequests) I am proc {}, the client data total is too big, need clear!", this.controller.getStaticConf().getProcessId());
                             }
                         }
                     }
@@ -353,7 +354,7 @@ public class ClientsManager {
                 if (reply != null && cs != null) {
 
                     if (reply.recvFromClient && fromClient) {
-                        System.out.println("[CACHE] re-send reply [Sender: " + reply.getSender() + ", sequence: " + reply.getSequence()+", session: " + reply.getSession()+ "]");
+                        LOGGER.info("[CACHE] re-send reply [Sender: {}, sequence: {}, session: {}", reply.getSender(), reply.getSequence(), reply.getSession());
                         cs.send(new int[]{request.getSender()}, reply);
 
                     } 
@@ -383,11 +384,11 @@ public class ClientsManager {
      */
     public void requestsOrdered(TOMMessage[] requests) {
         clientsLock.lock();
-        Logger.println("(ClientsManager.requestOrdered) Updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Updating client manager");
         for (TOMMessage request : requests) {
             requestOrdered(request);
         }
-        Logger.println("(ClientsManager.requestOrdered) Finished updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Finished updating client manager");
         clientsLock.unlock();
     }
 
@@ -408,8 +409,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removeOrderedRequest(request)) {
-            Logger.println("(ClientsManager.requestOrdered) Request "
-                    + request + " does not exist in pending requests");
+           LOGGER.debug("(ClientsManager.requestOrdered) Request {} does not exist in pending requests", request);
         }
 
         clientDatasTotal.getAndDecrement();
@@ -427,11 +427,11 @@ public class ClientsManager {
      */
     public void requestsPending(TOMMessage[] requests) {
         clientsLock.lock();
-        Logger.println("(ClientsManager.requestOrdered) Updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Updating client manager");
         for (TOMMessage request : requests) {
             requestPending(request);
         }
-        Logger.println("(ClientsManager.requestOrdered) Finished updating client manager");
+       LOGGER.debug("(ClientsManager.requestOrdered) Finished updating client manager");
         clientsLock.unlock();
     }
 
@@ -452,8 +452,7 @@ public class ClientsManager {
         clientData.clientLock.lock();
         /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
         if (!clientData.removePendingRequest(request)) {
-            Logger.println("(ClientsManager.requestPending) Request "
-                    + request + " does not exist in pending requests");
+           LOGGER.debug("(ClientsManager.requestPending) Request {} does not exist in pending requests", request);
         }
 
         clientDatasTotal.getAndDecrement();

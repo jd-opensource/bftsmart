@@ -31,7 +31,7 @@ import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.server.Recoverable;
-import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -59,6 +59,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     private SHA256Utils md = new SHA256Utils();
     private StateLog log;
     private StateManager stateManager;
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DefaultRecoverable.class);
 
     public DefaultRecoverable() {
 
@@ -168,7 +169,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 stateLock.unlock();
             }
 
-            System.out.println("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus " + cid);
+           LOGGER.debug("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus {}", cid);
             stateLock.lock();
             byte[] snapshot = getSnapshot();
             stateLock.unlock();
@@ -197,7 +198,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                     stateLock.unlock();
                 }
 
-                Logger.println("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus " + cid);
+                LOGGER.debug("(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus {}", cid);
                 saveCommands(secondHalf, secondHalfMsgCtx);
 
 //                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
@@ -233,14 +234,14 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
         logLock.lock();
 
-        Logger.println("(TOMLayer.saveState) Saving state of CID " + lastCID);
+        LOGGER.debug("(TOMLayer.saveState) Saving state of CID {}", lastCID);
 
         thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
         thisLog.setLastCID(lastCID);
         thisLog.setLastCheckpointCID(lastCID);
 
         logLock.unlock();
-        Logger.println("(TOMLayer.saveState) Finished saving state of CID " + lastCID);
+        LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID {}", lastCID);
     }
 
     /**
@@ -253,8 +254,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
         //if(!config.isToLog())
         //	return;        
         if (commands.length != msgCtx.length) {
-            System.out.println("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
-            System.out.println("----COMMANDS: " + commands.length + ", CONTEXTS: " + msgCtx.length + " ----");
+            LOGGER.error("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
+            LOGGER.error("----COMMANDS: {}, CONTEXTS: {} ----", commands.length, msgCtx.length);
         }
         logLock.lock();
 
@@ -307,15 +308,14 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             int lastCheckpointCID = state.getLastCheckpointCID();
             lastCID = state.getLastCID();
 
-            System.out.println("(DefaultRecoverable.setState) I'm going to update myself from CID "
-                    + lastCheckpointCID + " to CID " + lastCID);
+            LOGGER.debug("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}"
+                    , lastCheckpointCID, lastCID);
             
-            bftsmart.tom.util.Logger.println("(DefaultRecoverable.setState) I'm going to update myself from CID "
-                    + lastCheckpointCID + " to CID " + lastCID);
+            LOGGER.debug("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}", lastCheckpointCID, lastCID);
 
             stateLock.lock();
             if (state.getSerializedState() != null) {
-                System.out.println("The state is not null. Will install it");
+                LOGGER.debug("The state is not null. Will install it");
                 initLog();
                 log.update(state);
                 installSnapshot(state.getSerializedState());
@@ -323,14 +323,14 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
             int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
 
-            System.out.printf("I am proc " + controller.getStaticConf().getProcessId() + ", my currentcid = %d,  from other nodes lastestcid  = %d\r\n", currentCid, lastCID);
+            LOGGER.debug("I am proc {}, my currentcid {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), currentCid, lastCID);
 
             for (int cid = currentCid + 1; cid <= lastCID; cid++) {
                 try {
 
-                    bftsmart.tom.util.Logger.println("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid " + cid);
+                    LOGGER.debug("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid {}", cid);
                     if (state.getMessageBatch(cid) == null) {
-                        System.out.println("(DefaultRecoverable.setState) " + cid + " NULO!!!");
+                        LOGGER.error("(DefaultRecoverable.setState) {} NULO!!!", cid);
                     }
 
                     CommandsInfo cmdInfo = state.getMessageBatch(cid); 
@@ -345,10 +345,10 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 } catch (Exception e) {
                     e.printStackTrace(System.err);
                     if (e instanceof ArrayIndexOutOfBoundsException) {
-                        System.out.println("CID do ultimo checkpoint: " + state.getLastCheckpointCID());
-                        System.out.println("CID do ultimo consenso: " + state.getLastCID());
-                        System.out.println("numero de mensagens supostamente no batch: " + (state.getLastCID() - state.getLastCheckpointCID() + 1));
-                        System.out.println("numero de mensagens realmente no batch: " + state.getMessageBatches().length);
+                        LOGGER.error("CID do ultimo checkpoint: {}", state.getLastCheckpointCID());
+                        LOGGER.error("CID do ultimo consenso: {}", state.getLastCID());
+                        LOGGER.error("numero de mensagens supostamente no batch: {}", (state.getLastCID() - state.getLastCheckpointCID() + 1));
+                        LOGGER.error("numero de mensagens realmente no batch: {}", state.getMessageBatches().length);
                     }
                 }
 
@@ -433,7 +433,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             }
             index++;
         }
-        System.out.println("--- Checkpoint is in position " + index);
+        LOGGER.debug("--- Checkpoint is in position {}", index);
         return index;
     }
    

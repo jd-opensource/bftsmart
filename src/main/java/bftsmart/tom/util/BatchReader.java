@@ -45,7 +45,7 @@ public final class BatchReader {
         long timestamp = proposalBuffer.getLong();
 
         int numberOfNonces = proposalBuffer.getInt();
-        
+
         long seed = 0;
 
         Random rnd = null;
@@ -54,7 +54,7 @@ public final class BatchReader {
             rnd = new Random(seed);
         }
         else numberOfNonces = 0; // make sure the value is correct
-        
+
         int numberOfMessages = proposalBuffer.getInt();
 
         TOMMessage[] requests = new TOMMessage[numberOfMessages];

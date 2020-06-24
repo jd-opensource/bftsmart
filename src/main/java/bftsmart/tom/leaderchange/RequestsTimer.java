@@ -23,6 +23,7 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -48,6 +49,8 @@ public class RequestsTimer {
     private ServerViewController controller; // Reconfiguration manager
     
     private Hashtable <Integer, Timer> stopTimers = new Hashtable<>();
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(RequestsTimer.class);
     
     //private Storage st1 = new Storage(100000);
     //private Storage st2 = new Storage(10000);
@@ -305,7 +308,7 @@ public class RequestsTimer {
          */
         public void run() {
 
-                System.out.printf("(SendStopTask.run) %s Re-transmitting STOP message to install regency %s \r\n",
+                LOGGER.info("(SendStopTask.run) {} Re-transmitting STOP message to install regency {}",
                         controller.getStaticConf().getProcessId(), stop.getReg());
                 communication.send(controller.getCurrentViewOtherAcceptors(),this.stop);
 

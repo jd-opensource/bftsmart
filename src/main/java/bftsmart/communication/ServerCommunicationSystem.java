@@ -26,7 +26,7 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.util.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +49,7 @@ public class ServerCommunicationSystem extends Thread {
     private CommunicationSystemServerSide clientsConn;
     private ServerViewController controller;
     private final List<MessageHandlerRunner> messageHandlerRunners = new ArrayList<>();
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystem.class);
 
     /**
      * Creates a new instance of ServerCommunicationSystem
@@ -138,13 +139,13 @@ public class ServerCommunicationSystem extends Thread {
 //        while (doWork) {
 //            try {
 //                if (count % 1000 == 0 && count > 0) {
-//                    Logger.println("(ServerCommunicationSystem.run) After " + count + " messages, inQueue size=" + inQueue.size());
+//                    LOGGER.debug("(ServerCommunicationSystem.run) After " + count + " messages, inQueue size=" + inQueue.size());
 //                }
 //
 //                SystemMessage sm = inQueue.poll(MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
 //
 //                if (sm != null) {
-//                    Logger.println("<-------receiving---------- " + sm);
+//                    LOGGER.debug("<-------receiving---------- " + sm);
 //                    messageHandler.processData(sm);
 //                    count++;
 //                } else {
@@ -170,7 +171,7 @@ public class ServerCommunicationSystem extends Thread {
         if (sm instanceof TOMMessage) {
             clientsConn.send(targets, (TOMMessage) sm, false);
         } else {
-            Logger.println("--------sending----------> " + sm);
+            LOGGER.debug("--------sending----------> {}", sm);
             serversConn.send(targets, sm, true);
         }
     }
@@ -194,7 +195,7 @@ public class ServerCommunicationSystem extends Thread {
     
     public void shutdown() {
         
-        System.out.println("Shutting down communication layer");
+        LOGGER.error("Shutting down communication layer");
         
         this.doWork = false;        
         clientsConn.shutdown();
@@ -243,7 +244,7 @@ public class ServerCommunicationSystem extends Thread {
                     } else {
                         messageHandler.verifyPending();
                     }
-                } catch (InterruptedException e) {
+                } catch (Throwable e) {
                     e.printStackTrace(System.err);
                 }
             }

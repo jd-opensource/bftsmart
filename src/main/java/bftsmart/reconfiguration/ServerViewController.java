@@ -22,6 +22,7 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.BytesUtils;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Iterator;
@@ -46,6 +47,7 @@ public class ServerViewController extends ViewController {
 	private List<TOMMessage> updates = new LinkedList<TOMMessage>();
 	private TOMLayer tomLayer;
 	// protected View initialView;
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerViewController.class);
 
 	public ServerViewController(int procId) {
 		this(new TOMConfiguration(procId, "config/system.config", "config/hosts.config", "config"), null);
@@ -62,11 +64,11 @@ public class ServerViewController extends ViewController {
 		// View cv = getViewStore().readView();
 		// if(cv == null){
 		//
-		// System.out.println("-- Creating current view from configuration file");
+		// LOGGER.debug("-- Creating current view from configuration file");
 		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
 		// getStaticConf().getF(), getInitAdddresses()));
 		// }else{
-		// System.out.println("-- Using view stored on disk");
+		// LOGGER.debug("-- Using view stored on disk");
 		// reconfigureTo(cv);
 		// }
 
@@ -82,10 +84,10 @@ public class ServerViewController extends ViewController {
 		View cv = getViewStore().readView();
 		if (cv == null) {
 
-			System.out.println("-- Creating current view from configuration file");
+			LOGGER.debug("-- Creating current view from configuration file");
 			reconfigureTo(new View(0, getStaticConf().getInitialView(), getStaticConf().getF(), getInitAdddresses()));
 		} else {
-			System.out.println("-- Using view stored on disk");
+			LOGGER.debug("-- Using view stored on disk");
 			reconfigureTo(cv);
 		}
 	}
@@ -248,9 +250,9 @@ public class ServerViewController extends ViewController {
 
 		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-		System.out.println("new view: " + newV);
-		System.out.println("installed on CID: " + cid);
-		System.out.println("lastJoinSet: " + jSet);
+		LOGGER.debug("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+		LOGGER.debug("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+		LOGGER.debug("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
 		// TODO:Remove all information stored about each process in rSet
 		// processes execute the leave!!!
@@ -259,7 +261,7 @@ public class ServerViewController extends ViewController {
 		if (forceLC) {
 
 			// TODO: Reactive it and make it work
-			System.out.println("Shortening LC timeout");
+			LOGGER.debug("Shortening LC timeout");
 //			tomLayer.requestsTimer.stopTimer();
 			tomLayer.requestsTimer.setShortTimeout(3000);
 //			tomLayer.requestsTimer.startTimer();

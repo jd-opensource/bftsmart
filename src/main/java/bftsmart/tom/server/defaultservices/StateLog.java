@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.tom.server.defaultservices;
 
 import bftsmart.tom.MessageContext;
+import org.slf4j.LoggerFactory;
 
 /**
  * This classes serves as a log for the state associated with the last checkpoint, and the message
@@ -34,7 +35,7 @@ public class StateLog {
     private int position; // next position in the array of batches to be written
     private int lastCID; // Consensus ID for the last messages batch delivered to the application
     private int id; //replica ID
-
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(StateLog.class);
     /**
      * Constructs a State log
      * @param id
@@ -197,14 +198,14 @@ public class StateLog {
      */
     public DefaultApplicationState getApplicationState(int cid, boolean setState) {
 
-    	System.out.println("--- CID requested: " + cid + ". Last checkpoint: " + lastCheckpointCID + ". Last CID: " + this.lastCID);
+    	LOGGER.debug("--- CID requested: {}. Last checkpoint: {}. Last CID: {}", cid, lastCheckpointCID, this.lastCID);
         CommandsInfo[] batches = null;
 
         int lastCID = -1;
        
         if (cid >= lastCheckpointCID && cid <= this.lastCID) {
             
-    	System.out.println("--- Constructing ApplicationState up until CID " + cid);
+    	LOGGER.debug("--- Constructing ApplicationState up until CID {}", cid);
 
             int size = cid - lastCheckpointCID ;
 

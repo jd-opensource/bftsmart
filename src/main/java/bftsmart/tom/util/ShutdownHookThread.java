@@ -20,6 +20,7 @@ import bftsmart.consensus.Epoch;
 import bftsmart.consensus.TimestampValuePair;
 import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.tom.core.TOMLayer;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
@@ -33,6 +34,7 @@ public class ShutdownHookThread extends Thread {
 
     private final TOMLayer tomLayer;
     private SHA256Utils md = new SHA256Utils();
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ShutdownHookThread.class);
 
     public ShutdownHookThread(TOMLayer tomLayer) {
 
@@ -96,7 +98,7 @@ public class ShutdownHookThread extends Thread {
         }
 
         buffer.append("\n\n---------- ---------- ----------\n");
-        
-        System.out.println(buffer);
+
+        LOGGER.debug(buffer.toString());
     }
 }

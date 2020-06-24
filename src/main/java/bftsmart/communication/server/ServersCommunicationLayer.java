@@ -20,6 +20,7 @@ import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -63,6 +64,7 @@ public class ServersCommunicationLayer extends Thread {
     private SecretKey selfPwd;
     private MessageQueue messageInQueue;
     private static final String PASSWORD = "commsyst";
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayer.class);
 
     public ServersCommunicationLayer(ServerViewController controller, MessageQueue messageInQueue,
                                      ServiceReplica replica) throws Exception {
@@ -211,7 +213,7 @@ public class ServersCommunicationLayer extends Thread {
 
     public void shutdown() {
         
-        System.out.println("Shutting down replica sockets");
+        LOGGER.error("Shutting down replica sockets");
         
         doWork = false;
 
@@ -280,6 +282,8 @@ public class ServersCommunicationLayer extends Thread {
             serverSocket.close();
         } catch (IOException ex) {
             Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Throwable e) {
+            // other exception or error
         }
 
         Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.INFO, "ServerCommunicationLayer stopped.");

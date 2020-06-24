@@ -17,6 +17,7 @@ package bftsmart.tom.util;
 
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -31,6 +32,8 @@ import java.util.Random;
  *
  */
 public final class BatchBuilder {
+
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BatchBuilder.class);
 
 	private Random rnd;
 
@@ -88,7 +91,7 @@ public final class BatchBuilder {
                 
 		for (TOMMessage msg : msgs) {
 			//TOMMessage msg = msgs.next();
-			Logger.println("(BatchBuilder.makeBatch) adding request from client " + msg.getSender() + " with sequence number " + msg.getSequence() + " for session " + msg.getSession() + " to PROPOSE");
+			LOGGER.debug("(BatchBuilder.makeBatch) adding request from client {} with sequence number {} for session {} to PROPOSE", msg.getSender(), msg.getSequence(), msg.getSession());
 			messages[i] = msg.serializedMessage;
 			signatures[i] = msg.serializedMessageSignature;
 
@@ -114,7 +117,7 @@ public final class BatchBuilder {
                 
 		for (TOMMessage msg : msgs) {
 			//TOMMessage msg = msgs.next();
-			//Logger.println("(TOMLayer.run) adding req " + msg + " to PROPOSE");
+			//LOGGER.debug("(TOMLayer.run) adding req " + msg + " to PROPOSE");
 			messages[i] = msg.serializedMessage;
 			signatures[i] = msg.serializedMessageSignature;
 
