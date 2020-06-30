@@ -149,7 +149,7 @@ public final class CounterServer extends DefaultRecoverable {
 	}
 
     @Override
-    public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+    public BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands) {
         return null;
     }
 
@@ -159,12 +159,12 @@ public final class CounterServer extends DefaultRecoverable {
     }
 
     @Override
-    public void preComputeAppCommit(String batchId) {
+    public void preComputeAppCommit(int cid, String batchId) {
 
     }
 
     @Override
-    public void preComputeAppRollback(String batchId) {
+    public void preComputeAppRollback(int cid, String batchId) {
 
     }
 }

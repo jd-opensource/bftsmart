@@ -333,7 +333,7 @@ public final class Acceptor {
                             commands[i] = epoch.deserializedPropValue[i].getContent();
                         }
 
-                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands);
+                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid, commands);
 
                         byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
 
@@ -547,12 +547,12 @@ public final class Acceptor {
                     LOGGER.debug("(Acceptor.computeAccept) Deciding {} ", cid);
                     try {
                         LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
-                        getDefaultExecutor().preComputeCommit(epoch.getBatchId());
+                        getDefaultExecutor().preComputeCommit(cid, epoch.getBatchId());
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
                         LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, storage exception, will rollback!", controller.getStaticConf().getProcessId(), cid);
-                        getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                        getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
                         epoch.setAsyncResponseLinkedList(updatedResp);
@@ -560,7 +560,7 @@ public final class Acceptor {
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
                     LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, precompute fail, will rollback!", controller.getStaticConf().getProcessId(), cid);
-                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                    getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                     updateConsensusSetting(epoch);
                     decide(epoch);
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
@@ -568,7 +568,7 @@ public final class Acceptor {
                     LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, leader do evil, will rollback!", controller.getStaticConf().getProcessId(), cid);
                     System.out.println("Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!");
                     // rollback
-                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                    getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                     //This round of consensus has been rolled back, mark it
                     tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
@@ -594,7 +594,7 @@ public final class Acceptor {
 
                 LOGGER.info("(Acceptor.computeAccept) I am proc {}, cid {}, node's pre compute hash is inconsistent, will rollback!", controller.getStaticConf().getProcessId(), cid);
                 System.out.println("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                 updateConsensusSetting(epoch);
 
                 updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);

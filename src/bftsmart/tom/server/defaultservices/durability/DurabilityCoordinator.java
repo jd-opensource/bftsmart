@@ -78,17 +78,17 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	}
 
 		@Override
-		public BatchAppResultImpl preComputeHash(byte[][] commands) {
+		public BatchAppResultImpl preComputeHash(int cid, byte[][] commands) {
 			return preComputeAppHash(commands);
 		}
 
 		@Override
-		public void preComputeCommit(String batchId) {
+		public void preComputeCommit(int cid, String batchId) {
 			preComputeAppCommit(batchId);
 		}
 
 		@Override
-		public void preComputeRollback(String batchId) {
+		public void preComputeRollback(int cid, String batchId) {
 			preComputeAppRollback(batchId);
 		}
 
