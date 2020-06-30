@@ -252,9 +252,9 @@ public class ServerViewController extends ViewController {
 		// f的值需要动态计算
 		View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
 
-		LOGGER.error("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
-		LOGGER.error("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
-		LOGGER.error("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
+		LOGGER.info("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+		LOGGER.info("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+		LOGGER.info("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
 		// TODO:Remove all information stored about each process in rSet
 		// processes execute the leave!!!
@@ -263,7 +263,7 @@ public class ServerViewController extends ViewController {
 		if (forceLC) {
 
 			// TODO: Reactive it and make it work
-			LOGGER.debug("Shortening LC timeout");
+			LOGGER.info("Shortening LC timeout");
 //			tomLayer.requestsTimer.stopTimer();
 			tomLayer.requestsTimer.setShortTimeout(3000);
 //			tomLayer.requestsTimer.startTimer();

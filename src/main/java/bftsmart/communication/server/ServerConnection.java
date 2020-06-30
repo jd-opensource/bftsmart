@@ -273,11 +273,13 @@ public class ServerConnection {
 
                     return;
                 } catch (IOException ex) {
+                    LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will close socket and waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                     closeSocket();
                     waitAndConnect();
                     abort = true;
                 }
             } else {
+                LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                 waitAndConnect();
                 abort = true;
             }
@@ -458,7 +460,7 @@ public class ServerConnection {
             BigInteger secretKey =
                     remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
             
-           LOGGER.error("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
+           LOGGER.info("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
             
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
             PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
@@ -610,12 +612,13 @@ public class ServerConnection {
                         //invalid message sent, just ignore;
                     } catch (IOException ex) {
                         if (doWork) {
-                            LOGGER.error("Closing socket and reconnecting");
+                            LOGGER.error("[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}", remoteId);
                             closeSocket();
                             waitAndConnect();
                         }
                     }
                 } else {
+                    LOGGER.error("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
                     waitAndConnect();
                 }
             }
@@ -696,11 +699,13 @@ public class ServerConnection {
                     } catch (IOException ex) {
                         //ex.printStackTrace();
                         if (doWork) {
+                            LOGGER.error("[ServerConnection.TTPReceiverThread] I will close socket and waitAndConnect connect with {}", remoteId);
                             closeSocket();
                             waitAndConnect();
                         }
                     }
                 } else {
+                    LOGGER.error("[ServerConnection.TTPReceiverThread] I will waitAndConnect connect with {}", remoteId);
                     waitAndConnect();
                 }
             }

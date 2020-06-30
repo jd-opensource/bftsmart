@@ -216,7 +216,7 @@ public final class Acceptor {
         int ets = executionManager.getConsensus(msg.getNumber()).getEts();
 //    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
 
-    	LOGGER.info("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ", controller.getStaticConf().getProcessId(), cid);
+    	LOGGER.debug("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ", controller.getStaticConf().getProcessId(), cid);
     	if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
                 && epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
     		executePropose(epoch, msg.getValue());
@@ -347,13 +347,13 @@ public final class Acceptor {
 
 
             if (writeAccepted > controller.getQuorum()) {
-                LOGGER.error("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
+                LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
 
 //            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 
                 if (!epoch.isAcceptSetted(me) && Arrays.equals(value, epoch.propValueHash)) {
 
-                    LOGGER.info("(Acceptor.computeWrite) I am proc {} sending WRITE for {}", this.controller.getStaticConf().getProcessId(), cid);
+                    LOGGER.debug("(Acceptor.computeWrite) I am proc {} sending WRITE for {}", this.controller.getStaticConf().getProcessId(), cid);
 
                     /**** LEADER CHANGE CODE! ******/
                     LOGGER.debug("(Acceptor.computeWrite) Setting consensus {} , QuorumWrite tiemstamp to {} and value {}", cid, epoch.getConsensus().getEts(), Arrays.toString(value));
@@ -615,7 +615,7 @@ public final class Acceptor {
                 if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
-                        LOGGER.error("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
+                        LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
                         // 发生过预计算才会进行commit的操作
                         if (tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).getPrecomputed()) {
                             getDefaultExecutor().preComputeCommit(epoch.getBatchId());

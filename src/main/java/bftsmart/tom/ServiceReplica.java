@@ -341,7 +341,7 @@ public class ServiceReplica {
 		}
 
 		if (this.SVController.isInCurrentView()) {
-			LOGGER.error("-- In current view: {}", this.SVController.getCurrentView());
+			LOGGER.info("-- In current view: {}", this.SVController.getCurrentView());
 			initTOMLayer(); // initiaze the TOM layer
 		} else {
 			LOGGER.error("-- Not in current view: {}", this.SVController.getCurrentView());

@@ -101,14 +101,14 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					controller.getStaticConf().getProcessId()),
 					controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()))).sync(); 
 
-			LOGGER.error("-- ID = {}", controller.getStaticConf().getProcessId());
-			LOGGER.error("-- N = {}", controller.getCurrentViewN());
-			LOGGER.error("-- F = {}", controller.getCurrentViewF());
-			LOGGER.error("-- Port = {}", controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
-			LOGGER.error("-- requestTimeout = {}", controller.getStaticConf().getRequestTimeout());
-			LOGGER.error("-- maxBatch = {}", controller.getStaticConf().getMaxBatchSize());
-			if (controller.getStaticConf().getUseMACs() == 1) LOGGER.error("-- Using MACs");
-			if(controller.getStaticConf().getUseSignatures() == 1) LOGGER.error("-- Using Signatures");
+			LOGGER.info("-- ID = {}", controller.getStaticConf().getProcessId());
+			LOGGER.info("-- N = {}", controller.getCurrentViewN());
+			LOGGER.info("-- F = {}", controller.getCurrentViewF());
+			LOGGER.info("-- Port = {}", controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
+			LOGGER.info("-- requestTimeout = {}", controller.getStaticConf().getRequestTimeout());
+			LOGGER.info("-- maxBatch = {}", controller.getStaticConf().getMaxBatchSize());
+			if (controller.getStaticConf().getUseMACs() == 1) LOGGER.info("-- Using MACs");
+			if(controller.getStaticConf().getUseSignatures() == 1) LOGGER.info("-- Using Signatures");
 			//******* EDUARDO END **************//
                         
                         mainChannel = f.channel();
