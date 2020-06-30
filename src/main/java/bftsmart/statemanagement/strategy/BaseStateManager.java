@@ -173,7 +173,7 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public void analyzeState(int cid) {
-       LOGGER.debug("(TOMLayer.analyzeState) The state transfer protocol is enabled");
+       LOGGER.info("(TOMLayer.analyzeState) The state transfer protocol is enabled");
         if (waitingCID == -1) {
            LOGGER.info("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {

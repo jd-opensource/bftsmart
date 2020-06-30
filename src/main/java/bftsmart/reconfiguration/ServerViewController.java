@@ -140,7 +140,7 @@ public class ServerViewController extends ViewController {
 						if (str.countTokens() > 2) {
 							int id = Integer.parseInt(str.nextToken());
 							if (id != request.getSender()) {
-								add = false;
+//								add = false;
 							}
 						} else {
 							add = false;
@@ -148,7 +148,7 @@ public class ServerViewController extends ViewController {
 					} else if (key == REMOVE_SERVER) {
 						if (isCurrentViewMember(Integer.parseInt(value))) {
 							if (Integer.parseInt(value) != request.getSender()) {
-								add = false;
+//								add = false;
 							}
 						} else {
 							add = false;
@@ -233,9 +233,8 @@ public class ServerViewController extends ViewController {
 			if (!contains(currentView.getProcesses()[i], rSet)) {
 				nextV[p++] = currentView.getProcesses()[i];
 			} else if (tomLayer.execManager.getCurrentLeader() == currentView.getProcesses()[i]) {
-
+				// 如果要删除的参与方集合中包含了当前的领导者，则需要强制触发领导者切换流程；
 				forceLC = true;
-
 			}
 		}
 
@@ -248,11 +247,14 @@ public class ServerViewController extends ViewController {
 		for (int i = 0; i < nextV.length; i++)
 			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
 
-		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
+//		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-		LOGGER.debug("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
-		LOGGER.debug("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
-		LOGGER.debug("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
+		// f的值需要动态计算
+		View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
+
+		LOGGER.info("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+		LOGGER.info("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+		LOGGER.info("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
 		// TODO:Remove all information stored about each process in rSet
 		// processes execute the leave!!!
@@ -261,7 +263,7 @@ public class ServerViewController extends ViewController {
 		if (forceLC) {
 
 			// TODO: Reactive it and make it work
-			LOGGER.debug("Shortening LC timeout");
+			LOGGER.info("Shortening LC timeout");
 //			tomLayer.requestsTimer.stopTimer();
 			tomLayer.requestsTimer.setShortTimeout(3000);
 //			tomLayer.requestsTimer.startTimer();

@@ -204,6 +204,11 @@ public class ServiceReplica {
 				executor, recoverer, null, new DefaultReplier(), lastCid);
 	}
 
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid, View lastView) {
+		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)),
+				executor, recoverer, null, new DefaultReplier(), lastCid);
+	}
+
 	/**
 	 * Constructor
 	 *
@@ -483,7 +488,8 @@ public class ServiceReplica {
 				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}"
 						, request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
 
-				if (request.getViewID() == SVController.getCurrentViewId()) {
+				// 暂时没有节点间的视图ID同步过程，在处理RECONFIG这类更新视图的操作时先不考虑视图ID落后的情况
+				if (request.getViewID() == SVController.getCurrentViewId() || request.getReqType() == TOMMessageType.RECONFIG) {
 
 					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST) {
 
@@ -630,7 +636,7 @@ public class ServiceReplica {
 					}
 				}
 
-				this.recoverer.noOp(consId[consensusCount], batch, msgCtx);
+//				this.recoverer.noOp(consId[consensusCount], batch, msgCtx);
 
 				// MessageContext msgCtx = new MessageContext(-1, -1, null, -1, -1, -1, -1,
 				// null, // Since it is a noop, there is no need to pass info about the

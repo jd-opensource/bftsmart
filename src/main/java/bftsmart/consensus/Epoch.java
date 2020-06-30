@@ -45,6 +45,7 @@ public class Epoch implements Serializable {
 
     public byte[] propValue = null; // proposed value
     public TOMMessage[] deserializedPropValue = null; //utility var
+    public List<TOMMessage> deserializedPrecomputeValue = new ArrayList<>(); // 剔除掉视图ID小于当前节点视图ID的请求消息
     public byte[] propValueHash = null; // proposed value hash
 
     public byte[] propAndAppValue = null; // proposed value and new app batch hash value content

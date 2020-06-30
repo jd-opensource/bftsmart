@@ -107,7 +107,7 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 	public int generateRequestId(TOMMessageType type) {
 		lock.lock();
 		int id;
-		if(type == TOMMessageType.ORDERED_REQUEST)
+		if(type == TOMMessageType.ORDERED_REQUEST || type == TOMMessageType.RECONFIG)
 			id = sequence++;
 		else
 			id = unorderedMessageSequence++; 

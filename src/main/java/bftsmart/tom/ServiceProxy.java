@@ -289,6 +289,7 @@ public class ServiceProxy extends TOMSender {
 					reconfigureTo((View) TOMUtil.getObject(response.getContent()));
 
 					canSendLock.unlock();
+					LOGGER.error("Service proxy view id little than service replica view id, will re invoke request!");
 					return invoke(request, reqType);
 				}
 			} else if (reqType == TOMMessageType.UNORDERED_REQUEST
