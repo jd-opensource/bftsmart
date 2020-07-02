@@ -79,18 +79,18 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	}
 
 		@Override
-		public BatchAppResultImpl preComputeHash(byte[][] commands) {
-			return preComputeAppHash(commands);
+		public BatchAppResultImpl preComputeHash(int cid, byte[][] commands) {
+			return preComputeAppHash(cid, commands);
 		}
 
 		@Override
-		public void preComputeCommit(String batchId) {
-			preComputeAppCommit(batchId);
+		public void preComputeCommit(int cid, String batchId) {
+			preComputeAppCommit(cid, batchId);
 		}
 
 		@Override
-		public void preComputeRollback(String batchId) {
-			preComputeAppRollback(batchId);
+		public void preComputeRollback(int cid, String batchId) {
+			preComputeAppRollback(cid, batchId);
 		}
 
 
@@ -468,7 +468,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
         
 	public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
 
-	public BatchAppResultImpl preComputeAppHash(byte[][] commands) {
+	public BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands) {
 		return null;
 	}
 
@@ -476,11 +476,11 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 		return null;
 	}
 
-	public void preComputeAppCommit(String batchId) {
+	public void preComputeAppCommit(int cid, String batchId) {
 
 	}
 
-	public void preComputeAppRollback(String batchId) {
+	public void preComputeAppRollback(int cid, String batchId) {
 
 	}
 

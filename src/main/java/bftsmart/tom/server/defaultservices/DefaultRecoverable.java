@@ -71,18 +71,18 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     }
 
     @Override
-    public BatchAppResultImpl preComputeHash(byte[][] commands) {
-        return preComputeAppHash(commands);
+    public BatchAppResultImpl preComputeHash(int cid, byte[][] commands) {
+        return preComputeAppHash(cid, commands);
     }
 
     @Override
-    public void preComputeCommit(String batchId) {
-        preComputeAppCommit(batchId);
+    public void preComputeCommit(int cid, String batchId) {
+        preComputeAppCommit(cid, batchId);
     }
 
     @Override
-    public void preComputeRollback(String batchId) {
-        preComputeAppRollback(batchId);
+    public void preComputeRollback(int cid, String batchId) {
+        preComputeAppRollback(cid, batchId);
     }
 
 
@@ -499,13 +499,13 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     
     public abstract byte[] getSnapshot();
 
-    public abstract BatchAppResultImpl preComputeAppHash(byte[][] commands);
+    public abstract BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands);
 
     public abstract List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList, byte[] commonHash, boolean isConsistent);
 
-    public abstract void preComputeAppCommit(String batchId);
+    public abstract void preComputeAppCommit(int cid, String batchId);
 
-    public abstract void preComputeAppRollback(String batchId);
+    public abstract void preComputeAppRollback(int cid, String batchId);
     
     public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus);
 

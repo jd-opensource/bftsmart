@@ -162,7 +162,7 @@ public final class Acceptor {
             // 本过程就是让没有参与到领导者切换过程的节点
             if (consensus.getPrecomputed() && !consensus.getPrecomputeCommited()) {
                 Epoch epoch = consensus.getEpoch(latestEpoch, controller);
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                getDefaultExecutor().preComputeRollback(consensus.getId(), epoch.getBatchId());
             }
             return false;
         }
@@ -383,37 +383,26 @@ public final class Acceptor {
 
                         }
 
-                        ConsensusMessage cm = null;
-                        // 包含需要进行预计算的交易
-                        if (commands.size() > 0) {
-                            BatchAppResult appHashResult = defaultExecutor.preComputeHash(commands.toArray(new byte[commands.size()][]));
-                            byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
-                            epoch.propAndAppValue = result;
+                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid, commands.toArray(new byte[commands.size()][]));
 
-                            epoch.propAndAppValueHash = tomLayer.computeHash(result);
+                        byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+                        epoch.propAndAppValue = result;
 
-                            epoch.preComputeRes = appHashResult.getErrprCode();
+                        epoch.propAndAppValueHash = tomLayer.computeHash(result);
 
-                            epoch.commonHash = appHashResult.getGenisHashBytes();
+                        epoch.preComputeRes = appHashResult.getErrprCode();
 
-                            tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).setPrecomputed(true);
+                        epoch.commonHash = appHashResult.getGenisHashBytes();
 
-                            epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
+                        tomLayer.getExecManager().getConsensus(cid).setPrecomputed(true);
 
-                            epoch.batchId = appHashResult.getBatchId();
+                        epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
 
-                            epoch.setAccept(me, epoch.propAndAppValueHash);
+                        epoch.batchId = appHashResult.getBatchId();
 
-                            cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
-                        } else {
-                            // 不包含需要进行预计算的交易， 视图更新的请求不需要进行预计算
-                            epoch.propAndAppValueHash = epoch.propValueHash;
+                        epoch.setAccept(me, epoch.propAndAppValueHash);
 
-                            epoch.setAccept(me, epoch.propValueHash);
-
-                            cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash);
-                        }
-
+                        ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), epoch.propAndAppValueHash);
 
                         //add origin propose hash for accept type consensus msg
                         cm.setOrigPropValue(epoch.propValueHash);
@@ -428,11 +417,7 @@ public final class Acceptor {
 //                    communication.getServersConn().send(targets, cm, true);
 
                         epoch.addToProof(cm);
-                        if (commands.size() > 0) {
-                            computeAccept(cid, epoch, epoch.propAndAppValueHash);
-                        } else {
-                            computeAccept(cid, epoch, epoch.propValueHash);
-                        }
+                        computeAccept(cid, epoch, epoch.propAndAppValueHash);
                     }
                     else {
                         epoch.setAccept(me, value);
@@ -616,15 +601,13 @@ public final class Acceptor {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
                         LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
-                        // 发生过预计算才会进行commit的操作
-                        if (tomLayer.getExecManager().getConsensus(tomLayer.getInExec()).getPrecomputed()) {
-                            getDefaultExecutor().preComputeCommit(epoch.getBatchId());
-                        }
+                        // 发生过预计算才会进行commit的操作,对于视图ID号小的请求以及视图更新的重配请求没有进行过预计算，不需要提交
+                        getDefaultExecutor().preComputeCommit(cid, epoch.getBatchId());
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception
                         LOGGER.error("I am proc {} , flush storage fail, will rollback!", controller.getStaticConf().getProcessId());
-                        getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                        getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                         updateConsensusSetting(epoch);
                         updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, false);
                         epoch.setAsyncResponseLinkedList(updatedResp);
@@ -632,7 +615,7 @@ public final class Acceptor {
                     }
                 } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
                     LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback", controller.getStaticConf().getProcessId(), cid);
-                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                    getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                     updateConsensusSetting(epoch);
                     decide(epoch);
                 } else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
@@ -640,7 +623,7 @@ public final class Acceptor {
                     LOGGER.error("(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!", controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
                     LOGGER.error("(computeAccept) I am proc {}, my cid is {}, my propose value hash is {}, recv propose value hash is {}, my epoc timestamp is {}", controller.getStaticConf().getProcessId(), cid, epoch.propAndAppValueHash, value, epoch.getTimestamp());
                     // rollback
-                    getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                    getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                     //This round of consensus has been rolled back, mark it
                     tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
@@ -665,7 +648,7 @@ public final class Acceptor {
                     && (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
 
                 LOGGER.error("Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
-                getDefaultExecutor().preComputeRollback(epoch.getBatchId());
+                getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                 updateConsensusSetting(epoch);
 
                 updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash, true);

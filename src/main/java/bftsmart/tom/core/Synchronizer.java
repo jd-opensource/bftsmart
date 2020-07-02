@@ -1203,7 +1203,7 @@ public class Synchronizer {
 
                     DefaultRecoverable defaultRecoverable = ((DefaultRecoverable) tom.getDeliveryThread().getReceiver().getExecutor());
                     if (e != null){
-                        defaultRecoverable.preComputeRollback(e.getBatchId());
+                        defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
                     }
                 }
                 cons.setETS(regency);
