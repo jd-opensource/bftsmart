@@ -457,10 +457,9 @@ public final class ExecutionManager {
             int countAccepts = 0;
             if (msgs != null) {
                 for (ConsensusMessage msg : msgs) {
-                    
+                    // 对于Accept类型的共识消息，需要通过getOrigPropValue取到预计算之前的提议值hash
                     if (msg.getEpoch() == epoch.getTimestamp() &&
-                            Arrays.equals(propHash, msg.getValue())) {
-                        
+                            (Arrays.equals(propHash, msg.getValue()) || Arrays.equals(propHash, msg.getOrigPropValue()))) {
                         if (msg.getType() == MessageFactory.WRITE) countWrites++;
                         else if (msg.getType() == MessageFactory.ACCEPT) countAccepts++;
                     }
