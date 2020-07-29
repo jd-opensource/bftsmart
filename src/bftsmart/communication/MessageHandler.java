@@ -27,6 +27,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -43,6 +44,8 @@ import java.util.HashMap;
  * @author edualchieri
  */
 public class MessageHandler {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
     private Acceptor acceptor;
     private TOMLayer tomLayer;
@@ -119,8 +122,7 @@ public class MessageHandler {
                 Logger.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
             }
         } else if (sm instanceof HeartBeatMessage) {
-            // 心跳消息
-            System.out.printf("(MessageHandler) node %s receive heart beat from %s  \r\n",
+            LOGGER.info("(MessageHandler) node {} receive heart beat from {} !",
                     tomLayer.controller.getStaticConf().getProcessId(), sm.getSender());
         }  else {
         	if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || sm.authenticated) {

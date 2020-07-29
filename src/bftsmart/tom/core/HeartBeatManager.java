@@ -1,6 +1,7 @@
 package bftsmart.tom.core;
 
 import bftsmart.consensus.messages.HeartBeatMessage;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -8,7 +9,9 @@ import java.util.concurrent.TimeUnit;
 
 public class HeartBeatManager {
 
-    private static final long HEART_BEAT_PERIOD = 10000;
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(HeartBeatManager.class);
+
+    private static final long HEART_BEAT_PERIOD = 10000L;
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
@@ -28,8 +31,9 @@ public class HeartBeatManager {
                 // 生成心跳信息，发送给其他节点
                 HeartBeatMessage heartBeatMessage = newHeartBeatMessage();
                 tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), heartBeatMessage);
+                LOGGER.info("Send heart beat message to other servers !");
             } catch (Exception e) {
-                e.printStackTrace();
+                LOGGER.error("Send heart beat message error !!!", e);
             }
         }, HEART_BEAT_PERIOD, HEART_BEAT_PERIOD, TimeUnit.MILLISECONDS);
     }
