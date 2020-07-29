@@ -17,6 +17,7 @@ package bftsmart.communication;
 
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.messages.ConsensusMessage;
+import bftsmart.consensus.messages.HeartBeatMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.statemanagement.SMMessage;
@@ -117,8 +118,11 @@ public class MessageHandler {
                 System.out.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
                 Logger.println("(MessageHandler.processData) Discarding unauthenticated message from " + sm.getSender());
             }
-
-        } else {
+        } else if (sm instanceof HeartBeatMessage) {
+            // 心跳消息
+            System.out.printf("(MessageHandler) node %s receive heart beat from %s  \r\n",
+                    tomLayer.controller.getStaticConf().getProcessId(), sm.getSender());
+        }  else {
         	if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || sm.authenticated) {
 	            /*** This is Joao's code, related to leader change */
 	            if (sm instanceof LCMessage) {

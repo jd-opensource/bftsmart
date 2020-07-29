@@ -166,6 +166,11 @@ public final class TOMLayer extends Thread implements RequestReceiver {
         this.clientsManager = new ClientsManager(this.controller, requestsTimer, this.verifier);
 
         this.syncher = new Synchronizer(this); // create synchronizer
+
+        // 创建心跳检测
+        HeartBeatManager heartBeatManager = new HeartBeatManager(this);
+        // 启动心跳检测处理器
+        heartBeatManager.start();
     }
 
     /**

@@ -76,7 +76,5 @@ public class MessageFactory{
         return new ConsensusMessage(ACCEPT,id,epoch, from, value);
 
     }
-
-
 }
 
