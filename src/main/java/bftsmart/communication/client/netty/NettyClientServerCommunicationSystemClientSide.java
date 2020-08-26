@@ -204,7 +204,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         future.awaitUninterruptibly();
 
                         if (!future.isSuccess()) {
-                            LOGGER.error("Impossible to connect to {}", currV[i]);
+                            LOGGER.warn("Impossible to connect to {}", currV[i]);
                         }
 
                     } catch (InvalidKeyException ex) {
@@ -297,7 +297,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         sessionTable.remove(ncss.getReplicaId());
                         sessionTable.put(ncss.getReplicaId(), cs);
 
-                        LOGGER.info("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
+                        LOGGER.debug("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
                     } else {
                         // This cleans an olde server from the session table
                         sessionTable.remove(ncss.getReplicaId());
@@ -323,6 +323,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void send(boolean sign, int[] targets, TOMMessage sm) {
+
 
         listener.waitForChannels(targets.length); // wait for the previous transmission to complete
         

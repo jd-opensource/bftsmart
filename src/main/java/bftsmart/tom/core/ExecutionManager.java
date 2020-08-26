@@ -265,7 +265,7 @@ public final class ExecutionManager {
                     
                     addOutOfContextMessage(msg);
                 } else if (!rollHappend){ //can process!
-                    LOGGER.info("(ExecutionManager.checkLimits) message for consensus {} can be processed", msg.getNumber());
+                    LOGGER.info("(ExecutionManager.checkLimits)I am proc {} ,message for consensus {} can be processed", this.controller.getStaticConf().getProcessId(), msg.getNumber());
             
                     //Logger.debug = false;
                     canProcessTheMessage = true;

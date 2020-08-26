@@ -331,7 +331,8 @@ public final class DeliveryThread extends Thread {
 
             tomLayer.getCommunication().updateServersConnections();
         } else {
-            receiver.restart();
+//            receiver.restart();
+            receiver.kill();
         }
     }
 
