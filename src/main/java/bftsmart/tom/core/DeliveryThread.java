@@ -339,7 +339,7 @@ public final class DeliveryThread extends Thread {
     public void shutdown() {
         this.doWork = false;
         
-        LOGGER.error("Shutting down delivery thread");
+        LOGGER.info("Shutting down delivery thread");
         
         decidedLock.lock();        
         notEmptyQueue.signalAll();

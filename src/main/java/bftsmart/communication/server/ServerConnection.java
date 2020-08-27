@@ -217,7 +217,7 @@ public class ServerConnection {
      * Stop message sending and reception.
      */
     public void shutdown() {
-        LOGGER.error("SHUTDOWN for {}", remoteId);
+        LOGGER.info("SHUTDOWN for {}", remoteId);
         
         doWork = false;
         closeSocket();
@@ -612,13 +612,13 @@ public class ServerConnection {
                         //invalid message sent, just ignore;
                     } catch (IOException ex) {
                         if (doWork) {
-                            LOGGER.error("[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}", remoteId);
+                            LOGGER.warn("[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}", remoteId);
                             closeSocket();
                             waitAndConnect();
                         }
                     }
                 } else {
-                    LOGGER.error("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
+                    LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
                     waitAndConnect();
                 }
             }

@@ -213,7 +213,7 @@ public class ServersCommunicationLayer extends Thread {
 
     public void shutdown() {
         
-        LOGGER.error("Shutting down replica sockets");
+        LOGGER.info("Shutting down replica sockets");
         
         doWork = false;
 

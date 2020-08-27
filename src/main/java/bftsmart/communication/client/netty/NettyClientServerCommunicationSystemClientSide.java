@@ -262,7 +262,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     public void reconnect(final ChannelHandlerContext ctx){
 
         rl.writeLock().lock();
-    	LOGGER.debug("try to reconnect");
+    	LOGGER.info("try to reconnect");
 
         //Iterator sessions = sessionTable.values().iterator();
 
@@ -297,7 +297,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         sessionTable.remove(ncss.getReplicaId());
                         sessionTable.put(ncss.getReplicaId(), cs);
 
-                        LOGGER.debug("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
+                        LOGGER.info("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
                     } else {
                         // This cleans an olde server from the session table
                         sessionTable.remove(ncss.getReplicaId());
