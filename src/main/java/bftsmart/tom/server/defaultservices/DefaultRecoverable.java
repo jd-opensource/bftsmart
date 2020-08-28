@@ -71,8 +71,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     }
 
     @Override
-    public BatchAppResultImpl preComputeHash(int cid, byte[][] commands) {
-        return preComputeAppHash(cid, commands);
+    public BatchAppResultImpl preComputeHash(int cid, byte[][] commands, long timestamp) {
+        return preComputeAppHash(cid, commands, timestamp);
     }
 
     @Override
@@ -499,7 +499,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     
     public abstract byte[] getSnapshot();
 
-    public abstract BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands);
+    public abstract BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands, long timestamp);
 
     public abstract List<byte[]> updateAppResponses(List<byte[]> asyncResponseLinkedList, byte[] commonHash, boolean isConsistent);
 

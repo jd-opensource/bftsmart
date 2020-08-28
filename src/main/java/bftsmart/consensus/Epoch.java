@@ -51,6 +51,8 @@ public class Epoch implements Serializable {
     public byte[] propAndAppValue = null; // proposed value and new app batch hash value content
     public byte[] propAndAppValueHash = null; // Calculate the hash value with proposed value and new app batch hash
 
+    private long proposeTimestamp = 0L;
+
     public List<byte[]> asyncResponseLinkedList = new ArrayList<>(); // pre compute responses of proposed values
     public String batchId; // pre compute batchid
 
@@ -381,6 +383,14 @@ public class Epoch implements Serializable {
             return counter;
         }
         return 0;
+    }
+
+    public long getProposeTimestamp() {
+        return proposeTimestamp;
+    }
+
+    public void setProposeTimestamp(long proposeTimestamp) {
+        this.proposeTimestamp = proposeTimestamp;
     }
 
     private int settedSameCount(boolean[] arraySetted, byte[][] array) {

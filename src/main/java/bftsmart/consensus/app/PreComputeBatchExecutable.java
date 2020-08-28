@@ -17,7 +17,7 @@ import java.util.List;
 public interface PreComputeBatchExecutable extends Executable {
 
     // begin batch, process order, complete batch
-    public BatchAppResultImpl preComputeHash(int cid, byte[][] command);
+    public BatchAppResultImpl preComputeHash(int cid, byte[][] command, long timestamp);
 
     public List<byte[]> updateResponses(List<byte[]> asyncResponseLinkedList, byte[] commonHash, boolean isConsistent);
 

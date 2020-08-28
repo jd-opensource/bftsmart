@@ -5,14 +5,14 @@ import java.util.List;
 
 public interface BatchAppResult {
 
-    public List<byte[]> getAsyncResponseLinkedList();
+    List<byte[]> getAsyncResponses();
 
-    public byte[] getAppHashBytes();
+    byte[] getAppHashBytes();
 
-    public String getBatchId();
+    String getBatchId();
 
-    public byte getErrprCode();
+    byte getComputeCode();
 
-    public byte[] getGenisHashBytes();
+    byte[] getGenisHashBytes();
 
 }

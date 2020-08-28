@@ -21,7 +21,7 @@ import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.app.BatchAppResult;
-import bftsmart.consensus.app.ErrorCode;
+import bftsmart.consensus.app.ComputeCode;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.reconfiguration.ServerViewController;
@@ -255,6 +255,9 @@ public final class Acceptor {
                     tomLayer.setInExec(cid);
                 }
                 epoch.deserializedPropValue = tomLayer.checkProposedValue(value, true);
+                if (epoch.deserializedPropValue != null && epoch.deserializedPropValue.length > 0) {
+                    epoch.setProposeTimestamp(epoch.deserializedPropValue[0].timestamp);
+                }
 
                 if (epoch.deserializedPropValue != null && !epoch.isWriteSetted(me)) {
                     if(epoch.getConsensus().getDecision().firstMessageProposed == null) {
@@ -345,7 +348,6 @@ public final class Acceptor {
         try {
             int writeAccepted = epoch.countWrite(value);
 
-
             if (writeAccepted > controller.getQuorum()) {
                 LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}", this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
 
@@ -380,23 +382,23 @@ public final class Acceptor {
                             // 视图ID正常的请求才会继续进行后面的预计算过程
                             commands.add(epoch.deserializedPropValue[i].getContent());
                             epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
-
                         }
 
-                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid, commands.toArray(new byte[commands.size()][]));
+                        BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid,
+                                commands.toArray(new byte[commands.size()][]), epoch.getProposeTimestamp());
 
                         byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
                         epoch.propAndAppValue = result;
 
                         epoch.propAndAppValueHash = tomLayer.computeHash(result);
 
-                        epoch.preComputeRes = appHashResult.getErrprCode();
+                        epoch.preComputeRes = appHashResult.getComputeCode();
 
                         epoch.commonHash = appHashResult.getGenisHashBytes();
 
                         tomLayer.getExecManager().getConsensus(cid).setPrecomputed(true);
 
-                        epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponseLinkedList());
+                        epoch.setAsyncResponseLinkedList(appHashResult.getAsyncResponses());
 
                         epoch.batchId = appHashResult.getBatchId();
 
@@ -597,7 +599,7 @@ public final class Acceptor {
 
             if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
                 LOGGER.info("(Acceptor.computeAccept) I am proc {}, I have {} ACCEPTs for cid {} and timestamp {}", controller.getStaticConf().getProcessId(), epoch.countAccept(value), cid, epoch.getTimestamp());
-                if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_SUCC)) {
+                if (Arrays.equals(value, epoch.propAndAppValueHash) && (ComputeCode.valueOf(epoch.getPreComputeRes()) == ComputeCode.SUCCESS)) {
                     LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ", controller.getStaticConf().getProcessId(), cid);
                     try {
                         LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
@@ -613,7 +615,7 @@ public final class Acceptor {
                         epoch.setAsyncResponseLinkedList(updatedResp);
                         decide(epoch);
                     }
-                } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ErrorCode.valueOf(epoch.getPreComputeRes()) == ErrorCode.PRECOMPUTE_FAIL)) {
+                } else if (Arrays.equals(value, epoch.propAndAppValueHash) && (ComputeCode.valueOf(epoch.getPreComputeRes()) == ComputeCode.FAILURE)) {
                     LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback", controller.getStaticConf().getProcessId(), cid);
                     getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
                     updateConsensusSetting(epoch);

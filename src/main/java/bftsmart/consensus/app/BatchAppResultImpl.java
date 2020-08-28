@@ -1,6 +1,5 @@
 package bftsmart.consensus.app;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -11,24 +10,22 @@ import java.util.List;
  */
 public class BatchAppResultImpl implements BatchAppResult {
 
-    private List<byte[]> asyncResponseLinkedList = new ArrayList<>();
+    private List<byte[]> asyncResponses;
     private byte[] blockHashBytes;
     private byte[] genisHashBytes;
     private String batchId;
-    private byte errorCode;
+    private byte computeCode;
 
-    public BatchAppResultImpl(List<byte[]> reponseLinkedList, byte[] blockHashBytes, String batchId, byte[] genisHashBytes) {
+    public BatchAppResultImpl(List<byte[]> asyncResponses, byte[] blockHashBytes, String batchId, byte[] genisHashBytes) {
         this.blockHashBytes = blockHashBytes;
         this.batchId = batchId;
-        for(int i = 0; i < reponseLinkedList.size(); i++) {
-            asyncResponseLinkedList.add(reponseLinkedList.get(i));
-        }
+        this.asyncResponses = asyncResponses;
         this.genisHashBytes = genisHashBytes;
     }
 
     @Override
-    public List<byte[]> getAsyncResponseLinkedList() {
-        return asyncResponseLinkedList;
+    public List<byte[]> getAsyncResponses() {
+        return asyncResponses;
     }
 
     @Override
@@ -42,8 +39,8 @@ public class BatchAppResultImpl implements BatchAppResult {
     }
 
     @Override
-    public byte getErrprCode() {
-        return errorCode;
+    public byte getComputeCode() {
+        return computeCode;
     }
 
     @Override
@@ -51,25 +48,45 @@ public class BatchAppResultImpl implements BatchAppResult {
         return genisHashBytes;
     }
 
-    public void setAsyncResponseLinkedList(List<byte[]> responseLinkedList) {
-        for(int i = 0; i < responseLinkedList.size(); i++) {
-            asyncResponseLinkedList.add(responseLinkedList.get(i));
-        }
+    public void setAsyncResponses(List<byte[]> asyncResponses) {
+        this.asyncResponses = asyncResponses;
+    }
+
+    public byte[] getBlockHashBytes() {
+        return blockHashBytes;
     }
 
     public void setBlockHashBytes(byte[] blockHashBytes) {
         this.blockHashBytes = blockHashBytes;
     }
 
+    public void setGenisHashBytes(byte[] genisHashBytes) {
+        this.genisHashBytes = genisHashBytes;
+    }
+
     public void setBatchId(String batchId) {
         this.batchId = batchId;
     }
 
-    public void setErrorCode(byte errorCode) {
-        this.errorCode = errorCode;
+    public void setComputeCode(byte computeCode) {
+        this.computeCode = computeCode;
     }
 
-    public void setGenisHashBytes(byte[] genisHashBytes) {
-        this.genisHashBytes = genisHashBytes;
+    public void setComputeCode(ComputeCode computeCode) {
+        setComputeCode(computeCode.getCode());
+    }
+
+    public static BatchAppResultImpl createSuccess(List<byte[]> responseLinkedList, byte[] blockHashBytes, String batchId, byte[] genisHashBytes) {
+        return create(responseLinkedList, blockHashBytes, batchId, genisHashBytes, ComputeCode.SUCCESS);
+    }
+
+    public static BatchAppResultImpl createFailure(List<byte[]> responseLinkedList, byte[] blockHashBytes, String batchId, byte[] genisHashBytes) {
+        return create(responseLinkedList, blockHashBytes, batchId, genisHashBytes, ComputeCode.FAILURE);
+    }
+
+    private static BatchAppResultImpl create(List<byte[]> responseLinkedList, byte[] blockHashBytes, String batchId, byte[] genisHashBytes, ComputeCode computeCode) {
+        BatchAppResultImpl batchAppResult = new BatchAppResultImpl(responseLinkedList, blockHashBytes, batchId, genisHashBytes);
+        batchAppResult.setComputeCode(computeCode);
+        return batchAppResult;
     }
 }

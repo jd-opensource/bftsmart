@@ -79,8 +79,8 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	}
 
 		@Override
-		public BatchAppResultImpl preComputeHash(int cid, byte[][] commands) {
-			return preComputeAppHash(cid, commands);
+		public BatchAppResultImpl preComputeHash(int cid, byte[][] commands, long timestamp) {
+			return preComputeAppHash(cid, commands, timestamp);
 		}
 
 		@Override
@@ -468,7 +468,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
         
 	public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
 
-	public BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands) {
+	public BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands, long timestamp) {
 		return null;
 	}
 

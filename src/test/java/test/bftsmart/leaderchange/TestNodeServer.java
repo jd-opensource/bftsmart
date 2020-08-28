@@ -150,7 +150,7 @@ public class TestNodeServer extends DefaultRecoverable {
     }
 
     @Override
-    public BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands) {
+    public BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands, long timestamp) {
         List<byte[]> responseLinkedList = new ArrayList<>();
 
         for (int i = 0; i < commands.length; i++) {
