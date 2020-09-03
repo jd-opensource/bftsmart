@@ -636,7 +636,7 @@ public class ServiceReplica {
 					}
 				}
 
-//				this.recoverer.noOp(consId[consensusCount], batch, msgCtx);
+				this.recoverer.noOp(consId[consensusCount], batch, msgCtx);
 
 				// MessageContext msgCtx = new MessageContext(-1, -1, null, -1, -1, -1, -1,
 				// null, // Since it is a noop, there is no need to pass info about the

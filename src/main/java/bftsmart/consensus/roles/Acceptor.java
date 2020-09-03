@@ -603,6 +603,7 @@ public final class Acceptor {
                         LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger", controller.getStaticConf().getProcessId(), cid);
                         // 发生过预计算才会进行commit的操作,对于视图ID号小的请求以及视图更新的重配请求没有进行过预计算，不需要提交
                         getDefaultExecutor().preComputeCommit(cid, epoch.getBatchId());
+                        tomLayer.getExecManager().getConsensus(cid).setPrecomputeCommited(true);
                         decide(epoch);
                     } catch (Exception e) {
                         //maybe storage exception

@@ -84,22 +84,22 @@ public final class DeliveryThread extends Thread {
      * @param dec Decision established from the consensus
      */
     public void delivery(Decision dec) {
-        if (!containsGoodReconfig(dec)) {
+//        if (!containsGoodReconfig(dec)) {
 
-            LOGGER.debug("(DeliveryThread.delivery) Decision from consensus {} does not contain good reconfiguration", dec.getConsensusId());
+//            LOGGER.debug("(DeliveryThread.delivery) Decision from consensus {} does not contain good reconfiguration", dec.getConsensusId());
             //set this decision as the last one from this replica
 
             tomLayer.setLastExec(dec.getConsensusId());
-            tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
+//            tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
             //define that end of this execution
             tomLayer.setInExec(-1);
 
-        } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
-        else {
-            tomLayer.execManager.removeConsensus(dec.getConsensusId());
+//        } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
+//        else {
+//            tomLayer.execManager.removeConsensus(dec.getConsensusId());
             //define that end of this execution
-            tomLayer.setInExec(-1);
-        }
+//            tomLayer.setInExec(-1);
+//        }
         try {
             decidedLock.lock();
             decided.put(dec);
