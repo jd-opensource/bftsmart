@@ -422,6 +422,9 @@ public class ServerConnection {
             
             socketOutStream.writeInt(signature.length);
             socketOutStream.write(signature);
+
+            // 发送时间戳
+            socketOutStream.writeLong(System.currentTimeMillis());
             
             //receive remote DH public key and signature
             int dataLength = socketInStream.readInt();
@@ -443,13 +446,22 @@ public class ServerConnection {
             } while (read < dataLength);
             
             byte[] remote_Signature = bytes;
-            
+
+            long timestamp = socketInStream.readLong();
+
             //verify signature
             PublicKey remoteRSAPubkey = controller.getStaticConf().getRSAPublicKey(remoteId);
             
             if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
                 
                 LOGGER.error("{} sent an invalid signature!", remoteId);
+                shutdown();
+                return;
+            }
+
+            // 进行时间判断
+            if (Math.abs(System.currentTimeMillis() - timestamp) > controller.getStaticConf().getTimeTolerance()) {
+                LOGGER.error("{} sent an invalid timestamp !", remoteId);
                 shutdown();
                 return;
             }
@@ -460,7 +472,7 @@ public class ServerConnection {
             BigInteger secretKey =
                     remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
             
-           LOGGER.info("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
+            LOGGER.info("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
             
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
             PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());

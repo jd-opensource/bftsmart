@@ -37,6 +37,7 @@ public class TOMConfiguration extends Configuration {
 	protected int timeoutHighMark;
 	protected int replyVerificationTime;
 	protected int maxBatchSize;
+	protected long timeTolerance;
 	protected int numberOfNonces;
 	protected int inQueueSize;
 	protected int outQueueSize;
@@ -163,7 +164,16 @@ public class TOMConfiguration extends Configuration {
 				}
 			}
 
-
+			// 时间容错范围，默认为30秒
+			s = (String) configs.remove("system.totalordermulticast.timeTolerance");
+			if (s == null) {
+				timeTolerance = 30000L;
+			} else {
+				timeTolerance = Long.parseLong(s);
+				if (timeTolerance <= 0) {
+					timeTolerance = 30000L;
+				}
+			}
 
 			// heartBeatTimeout;
 			s = (String) configs.remove("system.totalordermulticast.heartBeatTimeout");
@@ -223,6 +233,8 @@ public class TOMConfiguration extends Configuration {
 			} else {
 				maxBatchSize = Integer.parseInt(s);
 			}
+
+
 
 			s = (String) configs.remove("system.totalordermulticast.replayVerificationTime");
 			if (s == null) {
@@ -443,6 +455,10 @@ public class TOMConfiguration extends Configuration {
 
 	public long getHeartBeatPeriod() {
 		return heartBeatPeriod;
+	}
+
+	public long getTimeTolerance() {
+		return timeTolerance;
 	}
 
 	public int getReplyVerificationTime() {
