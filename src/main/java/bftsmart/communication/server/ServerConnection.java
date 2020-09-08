@@ -415,65 +415,67 @@ public class ServerConnection {
             byte[] bytes = myDHPubKey.toByteArray();
             
             byte[] signature = TOMUtil.signMessage(RSAprivKey, bytes);
-            
-            //send my DH public key and signature
-            socketOutStream.writeInt(bytes.length);
-            socketOutStream.write(bytes);
-            
-            socketOutStream.writeInt(signature.length);
-            socketOutStream.write(signature);
-            
-            //receive remote DH public key and signature
-            int dataLength = socketInStream.readInt();
-            bytes = new byte[dataLength];
-            int read = 0;
-            do {
-                read += socketInStream.read(bytes, read, dataLength - read);
-                
-            } while (read < dataLength);
-            
-            byte[] remote_Bytes = bytes;
 
-            dataLength = socketInStream.readInt();
-            bytes = new byte[dataLength];
-            read = 0;
-            do {
-                read += socketInStream.read(bytes, read, dataLength - read);
-                
-            } while (read < dataLength);
-            
-            byte[] remote_Signature = bytes;
-            
-            //verify signature
-            PublicKey remoteRSAPubkey = controller.getStaticConf().getRSAPublicKey(remoteId);
-            
-            if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
-                
-                LOGGER.error("{} sent an invalid signature!", remoteId);
-                shutdown();
-                return;
+            if (authKey == null && socketOutStream != null && socketInStream != null) {
+                //send my DH public key and signature
+                socketOutStream.writeInt(bytes.length);
+                socketOutStream.write(bytes);
+
+                socketOutStream.writeInt(signature.length);
+                socketOutStream.write(signature);
+
+                //receive remote DH public key and signature
+                int dataLength = socketInStream.readInt();
+                bytes = new byte[dataLength];
+                int read = 0;
+                do {
+                    read += socketInStream.read(bytes, read, dataLength - read);
+
+                } while (read < dataLength);
+
+                byte[] remote_Bytes = bytes;
+
+                dataLength = socketInStream.readInt();
+                bytes = new byte[dataLength];
+                read = 0;
+                do {
+                    read += socketInStream.read(bytes, read, dataLength - read);
+
+                } while (read < dataLength);
+
+                byte[] remote_Signature = bytes;
+
+                //verify signature
+                PublicKey remoteRSAPubkey = controller.getStaticConf().getRSAPublicKey(remoteId);
+
+                if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
+
+                    LOGGER.error("{} sent an invalid signature!", remoteId);
+                    shutdown();
+                    return;
+                }
+
+                BigInteger remoteDHPubKey = new BigInteger(remote_Bytes);
+
+                //Create secret key
+                BigInteger secretKey =
+                        remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
+
+                LOGGER.info("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
+
+                SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+                PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
+
+                //PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
+                authKey = fac.generateSecret(spec);
+
+                macSend = Mac.getInstance(MAC_ALGORITHM);
+                macSend.init(authKey);
+                macReceive = Mac.getInstance(MAC_ALGORITHM);
+                macReceive.init(authKey);
+                macSize = macSend.getMacLength();
+                latch.countDown();
             }
-            
-            BigInteger remoteDHPubKey = new BigInteger(remote_Bytes);
-
-            //Create secret key
-            BigInteger secretKey =
-                    remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
-            
-           LOGGER.info("I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
-            
-            SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
-            PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
-            
-            //PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-            authKey = fac.generateSecret(spec);
-
-            macSend = Mac.getInstance(MAC_ALGORITHM);
-            macSend.init(authKey);
-            macReceive = Mac.getInstance(MAC_ALGORITHM);
-            macReceive.init(authKey);
-            macSize = macSend.getMacLength();
-            latch.countDown();
         } catch (Exception ex) {
             ex.printStackTrace();
         }

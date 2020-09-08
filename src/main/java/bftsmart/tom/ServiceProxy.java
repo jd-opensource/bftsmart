@@ -251,6 +251,7 @@ public class ServiceProxy extends TOMSender {
 					LOGGER.error("Reply timeout for reqId is {}", reqId);
 					LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
 					LOGGER.error("Replies received: {}", receivedReplies);
+					LOGGER.error("Replies quorum: {}", replyQuorum);
 					canSendLock.unlock();
 
 					return null;
