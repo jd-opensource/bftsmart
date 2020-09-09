@@ -461,7 +461,12 @@ public class ServerConnection {
 
             // 进行时间判断
             if (Math.abs(System.currentTimeMillis() - timestamp) > controller.getStaticConf().getTimeTolerance()) {
-                LOGGER.error("{} sent an invalid timestamp !", remoteId);
+                int localId = controller.getStaticConf().getProcessId();
+                LOGGER.error("\r\n" +
+                        "========================== {} Time Error ========================== \r\n" +
+                        "=============== {} can't get reasonable time with {} ===============\r\n" +
+                        "================= You should reset system time ! =================\r\n" +
+                        "==================================================================", localId, localId, remoteId);
                 shutdown();
                 return;
             }
