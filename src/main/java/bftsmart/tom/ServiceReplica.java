@@ -43,9 +43,11 @@ import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.net.InetSocketAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -590,11 +592,23 @@ public class ServiceReplica {
 																					// resend the message to
 																					// him (but only if it came from
 																					// consensus an not state transfer)
+					View view = SVController.getCurrentView();
+					List<InetSocketAddress> addresses = new ArrayList<>();
+
+					for(int i = 0; i < view.getProcesses().length;i++) {
+                        int cpuId = view.getProcesses()[i];
+						InetSocketAddress inetSocketAddress = view.getAddress(cpuId);
+						addresses.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+					}
+
+					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addresses.toArray(new InetSocketAddress[addresses.size()]));
+
+					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}", this.SVController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
 
 					tomLayer.getCommunication().send(new int[] { request.getSender() },
 							new TOMMessage(SVController.getStaticConf().getProcessId(), request.getSession(),
 									request.getSequence(), request.getOperationId(),
-									TOMUtil.getBytes(SVController.getCurrentView()), SVController.getCurrentViewId(),
+									TOMUtil.getBytes(replyView), SVController.getCurrentViewId(),
 									request.getReqType()));
 				}
 				requestCount++;
