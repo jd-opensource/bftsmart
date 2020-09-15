@@ -34,6 +34,7 @@ import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.ClientDatasMonitorTimer;
 import bftsmart.tom.leaderchange.RequestsTimer;
+import bftsmart.tom.leaderchange.TimestampTimer;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.RequestVerifier;
 import bftsmart.tom.util.BatchBuilder;
@@ -45,6 +46,10 @@ import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignedObject;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -74,6 +79,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
     public RequestsTimer requestsTimer;
 
     public HeartBeatTimer heartBeatTimer;
+
+    public TimestampTimer timestampTimer;
 
     // Monitor timer for client datas and clear too old datas;
     public ClientDatasMonitorTimer clientDatasMonitorTimer;
@@ -135,11 +142,11 @@ public class TOMLayer extends Thread implements RequestReceiver {
         this.acceptor = a;
         this.communication = cs;
         this.controller = controller;
-
         this.requestsTimer = new RequestsTimer(this, communication, this.controller); // Create requests timers manager (a thread)
         this.heartBeatTimer = new HeartBeatTimer();
 //        this.heartBeatTimer = receiver.getHeartBeatTimer();
-        heartBeatTimer.setTomLayer(this);
+        this.heartBeatTimer.setTomLayer(this);
+        this.timestampTimer = new TimestampTimer(this);
         //do not create a timer manager if the timeout is 0
 //        if (this.controller.getStaticConf().getRequestTimeout() == 0) {
 //            this.requestsTimer = null;
@@ -373,8 +380,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
         try {
             LOGGER.debug("Running."); // TODO: can't this be outside of the loop?
-            // start heart beat timer
             this.heartBeatTimer.start();
+            this.timestampTimer.start();
             while (doWork) {
 
                 // blocks until this replica learns to be the leader for the current epoch of the current consensus

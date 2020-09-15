@@ -23,10 +23,7 @@ import bftsmart.statemanagement.SMMessage;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.leaderchange.HeartBeatMessage;
-import bftsmart.tom.leaderchange.LCMessage;
-import bftsmart.tom.leaderchange.LeaderRequestMessage;
-import bftsmart.tom.leaderchange.LeaderResponseMessage;
+import bftsmart.tom.leaderchange.*;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
@@ -129,6 +126,29 @@ public class MessageHandler {
 //                    tomLayer.controller.getStaticConf().getProcessId(), ((HeartBeatMessage)sm).getLeader(), System.currentTimeMillis());
 
             tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
+        } else if (sm instanceof TimestampMessage) {
+            // 时间戳消息
+            // 判断时间戳中的消息时间戳
+            TimestampMessage timestampMessage = (TimestampMessage) sm;
+            long timestamp = timestampMessage.getTimestamp();
+            int remoteId = timestampMessage.getSender();
+            // 首先判断是否需要对该节点进行时间的判断
+            if (tomLayer.timestampTimer.contain(remoteId)) {
+                // 进行时间判断
+                int localId = tomLayer.controller.getStaticConf().getProcessId();
+                if (Math.abs(System.currentTimeMillis() - timestamp) > tomLayer.controller.getStaticConf().getTimeTolerance()) {
+                    LOGGER.error("\r\n" +
+                            "========================== {} Time Error ========================== \r\n" +
+                            "=============== {} can't get reasonable time with {} ===============\r\n" +
+                            "================= You should reset system time ! =================\r\n" +
+                            "==================================================================", localId, localId, remoteId);
+                } else {
+                    LOGGER.info("I am {}, consensus timestamp with {} ok !", localId, remoteId);
+                    // 时间处理已成功
+                    tomLayer.timestampTimer.remove(remoteId);
+                }
+            }
+
         } else if (sm instanceof LeaderRequestMessage) {
             // 获取Leader节点请求的消息
             tomLayer.heartBeatTimer.receiveLeaderRequestMessage((LeaderRequestMessage) sm);

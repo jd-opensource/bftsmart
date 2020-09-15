@@ -210,7 +210,7 @@ public abstract class BaseStateManager implements StateManager {
         while (isInitializing) {
             tomLayer.getCommunication().send(target, currentCID);
             try {
-                Thread.sleep(1000);
+                Thread.sleep(1500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -251,7 +251,7 @@ public abstract class BaseStateManager implements StateManager {
             for (int key : cids.keySet()) {
                 if (cids.get(key) >= SVController.getQuorum()) {
                     if (key == lastCID) {
-                        LOGGER.info("-- Replica state is up to date");
+                        LOGGER.info("-- {} replica state is up to date ! --", SVController.getStaticConf().getProcessId());
                         dt.deliverLock();
                         isInitializing = false;
                         tomLayer.setLastExec(key);
@@ -268,6 +268,7 @@ public abstract class BaseStateManager implements StateManager {
                         }
                     }
                 }
+                LOGGER.info("I am {}, receive cids = {} !", SVController.getStaticConf().getProcessId(), cids.get(key));
             }
         }
     }

@@ -423,9 +423,6 @@ public class ServerConnection {
             socketOutStream.writeInt(signature.length);
             socketOutStream.write(signature);
 
-            // 发送时间戳
-            socketOutStream.writeLong(System.currentTimeMillis());
-            
             //receive remote DH public key and signature
             int dataLength = socketInStream.readInt();
             bytes = new byte[dataLength];
@@ -447,8 +444,6 @@ public class ServerConnection {
             
             byte[] remote_Signature = bytes;
 
-            long timestamp = socketInStream.readLong();
-
             //verify signature
             PublicKey remoteRSAPubkey = controller.getStaticConf().getRSAPublicKey(remoteId);
             
@@ -459,17 +454,17 @@ public class ServerConnection {
                 return;
             }
 
-            // 进行时间判断
-            if (Math.abs(System.currentTimeMillis() - timestamp) > controller.getStaticConf().getTimeTolerance()) {
-                int localId = controller.getStaticConf().getProcessId();
-                LOGGER.error("\r\n" +
-                        "========================== {} Time Error ========================== \r\n" +
-                        "=============== {} can't get reasonable time with {} ===============\r\n" +
-                        "================= You should reset system time ! =================\r\n" +
-                        "==================================================================", localId, localId, remoteId);
-                shutdown();
-                return;
-            }
+//            // 进行时间判断
+//            if (Math.abs(System.currentTimeMillis() - timestamp) > controller.getStaticConf().getTimeTolerance()) {
+//                int localId = controller.getStaticConf().getProcessId();
+//                LOGGER.error("\r\n" +
+//                        "========================== {} Time Error ========================== \r\n" +
+//                        "=============== {} can't get reasonable time with {} ===============\r\n" +
+//                        "================= You should reset system time ! =================\r\n" +
+//                        "==================================================================", localId, localId, remoteId);
+//                shutdown();
+//                return;
+//            }
             
             BigInteger remoteDHPubKey = new BigInteger(remote_Bytes);
 

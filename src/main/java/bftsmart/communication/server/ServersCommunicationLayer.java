@@ -202,6 +202,7 @@ public class ServersCommunicationLayer extends Thread {
                     //System.out.println("Going to send message to: "+i);
                     //******* EDUARDO BEGIN **************//
                     //connections[i].send(data);
+//                    LOGGER.info("I am {}, send data to {}, which is {} !", controller.getStaticConf().getProcessId(), i, sm.getClass());
                     getConnection(i).send(data, useMAC);
                     //******* EDUARDO END **************//
                 }
