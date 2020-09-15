@@ -268,7 +268,6 @@ public abstract class BaseStateManager implements StateManager {
                         }
                     }
                 }
-                LOGGER.info("I am {}, receive cids = {} !", SVController.getStaticConf().getProcessId(), cids.get(key));
             }
         }
     }
