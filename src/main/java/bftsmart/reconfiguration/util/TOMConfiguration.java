@@ -172,6 +172,8 @@ public class TOMConfiguration extends Configuration {
 				timeTolerance = Long.parseLong(s);
 				if (timeTolerance <= 0) {
 					timeTolerance = 30000L;
+				} else if (timeTolerance < 5000L) {
+					timeTolerance = 5000L;
 				}
 			}
 
