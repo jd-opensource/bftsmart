@@ -19,10 +19,12 @@ import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
+import bftsmart.reconfiguration.views.View;
 import bftsmart.statemanagement.SMMessage;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.core.messages.ViewMessage;
 import bftsmart.tom.leaderchange.*;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
@@ -148,7 +150,15 @@ public class MessageHandler {
                     tomLayer.timestampTimer.remove(remoteId);
                 }
             }
-
+        } else if (sm instanceof ViewMessage) {
+            // 视图消息
+            // 通过该消息可更新本地视图
+            ViewMessage viewMessage = (ViewMessage) sm;
+            int remoteId = viewMessage.getSender();
+            View view = viewMessage.getView();
+            if (view != null) {
+                tomLayer.viewSyncTimer.updateView(remoteId, view);
+            }
         } else if (sm instanceof LeaderRequestMessage) {
             // 获取Leader节点请求的消息
             tomLayer.heartBeatTimer.receiveLeaderRequestMessage((LeaderRequestMessage) sm);

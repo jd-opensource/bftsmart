@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.reconfiguration;
 
 import bftsmart.reconfiguration.util.TOMConfiguration;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.TOMLayer;
@@ -92,10 +93,10 @@ public class ServerViewController extends ViewController {
 		}
 	}
 
-	private InetSocketAddress[] getInitAdddresses() {
+	private NodeNetwork[] getInitAdddresses() {
 
 		int nextV[] = getStaticConf().getInitialView();
-		InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
+		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
 		for (int i = 0; i < nextV.length; i++) {
 			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
 		}
@@ -189,7 +190,13 @@ public class ServerViewController extends ViewController {
 							jSet.add(id);
 							String host = str.nextToken();
 							int port = Integer.valueOf(str.nextToken());
-							this.getStaticConf().addHostInfo(id, host, port);
+							try {
+								int monitorPort = Integer.valueOf(str.nextToken());
+								this.getStaticConf().addHostInfo(id, host, port, monitorPort);
+							} catch (Exception e) {
+								this.getStaticConf().addHostInfo(id, host, port, -1);
+
+							}
 						}
 					}
 				} else if (key == REMOVE_SERVER) {
@@ -242,10 +249,11 @@ public class ServerViewController extends ViewController {
 			f = currentView.getF();
 		}
 
-		InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
+		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
 
-		for (int i = 0; i < nextV.length; i++)
+		for (int i = 0; i < nextV.length; i++) {
 			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+		}
 
 //		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
@@ -308,7 +316,12 @@ public class ServerViewController extends ViewController {
 			this.lastJoinStet[i] = id;
 			String host = str.nextToken();
 			int port = Integer.valueOf(str.nextToken());
-			this.getStaticConf().addHostInfo(id, host, port);
+			try {
+				int monitorPort = Integer.valueOf(str.nextToken());
+				this.getStaticConf().addHostInfo(id, host, port, monitorPort);
+			} catch (Exception e) {
+				this.getStaticConf().addHostInfo(id, host, port, -1);
+			}
 		}
 	}
 

@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.statemanagement.strategy.durability;
 
 import bftsmart.consensus.messages.ConsensusMessage;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.SMMessage;
@@ -140,12 +141,12 @@ public class DurableStateManager extends BaseStateManager {
 			LOGGER.debug("--- state asked");
 
 			int[] targets = { msg.getSender() };
-			InetSocketAddress address = SVController.getCurrentView().getAddress(
+			NodeNetwork address = SVController.getCurrentView().getAddress(
 					SVController.getStaticConf().getProcessId());
-			String myIp = address.getHostName();
+			String myIp = address.getHost();
 			int myId = SVController.getStaticConf().getProcessId();
 			int port = 4444 + myId;
-			address = new InetSocketAddress(myIp, port);
+			address = new NodeNetwork(myIp, port, -1);
 			cstConfig.setAddress(address);
 			CSTSMMessage reply = new CSTSMMessage(myId, msg.getCID(),
 					TOMUtil.SM_REPLY, cstConfig, null,
@@ -204,12 +205,12 @@ public class DurableStateManager extends BaseStateManager {
 
 				LOGGER.info("(TOMLayer.SMReplyDeliver) The reply is for the CID that I want!");
 
-				InetSocketAddress address = reply.getCstConfig().getAddress();
+				NodeNetwork address = reply.getCstConfig().getAddress();
 				Socket clientSocket;
 				ApplicationState stateReceived = null;
 				try {
-					clientSocket = new Socket(address.getHostName(),
-							address.getPort());
+					clientSocket = new Socket(address.getHost(),
+							address.getConsensusPort());
 					ObjectInputStream in = new ObjectInputStream(
 							clientSocket.getInputStream());
 					stateReceived = (ApplicationState) in.readObject();

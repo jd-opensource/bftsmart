@@ -43,7 +43,7 @@ public class VMServices {
 			String ipAddress = args[1];
 			int port = Integer.parseInt(args[2]);
 
-			viewManager.addServer(smartId, ipAddress,port);
+			viewManager.addServer(smartId, ipAddress,port, -1);
 
 		}else{
 			LOGGER.debug("Usage: java -jar TppServices <smart id> [ip address] [port]");

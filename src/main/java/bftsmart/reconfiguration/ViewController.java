@@ -17,9 +17,11 @@ package bftsmart.reconfiguration;
 
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.DefaultViewStorage;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
 
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
@@ -76,8 +78,13 @@ public class ViewController {
         return this.lastView;
     }
     
-    public SocketAddress getRemoteAddress(int id) {
+    public NodeNetwork getRemoteAddress(int id) {
         return getCurrentView().getAddress(id);
+    }
+
+    public InetSocketAddress getRemoteSocketAddress(int id) {
+        NodeNetwork nodeNetwork = getRemoteAddress(id);
+        return new InetSocketAddress(nodeNetwork.getHost(), nodeNetwork.getConsensusPort());
     }
     
     public void reconfigureTo(View newView) {

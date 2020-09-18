@@ -89,8 +89,8 @@ public class ViewManager {
         }
     }
 
-    public void addServer(int id, String ip, int port) {
-        this.controller.getStaticConf().addHostInfo(id, ip, port);
+    public void addServer(int id, String ip, int port, int monitorPort) {
+        this.controller.getStaticConf().addHostInfo(id, ip, port, monitorPort);
         rec.addServer(id, ip, port);
         addIds.add(id);
     }
@@ -179,7 +179,7 @@ public class ViewManager {
                 if (cmd.equals("add")) {
 
                     int port = (arg * 10) + 11000;
-                    viewManager.addServer(arg, "127.0.0.1", port);
+                    viewManager.addServer(arg, "127.0.0.1", port, -1);
                 } else if (cmd.equals("rem")) {
                     viewManager.removeServer(arg);
                 }

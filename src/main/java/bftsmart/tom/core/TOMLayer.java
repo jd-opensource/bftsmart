@@ -82,6 +82,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
     public TimestampTimer timestampTimer;
 
+    public ViewSyncTimer viewSyncTimer;
+
     // Monitor timer for client datas and clear too old datas;
     public ClientDatasMonitorTimer clientDatasMonitorTimer;
     /**
@@ -147,6 +149,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 //        this.heartBeatTimer = receiver.getHeartBeatTimer();
         this.heartBeatTimer.setTomLayer(this);
         this.timestampTimer = new TimestampTimer(this);
+        this.viewSyncTimer = new ViewSyncTimer(this);
         //do not create a timer manager if the timeout is 0
 //        if (this.controller.getStaticConf().getRequestTimeout() == 0) {
 //            this.requestsTimer = null;
@@ -382,6 +385,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
             LOGGER.debug("Running."); // TODO: can't this be outside of the loop?
             this.heartBeatTimer.start();
             this.timestampTimer.start();
+            this.viewSyncTimer.start();
             while (doWork) {
 
                 // blocks until this replica learns to be the leader for the current epoch of the current consensus

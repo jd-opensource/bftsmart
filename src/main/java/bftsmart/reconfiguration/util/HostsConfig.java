@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
+import bftsmart.reconfiguration.views.NodeNetwork;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Serializable;
@@ -31,7 +33,6 @@ public class HostsConfig implements Serializable {
 
 	private Map<Integer, Config> servers = new ConcurrentHashMap<>();
 
-	
 	public HostsConfig() {
 	}
 	
@@ -42,7 +43,7 @@ public class HostsConfig implements Serializable {
     //create constructor according to consensus realm nodes
 	public HostsConfig(Config[] nodesConfig) {
 		for (Config node : nodesConfig) {
-			add(node.id, node.host, node.port);
+			add(node.id, node.host, node.consensusPort, node.monitorPort);
 		}
 	}
 
@@ -71,8 +72,13 @@ public class HostsConfig implements Serializable {
 					if (str.countTokens() > 2) {
 						int id = Integer.valueOf(str.nextToken());
 						String host = str.nextToken();
-						int port = Integer.valueOf(str.nextToken());
-						this.servers.put(id, new Config(id, host, port));
+						int consensusPort = Integer.valueOf(str.nextToken());
+						try {
+							int monitorPort = Integer.valueOf(str.nextToken());
+							this.servers.put(id, new Config(id, host, consensusPort, monitorPort));
+						} catch (Exception e) {
+							this.servers.put(id, new Config(id, host, consensusPort, -1));
+						}
 					}
 				}
 			}
@@ -83,29 +89,26 @@ public class HostsConfig implements Serializable {
 		}
 	}
 
-	public void add(int id, String host, int port) {
-//		if (this.servers.get(id) == null) {
-//			this.servers.put(id, new Config(id, host, port));
-//		}
-		this.servers.put(id, new Config(id, host, port));
+	public void add(int id, String host, int consensusPort, int monitorPort) {
+		this.servers.put(id, new Config(id, host, consensusPort, monitorPort));
 	}
 
 	public int getNum() {
 		return servers.size();
 	}
 
-	public InetSocketAddress getRemoteAddress(int id) {
+	public NodeNetwork getRemoteAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new InetSocketAddress(c.host, c.port);
+			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort);
 		}
 		return null;
 	}
 
-	public InetSocketAddress getServerToServerRemoteAddress(int id) {
+	public NodeNetwork getServerToServerRemoteAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new InetSocketAddress(c.host, c.port + 1);
+			return new NodeNetwork(c.host, c.consensusPort + 1, c.monitorPort);
 		}
 		return null;
 	}
@@ -113,7 +116,15 @@ public class HostsConfig implements Serializable {
 	public int getPort(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return c.port;
+			return c.consensusPort;
+		}
+		return -1;
+	}
+
+	public int getMonitorPort(int id) {
+		Config c = (Config) this.servers.get(id);
+		if (c != null) {
+			return c.monitorPort;
 		}
 		return -1;
 	}
@@ -121,7 +132,7 @@ public class HostsConfig implements Serializable {
 	public int getServerToServerPort(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return c.port + 1;
+			return c.consensusPort + 1;
 		}
 		return -1;
 	}
@@ -138,13 +149,6 @@ public class HostsConfig implements Serializable {
 		return ret;
 	}
 
-	public void setPort(int id, int port) {
-		Config c = (Config) this.servers.get(id);
-		if (c != null) {
-			c.port = port;
-		}
-	}
-
 	public String getHost(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
@@ -153,10 +157,10 @@ public class HostsConfig implements Serializable {
 		return null;
 	}
 
-	public InetSocketAddress getLocalAddress(int id) {
+	public NodeNetwork getLocalAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new InetSocketAddress(c.port);
+			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort);
 		}
 		return null;
 	}
@@ -166,12 +170,14 @@ public class HostsConfig implements Serializable {
 
 		private int id;
 		private String host;
-		private int port;
+		private int consensusPort;
+		private int monitorPort;
 
-		public Config(int id, String host, int port) {
+		public Config(int id, String host, int consensusPort, int monitorPort) {
 			this.id = id;
 			this.host = host;
-			this.port = port;
+			this.consensusPort = consensusPort;
+			this.monitorPort = monitorPort;
 		}
 	}
 }

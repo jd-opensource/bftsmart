@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
+import bftsmart.reconfiguration.views.NodeNetwork;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -200,15 +202,15 @@ public class Configuration implements Serializable{
 //		return systemConfig;
 //	}
 
-	public final InetSocketAddress getRemoteAddress(int id) {
+	public final NodeNetwork getRemoteAddress(int id) {
 		return hostsConfig.getRemoteAddress(id);
 	}
 
-	public final InetSocketAddress getServerToServerRemoteAddress(int id) {
+	public final NodeNetwork getServerToServerRemoteAddress(int id) {
 		return hostsConfig.getServerToServerRemoteAddress(id);
 	}
 
-	public final InetSocketAddress getLocalAddress(int id) {
+	public final NodeNetwork getLocalAddress(int id) {
 		return hostsConfig.getLocalAddress(id);
 	}
 
@@ -218,6 +220,10 @@ public class Configuration implements Serializable{
 
 	public final int getPort(int id) {
 		return hostsConfig.getPort(id);
+	}
+
+	public final int getMonitorPort(int id) {
+		return hostsConfig.getMonitorPort(id);
 	}
 
 	public final int getServerToServerPort(int id) {
@@ -232,8 +238,8 @@ public class Configuration implements Serializable{
 		this.processId = processId;
 	}
 
-	public final void addHostInfo(int id, String host, int port) {
-		this.hostsConfig.add(id, host, port);
+	public final void addHostInfo(int id, String host, int port, int monitorPort) {
+		this.hostsConfig.add(id, host, port, monitorPort);
 	}
 
 	

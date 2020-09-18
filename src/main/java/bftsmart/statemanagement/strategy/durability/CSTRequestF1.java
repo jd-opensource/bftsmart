@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.statemanagement.strategy.durability;
 
+import bftsmart.reconfiguration.views.NodeNetwork;
+
 import java.net.InetSocketAddress;
 
 /**
@@ -36,7 +38,7 @@ public class CSTRequestF1 extends CSTRequest {
 	private int logUpperSize;
 //	private int logLowerSkip;
 	private int logLowerSize;
-	private InetSocketAddress address;
+	private NodeNetwork address;
 	
 	public CSTRequestF1(int cid) {
 		super(cid);
@@ -123,11 +125,11 @@ public class CSTRequestF1 extends CSTRequest {
 		return -1;
 	}
 
-	public InetSocketAddress getAddress() {
+	public NodeNetwork getAddress() {
 		return address;
 	}
 
-	public void setAddress(InetSocketAddress address) {
+	public void setAddress(NodeNetwork address) {
 		this.address = address;
 	}
 

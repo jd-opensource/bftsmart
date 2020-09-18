@@ -32,15 +32,16 @@ public class View implements Serializable {
 	private int id;
  	private int f;
  	private int[] processes;
- 	private Map<Integer,InetSocketAddress> addresses;
+ 	private Map<Integer, NodeNetwork> addresses;
 
- 	public View(int id, int[] processes, int f, InetSocketAddress[] addresses){
+ 	public View(int id, int[] processes, int f, NodeNetwork[] addresses){
  		this.id = id;
  		this.processes = processes;
- 		this.addresses = new HashMap<Integer, InetSocketAddress>();
+ 		this.addresses = new HashMap<Integer, NodeNetwork>();
 
- 		for(int i = 0; i < this.processes.length;i++)
- 			this.addresses.put(processes[i],addresses[i]);
+ 		for(int i = 0; i < this.processes.length;i++) {
+			this.addresses.put(processes[i],addresses[i]);
+		}
  		Arrays.sort(this.processes);
  		this.f = f;
  	}
@@ -80,7 +81,11 @@ public class View implements Serializable {
  		return processes;
  	}
 
- 	@Override
+	public Map<Integer, NodeNetwork> getAddresses() {
+		return addresses;
+	}
+
+	@Override
  	public String toString(){
  		String ret = "ID:"+id+"; F:"+f+"; Processes:";
  		for(int i = 0; i < processes.length;i++){
@@ -89,7 +94,7 @@ public class View implements Serializable {
 
  		return ret;
  	}
- 	public InetSocketAddress getAddress(int id) {
+ 	public NodeNetwork getAddress(int id) {
  		return addresses.get(id);
  	}
         
@@ -105,13 +110,16 @@ public class View implements Serializable {
         }
         return false;
     }
-    
+
+    @Override
     public int hashCode() {
         int hash = 1;
         hash = hash * 31 + this.id;
         hash = hash * 31 + this.f;
         if (this.processes != null) {
-            for (int i = 0; i < this.processes.length; i++) hash = hash * 31 + this.processes[i];
+            for (int i = 0; i < this.processes.length; i++) {
+            	hash = hash * 31 + this.processes[i];
+			}
         } else {
             hash = hash * 31 + 0;
         }

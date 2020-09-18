@@ -606,12 +606,12 @@ public class ServiceReplica {
 			if (noop && this.recoverer != null) {
 
 				LOGGER.debug("(ServiceReplica.receiveMessages) I am proc {}, host = {}, port = {}. Delivering a no-op to the recoverer", this.SVController.getStaticConf().getProcessId()
-				, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHostName(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getPort());
+				, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHost(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getConsensusPort());
 
 				LOGGER.debug("I am proc {} , host = {}, port = {}.--- A consensus instance finished, but there were no commands to deliver to the application.", this.SVController.getStaticConf().getProcessId()
-						, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHostName(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getPort());
+						, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHost(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getConsensusPort());
 				LOGGER.debug("I am proc {} , host = {}, port = {}.--- Notifying recoverable about a blank consensus.", this.SVController.getStaticConf().getProcessId()
-						, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHostName(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getPort());
+						, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHost(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getConsensusPort());
 
 				byte[][] batch = null;
 				MessageContext[] msgCtx = null;

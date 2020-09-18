@@ -18,6 +18,7 @@ package bftsmart.communication.client.netty;
 import bftsmart.communication.client.CommunicationSystemClientSide;
 import bftsmart.communication.client.ReplyReceiver;
 import bftsmart.reconfiguration.ClientViewController;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
 import io.netty.bootstrap.Bootstrap;
@@ -37,6 +38,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -116,7 +118,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     b.handler(getChannelInitializer());
 
                     // Start the client.
-                    future =  b.connect(controller.getRemoteAddress(currV[i]));					
+                    future = b.connect(controller.getRemoteSocketAddress(currV[i]));
 
                     //******* EDUARDO BEGIN **************//
 
@@ -184,7 +186,8 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         b.handler(getChannelInitializer());
 
                         // Start the client.
-                        ChannelFuture future =  b.connect(controller.getRemoteAddress(currV[i]));
+
+                        ChannelFuture future =  b.connect(controller.getRemoteSocketAddress(currV[i]));
 
                         String str = this.clientId + ":" + currV[i];
                         PBEKeySpec spec = new PBEKeySpec(str.toCharArray());
@@ -288,7 +291,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
                     if (controller.getRemoteAddress(ncss.getReplicaId()) != null) {
 
-                        ChannelFuture future =  b.connect(controller.getRemoteAddress(ncss.getReplicaId()));
+                        ChannelFuture future =  b.connect(controller.getRemoteSocketAddress(ncss.getReplicaId()));
 
                         //creates MAC stuff
                         Mac macSend = ncss.getMacSend();

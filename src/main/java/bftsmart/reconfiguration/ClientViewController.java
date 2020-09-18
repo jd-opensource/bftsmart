@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.reconfiguration;
 
 import bftsmart.reconfiguration.util.TOMConfiguration;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
 
@@ -76,9 +77,9 @@ public class ClientViewController extends ViewController {
 		this.currentView = getViewStore().readView();
 	}
 
-	private InetSocketAddress[] getInitAdddresses() {
+	private NodeNetwork[] getInitAdddresses() {
 		int nextV[] = getStaticConf().getInitialView();
-		InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
+		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
 		for (int i = 0; i < nextV.length; i++) {
 			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
 		}
