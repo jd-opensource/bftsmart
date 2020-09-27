@@ -25,6 +25,7 @@ import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -190,11 +191,13 @@ public class ServerViewController extends ViewController {
 							String host = str.nextToken();
 							int port = Integer.valueOf(str.nextToken());
 							this.getStaticConf().addHostInfo(id, host, port);
+							this.getStaticConf().getOuterHostConfig().add(id, host, port);
 						}
 					}
 				} else if (key == REMOVE_SERVER) {
 					if (isCurrentViewMember(Integer.parseInt(value))) {
 						rSet.add(Integer.parseInt(value));
+						this.getStaticConf().getOuterHostConfig().del(Integer.parseInt(value));
 					}
 				} else if (key == CHANGE_F) {
 					f = Integer.parseInt(value);
@@ -275,7 +278,25 @@ public class ServerViewController extends ViewController {
 
 		LOGGER.info("I am proc {}, I will send ReconfigureReply!", this.getStaticConf().getProcessId());
 
-		return TOMUtil.getBytes(new ReconfigureReply(newV, jSetInfo.toArray(new String[0]), cid,
+		List<InetSocketAddress> addressesTemp = new ArrayList<>();
+
+		for(int i = 0; i < newV.getProcesses().length;i++) {
+			int cpuId = newV.getProcesses()[i];
+			InetSocketAddress inetSocketAddress = newV.getAddress(cpuId);
+
+			if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
+				// proc docker env
+				addressesTemp.add(new InetSocketAddress(this.getStaticConf().getOuterHostConfig().getHost(cpuId), inetSocketAddress.getPort()));
+			} else {
+				addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+			}
+		}
+
+		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),addressesTemp.toArray(new InetSocketAddress[addressesTemp.size()]));
+
+		LOGGER.info("I am proc {}, I adjust reply view, reply view = {}", this.getStaticConf().getProcessId(), replyView);
+
+		return TOMUtil.getBytes(new ReconfigureReply(replyView, jSetInfo.toArray(new String[0]), cid,
 				tomLayer.execManager.getCurrentLeader()));
 	}
 

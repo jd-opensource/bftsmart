@@ -593,16 +593,22 @@ public class ServiceReplica {
 																					// him (but only if it came from
 																					// consensus an not state transfer)
 					View view = SVController.getCurrentView();
-					List<InetSocketAddress> addresses = new ArrayList<>();
+
+					List<InetSocketAddress> addressesTemp = new ArrayList<>();
 
 					for(int i = 0; i < view.getProcesses().length;i++) {
-                        int cpuId = view.getProcesses()[i];
+						int cpuId = view.getProcesses()[i];
 						InetSocketAddress inetSocketAddress = view.getAddress(cpuId);
-						addresses.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+
+						if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
+							// proc docker env
+							addressesTemp.add(new InetSocketAddress(SVController.getStaticConf().getOuterHostConfig().getHost(cpuId), inetSocketAddress.getPort()));
+						} else {
+							addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+						}
 					}
 
-					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addresses.toArray(new InetSocketAddress[addresses.size()]));
-
+					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new InetSocketAddress[addressesTemp.size()]));
 					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}", this.SVController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
 
 					tomLayer.getCommunication().send(new int[] { request.getSender() },
