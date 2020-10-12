@@ -83,6 +83,8 @@ public class ServerConnection {
 
     private CountDownLatch initSuccessLatch = new CountDownLatch(1);
 
+    private volatile boolean canSendMessage = false;
+
     private TimestampVerifyService timestampVerifyService;
 
     private volatile boolean currSocketTimestampOver = false;
@@ -100,8 +102,6 @@ public class ServerConnection {
         this.socket = socket;
 
         this.remoteId = remoteId;
-
-        LOGGER.info("I am {}, my socket = {} !", controller.getStaticConf().getProcessId(), socket);
 
         this.messageInQueue = messageInQueue;
 
@@ -147,7 +147,7 @@ public class ServerConnection {
         }
         Executors.newSingleThreadExecutor().execute(() -> {
             // 定时重新连接
-            while (!currSocketTimestampOver) {
+            while (!currSocketTimestampOver && doWork) {
                 try {
                     startReconnect(null);
                     Thread.sleep(5000);
@@ -385,18 +385,21 @@ public class ServerConnection {
                         LOGGER.error("Impossible to reconnect to replica {}", remoteId);
                         //ex.printStackTrace();
                     }
-                    LOGGER.info("I am {}, will reconnect {} socket = {}!", controller.getStaticConf().getProcessId(), remoteId, socket);
                     if (socket != null) {
                         try {
                             socketOutStream = new DataOutputStream(socket.getOutputStream());
                             socketInStream = new DataInputStream(socket.getInputStream());
 
                             authKey = null;
-                            authTimestamp();
-                            authenticateAndEstablishAuthKey();
+
                         } catch (IOException ex) {
                             ex.printStackTrace();
                         }
+                    }
+                }
+                if (socket != null) {
+                    if (authTimestamp()) {
+                        authenticateAndEstablishAuthKey();
                     }
                 }
                 connectLock.unlock();
@@ -437,15 +440,15 @@ public class ServerConnection {
                 LOGGER.error("Impossible to reconnect to replica {}", remoteId);
                 //ex.printStackTrace();
             }
-            LOGGER.info("I am {}, will reconnect {} socket = {}!", controller.getStaticConf().getProcessId(), remoteId, socket);
             if (socket != null) {
                 try {
                     socketOutStream = new DataOutputStream(socket.getOutputStream());
                     socketInStream = new DataInputStream(socket.getInputStream());
 
                     authKey = null;
-                    // 此处无须进行时间戳认证
-                    authenticateAndEstablishAuthKey();
+                    if (authTimestamp()) {
+                        authenticateAndEstablishAuthKey();
+                    }
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
@@ -459,27 +462,29 @@ public class ServerConnection {
      * 进行时间戳验证
      *
      */
-    private void authTimestamp() {
+    private boolean authTimestamp() {
         if (authKey != null || socketOutStream == null || socketInStream == null) {
-            return;
+            return false;
         }
-        LOGGER.info("I am {}, remote = {}, my Thread = {} !", controller.getStaticConf().getProcessId(), remoteId, Thread.currentThread().getId());
         boolean completed = timestampVerifyService.timeVerifyCompleted();
         try {
             socketOutStream.writeBoolean(completed);
-
             boolean remoteCompleted = socketInStream.readBoolean();
-            LOGGER.info("I am {}:{}, receive remote[{}] status = {} !",
+            LOGGER.info("I am {} -> {}, receive remote[{}] status = {} !",
                     controller.getStaticConf().getProcessId(), completed, remoteId, remoteCompleted);
             if (remoteCompleted) {
                 // 对端已经处理完时间戳，表明对端没有重启，无须再处理该时间
                 timestampVerifyService.waitComplete(remoteId);
                 timestampVerifyService.verifySuccess(remoteId);
+                currSocketTimestampOver = true;
+                return true;
             } else {
                 // 对端没有完成
                 // 判断当前节点是否完成
                 if (completed || currSocketTimestampOver) {
                     // 当前节点已完成，则不需要再处理
+                    currSocketTimestampOver = true;
+                    return true;
                 } else {
                     // 两者都未完成
                     timestampVerifyService.waitComplete(remoteId);
@@ -495,15 +500,17 @@ public class ServerConnection {
                     if (verify) {
                         timestampVerifyService.verifySuccess(remoteId);
                         currSocketTimestampOver = true;
-//                        initSuccessLatch.countDown();
+                        return true;
                     } else {
                         timestampVerifyService.verifyFail(remoteId);
+                        currSocketTimestampOver = true;
                     }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return false;
     }
 
     //TODO!
@@ -605,6 +612,7 @@ public class ServerConnection {
             macReceive.init(authKey);
             macSize = macSend.getMacLength();
             latch.countDown();
+            canSendMessage = true;
             initSuccessLatch.countDown();
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -658,6 +666,8 @@ public class ServerConnection {
             byte[] data = null;
             try {
                 countDownLatch.await();
+                // 等待时间戳OK
+                initSuccessLatch.await();
             } catch (Exception e) {
                 e.printStackTrace();
             }

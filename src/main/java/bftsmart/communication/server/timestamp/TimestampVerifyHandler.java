@@ -126,7 +126,9 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
     private void kill() throws Exception {
         boolean compareAndSet = killAtomic.compareAndSet(false, true);
         if (compareAndSet) {
-            LOGGER.error("I am {}, handle timestamp verify fail, I will kill myself !!!", processId);
+            LOGGER.error("\r\n=================== TIMESTAMP VERIFY FAIL ===================\r\n" +
+                         "I am {}, handle timestamp verify fail, I will kill myself !!!\r\n" +
+                         "=============================================================", processId);
             // 等待3秒，然后关闭
             TimeUnit.SECONDS.sleep(KILL_WAIT_SECONDS);
             // 关闭
