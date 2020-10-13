@@ -286,7 +286,17 @@ public class ServerViewController extends ViewController {
 
 			if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
 				// proc docker env
-				addressesTemp.add(new InetSocketAddress(this.getStaticConf().getOuterHostConfig().getHost(cpuId), inetSocketAddress.getPort()));
+				String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
+				String innerHost;
+				if (host.indexOf("/") == -1) {
+					innerHost = host;
+				} else {
+					int start = host.indexOf("/");
+					int end = host.length();
+					innerHost = host.substring(start, end);
+				}
+				LOGGER.info("I am proc {}, innerHost = {}", this.getStaticConf().getProcessId(), innerHost);
+				addressesTemp.add(new InetSocketAddress(innerHost, inetSocketAddress.getPort()));
 			} else {
 				addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
 			}
