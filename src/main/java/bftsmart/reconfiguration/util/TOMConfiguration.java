@@ -63,6 +63,7 @@ public class TOMConfiguration extends Configuration {
 	private boolean isBFT;
 	private int numRepliers;
 	private int numNettyWorkers;
+	private HostsConfig outerHostConfig;
 
 //	/** Creates a new instance of TOMConfiguration */
 //	public TOMConfiguration(int processId) {
@@ -98,7 +99,14 @@ public class TOMConfiguration extends Configuration {
 		super(processId, systemConfigs, hostConfig);
 		this.rsaLoader = new DefaultRSAKeyLoader();
 	}
-	
+
+	/** Creates a new instance of TOMConfiguration */
+	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig, HostsConfig outerHostConfig) {
+		super(processId, systemConfigs, hostConfig);
+		this.outerHostConfig = outerHostConfig;
+		this.rsaLoader = new DefaultRSAKeyLoader();
+	}
+
 	public void setRsaLoader(RsaKeyLoader rsaLoader) {
 		this.rsaLoader = rsaLoader;
 	}
@@ -640,5 +648,9 @@ public class TOMConfiguration extends Configuration {
 
 	public int getNumNettyWorkers() {
 		return numNettyWorkers;
+	}
+
+	public HostsConfig getOuterHostConfig() {
+		return outerHostConfig;
 	}
 }

@@ -251,6 +251,7 @@ public class ServiceProxy extends TOMSender {
 					LOGGER.error("Reply timeout for reqId is {}", reqId);
 					LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
 					LOGGER.error("Replies received: {}", receivedReplies);
+					LOGGER.error("Replies quorum: {}", replyQuorum);
 					canSendLock.unlock();
 
 					return null;
@@ -289,7 +290,7 @@ public class ServiceProxy extends TOMSender {
 					reconfigureTo((View) TOMUtil.getObject(response.getContent()));
 
 					canSendLock.unlock();
-					LOGGER.error("Service proxy view id little than service replica view id, will re invoke request!");
+					LOGGER.warn("Service proxy view id little than service replica view id, will re invoke request!");
 					return invoke(request, reqType);
 				}
 			} else if (reqType == TOMMessageType.UNORDERED_REQUEST
