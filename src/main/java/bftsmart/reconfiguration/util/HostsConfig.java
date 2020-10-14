@@ -90,6 +90,10 @@ public class HostsConfig implements Serializable {
 		this.servers.put(id, new Config(id, host, port));
 	}
 
+	public void del(int id) {
+		this.servers.remove(id);
+	}
+
 	public int getNum() {
 		return servers.size();
 	}

@@ -43,9 +43,11 @@ import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.net.InetSocketAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -488,6 +490,8 @@ public class ServiceReplica {
 				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}"
 						, request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
 
+				LOGGER.info("(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}", request.getViewID(), SVController.getCurrentViewId(), request.getReqType());
+
 				// 暂时没有节点间的视图ID同步过程，在处理RECONFIG这类更新视图的操作时先不考虑视图ID落后的情况
 				if (request.getViewID() == SVController.getCurrentViewId() || request.getReqType() == TOMMessageType.RECONFIG) {
 
@@ -588,11 +592,39 @@ public class ServiceReplica {
 																					// resend the message to
 																					// him (but only if it came from
 																					// consensus an not state transfer)
+					View view = SVController.getCurrentView();
+
+					List<InetSocketAddress> addressesTemp = new ArrayList<>();
+
+					for(int i = 0; i < view.getProcesses().length;i++) {
+						int cpuId = view.getProcesses()[i];
+						InetSocketAddress inetSocketAddress = view.getAddress(cpuId);
+
+						if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
+							// proc docker env
+							String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+							String innerHost;
+							if (host.indexOf("/") == -1) {
+								innerHost = host;
+							} else {
+								int start = host.indexOf("/");
+								int end = host.length();
+								innerHost = host.substring(start, end);
+							}
+							LOGGER.info("I am proc {}, innerHost = {}", SVController.getStaticConf().getProcessId(), innerHost);
+							addressesTemp.add(new InetSocketAddress(innerHost, inetSocketAddress.getPort()));
+						} else {
+							addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+						}
+					}
+
+					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new InetSocketAddress[addressesTemp.size()]));
+					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}", this.SVController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
 
 					tomLayer.getCommunication().send(new int[] { request.getSender() },
 							new TOMMessage(SVController.getStaticConf().getProcessId(), request.getSession(),
 									request.getSequence(), request.getOperationId(),
-									TOMUtil.getBytes(SVController.getCurrentView()), SVController.getCurrentViewId(),
+									TOMUtil.getBytes(replyView), SVController.getCurrentViewId(),
 									request.getReqType()));
 				}
 				requestCount++;
@@ -636,7 +668,7 @@ public class ServiceReplica {
 					}
 				}
 
-//				this.recoverer.noOp(consId[consensusCount], batch, msgCtx);
+				this.recoverer.noOp(consId[consensusCount], batch, msgCtx);
 
 				// MessageContext msgCtx = new MessageContext(-1, -1, null, -1, -1, -1, -1,
 				// null, // Since it is a noop, there is no need to pass info about the

@@ -204,7 +204,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         future.awaitUninterruptibly();
 
                         if (!future.isSuccess()) {
-                            LOGGER.error("Impossible to connect to {}", currV[i]);
+                            LOGGER.warn("Impossible to connect to {}", currV[i]);
                         }
 
                     } catch (InvalidKeyException ex) {
@@ -262,7 +262,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     public void reconnect(final ChannelHandlerContext ctx){
 
         rl.writeLock().lock();
-    	LOGGER.debug("try to reconnect");
+    	LOGGER.info("try to reconnect");
 
         //Iterator sessions = sessionTable.values().iterator();
 
@@ -323,6 +323,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void send(boolean sign, int[] targets, TOMMessage sm) {
+
 
         listener.waitForChannels(targets.length); // wait for the previous transmission to complete
         

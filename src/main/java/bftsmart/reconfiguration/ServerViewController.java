@@ -25,6 +25,7 @@ import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -190,11 +191,13 @@ public class ServerViewController extends ViewController {
 							String host = str.nextToken();
 							int port = Integer.valueOf(str.nextToken());
 							this.getStaticConf().addHostInfo(id, host, port);
+							this.getStaticConf().getOuterHostConfig().add(id, host, port);
 						}
 					}
 				} else if (key == REMOVE_SERVER) {
 					if (isCurrentViewMember(Integer.parseInt(value))) {
 						rSet.add(Integer.parseInt(value));
+						this.getStaticConf().getOuterHostConfig().del(Integer.parseInt(value));
 					}
 				} else if (key == CHANGE_F) {
 					f = Integer.parseInt(value);
@@ -216,49 +219,51 @@ public class ServerViewController extends ViewController {
 	}
 
 	private byte[] reconfigure(List<String> jSetInfo, List<Integer> jSet, List<Integer> rSet, int f, int cid) {
-		// ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(req);
-		// Hashtable<Integer, String> props = request.getProperties();
-		// int f = Integer.valueOf(props.get(CHANGE_F));
-		lastJoinStet = new int[jSet.size()];
-		int[] nextV = new int[currentView.getN() + jSet.size() - rSet.size()];
-		int p = 0;
+        // ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(req);
+        // Hashtable<Integer, String> props = request.getProperties();
+        // int f = Integer.valueOf(props.get(CHANGE_F));
+        lastJoinStet = new int[jSet.size()];
+        int[] nextV = new int[currentView.getN() + jSet.size() - rSet.size()];
+        int p = 0;
 
-		boolean forceLC = false;
-		for (int i = 0; i < jSet.size(); i++) {
-			lastJoinStet[i] = jSet.get(i);
-			nextV[p++] = jSet.get(i);
-		}
+        boolean forceLC = false;
+        for (int i = 0; i < jSet.size(); i++) {
+            lastJoinStet[i] = jSet.get(i);
+            nextV[p++] = jSet.get(i);
+        }
 
-		for (int i = 0; i < currentView.getProcesses().length; i++) {
-			if (!contains(currentView.getProcesses()[i], rSet)) {
-				nextV[p++] = currentView.getProcesses()[i];
-			} else if (tomLayer.execManager.getCurrentLeader() == currentView.getProcesses()[i]) {
-				// 如果要删除的参与方集合中包含了当前的领导者，则需要强制触发领导者切换流程；
-				forceLC = true;
-			}
-		}
+        for (int i = 0; i < currentView.getProcesses().length; i++) {
+            if (!contains(currentView.getProcesses()[i], rSet)) {
+                nextV[p++] = currentView.getProcesses()[i];
+            } else if (tomLayer.execManager.getCurrentLeader() == currentView.getProcesses()[i]) {
+                // 如果要删除的参与方集合中包含了当前的领导者，则需要强制触发领导者切换流程；
+                forceLC = true;
+            }
+        }
 
-		if (f < 0) {
-			f = currentView.getF();
-		}
+        if (f < 0) {
+            f = currentView.getF();
+        }
 
-		InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
+        InetSocketAddress[] addresses = new InetSocketAddress[nextV.length];
 
-		for (int i = 0; i < nextV.length; i++)
-			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+        for (int i = 0; i < nextV.length; i++)
+            addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
 
 //		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-		// f的值需要动态计算
-		View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
+        // f的值需要动态计算
+        View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
 
-		LOGGER.info("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
-		LOGGER.info("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
-		LOGGER.info("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
+        LOGGER.info("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+        LOGGER.info("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+        LOGGER.info("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
-		// TODO:Remove all information stored about each process in rSet
-		// processes execute the leave!!!
-		reconfigureTo(newV);
+        // TODO:Remove all information stored about each process in rSet
+        // processes execute the leave!!!
+        reconfigureTo(newV);
+
+        LOGGER.info("I am proc {}, after reconfigure ,currview = {}", this.getStaticConf().getProcessId(), this.currentView);
 
 		if (forceLC) {
 
@@ -270,7 +275,38 @@ public class ServerViewController extends ViewController {
 			// tomLayer.triggerTimeout(new LinkedList<TOMMessage>());
 
 		}
-		return TOMUtil.getBytes(new ReconfigureReply(newV, jSetInfo.toArray(new String[0]), cid,
+
+		LOGGER.info("I am proc {}, I will send ReconfigureReply!", this.getStaticConf().getProcessId());
+
+		List<InetSocketAddress> addressesTemp = new ArrayList<>();
+
+		for(int i = 0; i < newV.getProcesses().length;i++) {
+			int cpuId = newV.getProcesses()[i];
+			InetSocketAddress inetSocketAddress = newV.getAddress(cpuId);
+
+			if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
+				// proc docker env
+				String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
+				String innerHost;
+				if (host.indexOf("/") == -1) {
+					innerHost = host;
+				} else {
+					int start = host.indexOf("/");
+					int end = host.length();
+					innerHost = host.substring(start, end);
+				}
+				LOGGER.info("I am proc {}, innerHost = {}", this.getStaticConf().getProcessId(), innerHost);
+				addressesTemp.add(new InetSocketAddress(innerHost, inetSocketAddress.getPort()));
+			} else {
+				addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+			}
+		}
+
+		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),addressesTemp.toArray(new InetSocketAddress[addressesTemp.size()]));
+
+		LOGGER.info("I am proc {}, I adjust reply view, reply view = {}", this.getStaticConf().getProcessId(), replyView);
+
+		return TOMUtil.getBytes(new ReconfigureReply(replyView, jSetInfo.toArray(new String[0]), cid,
 				tomLayer.execManager.getCurrentLeader()));
 	}
 
