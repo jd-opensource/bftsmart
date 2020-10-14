@@ -4,6 +4,7 @@ import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.messages.ViewMessage;
 import bftsmart.tom.leaderchange.TimestampMessage;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -19,6 +20,8 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  */
 public class ViewSyncTimer {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ViewSyncTimer.class);
 
     private static final long SEND_PERIOD = 10000L;
 
@@ -75,17 +78,20 @@ public class ViewSyncTimer {
                 NodeNetwork nodeNetwork = entry.getValue();
                 if (checkNodeNetwork(nodeNetwork)) {
                     if (nodeId == remoteId) {
+                        LOGGER.info("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
                         // 是远端节点的配置信息，则更新本地
                         localViewAddresses.put(nodeId, nodeNetwork);
                     } else if (nodeId != processId) {
                         // 非本地节点，则需要进行判断
                         NodeNetwork localNodeNetwork = localViewAddresses.get(nodeId);
                         if (localNodeNetwork == null) {
+                            LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is NULL !", remoteId, nodeId, nodeNetwork.toUrl());
                             // 若本地不存在该配置，则更新
                             localViewAddresses.put(nodeId, nodeNetwork);
                         } else {
                             // 判断本地配置是否合法
                             if (!checkNodeNetwork(localNodeNetwork)) {
+                                LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is illegal !", remoteId, nodeId, nodeNetwork.toUrl());
                                 // 本地不合法，表示本地配置信息不合法，可以更新
                                 localViewAddresses.put(nodeId, nodeNetwork);
                             }

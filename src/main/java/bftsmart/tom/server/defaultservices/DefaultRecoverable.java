@@ -24,6 +24,7 @@ import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.StandardStateManager;
@@ -513,5 +514,4 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                                              List<ReplyContextMessage> replyContextMessages);
 
     public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
-
 }

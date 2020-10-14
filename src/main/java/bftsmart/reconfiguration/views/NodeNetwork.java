@@ -58,4 +58,8 @@ public class NodeNetwork implements Serializable {
     public void setMonitorPort(int monitorPort) {
         this.monitorPort = monitorPort;
     }
+
+    public String toUrl() {
+        return host + ":" + consensusPort + ":" + monitorPort;
+    }
 }
