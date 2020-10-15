@@ -194,7 +194,7 @@ public class ServerViewController extends ViewController {
 							try {
 								int monitorPort = Integer.valueOf(str.nextToken());
 								this.getStaticConf().addHostInfo(id, host, port, monitorPort);
-								this.getStaticConf().getOuterHostConfig().add(id, host, port);
+								this.getStaticConf().getOuterHostConfig().add(id, host, port, monitorPort);
 							} catch (Exception e) {
 								this.getStaticConf().addHostInfo(id, host, port, -1);
 
@@ -286,25 +286,26 @@ public class ServerViewController extends ViewController {
 
 		LOGGER.info("I am proc {}, I will send ReconfigureReply!", this.getStaticConf().getProcessId());
 
-		List<InetSocketAddress> addressesTemp = new ArrayList<>();
+		List<NodeNetwork> addressesTemp = new ArrayList<>();
 
 		for(int i = 0; i < newV.getProcesses().length;i++) {
 			int cpuId = newV.getProcesses()[i];
-			InetSocketAddress inetSocketAddress = newV.getAddress(cpuId);
 
-			if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
+			NodeNetwork nodeNetwork = newV.getAddress(cpuId);
+//			InetSocketAddress inetSocketAddress = newV.getAddress(cpuId);
+
+			if (nodeNetwork.getHost().equals("0.0.0.0")) {
 				// proc docker env
                 String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
-
-                InetSocketAddress tempSocketAddress = new InetSocketAddress(host, inetSocketAddress.getPort());
-                LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", this.getStaticConf().getProcessId(), tempSocketAddress.getAddress().getHostAddress());
-                addressesTemp.add(new InetSocketAddress(tempSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+				NodeNetwork nodeNetworkNew = new NodeNetwork(host, nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
+                LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", this.getStaticConf().getProcessId(), host);
+                addressesTemp.add(nodeNetworkNew);
 			} else {
-				addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+				addressesTemp.add(nodeNetwork);
 			}
 		}
 
-		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),addressesTemp.toArray(new InetSocketAddress[addressesTemp.size()]));
+		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
 
 		LOGGER.info("I am proc {}, I adjust reply view, reply view = {}", this.getStaticConf().getProcessId(), replyView);
 

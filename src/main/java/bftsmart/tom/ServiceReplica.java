@@ -25,10 +25,7 @@ import bftsmart.reconfiguration.ReconfigureReply;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.reconfiguration.util.TOMConfiguration;
-import bftsmart.reconfiguration.views.FileSystemViewStorage;
-import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
-import bftsmart.reconfiguration.views.View;
-import bftsmart.reconfiguration.views.ViewStorage;
+import bftsmart.reconfiguration.views.*;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.ReplyManager;
 import bftsmart.tom.core.TOMLayer;
@@ -594,31 +591,26 @@ public class ServiceReplica {
 																					// consensus an not state transfer)
 					View view = SVController.getCurrentView();
 
-					List<InetSocketAddress> addressesTemp = new ArrayList<>();
+					List<NodeNetwork> addressesTemp = new ArrayList<>();
 
 					for(int i = 0; i < view.getProcesses().length;i++) {
 						int cpuId = view.getProcesses()[i];
-						InetSocketAddress inetSocketAddress = view.getAddress(cpuId);
+						NodeNetwork inetSocketAddress = view.getAddress(cpuId);
 
-						if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
+						if (inetSocketAddress.getHost().equals("0.0.0.0")) {
 							// proc docker env
 							String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
-							String innerHost;
-							if (host.indexOf("/") == -1) {
-								innerHost = host;
-							} else {
-								int start = host.indexOf("/");
-								int end = host.length();
-								innerHost = host.substring(start, end);
-							}
-							LOGGER.info("I am proc {}, innerHost = {}", SVController.getStaticConf().getProcessId(), innerHost);
-							addressesTemp.add(new InetSocketAddress(innerHost, inetSocketAddress.getPort()));
+
+							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), inetSocketAddress.getMonitorPort());
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), host);
+							addressesTemp.add(tempSocketAddress);
+
 						} else {
-							addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
+							addressesTemp.add(inetSocketAddress);
 						}
 					}
 
-					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new InetSocketAddress[addressesTemp.size()]));
+					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
 					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}", this.SVController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
 
 					tomLayer.getCommunication().send(new int[] { request.getSender() },
