@@ -603,16 +603,10 @@ public class ServiceReplica {
 						if (inetSocketAddress.getAddress().getHostAddress().equals("0.0.0.0")) {
 							// proc docker env
 							String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
-							String innerHost;
-							if (host.indexOf("/") == -1) {
-								innerHost = host;
-							} else {
-								int start = host.indexOf("/");
-								int end = host.length();
-								innerHost = host.substring(start, end);
-							}
-							LOGGER.info("I am proc {}, innerHost = {}", SVController.getStaticConf().getProcessId(), innerHost);
-							addressesTemp.add(new InetSocketAddress(innerHost, inetSocketAddress.getPort()));
+
+							InetSocketAddress tempSocketAddress = new InetSocketAddress(host, inetSocketAddress.getPort());
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), tempSocketAddress.getAddress().getHostAddress());
+							addressesTemp.add(new InetSocketAddress(tempSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
 						} else {
 							addressesTemp.add(new InetSocketAddress(inetSocketAddress.getAddress().getHostAddress(), inetSocketAddress.getPort()));
 						}
