@@ -34,22 +34,17 @@ import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.ClientDatasMonitorTimer;
 import bftsmart.tom.leaderchange.RequestsTimer;
-import bftsmart.tom.leaderchange.TimestampTimer;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.RequestVerifier;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignedObject;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -79,8 +74,6 @@ public class TOMLayer extends Thread implements RequestReceiver {
     public RequestsTimer requestsTimer;
 
     public HeartBeatTimer heartBeatTimer;
-
-    public TimestampTimer timestampTimer;
 
     public ViewSyncTimer viewSyncTimer;
 
@@ -115,6 +108,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
     private PrivateKey prk;
     public ServerViewController controller;
 
+    private ServiceReplica receiver;
+
     private RequestVerifier verifier;
             
     private Synchronizer syncher;
@@ -141,6 +136,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
         super("TOM Layer");
 
         this.execManager = manager;
+        this.receiver = receiver;
         this.acceptor = a;
         this.communication = cs;
         this.controller = controller;
@@ -148,7 +144,6 @@ public class TOMLayer extends Thread implements RequestReceiver {
         this.heartBeatTimer = new HeartBeatTimer();
 //        this.heartBeatTimer = receiver.getHeartBeatTimer();
         this.heartBeatTimer.setTomLayer(this);
-        this.timestampTimer = new TimestampTimer(this);
         this.viewSyncTimer = new ViewSyncTimer(this);
         //do not create a timer manager if the timeout is 0
 //        if (this.controller.getStaticConf().getRequestTimeout() == 0) {
@@ -312,7 +307,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
     public void requestReceived(TOMMessage msg) {
         
         if (!doWork) return;
-        
+
         // check if this request is valid and add it to the client' pending requests list
         boolean readOnly = (msg.getReqType() == TOMMessageType.UNORDERED_REQUEST
                 || msg.getReqType() == TOMMessageType.UNORDERED_HASHED_REQUEST);
@@ -328,6 +323,23 @@ public class TOMLayer extends Thread implements RequestReceiver {
             } else {
                 LOGGER.error("(TOMLayer.requestReceived) the received TOMMessage {}  was discarded.", msg);
             }
+        }
+    }
+
+
+    private DefaultRecoverable getDefaultExecutor() {
+        return (DefaultRecoverable) getDeliveryThread().getReceiver().getExecutor();
+    }
+
+    private void reply(TOMMessage message) {
+        if (controller.getStaticConf().getNumRepliers() > 0) {
+            LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {} via ReplyManager"
+                    , message.getSender(), message.getSequence(), message.getOperationId());
+            receiver.getRepMan().send(message);
+        } else {
+            LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
+                    , message.getSender(), message.getSequence(), message.getOperationId());
+            receiver.getReplier().manageReply(message, null);
         }
     }
 
@@ -384,7 +396,6 @@ public class TOMLayer extends Thread implements RequestReceiver {
         try {
             LOGGER.debug("Running."); // TODO: can't this be outside of the loop?
             this.heartBeatTimer.start();
-            this.timestampTimer.start();
             this.viewSyncTimer.start();
             while (doWork) {
 

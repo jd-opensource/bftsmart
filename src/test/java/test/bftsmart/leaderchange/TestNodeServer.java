@@ -11,6 +11,7 @@ import bftsmart.tom.util.BytesUtils;
 import org.mockito.Mockito;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 

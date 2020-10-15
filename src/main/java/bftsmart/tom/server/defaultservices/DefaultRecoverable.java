@@ -18,10 +18,8 @@
  */
 package bftsmart.tom.server.defaultservices;
 
+import bftsmart.consensus.app.*;
 import bftsmart.consensus.app.BatchAppResultImpl;
-import bftsmart.consensus.app.BatchAppResultImpl;
-import bftsmart.consensus.app.PreComputeBatchExecutable;
-import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.NodeNetwork;

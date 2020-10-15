@@ -18,8 +18,11 @@ package bftsmart.communication.server;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
+import bftsmart.communication.server.timestamp.TimestampVerifyHandler;
+import bftsmart.communication.server.timestamp.TimestampVerifyService;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.leaderchange.HeartBeatMessage;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
@@ -37,7 +40,6 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -61,6 +63,7 @@ public class ServersCommunicationLayer extends Thread {
     //private Condition canConnect = waitViewLock.newCondition();
     private List<PendingConnection> pendingConn = new LinkedList<PendingConnection>();
     private ServiceReplica replica;
+    private TimestampVerifyService timestampVerifyService;
     private SecretKey selfPwd;
     private MessageQueue messageInQueue;
     private static final String PASSWORD = "commsyst";
@@ -73,6 +76,7 @@ public class ServersCommunicationLayer extends Thread {
         this.messageInQueue = messageInQueue;
         this.me = controller.getStaticConf().getProcessId();
         this.replica = replica;
+        this.timestampVerifyService = new TimestampVerifyHandler(replica, controller);
 
         //Try connecting if a member of the current view. Otherwise, wait until the Join has been processed!
         if (controller.isInCurrentView()) {
@@ -173,7 +177,7 @@ public class ServersCommunicationLayer extends Thread {
         connectionsLock.lock();
         ServerConnection ret = this.connections.get(remoteId);
         if (ret == null) {
-            ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica);
+            ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica, this.timestampVerifyService);
             this.connections.put(remoteId, ret);
         }
         connectionsLock.unlock();
@@ -183,6 +187,7 @@ public class ServersCommunicationLayer extends Thread {
 
 
     public void send(int[] targets, SystemMessage sm, boolean useMAC) {
+        // 首先判断消息类型
         ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
         try {
             new ObjectOutputStream(bOut).writeObject(sm);
@@ -298,10 +303,10 @@ public class ServersCommunicationLayer extends Thread {
             if (this.connections.get(remoteId) == null) { //This must never happen!!!
                 //first time that this connection is being established
                 //System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
-                this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica));
+                this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica, timestampVerifyService));
             } else {
                 //reconnection
-                this.connections.get(remoteId).reconnect(newSocket);
+                this.connections.get(remoteId).startReconnect(newSocket);
             }
             connectionsLock.unlock();
 
