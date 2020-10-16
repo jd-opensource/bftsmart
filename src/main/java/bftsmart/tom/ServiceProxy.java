@@ -295,12 +295,7 @@ public class ServiceProxy extends TOMSender {
 				}
 			} else if (reqType == TOMMessageType.UNORDERED_REQUEST
 					|| reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
-				if (response.getViewID() == getViewManager().getCurrentViewId()) {
-					ret = response.getContent(); // return the response
-				} else {
-					canSendLock.unlock();
-					return invoke(request, TOMMessageType.ORDERED_REQUEST);
-				}
+				ret = response.getContent(); // return the response
 			} else {
 				if (response.getViewID() > getViewManager().getCurrentViewId()) {
 					// Reply to a reconfigure request!

@@ -62,4 +62,13 @@ public class NodeNetwork implements Serializable {
     public String toUrl() {
         return host + ":" + consensusPort + ":" + monitorPort;
     }
+
+    @Override
+    public String toString() {
+        return "[" +
+                "host='" + host + '\'' +
+                ", consensusPort=" + consensusPort +
+                ", monitorPort=" + monitorPort +
+                ']';
+    }
 }
