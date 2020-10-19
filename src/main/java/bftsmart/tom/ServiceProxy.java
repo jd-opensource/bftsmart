@@ -268,7 +268,7 @@ public class ServiceProxy extends TOMSender {
 		if (response == null) {
 			// the response can be null if n-f replies are received but there isn't
 			// a replyQuorum of matching replies
-			LOGGER.error("Received n-f replies and no response could be extracted.");
+			LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {} !", request.length, reqType);
 
 			canSendLock.unlock();
 			if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
@@ -407,7 +407,13 @@ public class ServiceProxy extends TOMSender {
 							reqId = -1;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
-					} else { // UNORDERED
+					} else if (requestType.equals(TOMMessageType.UNORDERED_REQUEST)) {
+						// UNORDERED 消息
+						if (receivedReplies == getViewManager().getCurrentViewN()) {
+							reqId = -1;
+							this.sm.release(); // resumes the thread that is executing the "invoke" method
+						}
+					} else { // OTHER
 						if (receivedReplies != sameContent) {
 							reqId = -1;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method

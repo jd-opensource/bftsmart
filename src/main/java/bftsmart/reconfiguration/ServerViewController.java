@@ -255,7 +255,12 @@ public class ServerViewController extends ViewController {
 		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
 
 		for (int i = 0; i < nextV.length; i++) {
-			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+			NodeNetwork nodeNetwork = currentView.getAddress(nextV[i]);
+			if (nodeNetwork != null) {
+				addresses[i] = nodeNetwork;
+			} else {
+				addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+			}
 		}
 
 //		View newV = new View(currentView.getId() + 1, nextV, f, addresses);

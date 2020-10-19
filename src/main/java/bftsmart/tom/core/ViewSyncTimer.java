@@ -20,7 +20,11 @@ public class ViewSyncTimer {
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ViewSyncTimer.class);
 
-    private static final long SEND_PERIOD = 10000L;
+    /**
+     * 视图同步周期
+     *         单位：毫秒
+     */
+    private static final long SEND_PERIOD = 20000L;
 
     private final ScheduledExecutorService sendThreadPool = Executors.newSingleThreadScheduledExecutor();
 
