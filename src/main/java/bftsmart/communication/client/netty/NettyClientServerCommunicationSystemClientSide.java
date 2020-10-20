@@ -207,7 +207,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         future.awaitUninterruptibly();
 
                         if (!future.isSuccess()) {
-                            LOGGER.warn("Impossible to connect to {}", currV[i]);
+                             LOGGER.warn("Impossible to connect to {}", currV[i]);
                         }
 
                     } catch (InvalidKeyException ex) {

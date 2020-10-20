@@ -400,7 +400,29 @@ public class ServiceReplica {
 			response = ((FIFOExecutable) executor).executeUnorderedFIFO(message.getContent(), msgCtx,
 					message.getSender(), message.getOperationId());
 		} else {
-			response = executor.executeUnordered(message.getContent(), msgCtx);
+			if (message.getViewID() == SVController.getCurrentViewId()) {
+				response = executor.executeUnordered(message.getContent(), msgCtx);
+			} else if (message.getViewID() < SVController.getCurrentViewId()) {
+				View view = SVController.getCurrentView();
+				List<NodeNetwork> addressesTemp = new ArrayList<>();
+				for(int i = 0; i < view.getProcesses().length;i++) {
+					int cpuId = view.getProcesses()[i];
+					NodeNetwork inetSocketAddress = view.getAddress(cpuId);
+					if (inetSocketAddress.getHost().equals("0.0.0.0")) {
+						// proc docker env
+						String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+						NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), inetSocketAddress.getMonitorPort());
+						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), host);
+						addressesTemp.add(tempSocketAddress);
+					} else {
+						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+						addressesTemp.add(inetSocketAddress);
+					}
+				}
+
+				View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+				response = TOMUtil.getBytes(replyView);
+			}
 		}
 
 		if (message.getReqType() == TOMMessageType.UNORDERED_HASHED_REQUEST && message.getReplyServer() != this.id) {
@@ -604,8 +626,8 @@ public class ServiceReplica {
 							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), inetSocketAddress.getMonitorPort());
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), host);
 							addressesTemp.add(tempSocketAddress);
-
 						} else {
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
 							addressesTemp.add(inetSocketAddress);
 						}
 					}

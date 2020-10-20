@@ -296,6 +296,14 @@ public class ServiceProxy extends TOMSender {
 			} else if (reqType == TOMMessageType.UNORDERED_REQUEST
 					|| reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 				ret = response.getContent(); // return the response
+				if (response.getViewID() > getViewManager().getCurrentViewId()) {
+					Object r = TOMUtil.getObject(response.getContent());
+					if (r instanceof View) {
+						reconfigureTo((View) r);
+						canSendLock.unlock();
+						return invoke(request, reqType);
+					}
+				}
 			} else {
 				if (response.getViewID() > getViewManager().getCurrentViewId()) {
 					// Reply to a reconfigure request!
@@ -342,7 +350,6 @@ public class ServiceProxy extends TOMSender {
 	@Override
 	public void replyReceived(TOMMessage reply) {
 		LOGGER.debug("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
-
 		try {
 			canReceiveLock.lock();
 			if (reqId == -1) {// no message being expected
@@ -420,8 +427,8 @@ public class ServiceProxy extends TOMSender {
 						}
 					}
 				}
-			} else { LOGGER.debug("Ignoring reply from {} with reqId {}. Currently wait reqId {}", reply.getSender(), reply.getSequence(), reqId);
-
+			} else {
+				LOGGER.info("Ignoring reply from {} with reqId {}. Currently wait reqId {}", reply.getSender(), reply.getSequence(), reqId);
 			}
 
 			// Critical section ends here. The semaphore can be released
