@@ -24,7 +24,9 @@ public class ViewSyncTimer {
      * 视图同步周期
      *         单位：毫秒
      */
-    private static final long SEND_PERIOD = 20000L;
+    private static final long SEND_PERIOD = 10000L;
+
+    private static final long SEND_DELAY = 5000L;
 
     private final ScheduledExecutorService sendThreadPool = Executors.newSingleThreadScheduledExecutor();
 
@@ -49,7 +51,7 @@ public class ViewSyncTimer {
             } finally {
                 lock.unlock();
             }
-        }, SEND_PERIOD, SEND_PERIOD, TimeUnit.MILLISECONDS);
+        }, SEND_DELAY, SEND_PERIOD, TimeUnit.MILLISECONDS);
     }
 
     public void shutdown() {

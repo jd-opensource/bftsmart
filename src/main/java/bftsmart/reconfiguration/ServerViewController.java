@@ -255,12 +255,13 @@ public class ServerViewController extends ViewController {
 		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
 
 		for (int i = 0; i < nextV.length; i++) {
-			NodeNetwork nodeNetwork = currentView.getAddress(nextV[i]);
+			int processId = nextV[i];
+			addresses[i] = getStaticConf().getRemoteAddress(processId);
+			NodeNetwork nodeNetwork = currentView.getAddress(processId);
 			if (nodeNetwork != null) {
-				addresses[i] = nodeNetwork;
-			} else {
-				addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+				addresses[i].setMonitorPort(nodeNetwork.getMonitorPort());
 			}
+			LOGGER.info("I am {}, network[{}] -> {} !", this.getStaticConf().getProcessId(), processId, addresses[i].toUrl());
 		}
 
 //		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
