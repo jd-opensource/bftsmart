@@ -199,9 +199,11 @@ public final class DeliveryThread extends Thread {
                     notEmptyQueue.await();
                 }
 
-                Decision decision = decided.take();
+                Decision decision = decided.poll();
+                if (decision != null) {
+                    decisions.add(decision);
+                }
                 decidedLock.unlock();
-                decisions.add(decision);
 
                 if (!doWork) break;
                 
