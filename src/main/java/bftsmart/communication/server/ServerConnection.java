@@ -381,18 +381,12 @@ public class ServerConnection {
                     } catch (UnknownHostException ex) {
                         ex.printStackTrace();
                     } catch (IOException ex) {
-
                         LOGGER.error("Impossible to reconnect to replica {}", remoteId);
-                        return;
                     }
                     if (socket != null) {
                         try {
                             socketOutStream = new DataOutputStream(socket.getOutputStream());
                             socketInStream = new DataInputStream(socket.getInputStream());
-
-                            authKey = null;
-                            LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-
                         } catch (IOException ex) {
                             ex.printStackTrace();
                         }
@@ -400,6 +394,8 @@ public class ServerConnection {
                 }
                 if (socket != null) {
                     if (authTimestamp()) {
+                        authKey = null;
+                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
                         authenticateAndEstablishAuthKey();
                     }
                 }
@@ -437,18 +433,15 @@ public class ServerConnection {
             } catch (UnknownHostException ex) {
                 ex.printStackTrace();
             } catch (IOException ex) {
-
                 LOGGER.error("Impossible to reconnect to replica {}", remoteId);
-                return;
             }
             if (socket != null) {
                 try {
                     socketOutStream = new DataOutputStream(socket.getOutputStream());
                     socketInStream = new DataInputStream(socket.getInputStream());
-
-                    authKey = null;
-                    LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
                     if (authTimestamp()) {
+                        authKey = null;
+                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
                         authenticateAndEstablishAuthKey();
                     }
                 } catch (IOException ex) {
@@ -465,7 +458,7 @@ public class ServerConnection {
      *
      */
     private boolean authTimestamp() {
-        if (authKey != null || socketOutStream == null || socketInStream == null) {
+        if (socketOutStream == null || socketInStream == null) {
             return false;
         }
         boolean completed = timestampVerifyService.timeVerifyCompleted();
