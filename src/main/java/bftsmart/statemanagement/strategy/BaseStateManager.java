@@ -203,11 +203,13 @@ public abstract class BaseStateManager implements StateManager {
         int[] target = SVController.getCurrentViewAcceptors();
 
         SMMessage currentCID = new StandardSMMessage(me, -1, TOMUtil.SM_ASK_INITIAL, 0, null, null, 0, 0);
+        LOGGER.info("I will send StandardSMMessage[{}] to all nodes !", TOMUtil.SM_ASK_INITIAL);
         tomLayer.getCommunication().send(target, currentCID);
 
         target = SVController.getCurrentViewOtherAcceptors();
 
         while (isInitializing) {
+            LOGGER.info("I will send StandardSMMessage[{}] to others !", TOMUtil.SM_ASK_INITIAL);
             tomLayer.getCommunication().send(target, currentCID);
             try {
                 Thread.sleep(1500);
@@ -219,6 +221,7 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public void currentConsensusIdAsked(int sender) {
+        LOGGER.info("I will handle currentConsensusIdAsked, sender = {} !", sender);
         int me = SVController.getStaticConf().getProcessId();
         int lastConsensusId = tomLayer.getLastExec();
         SMMessage currentCIDReply = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, null, 0, 0);
@@ -227,13 +230,16 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public synchronized void currentConsensusIdReceived(SMMessage smsg) {
-        if (!isInitializing || waitingCID > -1) {            
+        LOGGER.info("I will handle currentConsensusIdReceived!");
+        if (!isInitializing || waitingCID > -1) {
+            LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
             return;
         }
         if (senderCIDs == null) {
             senderCIDs = new HashMap<>();
         }
         senderCIDs.put(smsg.getSender(), smsg.getCID());
+        LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), SVController.getQuorum());
         if (senderCIDs.size() >= SVController.getQuorum()) {
 
             HashMap<Integer, Integer> cids = new HashMap<>();
@@ -249,6 +255,7 @@ public abstract class BaseStateManager implements StateManager {
                 }
             }
             for (int key : cids.keySet()) {
+                LOGGER.info("cids.get(key) = {}, SVController.getQuorum() = {} !", cids.get(key), SVController.getQuorum());
                 if (cids.get(key) >= SVController.getQuorum()) {
                     if (key == lastCID) {
                         LOGGER.info("-- {} replica state is up to date ! --", SVController.getStaticConf().getProcessId());

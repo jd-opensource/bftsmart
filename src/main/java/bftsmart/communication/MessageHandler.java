@@ -178,6 +178,7 @@ public class MessageHandler {
                     /** This is Joao's code, to handle state transfer */
                 } else if (sm instanceof SMMessage) {
                     SMMessage smsg = (SMMessage) sm;
+                    LOGGER.info("I am {}, receive SMMessage, type = {} !", tomLayer.controller.getStaticConf().getProcessId(), smsg.getType());
                     // LOGGER.debug("(MessageHandler.processData) SM_MSG received: type " + smsg.getType() + ", regency " + smsg.getRegency() + ", (replica " + smsg.getSender() + ")");
                     switch(smsg.getType()) {
                         case TOMUtil.SM_REQUEST:

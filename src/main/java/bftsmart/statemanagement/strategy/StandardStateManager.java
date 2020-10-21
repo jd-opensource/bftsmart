@@ -139,6 +139,7 @@ public class StandardStateManager extends BaseStateManager {
     
 	@Override
     public void SMRequestDeliver(SMMessage msg, boolean isBFT) {
+        LOGGER.info("I will handle SMRequestDeliver !");
         if (SVController.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
         	StandardSMMessage stdMsg = (StandardSMMessage)msg;
             boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
@@ -167,6 +168,7 @@ public class StandardStateManager extends BaseStateManager {
 
 	@Override
     public void SMReplyDeliver(SMMessage msg, boolean isBFT) {
+        LOGGER.info("I will handle SMReplyDeliver !");
         lockTimer.lock();
         if (SVController.getStaticConf().isStateTransferEnabled()) {
             if (waitingCID != -1 && msg.getCID() == waitingCID) {
@@ -391,8 +393,9 @@ public class StandardStateManager extends BaseStateManager {
 
 	@Override
 	public void currentConsensusIdAsked(int sender) {
+        LOGGER.info("I will handle currentConsensusIdAsked");
 		int me = SVController.getStaticConf().getProcessId();
-                int lastConsensusId = tomLayer.getLastExec();
+		int lastConsensusId = tomLayer.getLastExec();
 		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, null, 0, 0);
 		tomLayer.getCommunication().send(new int[]{sender}, currentCID);
 	}
