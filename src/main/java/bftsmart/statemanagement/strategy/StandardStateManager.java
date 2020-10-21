@@ -396,6 +396,7 @@ public class StandardStateManager extends BaseStateManager {
         LOGGER.info("I will handle currentConsensusIdAsked");
 		int me = SVController.getStaticConf().getProcessId();
 		int lastConsensusId = tomLayer.getLastExec();
+		LOGGER.info("I wiil send consensusId = {} !", lastConsensusId);
 		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, null, 0, 0);
 		tomLayer.getCommunication().send(new int[]{sender}, currentCID);
 	}

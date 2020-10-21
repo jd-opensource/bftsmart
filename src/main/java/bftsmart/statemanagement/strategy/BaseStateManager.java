@@ -239,6 +239,7 @@ public abstract class BaseStateManager implements StateManager {
             senderCIDs = new HashMap<>();
         }
         senderCIDs.put(smsg.getSender(), smsg.getCID());
+        LOGGER.info("currentConsensusIdReceived ->sender[{}], CID = {} !", smsg.getSender(), smsg.getCID());
         LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), SVController.getQuorum());
         if (senderCIDs.size() >= SVController.getQuorum()) {
 
@@ -255,7 +256,7 @@ public abstract class BaseStateManager implements StateManager {
                 }
             }
             for (int key : cids.keySet()) {
-                LOGGER.info("cids.get(key) = {}, SVController.getQuorum() = {} !", cids.get(key), SVController.getQuorum());
+                LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), SVController.getQuorum());
                 if (cids.get(key) >= SVController.getQuorum()) {
                     if (key == lastCID) {
                         LOGGER.info("-- {} replica state is up to date ! --", SVController.getStaticConf().getProcessId());
