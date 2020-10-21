@@ -361,6 +361,10 @@ public class ServerConnection {
         if (!currSocketTimestampOver) {
             startConnectService.execute(() -> {
                 connectLock.lock();
+                if (currSocketTimestampOver) {
+                    connectLock.unlock();
+                    return;
+                }
 
                 if (socket == null || !socket.isConnected()) {
 
@@ -458,77 +462,79 @@ public class ServerConnection {
      *
      */
     private boolean authTimestamp() {
-        if (socketOutStream == null || socketInStream == null) {
-            return false;
-        }
-        boolean completed = timestampVerifyService.timeVerifyCompleted();
+        connectLock.lock();
         try {
-            socketOutStream.writeBoolean(completed);
-            boolean remoteCompleted = socketInStream.readBoolean();
-            LOGGER.info("I am {} -> {}, receive remote[{}] status = {} !",
-                    controller.getStaticConf().getProcessId(), completed, remoteId, remoteCompleted);
-            if (remoteCompleted) {
-                // 判断本地节点是否已启动
-                if (completed) {
-                    currSocketTimestampOver = true;
-                    return true;
-                } else {
-                    // 本地节点没有启动，而远端启动了，则设置等待完成
-                    timestampVerifyService.waitComplete(remoteId);
-                    // 等待全部完成
-                    long currentTimestamp = timestampVerifyService.verifyTimestamp();
-                    LOGGER.info("I am {}, will write time[{}] to remote[{}] !",
-                            controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-                    // 写入时间并等待远端的时间
-                    socketOutStream.writeLong(currentTimestamp);
-                    long remoteTimestamp = socketInStream.readLong();
-                    LOGGER.info("I am {}, receive remote timestamp = {} from {} !",
-                            controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-                    boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
-                    if (verify) {
-                        timestampVerifyService.verifySuccess(remoteId);
+            if (socketOutStream == null || socketInStream == null) {
+                return false;
+            }
+            boolean completed = timestampVerifyService.timeVerifyCompleted();
+            try {
+                socketOutStream.writeBoolean(completed);
+                boolean remoteCompleted = socketInStream.readBoolean();
+                LOGGER.info("I am {} -> {}, receive remote[{}] status = {} !",
+                        controller.getStaticConf().getProcessId(), completed, remoteId, remoteCompleted);
+                if (remoteCompleted) {
+                    // 判断本地节点是否已启动
+                    if (completed) {
                         currSocketTimestampOver = true;
                         return true;
                     } else {
-                        timestampVerifyService.verifyFail(remoteId);
-                        currSocketTimestampOver = true;
-                        return false;
+                        // 本地节点没有启动，而远端启动了，则设置等待完成
+                        timestampVerifyService.waitComplete(remoteId);
+                        // 等待全部完成
+                        long currentTimestamp = timestampVerifyService.verifyTimestamp();
+                        LOGGER.info("I am {}, will write time[{}] to remote[{}] !",
+                                controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
+                        // 写入时间并等待远端的时间
+                        socketOutStream.writeLong(currentTimestamp);
+                        long remoteTimestamp = socketInStream.readLong();
+                        LOGGER.info("I am {}, receive remote timestamp = {} from {} !",
+                                controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
+                        boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
+                        if (verify) {
+                            timestampVerifyService.verifySuccess(remoteId);
+                            currSocketTimestampOver = true;
+                            return true;
+                        } else {
+                            timestampVerifyService.verifyFail(remoteId);
+                            currSocketTimestampOver = true;
+                            return false;
+                        }
                     }
-                }
-            } else {
-                // 远端未完成，但本地完成了，则发送本地的时间戳，等待远端时间戳
-                if (completed || currSocketTimestampOver) {
-                    long currentTimestamp = System.currentTimeMillis();
-                    LOGGER.info("I am {}, will write time[{}] to remote[{}] but not need check !",
-                            controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-                    socketOutStream.writeLong(currentTimestamp);
-                    long remoteTimestamp = socketInStream.readLong();
-                    LOGGER.info("I am {}, receive remote timestamp = {} from {} but not need check !",
-                            controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-                    currSocketTimestampOver = true;
-                    return true;
                 } else {
-                    // 两者都没有完成
-                    // 两者都未完成
-                    timestampVerifyService.waitComplete(remoteId);
-                    long currentTimestamp = timestampVerifyService.verifyTimestamp();
-                    LOGGER.info("I am {}, will write time[{}] to remote[{}] !",
-                            controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-                    // 写入时间并等待远端的时间
-                    socketOutStream.writeLong(currentTimestamp);
-                    long remoteTimestamp = socketInStream.readLong();
-                    LOGGER.info("I am {}, receive remote timestamp = {} from {} !",
-                            controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-                    boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
-                    if (verify) {
-                        timestampVerifyService.verifySuccess(remoteId);
+                    // 远端未完成，但本地完成了，则发送本地的时间戳，等待远端时间戳
+                    if (completed || currSocketTimestampOver) {
+                        long currentTimestamp = System.currentTimeMillis();
+                        LOGGER.info("I am {}, will write time[{}] to remote[{}] but not need check !",
+                                controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
+                        socketOutStream.writeLong(currentTimestamp);
+                        long remoteTimestamp = socketInStream.readLong();
+                        LOGGER.info("I am {}, receive remote timestamp = {} from {} but not need check !",
+                                controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
                         currSocketTimestampOver = true;
                         return true;
                     } else {
-                        timestampVerifyService.verifyFail(remoteId);
-                        currSocketTimestampOver = true;
+                        // 两者都没有完成
+                        // 两者都未完成
+                        timestampVerifyService.waitComplete(remoteId);
+                        long currentTimestamp = timestampVerifyService.verifyTimestamp();
+                        LOGGER.info("I am {}, will write time[{}] to remote[{}] !",
+                                controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
+                        // 写入时间并等待远端的时间
+                        socketOutStream.writeLong(currentTimestamp);
+                        long remoteTimestamp = socketInStream.readLong();
+                        LOGGER.info("I am {}, receive remote timestamp = {} from {} !",
+                                controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
+                        boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
+                        if (verify) {
+                            timestampVerifyService.verifySuccess(remoteId);
+                            currSocketTimestampOver = true;
+                            return true;
+                        } else {
+                            timestampVerifyService.verifyFail(remoteId);
+                            currSocketTimestampOver = true;
+                        }
                     }
-                }
 //
 //
 //                // 对端没有完成
@@ -558,11 +564,14 @@ public class ServerConnection {
 //                        currSocketTimestampOver = true;
 //                    }
 //                }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            return false;
+        } finally {
+            connectLock.unlock();
         }
-        return false;
     }
 
     //TODO!

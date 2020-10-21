@@ -1237,6 +1237,10 @@ public class Synchronizer {
 
             e.deserializedPropValue = tom.checkProposedValue(tmpval, false);
 
+            if (e.deserializedPropValue != null && e.deserializedPropValue.length > 0) {
+                e.setProposeTimestamp(e.deserializedPropValue[0].timestamp);
+            }
+
             if (cons.getDecision().firstMessageProposed == null) {
                 if (e.deserializedPropValue != null
                         && e.deserializedPropValue.length > 0) {
