@@ -383,7 +383,7 @@ public class ServerConnection {
                     } catch (IOException ex) {
 
                         LOGGER.error("Impossible to reconnect to replica {}", remoteId);
-                        //ex.printStackTrace();
+                        return;
                     }
                     if (socket != null) {
                         try {
@@ -391,6 +391,7 @@ public class ServerConnection {
                             socketInStream = new DataInputStream(socket.getInputStream());
 
                             authKey = null;
+                            LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
 
                         } catch (IOException ex) {
                             ex.printStackTrace();
@@ -438,7 +439,7 @@ public class ServerConnection {
             } catch (IOException ex) {
 
                 LOGGER.error("Impossible to reconnect to replica {}", remoteId);
-                //ex.printStackTrace();
+                return;
             }
             if (socket != null) {
                 try {
@@ -446,6 +447,7 @@ public class ServerConnection {
                     socketInStream = new DataInputStream(socket.getInputStream());
 
                     authKey = null;
+                    LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
                     if (authTimestamp()) {
                         authenticateAndEstablishAuthKey();
                     }

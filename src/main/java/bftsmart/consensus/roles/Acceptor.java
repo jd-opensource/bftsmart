@@ -58,6 +58,9 @@ import java.util.List;
  */
 public final class Acceptor {
 
+    // 最大尝试次数
+    private static final int MAX_RETRY_SIZE = 3;
+
     private int me; // This replica ID
     private ExecutionManager executionManager; // Execution manager of consensus's executions
     private MessageFactory factory; // Factory for PaW messages
@@ -494,24 +497,38 @@ public final class Acceptor {
             HashMap<Integer, byte[]> macVector = new HashMap<>();
 
             for (int id : processes) {
-
+                int retrySize = 0;
                 try {
-
                     SecretKey key = null;
-                    do {
+                    while (retrySize < MAX_RETRY_SIZE) {
                         key = communication.getServersConn().getSecretKey(id);
                         if (key == null) {
                             LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with {} . Retrying.", id);
+                            retrySize++;
                             Thread.sleep(1000);
+                        } else {
+                            break;
                         }
-
-                    } while (key == null);  // JCS: This loop is to solve a race condition where a
-                                            // replica might have already been insert in the view or
-                                            // recovered after a crash, but it still did not concluded
-                                            // the diffie helman protocol. Not an elegant solution,
-                                            // but for now it will do
-                    this.mac.init(key);
-                    macVector.put(id, this.mac.doFinal(data));
+                    }
+                    if (key != null) {
+                        this.mac.init(key);
+                        macVector.put(id, this.mac.doFinal(data));
+                    }
+//
+//                    do {
+//                        key = communication.getServersConn().getSecretKey(id);
+//                        if (key == null) {
+//                            LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with {} . Retrying.", id);
+//                            Thread.sleep(1000);
+//                        }
+//
+//                    } while (key == null);  // JCS: This loop is to solve a race condition where a
+//                                            // replica might have already been insert in the view or
+//                                            // recovered after a crash, but it still did not concluded
+//                                            // the diffie helman protocol. Not an elegant solution,
+//                                            // but for now it will do
+//                    this.mac.init(key);
+//                    macVector.put(id, this.mac.doFinal(data));
                 } catch (InterruptedException ex) {
                     ex.printStackTrace();
                 } catch (InvalidKeyException ex) {
