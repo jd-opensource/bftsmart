@@ -198,9 +198,11 @@ public final class DeliveryThread extends Thread {
                 if(decided.isEmpty()) {
                     notEmptyQueue.await();
                 }
-                decided.drainTo(decisions);
+
+                Decision decision = decided.take();
                 decidedLock.unlock();
-                
+                decisions.add(decision);
+
                 if (!doWork) break;
                 
                 if (decisions.size() > 0) {
