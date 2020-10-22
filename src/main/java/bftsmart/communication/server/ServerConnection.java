@@ -391,18 +391,23 @@ public class ServerConnection {
                         try {
                             socketOutStream = new DataOutputStream(socket.getOutputStream());
                             socketInStream = new DataInputStream(socket.getInputStream());
+                            if (authTimestamp()) {
+                                authKey = null;
+                                LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+                                authenticateAndEstablishAuthKey();
+                            }
                         } catch (IOException ex) {
                             ex.printStackTrace();
                         }
                     }
                 }
-                if (socket != null) {
-                    if (authTimestamp()) {
-                        authKey = null;
-                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                        authenticateAndEstablishAuthKey();
-                    }
-                }
+//                if (socket != null) {
+//                    if (authTimestamp()) {
+//                        authKey = null;
+//                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+//                        authenticateAndEstablishAuthKey();
+//                    }
+//                }
                 connectLock.unlock();
             });
         }
@@ -722,6 +727,7 @@ public class ServerConnection {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            LOGGER.info("Start handle send service to {} !", remoteId);
             while (doWork) {
                 //get a message to be sent
                 try {
@@ -762,7 +768,7 @@ public class ServerConnection {
                 ex.printStackTrace();
             }
 
-
+            LOGGER.info("Start handle receive service to {} !", remoteId);
             while (doWork) {
                 if (socket != null && socketInStream != null) {
                     try {

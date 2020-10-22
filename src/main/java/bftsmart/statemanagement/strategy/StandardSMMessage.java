@@ -60,4 +60,16 @@ public class StandardSMMessage extends SMMessage {
         super.readExternal(in);
         replica = in.readInt();
     }
+
+    @Override
+    public String toString() {
+        return "StandardSMMessage{" +
+                "replica=" + replica + "," +
+                "sender=" + getSender() + "," +
+                "cid=" + getCID() + "," +
+                "type=" + getType() + "," +
+                "regency=" + getRegency() + "," +
+                "leader=" + getLeader() +
+                '}';
+    }
 }
