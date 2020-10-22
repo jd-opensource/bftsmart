@@ -22,7 +22,6 @@ import bftsmart.communication.server.timestamp.TimestampVerifyHandler;
 import bftsmart.communication.server.timestamp.TimestampVerifyService;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.leaderchange.HeartBeatMessage;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
@@ -177,6 +176,7 @@ public class ServersCommunicationLayer extends Thread {
         connectionsLock.lock();
         ServerConnection ret = this.connections.get(remoteId);
         if (ret == null) {
+            LOGGER.info("I am {}, remote = {} !", controller.getStaticConf().getProcessId(), remoteId);
             ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica, this.timestampVerifyService);
             this.connections.put(remoteId, ret);
         }
@@ -273,6 +273,7 @@ public class ServersCommunicationLayer extends Thread {
                     pendingConn.add(new PendingConnection(newSocket, remoteId));
                     waitViewLock.unlock();
                 } else {
+                    LOGGER.info("I am {} establishConnection run!", this.controller.getStaticConf().getProcessId());
                     establishConnection(newSocket, remoteId);
                 }
                 //******* EDUARDO END **************//
@@ -297,16 +298,19 @@ public class ServersCommunicationLayer extends Thread {
 
     //******* EDUARDO BEGIN **************//
     private void establishConnection(Socket newSocket, int remoteId) throws IOException {
+        LOGGER.info("I am {}, remoteId = {} !", this.controller.getStaticConf().getProcessId(), remoteId);
         if ((this.controller.getStaticConf().getTTPId() == remoteId) || this.controller.isCurrentViewMember(remoteId)) {
             connectionsLock.lock();
             //System.out.println("Vai se conectar com: "+remoteId);
             if (this.connections.get(remoteId) == null) { //This must never happen!!!
                 //first time that this connection is being established
                 //System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
+                LOGGER.info("I am {} establishConnection 1!", this.controller.getStaticConf().getProcessId());
                 this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica, timestampVerifyService));
             } else {
+                LOGGER.info("I am {} establishConnection 2!", this.controller.getStaticConf().getProcessId());
                 //reconnection
-                this.connections.get(remoteId).startReconnect(newSocket);
+                this.connections.get(remoteId).monitorReconnect(newSocket);
             }
             connectionsLock.unlock();
 
