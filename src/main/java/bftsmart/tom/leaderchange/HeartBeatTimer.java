@@ -17,6 +17,10 @@ public class HeartBeatTimer {
     // 重复发送LeaderRequest的间隔时间
     private static final long RESEND_MILL_SECONDS = 5000;
 
+    private static final long DELAY_MILL_SECONDS = 30000;
+
+    private static final long LEADER_DELAY_MILL_SECONDS = 20000;
+
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
     private final Map<Long, List<LeaderResponseMessage>> leaderResponseMap = new LRUMap<>(1024 * 8);
@@ -61,14 +65,14 @@ public class HeartBeatTimer {
         if (leaderTimer == null) {
             leaderTimer = new Timer("heart beat leader timer");
         }
-        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), 0, tomLayer.controller.getStaticConf().getHeartBeatPeriod());
+        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), LEADER_DELAY_MILL_SECONDS, tomLayer.controller.getStaticConf().getHeartBeatPeriod());
     }
 
     public void replicaTimerStart() {
         if (replicaTimer == null) {
             replicaTimer = new Timer("heart beat replica timer");
         }
-        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(),tomLayer.controller.getStaticConf().getHeartBeatTimeout(), tomLayer.controller.getStaticConf().getHeartBeatTimeout());
+        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), DELAY_MILL_SECONDS, tomLayer.controller.getStaticConf().getHeartBeatTimeout());
     }
 
     public void stopAll() {

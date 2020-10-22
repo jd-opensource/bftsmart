@@ -145,6 +145,7 @@ public class ServerConnection {
         } else {
             sendLock = new ReentrantLock();
         }
+//        startReconnect(null);
         Executors.newSingleThreadExecutor().execute(() -> {
             // 定时重新连接
             while (!currSocketTimestampOver && doWork) {
@@ -391,23 +392,24 @@ public class ServerConnection {
                         try {
                             socketOutStream = new DataOutputStream(socket.getOutputStream());
                             socketInStream = new DataInputStream(socket.getInputStream());
-                            if (authTimestamp()) {
-                                authKey = null;
-                                LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                                authenticateAndEstablishAuthKey();
-                            }
+//                            if (authTimestamp()) {
+//                                authKey = null;
+//                                LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+//                                authenticateAndEstablishAuthKey();
+//                            }
                         } catch (IOException ex) {
                             ex.printStackTrace();
                         }
                     }
+                    LOGGER.info("I am {}, remote[{}] socket = {}, newSocket = {} !!!", this.controller.getStaticConf().getProcessId(), remoteId, socket == null, newSocket == null);
                 }
-//                if (socket != null) {
-//                    if (authTimestamp()) {
-//                        authKey = null;
-//                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-//                        authenticateAndEstablishAuthKey();
-//                    }
-//                }
+                if (socket != null) {
+                    if (authTimestamp()) {
+                        authKey = null;
+                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+                        authenticateAndEstablishAuthKey();
+                    }
+                }
                 connectLock.unlock();
             });
         }
@@ -448,14 +450,28 @@ public class ServerConnection {
                 try {
                     socketOutStream = new DataOutputStream(socket.getOutputStream());
                     socketInStream = new DataInputStream(socket.getInputStream());
-                    if (authTimestamp()) {
-                        authKey = null;
-                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                        authenticateAndEstablishAuthKey();
-                    }
+//                    if (authTimestamp()) {
+//                        authKey = null;
+//                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+//                        authenticateAndEstablishAuthKey();
+//                    }
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
+            }
+            LOGGER.info("I am {}, remote[{}] socket = {}, newSocket = {} !!!", this.controller.getStaticConf().getProcessId(), remoteId, socket == null, newSocket == null);
+        }
+        if (socket != null) {
+            try {
+//                socketOutStream = new DataOutputStream(socket.getOutputStream());
+//                socketInStream = new DataInputStream(socket.getInputStream());
+                if (authTimestamp()) {
+                    authKey = null;
+                    LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+                    authenticateAndEstablishAuthKey();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }
 
@@ -734,8 +750,19 @@ public class ServerConnection {
                     data = outQueue.poll(POOL_TIME, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                 }
+                boolean canSend = false;
+                // 此处加锁控制
+                connectLock.lock();
+                try {
+                    // 判断连接是否正常
+                    if (authKey != null && socket != null && socketInStream != null && socketOutStream != null) {
+                        canSend = true;
+                    }
+                } finally {
+                    connectLock.unlock();
+                }
 
-                if (data != null) {
+                if (data != null && canSend) {
                     //sendBytes(data, noMACs.contains(System.identityHashCode(data)));
                     int ref = System.identityHashCode(data);
                     boolean sendMAC = !noMACs.remove(ref);
