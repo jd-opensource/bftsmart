@@ -68,6 +68,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
     private DeliveryThread dt; // Thread which delivers total ordered messages to the appication
     public StateManager stateManager = null; // object which deals with the state transfer protocol
 
+    private volatile boolean isConnectRemotesOK = false;
+
     /**
      * Manage timers for pending requests
      */
@@ -375,6 +377,23 @@ public class TOMLayer extends Thread implements RequestReceiver {
      */
     public boolean isLeader() {
         return leader() == this.controller.getStaticConf().getProcessId();
+    }
+
+    /**
+     * 是否连接远端节点正常
+     *
+     * @return
+     */
+    public boolean isConnectRemotesOK() {
+        return isConnectRemotesOK;
+    }
+
+    /**
+     * 连接远端成功
+     *
+     */
+    public void connectRemotesOK() {
+        this.isConnectRemotesOK = true;
     }
 
     /**

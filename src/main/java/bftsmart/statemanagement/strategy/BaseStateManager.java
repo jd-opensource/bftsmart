@@ -263,6 +263,8 @@ public abstract class BaseStateManager implements StateManager {
                         dt.deliverLock();
                         isInitializing = false;
                         tomLayer.setLastExec(key);
+                        // 如果有其他节点没有差异的话，会走此分支，此时将其连接设置为OK
+                        tomLayer.connectRemotesOK();
                         dt.canDeliver();
                         dt.deliverUnlock();
                         break;

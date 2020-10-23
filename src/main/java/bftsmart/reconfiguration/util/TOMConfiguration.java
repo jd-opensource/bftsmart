@@ -172,38 +172,38 @@ public class TOMConfiguration extends Configuration {
 				}
 			}
 
-			// 时间容错范围，默认为30秒
+			// 时间容错范围，默认为300秒
 			s = (String) configs.remove("system.totalordermulticast.timeTolerance");
 			if (s == null) {
-				timeTolerance = 30000L;
+				timeTolerance = 300000L;
 			} else {
 				timeTolerance = Long.parseLong(s);
 				if (timeTolerance <= 0) {
+					timeTolerance = 300000L;
+				} else if (timeTolerance < 30000L) {
 					timeTolerance = 30000L;
-				} else if (timeTolerance < 5000L) {
-					timeTolerance = 5000L;
 				}
 			}
 
 			// heartBeatTimeout;
 			s = (String) configs.remove("system.totalordermulticast.heartBeatTimeout");
 			if (s == null) {
-				heartBeatTimeout = 20000L;
+				heartBeatTimeout = 30000L;
 			} else {
 				heartBeatTimeout = Long.parseLong(s);
 				if (heartBeatTimeout < 0) {
-					heartBeatTimeout = 20000L;
+					heartBeatTimeout = 30000L;
 				}
 			}
 
 			// heartBeatPeriod;
 			s = (String) configs.remove("system.totalordermulticast.heartBeatPeriod");
 			if (s == null) {
-				heartBeatPeriod = 6000L;
+				heartBeatPeriod = 5000L;
 			} else {
 				heartBeatPeriod = Long.parseLong(s);
 				if (heartBeatPeriod < 0) {
-					heartBeatPeriod = 6000L;
+					heartBeatPeriod = 5000L;
 				}
 			}
 

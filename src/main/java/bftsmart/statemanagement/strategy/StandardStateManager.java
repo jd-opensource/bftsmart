@@ -311,6 +311,8 @@ public class StandardStateManager extends BaseStateManager {
                         reset();
 
                         LOGGER.info("I updated the state!");
+                        // 有差异的话，完成后会走此流程
+                        tomLayer.connectRemotesOK();
 
 //                        tomLayer.requestsTimer.Enabled(true);
 //                        tomLayer.requestsTimer.startTimer();
