@@ -26,6 +26,13 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
      */
     private static final long KILL_WAIT_SECONDS = 3;
 
+    /**
+     * 时间校验结果
+     *         对该值的判断必须依赖于 ${@link TimestampVerifyHandler#timestampCompleted}
+     *         只有完成的情况下，该值的判断才有意义
+     */
+    private volatile boolean timestampVerifyResult = false;
+
     private final CompletableFuture<Long> timestampFuture = new CompletableFuture<>();
 
     private final ServiceReplica replica;
@@ -33,6 +40,8 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
     private final int processId;
 
     private final long timeTolerance;
+
+    private final CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
 
     private final CountDownLatch timestampWaitLatch;
 
@@ -61,14 +70,19 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
                 // 在指定时间内等待处理完成时间同步
                 boolean result = timestampSuccessLatch.await(MAX_WAIT_SECONDS, TimeUnit.SECONDS);
                 if (!result) {
+                    completableFuture.complete(false);
                     kill();
                 } else {
                     LOGGER.info("I am {}, handle timestamp verify success !", processId);
+                    timestampVerifyResult = true; // 结果设置为成功
                     // 设置为完成
                     timestampCompleted.set(true);
+                    // 释放许可
+                    completableFuture.complete(true);
                 }
             } catch (Exception e) {
                 LOGGER.error("Handle timestamp verify error !!!", e);
+                completableFuture.complete(false);
             }
         });
     }
@@ -76,6 +90,20 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
     @Override
     public boolean timeVerifyCompleted() {
         return timestampCompleted.get();
+    }
+
+    @Override
+    public boolean timeVerifyResult() {
+        return timestampVerifyResult;
+    }
+
+    @Override
+    public boolean waitAllComplete() {
+        try {
+            return completableFuture.get();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override

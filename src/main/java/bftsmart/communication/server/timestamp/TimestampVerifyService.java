@@ -14,6 +14,18 @@ public interface TimestampVerifyService {
     boolean timeVerifyCompleted();
 
     /**
+     * 时间校验结果
+     *
+     * @return
+     */
+    boolean timeVerifyResult();
+
+    /**
+     * 等待全部完成
+     */
+    boolean waitAllComplete();
+
+    /**
      * 等待完成
      *
      * @param remoteId

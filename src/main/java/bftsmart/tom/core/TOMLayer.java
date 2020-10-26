@@ -652,6 +652,11 @@ public class TOMLayer extends Thread implements RequestReceiver {
         if (this.heartBeatTimer != null) {
             this.heartBeatTimer.shutdown();
         }
+        if (viewSyncTimer != null) {
+            viewSyncTimer.shutdown();
+        }
+
+
         if (this.clientDatasMonitorTimer != null) {
             this.clientDatasMonitorTimer.shutdown();
         }

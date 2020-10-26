@@ -395,13 +395,15 @@ public class ServerConnection {
                         }
                         if (socket != null) {
                             try {
-                                System.out.println("-----" + 2 + "-----");
                                 socketOutStream = new DataOutputStream(socket.getOutputStream());
                                 socketInStream = new DataInputStream(socket.getInputStream());
                                 if (authTimestamp()) {
                                     authKey = null;
                                     LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                                    authenticateAndEstablishAuthKey();
+                                    if (timestampVerifyService.waitAllComplete()) {
+                                        // 等待完成
+                                        authenticateAndEstablishAuthKey();
+                                    }
                                 }
                             } catch (IOException ex) {
                                 ex.printStackTrace();
@@ -471,7 +473,10 @@ public class ServerConnection {
                     if (authTimestamp()) {
                         authKey = null;
                         LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                        authenticateAndEstablishAuthKey();
+                        if (timestampVerifyService.waitAllComplete()) {
+                            // 等待完成
+                            authenticateAndEstablishAuthKey();
+                        }
                     }
                 } catch (IOException ex) {
                     ex.printStackTrace();
@@ -515,8 +520,13 @@ public class ServerConnection {
                 if (remoteCompleted) {
                     // 判断本地节点是否已启动
                     if (completed) {
+                        // 需要判断结果是成功还是失败
+                        if (timestampVerifyService.timeVerifyResult()) {
+                            currSocketTimestampOver = true;
+                            return true;
+                        }
                         currSocketTimestampOver = true;
-                        return true;
+                        return false;
                     } else {
                         // 本地节点没有启动，而远端启动了，则设置等待完成
                         timestampVerifyService.waitComplete(remoteId);
@@ -542,7 +552,7 @@ public class ServerConnection {
                     }
                 } else {
                     // 远端未完成，但本地完成了，则发送本地的时间戳，等待远端时间戳
-                    if (completed || currSocketTimestampOver) {
+                    if ((completed && timestampVerifyService.timeVerifyResult()) || currSocketTimestampOver) {
                         long currentTimestamp = System.currentTimeMillis();
                         LOGGER.info("I am {}, will write time[{}] to remote[{}] but not need check !",
                                 controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
