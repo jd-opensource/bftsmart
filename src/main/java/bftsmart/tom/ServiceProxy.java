@@ -201,134 +201,128 @@ public class ServiceProxy extends TOMSender {
 	public byte[] invoke(byte[] request, TOMMessageType reqType) {
 		canSendLock.lock();
 
-		// Clean all statefull data to prepare for receiving next replies
-		Arrays.fill(replies, null);
-		receivedReplies = 0;
-		response = null;
-		replyQuorum = getReplyQuorum();
-
-		// Send the request to the replicas, and get its ID
-		reqId = generateRequestId(reqType);
-		operationId = generateOperationId();
-		requestType = reqType;
-
-		replyServer = -1;
-		hashResponseController = null;
-
-		if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
-
-			replyServer = getRandomlyServerId();
-			LOGGER.debug("[{}] replyServerId {} pos at {}", this.getClass().getName(), replyServer, getViewManager().getCurrentViewPos(replyServer));
-
-			hashResponseController = new HashResponseController(getViewManager().getCurrentViewPos(replyServer),
-					getViewManager().getCurrentViewProcesses().length);
-
-			TOMMessage sm = new TOMMessage(getProcessId(), getSession(), reqId, operationId, request,
-					getViewManager().getCurrentViewId(), requestType);
-			sm.setReplyServer(replyServer);
-
-			TOMulticast(sm);
-		} else {
-			TOMulticast(request, reqId, operationId, reqType);
-		}
-
-		LOGGER.debug("Sending request {} with reqId {}", reqType, reqId);
-		LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
-
-		// This instruction blocks the thread, until a response is obtained.
-		// The thread will be unblocked when the method replyReceived is invoked
-		// by the client side communication system
 		try {
-			if (reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
-				if (!this.sm.tryAcquire(invokeUnorderedHashedTimeout, TimeUnit.SECONDS)) {
-					LOGGER.debug("######## UNORDERED HASHED REQUEST TIMOUT ########");
-					canSendLock.unlock();
-					return invoke(request, TOMMessageType.ORDERED_REQUEST);
-				}
-			} else {
-				if (!this.sm.tryAcquire(invokeTimeout, TimeUnit.SECONDS)) {
-					LOGGER.error("###################TIMEOUT#######################");
-					LOGGER.error("Reply timeout for reqId is {}", reqId);
-					LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
-					LOGGER.error("Replies received: {}", receivedReplies);
-					LOGGER.error("Replies quorum: {}", replyQuorum);
-					canSendLock.unlock();
+			// Clean all statefull data to prepare for receiving next replies
+			Arrays.fill(replies, null);
+			receivedReplies = 0;
+			response = null;
+			replyQuorum = getReplyQuorum();
 
-					return null;
-				}
+			// Send the request to the replicas, and get its ID
+			reqId = generateRequestId(reqType);
+			operationId = generateOperationId();
+			requestType = reqType;
+
+			replyServer = -1;
+			hashResponseController = null;
+
+			if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
+
+				replyServer = getRandomlyServerId();
+				LOGGER.debug("[{}] replyServerId {} pos at {}", this.getClass().getName(), replyServer, getViewManager().getCurrentViewPos(replyServer));
+
+				hashResponseController = new HashResponseController(getViewManager().getCurrentViewPos(replyServer),
+						getViewManager().getCurrentViewProcesses().length);
+
+				TOMMessage sm = new TOMMessage(getProcessId(), getSession(), reqId, operationId, request,
+						getViewManager().getCurrentViewId(), requestType);
+				sm.setReplyServer(replyServer);
+
+				TOMulticast(sm);
+			} else {
+				TOMulticast(request, reqId, operationId, reqType);
 			}
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		}
 
-		LOGGER.debug("Response extracted {}", response);
+			LOGGER.debug("Sending request {} with reqId {}", reqType, reqId);
+			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
-		byte[] ret = null;
-
-		if (response == null) {
-			// the response can be null if n-f replies are received but there isn't
-			// a replyQuorum of matching replies
-			LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {} !", request.length, reqType);
-
-			canSendLock.unlock();
-			if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
-				// invoke the operation again, whitout the read-only flag
-				LOGGER.debug("###################RETRY#######################");
-				return invokeOrdered(request);
-			} else {
-				throw new RuntimeException("Received n-f replies without f+1 of them matching.");
-			}
-		} else {
-			// normal operation
-			// ******* EDUARDO BEGIN **************//
-			if (reqType == TOMMessageType.ORDERED_REQUEST) {
-				// Reply to a normal request!
-				if (response.getViewID() == getViewManager().getCurrentViewId()) {
-					ret = response.getContent(); // return the response
-				} else {// if(response.getViewID() > getViewManager().getCurrentViewId())
-					// updated view received
-					reconfigureTo((View) TOMUtil.getObject(response.getContent()));
-
-					canSendLock.unlock();
-					LOGGER.warn("Service proxy view id little than service replica view id, will re invoke request!");
-					return invoke(request, reqType);
-				}
-			} else if (reqType == TOMMessageType.UNORDERED_REQUEST
-					|| reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
-				ret = response.getContent(); // return the response
-				if (response.getViewID() > getViewManager().getCurrentViewId()) {
-					Object r = TOMUtil.getObject(response.getContent());
-					if (r instanceof View) {
-						reconfigureTo((View) r);
-						canSendLock.unlock();
-						return invoke(request, reqType);
-					}
-				}
-			} else {
-				if (response.getViewID() > getViewManager().getCurrentViewId()) {
-					// Reply to a reconfigure request!
-					LOGGER.debug("Reconfiguration request' reply received!");
-					Object r = TOMUtil.getObject(response.getContent());
-					if (r instanceof View) { // did not executed the request because it is using an outdated view
-						reconfigureTo((View) r);
-
-						canSendLock.unlock();
-						return invoke(request, reqType);
-					} else if (r instanceof ReconfigureReply) { // reconfiguration executed!
-						reconfigureTo(((ReconfigureReply) r).getView());
-						ret = response.getContent();
-					} else {
-						LOGGER.error("Unknown response type");
+			// This instruction blocks the thread, until a response is obtained.
+			// The thread will be unblocked when the method replyReceived is invoked
+			// by the client side communication system
+			try {
+				if (reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
+					if (!this.sm.tryAcquire(invokeUnorderedHashedTimeout, TimeUnit.SECONDS)) {
+						LOGGER.debug("######## UNORDERED HASHED REQUEST TIMOUT ########");
+						return invoke(request, TOMMessageType.ORDERED_REQUEST);
 					}
 				} else {
-					LOGGER.error("Unexpected execution flow");
+					if (!this.sm.tryAcquire(invokeTimeout, TimeUnit.SECONDS)) {
+						LOGGER.error("###################TIMEOUT#######################");
+						LOGGER.error("Reply timeout for reqId is {}", reqId);
+						LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
+						LOGGER.error("Replies received: {}", receivedReplies);
+						LOGGER.error("Replies quorum: {}", replyQuorum);
+						return null;
+					}
+				}
+			} catch (InterruptedException ex) {
+				ex.printStackTrace();
+			}
+
+			LOGGER.debug("Response extracted {}", response);
+
+			byte[] ret = null;
+
+			if (response == null) {
+				// the response can be null if n-f replies are received but there isn't
+				// a replyQuorum of matching replies
+				LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {} !", request.length, reqType);
+
+				if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
+					// invoke the operation again, whitout the read-only flag
+					LOGGER.debug("###################RETRY#######################");
+					return invokeOrdered(request);
+				} else {
+					throw new RuntimeException("Received n-f replies without f+1 of them matching.");
+				}
+			} else {
+				// normal operation
+				// ******* EDUARDO BEGIN **************//
+				if (reqType == TOMMessageType.ORDERED_REQUEST) {
+					// Reply to a normal request!
+					if (response.getViewID() == getViewManager().getCurrentViewId()) {
+						ret = response.getContent(); // return the response
+					} else {// if(response.getViewID() > getViewManager().getCurrentViewId())
+						// updated view received
+						reconfigureTo((View) TOMUtil.getObject(response.getContent()));
+
+						LOGGER.warn("Service proxy view id little than service replica view id, will re invoke request!");
+						return invoke(request, reqType);
+					}
+				} else if (reqType == TOMMessageType.UNORDERED_REQUEST
+						|| reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
+					ret = response.getContent(); // return the response
+					if (response.getViewID() > getViewManager().getCurrentViewId()) {
+						Object r = TOMUtil.getObject(response.getContent());
+						if (r instanceof View) {
+							reconfigureTo((View) r);
+							return invoke(request, reqType);
+						}
+					}
+				} else {
+					if (response.getViewID() > getViewManager().getCurrentViewId()) {
+						// Reply to a reconfigure request!
+						LOGGER.debug("Reconfiguration request' reply received!");
+						Object r = TOMUtil.getObject(response.getContent());
+						if (r instanceof View) { // did not executed the request because it is using an outdated view
+							reconfigureTo((View) r);
+
+							return invoke(request, reqType);
+						} else if (r instanceof ReconfigureReply) { // reconfiguration executed!
+							reconfigureTo(((ReconfigureReply) r).getView());
+							ret = response.getContent();
+						} else {
+							LOGGER.error("Unknown response type");
+						}
+					} else {
+						LOGGER.error("Unexpected execution flow");
+					}
 				}
 			}
+			return ret;
+		} finally {
+			canSendLock.unlock();
 		}
-		// ******* EDUARDO END **************//
-
-		canSendLock.unlock();
-		return ret;
 	}
 
 	// ******* EDUARDO BEGIN **************//
@@ -350,18 +344,16 @@ public class ServiceProxy extends TOMSender {
 	@Override
 	public void replyReceived(TOMMessage reply) {
 		LOGGER.debug("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
+		canReceiveLock.lock();
 		try {
-			canReceiveLock.lock();
 			if (reqId == -1) {// no message being expected
 				LOGGER.debug("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
-				canReceiveLock.unlock();
 				return;
 			}
 
 			int pos = getViewManager().getCurrentViewPos(reply.getSender());
 
 			if (pos < 0) { // ignore messages that don't come from replicas
-				canReceiveLock.unlock();
 				return;
 			}
 
@@ -375,7 +367,6 @@ public class ServiceProxy extends TOMSender {
 					if (response != null) {
 						reqId = -1;
 						this.sm.release(); // resumes the thread that is executing the "invoke" method
-						canReceiveLock.unlock();
 						return;
 					}
 
@@ -396,7 +387,6 @@ public class ServiceProxy extends TOMSender {
 								response = extractor.extractResponse(replies, sameContent, pos);
 								reqId = -1;
 								this.sm.release(); // resumes the thread that is executing the "invoke" method
-								canReceiveLock.unlock();
 								return;
 							}
 						}
@@ -430,12 +420,10 @@ public class ServiceProxy extends TOMSender {
 			} else {
 				LOGGER.info("Ignoring reply from {} with reqId {}. Currently wait reqId {}", reply.getSender(), reply.getSequence(), reqId);
 			}
-
-			// Critical section ends here. The semaphore can be released
-			canReceiveLock.unlock();
 		} catch (Exception ex) {
 			LOGGER.error("Problem at ServiceProxy.ReplyReceived()");
 			ex.printStackTrace();
+		} finally {
 			canReceiveLock.unlock();
 		}
 	}
