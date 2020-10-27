@@ -132,10 +132,15 @@ public class ServerConnection {
                 socketOutStream = new DataOutputStream(this.socket.getOutputStream());
                 socketInStream = new DataInputStream(this.socket.getInputStream());
                 Executors.newSingleThreadExecutor().execute(() -> {
-                    if (authTimestamp()) {
-                        authKey = null;
-                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                        authenticateAndEstablishAuthKey();
+                    connectLock.lock();
+                    try {
+                        if (authTimestamp()) {
+                            authKey = null;
+                            LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
+                            authenticateAndEstablishAuthKey();
+                        }
+                    } finally {
+                        connectLock.unlock();
                     }
                 });
             } catch (IOException ex) {
@@ -154,12 +159,10 @@ public class ServerConnection {
         }
 //        monitorReconnect(null);
         Executors.newSingleThreadExecutor().execute(() -> {
-            // 定时重新连接
-//            while (!currSocketTimestampOver && doWork) {
             while (doWork) {
                 try {
-                    monitorReconnect(this.socket);
                     Thread.sleep(5000);
+                    monitorReconnect(this.socket);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
