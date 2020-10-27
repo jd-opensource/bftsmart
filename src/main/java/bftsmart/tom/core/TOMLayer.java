@@ -27,6 +27,7 @@ import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.statemanagement.StateManager;
+import bftsmart.statemanagement.strategy.StandardStateManager;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
@@ -656,6 +657,10 @@ public class TOMLayer extends Thread implements RequestReceiver {
             viewSyncTimer.shutdown();
         }
 
+        if (stateManager != null && stateManager instanceof StandardStateManager) {
+            StandardStateManager standardStateManager = (StandardStateManager) stateManager;
+            standardStateManager.shutdown();
+        }
 
         if (this.clientDatasMonitorTimer != null) {
             this.clientDatasMonitorTimer.shutdown();

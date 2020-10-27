@@ -38,7 +38,9 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  */
 public class StandardStateManager extends BaseStateManager {
-	
+
+    private volatile boolean doWrok = true;
+
     private int replica;
     private ReentrantLock lockTimer = new ReentrantLock();
     private Timer stateTimer = null;
@@ -99,6 +101,9 @@ public class StandardStateManager extends BaseStateManager {
     
     @Override
     protected void requestState() {
+        if (!doWrok) {
+            return;
+        }
         if (tomLayer.requestsTimer != null)
         	tomLayer.requestsTimer.clearAll();
 
@@ -135,6 +140,14 @@ public class StandardStateManager extends BaseStateManager {
         reset();
         requestState();
         lockTimer.unlock();
+    }
+
+    public void shutdown() {
+        LOGGER.info("I will shut down StandardStateManager !");
+        doWrok = false;
+        if (stateTimer != null) {
+            stateTimer.cancel();
+        }
     }
     
 	@Override
