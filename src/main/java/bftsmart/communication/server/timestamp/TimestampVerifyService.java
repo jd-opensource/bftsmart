@@ -14,16 +14,11 @@ public interface TimestampVerifyService {
     boolean timeVerifyCompleted();
 
     /**
-     * 时间校验结果
+     * 返回时间校验是否成功
      *
      * @return
      */
-    boolean timeVerifyResult();
-
-    /**
-     * 等待全部完成
-     */
-    boolean waitAllComplete();
+    boolean timeVerifySuccess();
 
     /**
      * 等待完成
