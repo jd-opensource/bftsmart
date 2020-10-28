@@ -39,7 +39,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class StandardStateManager extends BaseStateManager {
 
-    private volatile boolean doWrok = true;
+    private volatile boolean doWork = true;
 
     private int replica;
     private ReentrantLock lockTimer = new ReentrantLock();
@@ -101,7 +101,7 @@ public class StandardStateManager extends BaseStateManager {
     
     @Override
     protected void requestState() {
-        if (!doWrok) {
+        if (!doWork) {
             return;
         }
         if (tomLayer.requestsTimer != null)
@@ -117,6 +117,9 @@ public class StandardStateManager extends BaseStateManager {
 
         TimerTask stateTask =  new TimerTask() {
             public void run() {
+                if (!doWork) {
+                    return;
+                }
             	LOGGER.info("Timeout to retrieve state");
                 int[] myself = new int[1];
                 myself[0] = SVController.getStaticConf().getProcessId();
@@ -144,7 +147,7 @@ public class StandardStateManager extends BaseStateManager {
 
     public void shutdown() {
         LOGGER.info("I will shut down StandardStateManager !");
-        doWrok = false;
+        doWork = false;
         if (stateTimer != null) {
             stateTimer.cancel();
         }
