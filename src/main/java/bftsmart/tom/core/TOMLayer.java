@@ -117,6 +117,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
             
     private Synchronizer syncher;
 
+    private String realName;
+
     /**
      * Creates a new instance of TOMulticastLayer
      *
@@ -370,6 +372,14 @@ public class TOMLayer extends Thread implements RequestReceiver {
         LOGGER.debug("(TOMLayer.run) creating a PROPOSE with {} msgs", numberOfMessages);
 
         return bb.makeBatch(pendingRequests, numberOfNonces, System.currentTimeMillis(), controller);
+    }
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public void setRealName(String realName) {
+        this.realName = realName;
     }
 
     /**

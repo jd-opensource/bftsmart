@@ -44,8 +44,11 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
 
     private final AtomicBoolean killAtomic = new AtomicBoolean(false);
 
+    private String realName;
+
     public TimestampVerifyHandler(ServiceReplica replica, ServerViewController controller) {
         this.replica = replica;
+        this.realName = replica.getRealName();
         int remoteSize = controller.getCurrentViewOtherAcceptors().length;
         this.processId = controller.getStaticConf().getProcessId();
         this.timeTolerance = controller.getStaticConf().getTimeTolerance();
@@ -55,17 +58,17 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
             try {
                 // 等待网络处理完成
                 timestampWaitLatch.await();
-                LOGGER.info("I am {}, I will set timestamp", processId);
+                LOGGER.info("[{}] -> I am {}, I will set timestamp", realName, processId);
                 // 设置当前时间
                 long currentTimeMillis = System.currentTimeMillis();
-                LOGGER.info("I am {}, set currentTime = {} !", processId, currentTimeMillis);
+                LOGGER.info("[{}] -> I am {}, set currentTime = {} !", realName, processId, currentTimeMillis);
                 timestampFuture.complete(currentTimeMillis);
                 // 在指定时间内等待处理完成时间同步
                 boolean result = timestampSuccessLatch.await(MAX_WAIT_SECONDS, TimeUnit.SECONDS);
                 if (!result) {
                     kill();
                 } else {
-                    LOGGER.info("I am {}, handle timestamp verify success !", processId);
+                    LOGGER.info("[{}] -> I am {}, handle timestamp verify success !", realName, processId);
                     timeVerifySuccess = true;
                     // 设置为完成
                     timestampCompleted.set(true);
@@ -88,13 +91,13 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
 
     @Override
     public void waitComplete(int remoteId) {
-        LOGGER.info("I am {}, complete socket with {} !", processId, remoteId);
+        LOGGER.info("[{}] -> I am {}, complete socket with {} !", realName, processId, remoteId);
         timestampWaitLatch.countDown();
     }
 
     @Override
     public void verifySuccess(int remoteId) {
-        LOGGER.info("I am {}, verify timestamp success with {} !", processId, remoteId);
+        LOGGER.info("[{}] -> I am {}, verify timestamp success with {} !", realName, processId, remoteId);
         timestampSuccessLatch.countDown();
         if (timestampSuccessLatch.getCount() <= 0) {
             timestampCompleted.set(true);
@@ -103,7 +106,7 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
 
     @Override
     public void verifyFail(int remoteId) {
-        LOGGER.error("I am {}, verify timestamp fail with {} !", processId, remoteId);
+        LOGGER.error("[{}] -> I am {}, verify timestamp fail with {} !", realName, processId, remoteId);
         try {
             kill();
         } catch (Exception e) {
@@ -127,7 +130,7 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
             // 时间条件满足
             return true;
         }
-        LOGGER.info("I am {}, localTime = {}, remoteTime = {}, remoteId = {} !", processId, localTime, remoteTime, remoteId);
+        LOGGER.info("[{}] -> I am {}, localTime = {}, remoteTime = {}, remoteId = {} !", realName, processId, localTime, remoteTime, remoteId);
         return false;
     }
 
@@ -135,8 +138,9 @@ public class TimestampVerifyHandler implements TimestampVerifyService {
         boolean compareAndSet = killAtomic.compareAndSet(false, true);
         if (compareAndSet) {
             LOGGER.error("\r\n=================== TIMESTAMP VERIFY FAIL ===================\r\n" +
+                         "=============[{}]=============" +
                          "I am {}, handle timestamp verify fail, I will kill myself !!!\r\n" +
-                         "=============================================================", processId);
+                         "=============================================================", realName, processId);
             // 等待3秒，然后关闭
             TimeUnit.SECONDS.sleep(KILL_WAIT_SECONDS);
             // 关闭

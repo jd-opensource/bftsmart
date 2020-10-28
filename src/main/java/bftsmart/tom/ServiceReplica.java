@@ -87,6 +87,7 @@ public class ServiceReplica {
 	private ReplicaContext replicaCtx = null;
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
+	private String realName = "";
 //	private HeartBeatTimer heartBeatTimer = null;
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
@@ -203,9 +204,26 @@ public class ServiceReplica {
 				executor, recoverer, null, new DefaultReplier(), lastCid);
 	}
 
-	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid, View lastView) {
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid, View lastView, String realName) {
 		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)),
-				executor, recoverer, null, new DefaultReplier(), lastCid);
+				executor, recoverer, null, new DefaultReplier(), lastCid, realName);
+	}
+
+	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
+							 RequestVerifier verifier, Replier replier, int lastCid, String realName) {
+		this.id = viewController.getStaticConf().getProcessId();
+		this.realName = realName;
+		this.SVController = viewController;
+		this.executor = executor;
+		this.recoverer = recoverer;
+		this.replier = (replier != null ? replier : new DefaultReplier());
+		this.verifier = verifier;
+		this.init();
+		this.tomLayer.setRealName(realName);
+		this.tomLayer.getStateManager().setLastCID(lastCid);
+		this.tomLayer.setLastExec(lastCid);
+		this.recoverer.setReplicaContext(replicaCtx);
+		this.replier.setReplicaContext(replicaCtx);
 	}
 
 	/**
@@ -825,5 +843,9 @@ public class ServiceReplica {
 
 	public TOMLayer getTomLayer() {
 		return tomLayer;
+	}
+
+	public String getRealName() {
+		return realName;
 	}
 }
