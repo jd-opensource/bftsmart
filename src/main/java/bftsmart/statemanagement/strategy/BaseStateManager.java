@@ -57,7 +57,9 @@ public abstract class BaseStateManager implements StateManager {
     protected int lastCID;
     protected ApplicationState state;
 
-    protected boolean isInitializing = true;
+    protected volatile boolean isInitializing = true;
+
+    protected volatile boolean doWork = true;
     private HashMap<Integer, Integer> senderCIDs = null;
 
     public BaseStateManager() {
@@ -208,7 +210,7 @@ public abstract class BaseStateManager implements StateManager {
 
         target = SVController.getCurrentViewOtherAcceptors();
 
-        while (isInitializing) {
+        while (isInitializing && doWork) {
             LOGGER.info("I will send StandardSMMessage[{}] to others !", TOMUtil.SM_ASK_INITIAL);
             tomLayer.getCommunication().send(target, currentCID);
             try {

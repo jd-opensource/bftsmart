@@ -39,8 +39,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class StandardStateManager extends BaseStateManager {
 
-    private volatile boolean doWork = true;
-
     private int replica;
     private ReentrantLock lockTimer = new ReentrantLock();
     private Timer stateTimer = null;
