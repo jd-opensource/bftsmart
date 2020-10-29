@@ -82,15 +82,8 @@ public class DiskStateLog extends StateLog {
 	public void addMessageBatch(byte[][] commands, MessageContext[] msgCtx, int consensusId) {
 		CommandsInfo command = new CommandsInfo(commands, msgCtx);
 		if (isToLog) {
-			if(logPath == null) {
+			if (log == null)
 				createLogFile();
-			} else {
-				try {
-					log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
-				}
-			}
 			writeCommandToDisk(command, consensusId);
 		}
 		setLastCID(consensusId);
