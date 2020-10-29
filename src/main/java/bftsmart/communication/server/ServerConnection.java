@@ -627,6 +627,7 @@ public class ServerConnection {
     //TODO!
     public void authenticateAndEstablishAuthKey() {
         if (authKey != null || socketOutStream == null || socketInStream == null) {
+            LOGGER.info("[{}] ->  I am proc {}, -- will exit with proc id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
             return;
         }
         try {
@@ -661,6 +662,8 @@ public class ServerConnection {
                 socketOutStream.writeInt(signature.length);
                 socketOutStream.write(signature);
 
+                LOGGER.info("[{}] ->  I am proc {}, -- have write timestamp to id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
+
                 //receive remote DH public key and signature
                 int dataLength = socketInStream.readInt();
                 bytes = new byte[dataLength];
@@ -669,6 +672,8 @@ public class ServerConnection {
                     read += socketInStream.read(bytes, read, dataLength - read);
 
                 } while (read < dataLength);
+
+                LOGGER.info("[{}] ->  I am proc {}, -- receive data with id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
 
                 byte[] remote_Bytes = bytes;
 
@@ -679,6 +684,8 @@ public class ServerConnection {
                     read += socketInStream.read(bytes, read, dataLength - read);
 
                 } while (read < dataLength);
+
+                LOGGER.info("[{}] ->  I am proc {}, -- receive signature with id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
 
                 byte[] remote_Signature = bytes;
 
@@ -714,6 +721,9 @@ public class ServerConnection {
                 latch.countDown();
 				canSendMessage = true;
                 initSuccessLatch.countDown();
+            } else {
+                LOGGER.info("[{}] ->  I am proc {}, authKey = {} && socketOutStream = {} && socketInStream = {}",
+                        this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), authKey == null, socketOutStream == null, socketInStream == null);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
