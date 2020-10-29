@@ -287,9 +287,9 @@ public class ServerConnection {
      * if some problem is detected, a reconnection is done
      */
     private final void sendBytes(byte[] messageData, boolean useMAC) {       
-        boolean abort = false;
+
         do {
-            if (abort) return; // if there is a need to reconnect, abort this method
+            if (!canSendMessage) return; // if there is a need to reconnect, abort this method
             if (socket != null && socketOutStream != null) {
                 try {
                     //do an extra copy of the data to be sent, but on a single out stream write
@@ -314,12 +314,12 @@ public class ServerConnection {
                     LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will close socket and waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                     closeSocket();
                     waitAndConnect();
-                    abort = true;
+                    canSendMessage = false;
                 }
             } else {
                 LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                 waitAndConnect();
-                abort = true;
+                canSendMessage = false;
             }
         } while (doWork);
     }
