@@ -29,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DiskStateLog extends StateLog {
 
 	private int id;
-	public final static String DEFAULT_DIR = "files".concat(System
+	public final static String DEFAULT_DIR = "/Users/zhangshuang3/Desktop/Project_new2/jdchain-develop-1.4.0/test/test-integration/src/test".concat(System
 			.getProperty("file.separator"));
 	private static final int INT_BYTE_SIZE = 4;
 	private static final int EOF = 0;
@@ -82,8 +82,15 @@ public class DiskStateLog extends StateLog {
 	public void addMessageBatch(byte[][] commands, MessageContext[] msgCtx, int consensusId) {
 		CommandsInfo command = new CommandsInfo(commands, msgCtx);
 		if (isToLog) {
-			if(log == null)
+			if(logPath == null) {
 				createLogFile();
+			} else {
+				try {
+					log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				}
+			}
 			writeCommandToDisk(command, consensusId);
 		}
 		setLastCID(consensusId);
@@ -170,7 +177,9 @@ public class DiskStateLog extends StateLog {
 		try {
 			if(log != null)
 				log.close();
-			new File(logPath).delete();
+			if (logPath != null) {
+				new File(logPath).delete();
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -210,8 +219,14 @@ public class DiskStateLog extends StateLog {
 			}
 			
 			checkpointLock.lock();
-			byte[] ckpState = fr.getCkpState(lastCkpPath);
-			byte[] ckpStateHash = fr.getCkpStateHash();
+			byte[] ckpState = null, ckpStateHash = null;
+			if (lastCkpPath != null) {
+				ckpState = fr.getCkpState(lastCkpPath);
+				ckpStateHash = fr.getCkpStateHash();
+			} else {
+				ckpState = super.getState();
+				ckpStateHash = super.getStateHash();
+			}
 			checkpointLock.unlock();
 
 			LOGGER.debug("--- FINISHED READING STATE");
@@ -260,22 +275,28 @@ public class DiskStateLog extends StateLog {
 	 */
         @Override
 	public void update(DefaultApplicationState transState) {
-		newCheckpoint(transState.getState(), transState.getStateHash(), transState.getLastCheckpointCID());
+//		newCheckpoint(transState.getState(), transState.getStateHash(), transState.getLastCheckpointCID());
 		setLastCheckpointCID(transState.getLastCheckpointCID());
 	}
 	
 	protected ApplicationState loadDurableState() {
+		int ckpLastConsensusId = -1;
+		int logLastConsensusId = -1;
+
 		FileRecoverer fr = new FileRecoverer(id, DEFAULT_DIR);
 		lastCkpPath = fr.getLatestFile(".ckp");
 		logPath = fr.getLatestFile(".log");
 		byte[] checkpoint = null;
-		if(lastCkpPath != null)
+		if(lastCkpPath != null) {
 			checkpoint = fr.getCkpState(lastCkpPath);
+			ckpLastConsensusId = fr.getCkpLastConsensusId();
+		}
 		CommandsInfo[] log = null;
-		if(logPath !=null)
+		if(logPath !=null) {
 			log = fr.getLogState(0, logPath);
-		int ckpLastConsensusId = fr.getCkpLastConsensusId();
-		int logLastConsensusId = fr.getLogLastConsensusId();
+			logLastConsensusId = fr.getLogLastConsensusId();
+		}
+
 		LOGGER.debug("log last consensus id: {}", logLastConsensusId);
 		ApplicationState state = new DefaultApplicationState(log, ckpLastConsensusId,
 				logLastConsensusId, checkpoint, fr.getCkpStateHash(), this.id);
