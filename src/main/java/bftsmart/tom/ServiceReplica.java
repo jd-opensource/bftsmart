@@ -88,6 +88,7 @@ public class ServiceReplica {
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
 	private String realName = "";
+	private int lastCid;
 //	private HeartBeatTimer heartBeatTimer = null;
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
@@ -218,10 +219,11 @@ public class ServiceReplica {
 		this.recoverer = recoverer;
 		this.replier = (replier != null ? replier : new DefaultReplier());
 		this.verifier = verifier;
+		this.lastCid = lastCid;
 		this.init();
 		this.tomLayer.setRealName(realName);
-		this.tomLayer.getStateManager().setLastCID(lastCid);
-		this.tomLayer.setLastExec(lastCid);
+//		this.tomLayer.getStateManager().setLastCID(lastCid);
+//		this.tomLayer.setLastExec(lastCid);
 		this.recoverer.setReplicaContext(replicaCtx);
 		this.replier.setReplicaContext(replicaCtx);
 	}
@@ -799,6 +801,10 @@ public class ServiceReplica {
 		acceptor.setExecutionManager(executionManager);
 
 		tomLayer = new TOMLayer(executionManager, this, recoverer, acceptor, cs, SVController, verifier);
+
+		tomLayer.getStateManager().setLastCID(this.lastCid);
+
+		tomLayer.setLastExec(this.lastCid);
 
 		executionManager.setTOMLayer(tomLayer);
 

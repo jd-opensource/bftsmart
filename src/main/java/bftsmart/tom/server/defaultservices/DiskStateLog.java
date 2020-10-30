@@ -82,7 +82,7 @@ public class DiskStateLog extends StateLog {
 	public void addMessageBatch(byte[][] commands, MessageContext[] msgCtx, int consensusId) {
 		CommandsInfo command = new CommandsInfo(commands, msgCtx);
 		if (isToLog) {
-			if (log == null)
+			if (log == null || logPath == null)
 				createLogFile();
 			writeCommandToDisk(command, consensusId);
 		}
@@ -104,9 +104,12 @@ public class DiskStateLog extends StateLog {
 			bf.put(batchBytes);
 			bf.putInt(EOF);
 			bf.putInt(consensusId);
-			
+
+			// avoid node restart, disk file will be overwrite
+			if (log.length() > 2 * INT_BYTE_SIZE) {
+				log.seek(log.length() - 2 * INT_BYTE_SIZE);// Next write will overwrite
+			}
 			log.write(bf.array());
-			log.seek(log.length() - 2 * INT_BYTE_SIZE);// Next write will overwrite
 													// the EOF mark
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -272,7 +275,7 @@ public class DiskStateLog extends StateLog {
 		setLastCheckpointCID(transState.getLastCheckpointCID());
 	}
 	
-	protected ApplicationState loadDurableState() {
+	protected int loadDurableState() {
 		int ckpLastConsensusId = -1;
 		int logLastConsensusId = -1;
 
@@ -284,21 +287,27 @@ public class DiskStateLog extends StateLog {
 			checkpoint = fr.getCkpState(lastCkpPath);
 			ckpLastConsensusId = fr.getCkpLastConsensusId();
 		}
-		CommandsInfo[] log = null;
+		CommandsInfo[] logload = null;
 		if(logPath !=null) {
-			log = fr.getLogState(0, logPath);
+			logload = fr.getLogState(0, logPath);
 			logLastConsensusId = fr.getLogLastConsensusId();
+			try {
+				log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
+
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
 		}
 
-		LOGGER.debug("log last consensus id: {}", logLastConsensusId);
-		ApplicationState state = new DefaultApplicationState(log, ckpLastConsensusId,
-				logLastConsensusId, checkpoint, fr.getCkpStateHash(), this.id);
+		LOGGER.info("[DiskStateLog] loadDurableState , last consensus id = {}", logLastConsensusId);
+//		ApplicationState state = new DefaultApplicationState(logload, ckpLastConsensusId,
+//				logLastConsensusId, checkpoint, fr.getCkpStateHash(), this.id);
 		if(logLastConsensusId > ckpLastConsensusId) {
 			super.setLastCID(logLastConsensusId);
 		} else
 			super.setLastCID(ckpLastConsensusId);
 		super.setLastCheckpointCID(ckpLastConsensusId);
 		
-		return state;
+		return logLastConsensusId;
 	}
 }

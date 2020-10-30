@@ -259,10 +259,10 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
                 boolean syncCkp = config.isToWriteSyncCkp();
                 log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp);
 
-                ApplicationState storedState = ((DiskStateLog) log).loadDurableState();
-                if (storedState.getLastCID() > 0) {
-                    setState(storedState);
-                    getStateManager().setLastCID(storedState.getLastCID());
+                int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
+                if (logLastConsensusId > 0) {
+//                    setState(storedState);
+                    getStateManager().setLastCID(logLastConsensusId);
                 }
             } else {
                 log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
