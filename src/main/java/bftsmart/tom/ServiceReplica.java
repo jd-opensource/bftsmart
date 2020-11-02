@@ -224,6 +224,7 @@ public class ServiceReplica {
 		this.tomLayer.setRealName(realName);
 //		this.tomLayer.getStateManager().setLastCID(lastCid);
 //		this.tomLayer.setLastExec(lastCid);
+		this.recoverer.setRealName(realName);
 		this.recoverer.setReplicaContext(replicaCtx);
 		this.replier.setReplicaContext(replicaCtx);
 	}

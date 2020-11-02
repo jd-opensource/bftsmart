@@ -57,6 +57,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
     private ServerViewController controller;
     private SHA256Utils md = new SHA256Utils();
     private StateLog log;
+    private String realName;
     private StateManager stateManager;
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DefaultRecoverable.class);
 
@@ -447,7 +448,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 boolean isToLog = config.isToLog();
                 boolean syncLog = config.isToWriteSyncLog();
                 boolean syncCkp = config.isToWriteSyncCkp();
-                log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp);
+                log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
 
                 int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
                 if (logLastConsensusId > 0) {
@@ -494,6 +495,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
         
         executeBatch(operations, msgCtxs, true, null);
 
+    }
+
+    @Override
+    public void setRealName(String realName) {
+        this.realName = realName;
     }
     
     public abstract void installSnapshot(byte[] state);

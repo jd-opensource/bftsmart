@@ -29,8 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DiskStateLog extends StateLog {
 
 	private int id;
-	public final static String DEFAULT_DIR = "/Users/zhangshuang3/Desktop/Project_new2/jdchain-develop-1.4.0/test/test-integration/src/test".concat(System
-			.getProperty("file.separator"));
+	public static String DEFAULT_DIR = System.getProperty("user.dir");
 	private static final int INT_BYTE_SIZE = 4;
 	private static final int EOF = 0;
 
@@ -40,31 +39,32 @@ public class DiskStateLog extends StateLog {
 	private String lastCkpPath;
 	private boolean syncCkp;
 	private boolean isToLog;
+	private String realName;
 	private ReentrantLock checkpointLock = new ReentrantLock();
 	private Map<Integer, Long> logPointers;
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DiskStateLog.class);
 	
 	public DiskStateLog(int id, byte[] initialState, byte[] initialHash,
-			boolean isToLog, boolean syncLog, boolean syncCkp) {
+			boolean isToLog, boolean syncLog, boolean syncCkp, String realName) {
 		super(id, initialState, initialHash);
 		this.id = id;
 		this.isToLog = isToLog;
 		this.syncLog = syncLog;
 		this.syncCkp = syncCkp;
+		this.realName = realName;
 		this.logPointers = new HashMap<>();
 	}
 
 	private void createLogFile() {
-		logPath = DEFAULT_DIR + String.valueOf(id) + "."
-				+ System.currentTimeMillis() + ".log";
 		try {
+			logPath = DEFAULT_DIR + File.separator + "runtime" + File.separator + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".log";
 			log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
 			// PreAllocation
 			/*
 			 * log.setLength(TEN_MB); log.seek(0);
 			 */
-		} catch (FileNotFoundException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -280,26 +280,37 @@ public class DiskStateLog extends StateLog {
 		int logLastConsensusId = -1;
 
 		FileRecoverer fr = new FileRecoverer(id, DEFAULT_DIR);
-		lastCkpPath = fr.getLatestFile(".ckp");
-		logPath = fr.getLatestFile(".log");
+//		lastCkpPath = fr.getLatestFile(".ckp");
+
+		File ckpFile = new File(DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".ckp");
+		if (ckpFile.exists()) {
+			lastCkpPath = DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".ckp";
+		}
+
+        File logFile = new File(DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".log");
+        if (logFile.exists()) {
+            logPath = DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".log";
+        }
+
 		byte[] checkpoint = null;
 		if(lastCkpPath != null) {
 			checkpoint = fr.getCkpState(lastCkpPath);
 			ckpLastConsensusId = fr.getCkpLastConsensusId();
 		}
+
 		CommandsInfo[] logload = null;
 		if(logPath !=null) {
-			logload = fr.getLogState(0, logPath);
-			logLastConsensusId = fr.getLogLastConsensusId();
+//			logload = fr.getLogState(0, logPath);
 			try {
-				log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
-
-			} catch (FileNotFoundException e) {
+                log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
+                log.seek(log.length() - INT_BYTE_SIZE);
+                logLastConsensusId = log.readInt();
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
 
-		LOGGER.info("[DiskStateLog] loadDurableState , last consensus id = {}", logLastConsensusId);
+		LOGGER.info("[DiskStateLog] loadDurableState, last consensus id = {}", logLastConsensusId);
 //		ApplicationState state = new DefaultApplicationState(logload, ckpLastConsensusId,
 //				logLastConsensusId, checkpoint, fr.getCkpStateHash(), this.id);
 		if(logLastConsensusId > ckpLastConsensusId) {

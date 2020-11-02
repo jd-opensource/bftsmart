@@ -56,7 +56,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     private StateLog log;
     private List<byte[]> commands = new ArrayList<>();
     private List<MessageContext> msgContexts = new ArrayList<>();
-    
+    private String realName;
     private StateManager stateManager;
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DefaultSingleRecoverable.class);
@@ -257,7 +257,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
                 boolean isToLog = config.isToLog();
                 boolean syncLog = config.isToWriteSyncLog();
                 boolean syncCkp = config.isToWriteSyncCkp();
-                log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp);
+                log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
 
                 int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
                 if (logLastConsensusId > 0) {
@@ -292,7 +292,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             	boolean isToLog = config.isToLog();
             	boolean syncLog = config.isToWriteSyncLog();
             	boolean syncCkp = config.isToWriteSyncCkp();
-            	log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp);
+            	log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
             } else
             	log = new StateLog(controller.getStaticConf().getProcessId(), checkpointPeriod, state, computeHash(state));
     	}
@@ -317,7 +317,12 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             executeOrdered(operations[i], msgCtx[i], true);
         }
     }
-    
+
+    @Override
+    public void setRealName(String realName) {
+        this.realName = realName;
+    }
+
     public abstract void installSnapshot(byte[] state);
     
     public abstract byte[] getSnapshot();
