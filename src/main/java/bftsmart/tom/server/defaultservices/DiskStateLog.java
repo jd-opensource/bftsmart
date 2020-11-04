@@ -29,9 +29,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DiskStateLog extends StateLog {
 
 	private int id;
-//	public static String DEFAULT_DIR = System.getProperty("user.dir");
+	public static String DEFAULT_DIR = System.getProperty("user.dir");
 
-	public static String DEFAULT_DIR = "/Users/zhangshuang3/Desktop/Project_new2/jdchain-develop-1.4.0/test/test-integration/src/test";
+//	public static String DEFAULT_DIR = "/Users/zhangshuang3/Desktop/Project_new2/jdchain-develop-1.4.0/test/test-integration/src/test";
 
 	private static final int INT_BYTE_SIZE = 4;
 	private static final int EOF = 0;
@@ -61,11 +61,11 @@ public class DiskStateLog extends StateLog {
 		this.syncCkp = syncCkp;
 		this.realName = realName;
 		this.logPointers = new HashMap<>();
-//		this.defaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
-		this.logDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
+		this.logDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
+//		this.logDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
 
-//		this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
-		this.ckpDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
+		this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
+//		this.ckpDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
 	}
 
 	private void createLogFile() {
