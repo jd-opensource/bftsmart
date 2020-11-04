@@ -55,6 +55,7 @@ public abstract class BaseStateManager implements StateManager {
     protected boolean appStateOnly;
     protected int waitingCID = -1;
     protected int lastCID;
+    protected int lastLogCid;
     protected ApplicationState state;
 
     protected volatile boolean isInitializing = true;
@@ -165,6 +166,16 @@ public abstract class BaseStateManager implements StateManager {
     }
 
     @Override
+    public int getLastLogCID() {
+        return this.lastLogCid;
+    }
+
+    @Override
+    public void setLastLogCID(int lastLogCID) {
+        this.lastLogCid = lastLogCID;
+    }
+
+    @Override
     public void requestAppState(int cid) {
         lastCID = cid + 1;
         waitingCID = cid;
@@ -272,7 +283,8 @@ public abstract class BaseStateManager implements StateManager {
                         break;
                     } else {
                         //ask for state
-                        LOGGER.info("-- Requesting state from other replicas");
+                        LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
+                        this.lastLogCid = lastCID;
                         lastCID = key + 1;
                         if (waitingCID == -1) {
                             waitingCID = key;

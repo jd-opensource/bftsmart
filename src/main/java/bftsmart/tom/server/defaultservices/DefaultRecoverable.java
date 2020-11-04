@@ -307,11 +307,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
             int lastCheckpointCID = state.getLastCheckpointCID();
             lastCID = state.getLastCID();
-
-            LOGGER.debug("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}"
-                    , lastCheckpointCID, lastCID);
             
-            LOGGER.debug("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}", lastCheckpointCID, lastCID);
+            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}", lastCheckpointCID, lastCID);
 
             stateLock.lock();
             if (state.getSerializedState() != null) {
@@ -323,9 +320,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
             int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
 
-            LOGGER.debug("I am proc {}, my currentcid {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), currentCid, lastCID);
+            int lastLogCid = ((StandardStateManager)this.getStateManager()).getLastLogCID();
 
-            for (int cid = currentCid + 1; cid <= lastCID; cid++) {
+            LOGGER.info("I am proc {}, my currentcid {}, lastLogCid = {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), currentCid, lastLogCid, lastCID);
+
+            for (int cid = lastLogCid + 1; cid <= lastCID; cid++) {
                 try {
 
                     LOGGER.debug("(DefaultRecoverable.setState) interpreting and verifying batched requests for cid {}", cid);
@@ -336,14 +335,15 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                     CommandsInfo cmdInfo = state.getMessageBatch(cid); 
                     byte[][] commands = cmdInfo.commands; // take a batch
                     MessageContext[] msgCtx = cmdInfo.msgCtx;
-                    
+
+                    log.addMessageBatch(commands, msgCtx, cid);
+
                     if (commands == null || msgCtx == null || msgCtx[0].isNoOp()) {
                         continue;
-                    }                        
+                    }
                     appExecuteBatch(commands, msgCtx, false);
                     // add replay message batch to disk file
-                    log.addMessageBatch(commands, msgCtx, cid);
-                    
+
                 } catch (Exception e) {
                     e.printStackTrace(System.err);
                     if (e instanceof ArrayIndexOutOfBoundsException) {
@@ -355,6 +355,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 }
 
             }
+            ((StandardStateManager)this.getStateManager()).setLastLogCID(lastCID);
             stateLock.unlock();
 
         }
@@ -451,7 +452,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
 
                 int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
-                if (logLastConsensusId > 0) {
+                if (logLastConsensusId >= 0) {
 //                    setState(storedState);
                     getStateManager().setLastCID(logLastConsensusId);
                 }

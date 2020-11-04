@@ -29,17 +29,24 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DiskStateLog extends StateLog {
 
 	private int id;
-	public static String DEFAULT_DIR = System.getProperty("user.dir");
+//	public static String DEFAULT_DIR = System.getProperty("user.dir");
+
+	public static String DEFAULT_DIR = "/Users/zhangshuang3/Desktop/Project_new2/jdchain-develop-1.4.0/test/test-integration/src/test";
+
 	private static final int INT_BYTE_SIZE = 4;
 	private static final int EOF = 0;
 
 	private RandomAccessFile log;
+	private RandomAccessFile ckp;
+
 	private boolean syncLog;
 	private String logPath;
 	private String lastCkpPath;
 	private boolean syncCkp;
 	private boolean isToLog;
 	private String realName;
+	private String logDefaultFile;
+	private String ckpDefaultFile;
 	private ReentrantLock checkpointLock = new ReentrantLock();
 	private Map<Integer, Long> logPointers;
 
@@ -54,11 +61,16 @@ public class DiskStateLog extends StateLog {
 		this.syncCkp = syncCkp;
 		this.realName = realName;
 		this.logPointers = new HashMap<>();
+//		this.defaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
+		this.logDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
+
+//		this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
+		this.ckpDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
 	}
 
 	private void createLogFile() {
 		try {
-			logPath = DEFAULT_DIR + File.separator + "runtime" + File.separator + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".log";
+			logPath = DEFAULT_DIR + logDefaultFile;
 			log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
 			// PreAllocation
 			/*
@@ -105,6 +117,8 @@ public class DiskStateLog extends StateLog {
 			bf.putInt(EOF);
 			bf.putInt(consensusId);
 
+			LOGGER.debug("I am proc {}, Write command to disk, cid = {}", id, consensusId);
+
 			// avoid node restart, disk file will be overwrite
 			if (log.length() > 2 * INT_BYTE_SIZE) {
 				log.seek(log.length() - 2 * INT_BYTE_SIZE);// Next write will overwrite
@@ -119,8 +133,7 @@ public class DiskStateLog extends StateLog {
 
         @Override
 	public void newCheckpoint(byte[] state, byte[] stateHash, int consensusId) {
-		String ckpPath = DEFAULT_DIR + String.valueOf(id) + "."
-				+ System.currentTimeMillis() + ".tmp";
+		String ckpPath = DEFAULT_DIR + File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".tmp";
 		try {
 			checkpointLock.lock();
 			RandomAccessFile ckp = new RandomAccessFile(ckpPath,
@@ -195,9 +208,9 @@ public class DiskStateLog extends StateLog {
 
 		int lastCheckpointCID = getLastCheckpointCID();
 		int lastCID = getLastCID();
-		LOGGER.debug("LAST CKP CID = {}", lastCheckpointCID);
-		LOGGER.debug("CID = {}", cid);
-		LOGGER.debug("LAST CID = {}", lastCID);
+		LOGGER.info("I AM PROC {}, LAST CKP CID = {}", id, lastCheckpointCID);
+		LOGGER.info("I AM PROC {}, CID = {}", id, cid);
+		LOGGER.info("I AM PROC {}, LAST CID = {}", id, lastCID);
 		if (cid >= lastCheckpointCID && cid <= lastCID) {
 
 			int size = cid - lastCheckpointCID;
@@ -279,29 +292,28 @@ public class DiskStateLog extends StateLog {
 		int ckpLastConsensusId = -1;
 		int logLastConsensusId = -1;
 
-		FileRecoverer fr = new FileRecoverer(id, DEFAULT_DIR);
-//		lastCkpPath = fr.getLatestFile(".ckp");
-
-		File ckpFile = new File(DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".ckp");
+		File ckpFile = new File(DEFAULT_DIR + ckpDefaultFile);
 		if (ckpFile.exists()) {
-			lastCkpPath = DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".ckp";
+			lastCkpPath = DEFAULT_DIR + ckpDefaultFile;
 		}
 
-        File logFile = new File(DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".log");
+        File logFile = new File(DEFAULT_DIR + logDefaultFile);
         if (logFile.exists()) {
-            logPath = DEFAULT_DIR + this.realName + "."+ String.valueOf(id) + "." + "txs" + ".log";
+            logPath = DEFAULT_DIR + logDefaultFile;
         }
 
-		byte[] checkpoint = null;
 		if(lastCkpPath != null) {
-			checkpoint = fr.getCkpState(lastCkpPath);
-			ckpLastConsensusId = fr.getCkpLastConsensusId();
+			try {
+				ckp = new RandomAccessFile(lastCkpPath, (syncCkp ? "rwd" : "rw"));
+				ckp.seek(log.length() - INT_BYTE_SIZE);
+				ckpLastConsensusId = ckp.readInt();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 
-		CommandsInfo[] logload = null;
 		if(logPath !=null) {
-//			logload = fr.getLogState(0, logPath);
-			try {
+        	try {
                 log = new RandomAccessFile(logPath, (syncLog ? "rwd" : "rw"));
                 log.seek(log.length() - INT_BYTE_SIZE);
                 logLastConsensusId = log.readInt();
@@ -310,9 +322,7 @@ public class DiskStateLog extends StateLog {
 			}
 		}
 
-		LOGGER.info("[DiskStateLog] loadDurableState, last consensus id = {}", logLastConsensusId);
-//		ApplicationState state = new DefaultApplicationState(logload, ckpLastConsensusId,
-//				logLastConsensusId, checkpoint, fr.getCkpStateHash(), this.id);
+		LOGGER.info("[DiskStateLog] loadDurableState, procid = {}, logLastConsensusId = {}, ckpLastConsensusId = {}", id, logLastConsensusId, ckpLastConsensusId);
 		if(logLastConsensusId > ckpLastConsensusId) {
 			super.setLastCID(logLastConsensusId);
 		} else

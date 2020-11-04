@@ -360,7 +360,7 @@ public class ServiceProxy extends TOMSender {
 			int sameContent = 1;
 			if (reply.getSequence() == reqId && reply.getReqType() == requestType) {
 
-				LOGGER.debug("Receiving reply from {} with reqId {}. Putting on pos {}", reply.getSender(), reply.getSequence(), pos);
+				LOGGER.debug("I am proc {}, Receiving reply from {} with reqId {}. Putting on pos {}", this.getProcessId(), reply.getSender(), reply.getSequence(), pos);
 
 				if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 					response = hashResponseController.getResponse(pos, reply);
@@ -383,6 +383,7 @@ public class ServiceProxy extends TOMSender {
 						if ((i != pos || getViewManager().getCurrentViewN() == 1) && replies[i] != null
 								&& (comparator.compare(replies[i].getContent(), reply.getContent()) == 0)) {
 							sameContent++;
+							LOGGER.debug("sameContent = {}, replyQuorum = {}, request type = {}", sameContent, replyQuorum, replies[i].getReqType());
 							if (sameContent >= replyQuorum) {
 								response = extractor.extractResponse(replies, sameContent, pos);
 								reqId = -1;
