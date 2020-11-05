@@ -355,8 +355,8 @@ public class ServiceReplica {
 		try {
 			cs = new ServerCommunicationSystem(this.SVController, this);
 		} catch (Exception ex) {
+			ex.printStackTrace();
 //			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
-			LOGGER.error("Unable to build a communication system.");
 			throw new RuntimeException("Unable to build a communication system.", ex);
 		}
 
@@ -644,12 +644,12 @@ public class ServiceReplica {
 							// proc docker env
 							String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 
-							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), inetSocketAddress.getMonitorPort());
+							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), -1);
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), host);
 							addressesTemp.add(tempSocketAddress);
 						} else {
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
-							addressesTemp.add(inetSocketAddress);
+							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(), inetSocketAddress.getConsensusPort(), -1));
 						}
 					}
 
@@ -781,11 +781,13 @@ public class ServiceReplica {
 	 *            Total order messaging configuration
 	 */
 	private void initTOMLayer() {
+
+		LOGGER.info("I am proc {}, init Tomlayer, tomStackCreated = {}", this.SVController.getStaticConf().getProcessId(), tomStackCreated);
 		if (tomStackCreated) { // if this object was already initialized, don't do it again
 			return;
 		}
-
 		if (!SVController.isInCurrentView()) {
+			LOGGER.error("I am proc {}, init Tomlayer, I am not in current view!");
 			throw new RuntimeException("I'm not an acceptor!");
 		}
 
@@ -819,6 +821,7 @@ public class ServiceReplica {
 		if (SVController.getStaticConf().isShutdownHookEnabled()) {
 			Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(tomLayer));
 		}
+		LOGGER.info("I am proc {}, start Tomlayer!", this.SVController.getStaticConf().getProcessId());
 		tomLayer.start(); // start the layer execution
 		tomStackCreated = true;
 

@@ -234,6 +234,11 @@ public class ServersCommunicationLayer extends Thread {
                 getConnection(activeServers[i]).shutdown();
             }
         }
+        try {
+            serverSocket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     //******* EDUARDO BEGIN **************//

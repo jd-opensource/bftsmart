@@ -303,11 +303,11 @@ public class ServerViewController extends ViewController {
 			if (nodeNetwork.getHost().equals("0.0.0.0")) {
 				// proc docker env
                 String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
-				NodeNetwork nodeNetworkNew = new NodeNetwork(host, nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
+				NodeNetwork nodeNetworkNew = new NodeNetwork(host, nodeNetwork.getConsensusPort(), -1);
                 LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", this.getStaticConf().getProcessId(), host);
                 addressesTemp.add(nodeNetworkNew);
 			} else {
-				addressesTemp.add(nodeNetwork);
+				addressesTemp.add(new NodeNetwork(nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), -1));
 			}
 		}
 

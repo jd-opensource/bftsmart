@@ -467,7 +467,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
                 LOGGER.debug("(TOMLayer.run) There are messages to be ordered.");
 
-                LOGGER.debug("(TOMLayer.run) I can try to propose.");
+                LOGGER.info("(TOMLayer.run) I am proc {}, I can try to propose.",this.controller.getStaticConf().getProcessId());
 
                 if ((execManager.getCurrentLeader() == this.controller.getStaticConf().getProcessId()) && //I'm the leader
                         (clientsManager.havePendingRequests()) && //there are messages to be ordered
