@@ -42,7 +42,7 @@ public class ViewSyncTimer {
     }
 
     public void start() {
-        sendThreadPool.scheduleAtFixedRate(() -> {
+        sendThreadPool.scheduleWithFixedDelay(() -> {
             lock.lock();
             try {
                 View view = tomLayer.controller.getCurrentView();

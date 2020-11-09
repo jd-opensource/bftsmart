@@ -5,6 +5,9 @@ import org.apache.commons.collections4.map.LRUMap;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -25,11 +28,11 @@ public class HeartBeatTimer {
 
     private final Map<Long, List<LeaderResponseMessage>> leaderResponseMap = new LRUMap<>(1024 * 8);
 
-    private Timer leaderTimer = new Timer("heart beat leader timer");
+    private ScheduledExecutorService leaderTimer = Executors.newSingleThreadScheduledExecutor();
 
-    private Timer replicaTimer = new Timer("heart beat replica timer");
+    private ScheduledExecutorService replicaTimer = Executors.newSingleThreadScheduledExecutor();
 
-    private Timer leaderResponseTimer = new Timer("get leader response timer");
+    private ScheduledExecutorService leaderResponseTimer = Executors.newSingleThreadScheduledExecutor();
 
     private RequestsTimer requestsTimer;
 
@@ -60,24 +63,26 @@ public class HeartBeatTimer {
     public void leaderTimerStart() {
         // stop Replica timer，and start leader timer
         if (leaderTimer == null) {
-            leaderTimer = new Timer("heart beat leader timer");
+            leaderTimer = Executors.newSingleThreadScheduledExecutor();
         }
-        leaderTimer.scheduleAtFixedRate(new LeaderTimerTask(), LEADER_DELAY_MILL_SECONDS, tomLayer.controller.getStaticConf().getHeartBeatPeriod());
+        leaderTimer.scheduleWithFixedDelay(new LeaderTimerTask(), LEADER_DELAY_MILL_SECONDS,
+                tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
     }
 
     public void replicaTimerStart() {
         if (replicaTimer == null) {
-            replicaTimer = new Timer("heart beat replica timer");
+            replicaTimer = Executors.newSingleThreadScheduledExecutor();
         }
-        replicaTimer.scheduleAtFixedRate(new ReplicaTimerTask(), DELAY_MILL_SECONDS, tomLayer.controller.getStaticConf().getHeartBeatTimeout());
+        replicaTimer.scheduleWithFixedDelay(new ReplicaTimerTask(), DELAY_MILL_SECONDS,
+                tomLayer.controller.getStaticConf().getHeartBeatTimeout(), TimeUnit.MILLISECONDS);
     }
 
     public void stopAll() {
         if (replicaTimer != null) {
-            replicaTimer.cancel();
+            replicaTimer.shutdownNow();
         }
         if (leaderTimer != null) {
-            leaderTimer.cancel();
+            leaderTimer.shutdownNow();
         }
         replicaTimer = null;
         leaderTimer = null;
@@ -155,7 +160,7 @@ public class HeartBeatTimer {
                 NewLeader newLeader = newLeader(responseMessage.getSequence());
                 if (newLeader != null) {
                     if (leaderResponseTimer != null) {
-                        leaderResponseTimer.cancel(); // 取消定时器
+                        leaderResponseTimer.shutdownNow(); // 取消定时器
                         leaderResponseTimer = null;
                     }
                     // 表示满足条件，设置新的Leader与regency
@@ -212,13 +217,9 @@ public class HeartBeatTimer {
         lastLeaderRequestSequence = sequence;
         // 启动定时任务，判断心跳的应答处理
         if (leaderResponseTimer == null) {
-            leaderResponseTimer = new Timer("get leader response timer");
+            leaderResponseTimer = Executors.newSingleThreadScheduledExecutor();
         }
-        leaderResponseTimer.schedule(new LeaderResponseTask(lastLeaderRequestSequence), RESEND_MILL_SECONDS);
-    }
-
-    private void resetNewLeader() {
-
+        leaderResponseTimer.scheduleWithFixedDelay(new LeaderResponseTask(lastLeaderRequestSequence), 0, RESEND_MILL_SECONDS, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -291,7 +292,7 @@ public class HeartBeatTimer {
     /**
      *
      */
-    class LeaderTimerTask extends TimerTask {
+    class LeaderTimerTask implements Runnable {
 
         @Override
         public void run() {
@@ -309,7 +310,7 @@ public class HeartBeatTimer {
         }
     }
 
-    class LeaderResponseTask extends TimerTask {
+    class LeaderResponseTask implements Runnable {
 
         private final long currentSequence;
 
