@@ -21,6 +21,7 @@ package bftsmart.tom.server.defaultservices;
 import bftsmart.consensus.app.*;
 import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.statemanagement.ApplicationState;
@@ -318,11 +319,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 installSnapshot(state.getSerializedState());
             }
 
-            int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
+//            int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
 
-            int lastLogCid = ((StandardStateManager)this.getStateManager()).getLastLogCID();
+            int lastLogCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
 
-            LOGGER.info("I am proc {}, my currentcid {}, lastLogCid = {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), currentCid, lastLogCid, lastCID);
+            LOGGER.info("I am proc {}, my current log file cid {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), lastLogCid, lastCID);
 
             for (int cid = lastLogCid + 1; cid <= lastCID; cid++) {
                 try {
@@ -355,7 +356,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 }
 
             }
-            ((StandardStateManager)this.getStateManager()).setLastLogCID(lastCID);
+            ((StandardStateManager)this.getStateManager()).setLastCID(lastCID);
             stateLock.unlock();
 
         }
@@ -452,21 +453,20 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
                 log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
 
                 int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
-                if (logLastConsensusId >= 0) {
-//                    setState(storedState);
-                    getStateManager().setLastCID(logLastConsensusId);
-                }
+
+                getStateManager().setLastCID(logLastConsensusId);
+
             } else {
                 log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
             }
         }
     }
-    
+
     @Override
     public void setReplicaContext(ReplicaContext replicaContext) {
-        this.config = replicaContext.getStaticConfiguration();
+//        this.config = replicaContext.getStaticConfiguration();
         this.controller = replicaContext.getSVController();
-        initLog();
+//        initLog();
         getStateManager().askCurrentConsensusId();
     }
 
@@ -478,9 +478,12 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
         return stateManager;
     }
 
+    @Override
+    public void setStateLog(ViewController viewController) {
+        this.config = viewController.getStaticConf();
+        initLog();
+    }
 
-    
-    
     @Override
     public byte[] executeUnordered(byte[] command, MessageContext msgCtx) {
         return appExecuteUnordered(command, msgCtx);

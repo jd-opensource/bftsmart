@@ -117,7 +117,7 @@ public class DiskStateLog extends StateLog {
 			bf.putInt(EOF);
 			bf.putInt(consensusId);
 
-			LOGGER.debug("I am proc {}, Write command to disk, cid = {}", id, consensusId);
+			LOGGER.info("I am proc {}, Write command to disk, cid = {}", id, consensusId);
 
 			// avoid node restart, disk file will be overwrite
 			if (log.length() > 2 * INT_BYTE_SIZE) {

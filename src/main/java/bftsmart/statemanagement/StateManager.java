@@ -49,9 +49,5 @@ public interface StateManager {
     
     public int getLastCID();
 
-    public int getLastLogCID();
-
-    public void setLastLogCID(int lastLogCID);
-    
     public boolean isRetrievingState();
 }
