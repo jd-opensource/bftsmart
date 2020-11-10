@@ -222,7 +222,11 @@ public class ServiceReplica {
 //		this.lastCid = lastCid;
 		this.recoverer.setRealName(realName);
 		this.recoverer.setStateLog(viewController);
-		this.lastCid = this.recoverer.getStateManager().getLastCID();
+		if (viewController.getStaticConf().logToDisk()) {
+			this.lastCid = this.recoverer.getStateManager().getLastCID();
+		} else {
+			this.lastCid = lastCid;
+		}
 		this.init();
 		this.tomLayer.setRealName(realName);
 		this.recoverer.setReplicaContext(replicaCtx);
