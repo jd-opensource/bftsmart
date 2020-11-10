@@ -80,11 +80,11 @@ public abstract class BaseStateManager implements StateManager {
     }
 
     protected boolean enoughRegencies(int regency) {
-        return senderRegencies.size() > SVController.getQuorum();
+        return senderRegencies.size() >= SVController.getQuorum();
     }
 
     protected boolean enoughLeaders(int leader) {
-        return senderLeaders.size() > SVController.getQuorum();
+        return senderLeaders.size() >= SVController.getQuorum();
     }
 
     protected boolean enoughViews(View view) {
@@ -95,7 +95,7 @@ public abstract class BaseStateManager implements StateManager {
                 counter++;
             }
         }
-        boolean result = counter > SVController.getQuorum();
+        boolean result = counter >= SVController.getQuorum();
         return result;
     }
     
@@ -133,7 +133,7 @@ public abstract class BaseStateManager implements StateManager {
             }
             
         }
-        boolean result = counter > SVController.getQuorum();
+        boolean result = counter >= SVController.getQuorum();
         return result;
     }
     
@@ -253,7 +253,7 @@ public abstract class BaseStateManager implements StateManager {
                 
                 Integer count = cids.get(value);
                 if (count == null) {
-                    cids.put(value, 0);
+                    cids.put(value, 1);
                 } else {
                     cids.put(value, count + 1);
                 }
