@@ -219,12 +219,12 @@ public class ServiceReplica {
 		this.recoverer = recoverer;
 		this.replier = (replier != null ? replier : new DefaultReplier());
 		this.verifier = verifier;
-		this.lastCid = lastCid;
+//		this.lastCid = lastCid;
+		this.recoverer.setRealName(realName);
+		this.recoverer.setStateLog(viewController);
+		this.lastCid = this.recoverer.getStateManager().getLastCID();
 		this.init();
 		this.tomLayer.setRealName(realName);
-//		this.tomLayer.getStateManager().setLastCID(lastCid);
-//		this.tomLayer.setLastExec(lastCid);
-		this.recoverer.setRealName(realName);
 		this.recoverer.setReplicaContext(replicaCtx);
 		this.replier.setReplicaContext(replicaCtx);
 	}
@@ -805,9 +805,7 @@ public class ServiceReplica {
 
 		tomLayer = new TOMLayer(executionManager, this, recoverer, acceptor, cs, SVController, verifier);
 
-		tomLayer.getStateManager().setLastCID(this.lastCid);
-
-		tomLayer.setLastExec(this.lastCid);
+		tomLayer.setLastExec(lastCid);
 
 		executionManager.setTOMLayer(tomLayer);
 
