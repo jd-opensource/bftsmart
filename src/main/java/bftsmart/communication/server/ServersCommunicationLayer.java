@@ -18,8 +18,6 @@ package bftsmart.communication.server;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
-import bftsmart.communication.server.timestamp.TimestampVerifyHandler;
-import bftsmart.communication.server.timestamp.TimestampVerifyService;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
 import org.slf4j.LoggerFactory;
@@ -62,7 +60,6 @@ public class ServersCommunicationLayer extends Thread {
     //private Condition canConnect = waitViewLock.newCondition();
     private List<PendingConnection> pendingConn = new LinkedList<PendingConnection>();
     private ServiceReplica replica;
-    private TimestampVerifyService timestampVerifyService;
     private SecretKey selfPwd;
     private MessageQueue messageInQueue;
     private static final String PASSWORD = "commsyst";
@@ -75,7 +72,6 @@ public class ServersCommunicationLayer extends Thread {
         this.messageInQueue = messageInQueue;
         this.me = controller.getStaticConf().getProcessId();
         this.replica = replica;
-        this.timestampVerifyService = new TimestampVerifyHandler(replica, controller);
 
         //Try connecting if a member of the current view. Otherwise, wait until the Join has been processed!
         if (controller.isInCurrentView()) {
@@ -177,7 +173,7 @@ public class ServersCommunicationLayer extends Thread {
         ServerConnection ret = this.connections.get(remoteId);
         if (ret == null) {
             LOGGER.info("I am {}, remote = {} !", controller.getStaticConf().getProcessId(), remoteId);
-            ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica, this.timestampVerifyService);
+            ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica);
             this.connections.put(remoteId, ret);
         }
         connectionsLock.unlock();
@@ -310,12 +306,10 @@ public class ServersCommunicationLayer extends Thread {
             if (this.connections.get(remoteId) == null) { //This must never happen!!!
                 //first time that this connection is being established
                 //System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
-                LOGGER.info("I am {} establishConnection 1!", this.controller.getStaticConf().getProcessId());
-                this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica, timestampVerifyService));
+                this.connections.put(remoteId, new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica));
             } else {
-                LOGGER.info("I am {} establishConnection 2!", this.controller.getStaticConf().getProcessId());
                 //reconnection
-                this.connections.get(remoteId).monitorReconnect(newSocket);
+                this.connections.get(remoteId).reconnect(newSocket);
             }
             connectionsLock.unlock();
 

@@ -120,7 +120,7 @@ public class ViewManager {
     }
 
     private ServerConnection getConnection(int remoteId) {
-         return new ServerConnection(controller, null, remoteId, null, null, null);
+         return new ServerConnection(controller, null, remoteId, null, null);
     }
 
     public void sendResponse(Integer[] targets, VMMessage sm) {

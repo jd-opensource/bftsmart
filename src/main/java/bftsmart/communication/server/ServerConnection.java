@@ -1,18 +1,18 @@
 /**
-Copyright (c) 2007-2013 Alysson Bessani, Eduardo Alchieri, Paulo Sousa, and the authors indicated in the @author tags
+ Copyright (c) 2007-2013 Alysson Bessani, Eduardo Alchieri, Paulo Sousa, and the authors indicated in the @author tags
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 package bftsmart.communication.server;
 
 import java.io.ByteArrayInputStream;
@@ -24,7 +24,9 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -36,7 +38,6 @@ import javax.crypto.spec.PBEKeySpec;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
-import bftsmart.communication.server.timestamp.TimestampVerifyService;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.tom.ServiceReplica;
@@ -69,7 +70,7 @@ public class ServerConnection {
     private MessageQueue messageInQueue;
     protected LinkedBlockingQueue<byte[]> outQueue;// = new LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
     private HashSet<Integer> noMACs = null; // this is used to keep track of data to be sent without a MAC.
-                                            // It uses the reference id for that same data
+    // It uses the reference id for that same data
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
     private SecretKey authKey = null;
     private Mac macSend;
@@ -80,36 +81,22 @@ public class ServerConnection {
     private Lock sendLock;
     private boolean doWork = true;
     private CountDownLatch latch = new CountDownLatch(1);
-
-    private CountDownLatch initSuccessLatch = new CountDownLatch(1);
-
     private ServiceReplica replica;
-
-    private volatile boolean canSendMessage = false;
-
-    private TimestampVerifyService timestampVerifyService;
-
-    private volatile boolean currSocketTimestampOver = false;
-
-    private final ExecutorService startConnectService = Executors.newSingleThreadExecutor();
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
     public ServerConnection(ServerViewController controller, Socket socket,
-                            int remoteId, MessageQueue messageInQueue, ServiceReplica replica,
-                            TimestampVerifyService timestampVerifyService) {
+                            int remoteId, MessageQueue messageInQueue, ServiceReplica replica) {
 
         this.controller = controller;
-
-        this.replica = replica;
 
         this.socket = socket;
 
         this.remoteId = remoteId;
 
-        this.messageInQueue = messageInQueue;
+        this.replica = replica;
 
-        this.timestampVerifyService = timestampVerifyService;
+        this.messageInQueue = messageInQueue;
 
         this.outQueue = new LinkedBlockingQueue<byte[]>(this.controller.getStaticConf().getOutQueueSize());
 
@@ -135,25 +122,13 @@ public class ServerConnection {
             try {
                 socketOutStream = new DataOutputStream(this.socket.getOutputStream());
                 socketInStream = new DataInputStream(this.socket.getInputStream());
-                Executors.newSingleThreadExecutor().execute(() -> {
-                    connectLock.lock();
-                    try {
-                        if (authTimestamp()) {
-                            authKey = null;
-                            LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-                            authenticateAndEstablishAuthKey();
-                        }
-                    } finally {
-                        connectLock.unlock();
-                    }
-                });
             } catch (IOException ex) {
                 LOGGER.error("Error creating connection to {}", remoteId);
                 ex.printStackTrace();
             }
         }
-               
-       //******* EDUARDO BEGIN **************//
+
+        //******* EDUARDO BEGIN **************//
         this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
 
         if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
@@ -161,17 +136,7 @@ public class ServerConnection {
         } else {
             sendLock = new ReentrantLock();
         }
-//        monitorReconnect(null);
-        Executors.newSingleThreadExecutor().execute(() -> {
-            while (doWork) {
-                try {
-                    Thread.sleep(5000);
-                    monitorReconnect(this.socket);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+        authenticateAndEstablishAuthKey();
 
         if (!this.controller.getStaticConf().isTheTTP()) {
             if (this.controller.getStaticConf().getTTPId() == remoteId) {
@@ -250,13 +215,13 @@ public class ServerConnection {
     public SecretKey getSecretKey() {
         return authKey;
     }
-    
+
     /**
      * Stop message sending and reception.
      */
     public void shutdown() {
         LOGGER.info("SHUTDOWN for {}", remoteId);
-        
+
         doWork = false;
         closeSocket();
     }
@@ -271,7 +236,7 @@ public class ServerConnection {
                 LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", System.identityHashCode(data));
                 noMACs.add(System.identityHashCode(data));
             }
-            LOGGER.info("I am {}, send data to remote {} !", this.controller.getStaticConf().getProcessId(), remoteId);
+
             if (!outQueue.offer(data)) {
                 LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", remoteId);
             }
@@ -286,10 +251,10 @@ public class ServerConnection {
      * try to send a message through the socket
      * if some problem is detected, a reconnection is done
      */
-    private final void sendBytes(byte[] messageData, boolean useMAC) {       
-
+    private final void sendBytes(byte[] messageData, boolean useMAC) {
+        boolean abort = false;
         do {
-            if (!canSendMessage) return; // if there is a need to reconnect, abort this method
+            if (abort) return; // if there is a need to reconnect, abort this method
             if (socket != null && socketOutStream != null) {
                 try {
                     //do an extra copy of the data to be sent, but on a single out stream write
@@ -304,7 +269,7 @@ public class ServerConnection {
                         System.arraycopy(new byte[]{ (byte) 1},0,data,4+messageData.length,1);
                         System.arraycopy(mac,0,data,5+messageData.length,mac.length);
                     } else {
-                        System.arraycopy(new byte[]{(byte) 0},0,data,4+messageData.length,1);                        
+                        System.arraycopy(new byte[]{(byte) 0},0,data,4+messageData.length,1);
                     }
 
                     socketOutStream.write(data);
@@ -314,12 +279,12 @@ public class ServerConnection {
                     LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will close socket and waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                     closeSocket();
                     waitAndConnect();
-                    canSendMessage = false;
+                    abort = true;
                 }
             } else {
                 LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                 waitAndConnect();
-                canSendMessage = false;
+                abort = true;
             }
         } while (doWork);
     }
@@ -336,107 +301,42 @@ public class ServerConnection {
         }
         boolean ret = false;
         if (this.controller.isInCurrentView()) {
-            
-             //in this case, the node with higher ID starts the connection
-             if (this.controller.getStaticConf().getProcessId() > remoteId) {
-                 ret = true;
-             }
-                
+
+            //in this case, the node with higher ID starts the connection
+            if (this.controller.getStaticConf().getProcessId() > remoteId) {
+                ret = true;
+            }
+
             /** JCS: I commented the code below to fix a bug, but I am not sure
              whether its completely useless or not. The 'if' above was taken
              from that same code (its the only part I understand why is necessary)
              I keep the code commented just to be on the safe side*/
-            
+
             /**
-            
-            boolean me = this.controller.isInLastJoinSet(this.controller.getStaticConf().getProcessId());
-            boolean remote = this.controller.isInLastJoinSet(remoteId);
 
-            //either both endpoints are old in the system (entered the system in a previous view),
-            //or both entered during the last reconfiguration
-            if ((me && remote) || (!me && !remote)) {
-                //in this case, the node with higher ID starts the connection
-                if (this.controller.getStaticConf().getProcessId() > remoteId) {
-                    ret = true;
-                }
-            //this process is the older one, and the other one entered in the last reconfiguration
-            } else if (!me && remote) {
-                ret = true;
+             boolean me = this.controller.isInLastJoinSet(this.controller.getStaticConf().getProcessId());
+             boolean remote = this.controller.isInLastJoinSet(remoteId);
 
-            } //else if (me && !remote) { //this process entered in the last reconfig and the other one is old
-                //ret=false; //not necessary, as ret already is false
-            //}
-              
-            */
+             //either both endpoints are old in the system (entered the system in a previous view),
+             //or both entered during the last reconfiguration
+             if ((me && remote) || (!me && !remote)) {
+             //in this case, the node with higher ID starts the connection
+             if (this.controller.getStaticConf().getProcessId() > remoteId) {
+             ret = true;
+             }
+             //this process is the older one, and the other one entered in the last reconfiguration
+             } else if (!me && remote) {
+             ret = true;
+
+             } //else if (me && !remote) { //this process entered in the last reconfig and the other one is old
+             //ret=false; //not necessary, as ret already is false
+             //}
+
+             */
         }
         return ret;
     }
     //******* EDUARDO END **************//
-
-    protected void monitorReconnect(final Socket newSocket) {
-//        if (!currSocketTimestampOver) {
-            startConnectService.execute(() -> {
-                LOGGER.info("[{}] -> I am {}, start handle remote[{}] !", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
-                connectLock.lock();
-                try {
-                    if (socket == null || !socket.isConnected()) {
-                        LOGGER.info("[{}] ->  I am {}, socket is null for remote[{}] !", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
-                        try {
-
-                            //******* EDUARDO BEGIN **************//
-                            if (isToConnect()) {
-                                LOGGER.info("I am {}, to connect remote[{}] !", this.controller.getStaticConf().getProcessId(), remoteId);
-                                socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
-                                        this.controller.getStaticConf().getServerToServerPort(remoteId));
-                                ServersCommunicationLayer.setSocketOptions(socket);
-                                new DataOutputStream(socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
-
-                                //******* EDUARDO END **************//
-                            } else {
-                                socket = newSocket;
-                            }
-                        } catch (UnknownHostException ex) {
-                            ex.printStackTrace();
-                        } catch (IOException ex) {
-                            LOGGER.error("Impossible to reconnect to replica {}", remoteId);
-                        }
-                        if (socket != null) {
-                            try {
-                                socketOutStream = new DataOutputStream(socket.getOutputStream());
-                                socketInStream = new DataInputStream(socket.getInputStream());
-                                if (authTimestamp()) {
-                                    authKey = null;
-                                    LOGGER.info("[{}] -> I am {}, set remote[{}]'s authKey = NULL !!!", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
-                                    authenticateAndEstablishAuthKey();
-                                }
-                            } catch (IOException ex) {
-                                ex.printStackTrace();
-                            }
-                        }
-                        LOGGER.info("[{}] ->  I am {}, remote[{}] socket = {}, newSocket = {} !!!", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, socket == null, newSocket == null);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    connectLock.unlock();
-                }
-//                if (currSocketTimestampOver) {
-//                    connectLock.unlock();
-//                    return;
-//                }
-
-//                if (socket != null) {
-//                    System.out.println("-----" + 3 + "-----");
-//                    if (authTimestamp()) {
-//                        authKey = null;
-//                        LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-//                        authenticateAndEstablishAuthKey();
-//                    }
-//                }
-//                connectLock.unlock();
-            });
-//        }
-    }
 
 
     /**
@@ -445,17 +345,17 @@ public class ServerConnection {
      * @param newSocket socket created when this server accepted the connection
      * (only used if processId is less than remoteId)
      */
-    protected void reconnect(final Socket newSocket) {
+    protected void reconnect(Socket newSocket) {
+
         connectLock.lock();
-        LOGGER.info("[{}] -> I am {}, start reconnect {} !", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
+
         if (socket == null || !socket.isConnected()) {
-            LOGGER.info("[{}] -> I am {}, socket is NULL, remote = {} !", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
 
             try {
 
                 //******* EDUARDO BEGIN **************//
                 if (isToConnect()) {
-                    LOGGER.info("[{}] -> I am {}, socket is NULL, need to connect remote = {} !", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
+
                     socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
                             this.controller.getStaticConf().getServerToServerPort(remoteId));
                     ServersCommunicationLayer.setSocketOptions(socket);
@@ -468,168 +368,33 @@ public class ServerConnection {
             } catch (UnknownHostException ex) {
                 ex.printStackTrace();
             } catch (IOException ex) {
+
                 LOGGER.error("Impossible to reconnect to replica {}", remoteId);
+                //ex.printStackTrace();
             }
+
             if (socket != null) {
                 try {
                     socketOutStream = new DataOutputStream(socket.getOutputStream());
                     socketInStream = new DataInputStream(socket.getInputStream());
-                    if (authTimestamp()) {
-                        authKey = null;
-                        LOGGER.info("[{}] -> I am {}, set remote[{}]'s authKey = NULL !!!", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId);
-                        authenticateAndEstablishAuthKey();
-                    }
+
+                    authKey = null;
+                    authenticateAndEstablishAuthKey();
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
             }
-            LOGGER.info("[{}] -> I am {}, remote[{}] socket = {}, newSocket = {} !!!", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, socket == null, newSocket == null);
         }
-//        if (socket != null) {
-//            try {
-////                socketOutStream = new DataOutputStream(socket.getOutputStream());
-////                socketInStream = new DataInputStream(socket.getInputStream());
-//                if (authTimestamp()) {
-//                    authKey = null;
-//                    LOGGER.info("I am {}, set remote[{}]'s authKey = NULL !!!", this.controller.getStaticConf().getProcessId(), remoteId);
-//                    authenticateAndEstablishAuthKey();
-//                }
-//            } catch (Exception ex) {
-//                ex.printStackTrace();
-//            }
-//        }
 
         connectLock.unlock();
-    }
-
-    /**
-     * 进行时间戳验证
-     *
-     */
-    private boolean authTimestamp() {
-        connectLock.lock();
-        try {
-            if (socketOutStream == null || socketInStream == null) {
-                return false;
-            }
-            boolean completed = timestampVerifyService.timeVerifyCompleted();
-            try {
-                socketOutStream.writeBoolean(completed);
-                boolean remoteCompleted = socketInStream.readBoolean();
-                LOGGER.info("[{}] -> I am {} -> {}, receive remote[{}] status = {} !", this.replica.getRealName(),
-                        controller.getStaticConf().getProcessId(), completed, remoteId, remoteCompleted);
-                if (remoteCompleted) {
-                    // 判断本地节点是否已启动
-                    if (completed) {
-                        // 需要判断结果是成功还是失败
-                        if (timestampVerifyService.timeVerifySuccess()) {
-                            currSocketTimestampOver = true;
-                            return true;
-                        }
-                        currSocketTimestampOver = true;
-                        return false;
-                    } else {
-                        // 本地节点没有启动，而远端启动了，则设置等待完成
-                        timestampVerifyService.waitComplete(remoteId);
-                        // 等待全部完成
-                        long currentTimestamp = timestampVerifyService.verifyTimestamp();
-                        LOGGER.info("[{}] -> I am {}, will write time[{}] to remote[{}] !", this.replica.getRealName(),
-                                controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-                        // 写入时间并等待远端的时间
-                        socketOutStream.writeLong(currentTimestamp);
-                        long remoteTimestamp = socketInStream.readLong();
-                        LOGGER.info("[{}] -> I am {}, receive remote timestamp = {} from {} !", this.replica.getRealName(),
-                                controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-                        boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
-                        if (verify) {
-                            timestampVerifyService.verifySuccess(remoteId);
-                            currSocketTimestampOver = true;
-                            return true;
-                        } else {
-                            timestampVerifyService.verifyFail(remoteId);
-                            currSocketTimestampOver = true;
-                            return false;
-                        }
-                    }
-                } else {
-                    // 远端未完成，但本地完成了，则发送本地的时间戳，等待远端时间戳
-                    if ((completed && timestampVerifyService.timeVerifySuccess()) || currSocketTimestampOver) {
-                        long currentTimestamp = System.currentTimeMillis();
-                        LOGGER.info("[{}] -> I am {}, will write time[{}] to remote[{}] but not need check !",
-                                this.replica.getRealName(), controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-                        socketOutStream.writeLong(currentTimestamp);
-                        long remoteTimestamp = socketInStream.readLong();
-                        LOGGER.info("[{}] -> I am {}, receive remote timestamp = {} from {} but not need check !",
-                                this.replica.getRealName(), controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-                        currSocketTimestampOver = true;
-                        return true;
-                    } else {
-                        // 两者都没有完成
-                        // 两者都未完成
-                        timestampVerifyService.waitComplete(remoteId);
-                        long currentTimestamp = timestampVerifyService.verifyTimestamp();
-                        LOGGER.info("[{}] -> I am {}, will write time[{}] to remote[{}] !",
-                                this.replica.getRealName(), controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-                        // 写入时间并等待远端的时间
-                        socketOutStream.writeLong(currentTimestamp);
-                        long remoteTimestamp = socketInStream.readLong();
-                        LOGGER.info("[{}] -> I am {}, receive remote timestamp = {} from {} !",
-                                this.replica.getRealName(), controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-                        boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
-                        if (verify) {
-                            timestampVerifyService.verifySuccess(remoteId);
-                            currSocketTimestampOver = true;
-                            return true;
-                        } else {
-                            timestampVerifyService.verifyFail(remoteId);
-                            currSocketTimestampOver = true;
-                        }
-                    }
-//
-//
-//                // 对端没有完成
-//                // 判断当前节点是否完成
-//                if (completed || currSocketTimestampOver) {
-//                    // 当前节点已完成，则不需要再处理
-//                    currSocketTimestampOver = true;
-//                    return true;
-//                } else {
-//                    // 两者都未完成
-//                    timestampVerifyService.waitComplete(remoteId);
-//                    long currentTimestamp = timestampVerifyService.verifyTimestamp();
-//                    LOGGER.info("I am {}, will write time[{}] to remote[{}] !",
-//                            controller.getStaticConf().getProcessId(), currentTimestamp, remoteId);
-//                    // 写入时间并等待远端的时间
-//                    socketOutStream.writeLong(currentTimestamp);
-//                    long remoteTimestamp = socketInStream.readLong();
-//                    LOGGER.info("I am {}, receive remote timestamp = {} from {} !",
-//                            controller.getStaticConf().getProcessId(), remoteTimestamp, remoteId);
-//                    boolean verify = timestampVerifyService.verifyTime(currentTimestamp, remoteId, remoteTimestamp);
-//                    if (verify) {
-//                        timestampVerifyService.verifySuccess(remoteId);
-//                        currSocketTimestampOver = true;
-//                        return true;
-//                    } else {
-//                        timestampVerifyService.verifyFail(remoteId);
-//                        currSocketTimestampOver = true;
-//                    }
-//                }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return false;
-        } finally {
-            connectLock.unlock();
-        }
     }
 
     //TODO!
     public void authenticateAndEstablishAuthKey() {
         if (authKey != null || socketOutStream == null || socketInStream == null) {
-            LOGGER.info("[{}] ->  I am proc {}, -- will exit with proc id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
             return;
         }
+
         try {
             //if (conf.getProcessId() > remoteId) {
             // I asked for the connection, so I'm first on the auth protocol
@@ -638,20 +403,20 @@ public class ServerConnection {
             // I received a connection request, so I'm second on the auth protocol
             //DataInputStream dis = new DataInputStream(socket.getInputStream());
             //}
-            
+
             //Derive DH private key from replica's own RSA private key
-            
+
             PrivateKey RSAprivKey = controller.getStaticConf().getRSAPrivateKey();
             BigInteger DHPrivKey =
                     new BigInteger(RSAprivKey.getEncoded());
-            
+
             //Create DH public key
             BigInteger myDHPubKey =
                     controller.getStaticConf().getDHG().modPow(DHPrivKey, controller.getStaticConf().getDHP());
-            
+
             //turn it into a byte array
             byte[] bytes = myDHPubKey.toByteArray();
-            
+
             byte[] signature = TOMUtil.signMessage(RSAprivKey, bytes);
 
             if (authKey == null && socketOutStream != null && socketInStream != null) {
@@ -662,8 +427,6 @@ public class ServerConnection {
                 socketOutStream.writeInt(signature.length);
                 socketOutStream.write(signature);
 
-                LOGGER.info("[{}] ->  I am proc {}, -- have write timestamp to id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
-
                 //receive remote DH public key and signature
                 int dataLength = socketInStream.readInt();
                 bytes = new byte[dataLength];
@@ -672,8 +435,6 @@ public class ServerConnection {
                     read += socketInStream.read(bytes, read, dataLength - read);
 
                 } while (read < dataLength);
-
-                LOGGER.info("[{}] ->  I am proc {}, -- receive data with id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
 
                 byte[] remote_Bytes = bytes;
 
@@ -684,8 +445,6 @@ public class ServerConnection {
                     read += socketInStream.read(bytes, read, dataLength - read);
 
                 } while (read < dataLength);
-
-                LOGGER.info("[{}] ->  I am proc {}, -- receive signature with id {}, with port {}", this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId, controller.getStaticConf().getServerToServerPort(remoteId));
 
                 byte[] remote_Signature = bytes;
 
@@ -719,11 +478,6 @@ public class ServerConnection {
                 macReceive.init(authKey);
                 macSize = macSend.getMacLength();
                 latch.countDown();
-				canSendMessage = true;
-                initSuccessLatch.countDown();
-            } else {
-                LOGGER.info("[{}] ->  I am proc {}, authKey = {} && socketOutStream = {} && socketInStream = {}",
-                        this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), authKey == null, socketOutStream == null, socketInStream == null);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -738,13 +492,12 @@ public class ServerConnection {
             } catch (IOException ex) {
                 LOGGER.error("Error closing socket to {}", remoteId);
             } catch (NullPointerException npe) {
-            	LOGGER.error("Socket already closed");
+                LOGGER.error("Socket already closed");
             }
 
             socket = null;
             socketOutStream = null;
             socketInStream = null;
-            currSocketTimestampOver = false;
         }
     }
 
@@ -777,37 +530,21 @@ public class ServerConnection {
             byte[] data = null;
             try {
                 countDownLatch.await();
-                // 等待时间戳OK
-                initSuccessLatch.await();
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            LOGGER.info("Start handle send service to {} !", remoteId);
             while (doWork) {
                 //get a message to be sent
                 try {
                     data = outQueue.poll(POOL_TIME, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                 }
-                boolean canSend = true;
-//                // 此处加锁控制
-//                connectLock.lock();
-//                try {
-//                    // 判断连接是否正常
-//                    if (authKey != null && socket != null && socketInStream != null && socketOutStream != null) {
-//                        canSend = true;
-//                    }
-//                } finally {
-//                    connectLock.unlock();
-//                }
 
-                if (data != null && canSend) {
-                    LOGGER.info("[{}] -> I am {}, send data to {} !!!!!", replica.getRealName(), controller.getStaticConf().getProcessId(), remoteId);
+                if (data != null) {
                     //sendBytes(data, noMACs.contains(System.identityHashCode(data)));
                     int ref = System.identityHashCode(data);
                     boolean sendMAC = !noMACs.remove(ref);
                     LOGGER.debug("(ServerConnection.run) {} MAC for data {}", (sendMAC ? "Sending" : "Not sending"), ref);
-                    LOGGER.info("[{}] -> I am {}, send data to {} !!!", replica.getRealName(), controller.getStaticConf().getProcessId(), remoteId);
                     sendBytes(data, sendMAC);
                 }
             }
@@ -830,13 +567,10 @@ public class ServerConnection {
             byte[] receivedMac = null;
             try {
                 receivedMac = new byte[Mac.getInstance(MAC_ALGORITHM).getMacLength()];
-                // 等待时间戳OK
-                initSuccessLatch.await();
-            } catch (Exception ex) {
+            } catch (NoSuchAlgorithmException ex) {
                 ex.printStackTrace();
             }
 
-            LOGGER.info("Start handle receive service to {} !", remoteId);
             while (doWork) {
                 if (socket != null && socketInStream != null) {
                     try {
@@ -852,7 +586,7 @@ public class ServerConnection {
 
                         //read mac
                         boolean result = true;
-                        
+
                         byte hasMAC = socketInStream.readByte();
                         if (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
                             read = 0;
@@ -866,7 +600,7 @@ public class ServerConnection {
                         if (result) {
                             SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data)).readObject());
                             sm.authenticated = (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1);
-                            
+
                             if (sm.getSender() == remoteId) {
 
                                 MessageQueue.MSG_TYPE msgType = MessageQueueFactory.msgType(sm);
@@ -889,7 +623,7 @@ public class ServerConnection {
                         }
                     }
                 } else {
-                    LOGGER.error("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
+                    LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
                     waitAndConnect();
                 }
             }
@@ -898,7 +632,7 @@ public class ServerConnection {
 
     //******* EDUARDO BEGIN: special thread for receiving messages indicating the entrance into the system, coming from the TTP **************//
     // Simly pass the messages to the replica, indicating its entry into the system
-    //TODO: Ask eduardo why a new thread is needed!!! 
+    //TODO: Ask eduardo why a new thread is needed!!!
     //TODO2: Remove all duplicated code
 
     /**
@@ -937,10 +671,10 @@ public class ServerConnection {
 
                         //read mac
                         boolean result = true;
-                        
+
                         byte hasMAC = socketInStream.readByte();
                         if (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
-                            
+
                             LOGGER.debug("TTP CON USEMAC");
                             read = 0;
                             do {
@@ -982,5 +716,5 @@ public class ServerConnection {
             }
         }
     }
-        //******* EDUARDO END **************//
+    //******* EDUARDO END **************//
 }
