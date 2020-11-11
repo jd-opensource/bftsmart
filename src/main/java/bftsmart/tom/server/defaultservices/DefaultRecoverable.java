@@ -309,7 +309,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
             int lastCheckpointCID = state.getLastCheckpointCID();
             lastCID = state.getLastCID();
             
-            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}", lastCheckpointCID, lastCID);
+//            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}", lastCheckpointCID, lastCID);
 
             stateLock.lock();
             if (state.getSerializedState() != null) {
@@ -323,7 +323,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
             int lastLogCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
 
-            LOGGER.info("I am proc {}, my current log file cid {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), lastLogCid, lastCID);
+            LOGGER.info("I am proc {}, my current log file cid {}, last checkpoint cid {}, from other nodes lastestcid {}", controller.getStaticConf().getProcessId(), lastLogCid, lastCheckpointCID, lastCID);
 
             for (int cid = lastLogCid + 1; cid <= lastCID; cid++) {
                 try {
