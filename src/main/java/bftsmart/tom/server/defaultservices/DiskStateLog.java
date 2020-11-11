@@ -15,11 +15,11 @@ limitations under the License.
 */
 package bftsmart.tom.server.defaultservices;
 
-import bftsmart.statemanagement.ApplicationState;
 import bftsmart.tom.MessageContext;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
@@ -29,9 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DiskStateLog extends StateLog {
 
 	private int id;
-	public static String DEFAULT_DIR = System.getProperty("user.dir");
-
-//	public static String DEFAULT_DIR = "/Users/zhangshuang3/Desktop/Project_new2/jdchain-develop-1.4.0/test/test-integration/src/test";
+	public static String DEFAULT_DIR = "";
 
 	private static final int INT_BYTE_SIZE = 4;
 	private static final int EOF = 0;
@@ -61,11 +59,30 @@ public class DiskStateLog extends StateLog {
 		this.syncCkp = syncCkp;
 		this.realName = realName;
 		this.logPointers = new HashMap<>();
-		this.logDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
-//		this.logDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
 
-		this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
-//		this.ckpDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
+		if (DEFAULT_DIR.length() == 0) {
+			try {
+				URL resource = DiskStateLog.class.getResource("/");
+				if (resource != null) {
+					String libPath = resource.getPath();
+					if (libPath != null && libPath.length() > 0) {
+						DEFAULT_DIR = libPath;
+						this.logDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
+						this.ckpDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
+					}
+				} else {
+					File libDir = new File(DiskStateLog.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+					LOGGER.info("DiskStateLog's lib path = {} !", libDir.getAbsolutePath());
+					DEFAULT_DIR = libDir.getParentFile().getParentFile().getPath();
+					this.logDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
+					this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
+				}
+			} catch (Exception e) {
+				LOGGER.error("load runtime path error !", e);
+			}
+		}
+		LOGGER.info("Default dir = {}", DEFAULT_DIR);
+
 	}
 
 	private void createLogFile() {
