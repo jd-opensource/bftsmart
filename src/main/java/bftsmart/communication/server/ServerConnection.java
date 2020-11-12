@@ -25,8 +25,12 @@ import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -60,7 +64,7 @@ public class ServerConnection {
 
     public static final String MAC_ALGORITHM = "HmacMD5";
     private static final long POOL_TIME = 5000;
-    private static final int RETRY_COUNT = 10;
+    private static final int RETRY_COUNT = 3;
     //private static final int SEND_QUEUE_SIZE = 50;
     private ServerViewController controller;
     private Socket socket;
@@ -83,6 +87,7 @@ public class ServerConnection {
     private boolean doWork = true;
     private CountDownLatch latch = new CountDownLatch(1);
     private ServiceReplica replica;
+    ExecutorService threadPool = Executors.newSingleThreadExecutor();
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
@@ -244,9 +249,21 @@ public class ServerConnection {
                 LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", remoteId);
             }
         } else {
-            sendLock.lock();
-            sendBytes(data, useMAC);
-            sendLock.unlock();
+
+            Future<?> future =  threadPool.submit(new Runnable() {
+                @Override
+                public void run() {
+//                    sendLock.lock();
+                    sendBytes(data, useMAC);
+//                    sendLock.unlock();
+                }
+            });
+//            try {
+//               Object o = future.get(30,TimeUnit.SECONDS);
+//            } catch (TimeoutException e) {
+//                future.cancel(false);
+//            }
+
         }
     }
 
