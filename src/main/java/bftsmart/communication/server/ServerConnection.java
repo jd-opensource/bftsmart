@@ -60,6 +60,7 @@ public class ServerConnection {
 
     public static final String MAC_ALGORITHM = "HmacMD5";
     private static final long POOL_TIME = 5000;
+    private static final int RETRY_COUNT = 10;
     //private static final int SEND_QUEUE_SIZE = 50;
     private ServerViewController controller;
     private Socket socket;
@@ -130,6 +131,8 @@ public class ServerConnection {
 
         //******* EDUARDO BEGIN **************//
         this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
+
+        LOGGER.info("I am proc {}, useSenderThread = {}", this.controller.getStaticConf().getProcessId(), this.useSenderThread);
 
         if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
             new SenderThread(latch).start();
@@ -252,9 +255,9 @@ public class ServerConnection {
      * if some problem is detected, a reconnection is done
      */
     private final void sendBytes(byte[] messageData, boolean useMAC) {
-        boolean abort = false;
+        int counter = 0;
         do {
-            if (abort) return; // if there is a need to reconnect, abort this method
+//            if (abort) return; // if there is a need to reconnect, abort this method
             if (socket != null && socketOutStream != null) {
                 try {
                     //do an extra copy of the data to be sent, but on a single out stream write
@@ -279,12 +282,18 @@ public class ServerConnection {
                     LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will close socket and waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                     closeSocket();
                     waitAndConnect();
-                    abort = true;
+                    if (counter++ == RETRY_COUNT) {
+                        return;
+                    }
+//                    abort = true;
                 }
             } else {
                 LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will waitAndConnect connect with {}", this.controller.getStaticConf().getProcessId(), remoteId);
                 waitAndConnect();
-                abort = true;
+                if (counter++ == RETRY_COUNT) {
+                    return;
+                }
+//                abort = true;
             }
         } while (doWork);
     }
