@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class HeartBeatTimer {
 
     // 重复发送LeaderRequest的间隔时间
-    private static final long RESEND_MILL_SECONDS = 5000;
+    private static final long RESEND_MILL_SECONDS = 10000;
 
     private static final long DELAY_MILL_SECONDS = 30000;
 
@@ -37,6 +37,10 @@ public class HeartBeatTimer {
     private RequestsTimer requestsTimer;
 
     private TOMLayer tomLayer; // TOM layer
+
+    private volatile boolean isSendLeaderRequest = false;
+
+    private volatile long lastSendLeaderRequestTime = -1L;
 
     private volatile InnerHeartBeatMessage innerHeartBeatMessage;
 
@@ -179,6 +183,7 @@ public class HeartBeatTimer {
                     }
                     //重置last regency以后，所有在此之前添加的stop 重传定时器需要取消
                     tomLayer.getSynchronizer().removeSTOPretransmissions(tomLayer.getSynchronizer().getLCManager().getLastReg());
+                    isSendLeaderRequest = false;
                 }
             } else {
                 // 收到的心跳信息有问题，打印日志
@@ -201,7 +206,8 @@ public class HeartBeatTimer {
         lrLock.lock();
         try {
             // 防止一段时间内重复发送多次心跳请求
-            if (sequence - lastLeaderRequestSequence > RESEND_MILL_SECONDS) {
+            if (!isSendLeaderRequest || (sequence - lastSendLeaderRequestTime) > 60000L) {
+                lastSendLeaderRequestTime = sequence;
                 sendLeaderRequestMessage(sequence);
             }
         } finally {
@@ -215,11 +221,19 @@ public class HeartBeatTimer {
 //        System.out.printf("I am %s, send leader request message \r\n", tomLayer.controller.getStaticConf().getProcessId());
         tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), requestMessage);
         lastLeaderRequestSequence = sequence;
+        isSendLeaderRequest = true;
         // 启动定时任务，判断心跳的应答处理
         if (leaderResponseTimer == null) {
             leaderResponseTimer = Executors.newSingleThreadScheduledExecutor();
+            leaderResponseTimer.scheduleWithFixedDelay(new LeaderResponseTask(lastLeaderRequestSequence), 0, RESEND_MILL_SECONDS, TimeUnit.MILLISECONDS);
+        } else {
+            leaderResponseTimer.shutdownNow();
+            if (leaderResponseTimer.isShutdown()) {
+                // 重新开启新的任务
+                leaderResponseTimer = Executors.newSingleThreadScheduledExecutor();
+                leaderResponseTimer.scheduleWithFixedDelay(new LeaderResponseTask(lastLeaderRequestSequence), 0, RESEND_MILL_SECONDS, TimeUnit.MILLISECONDS);
+            }
         }
-        leaderResponseTimer.scheduleWithFixedDelay(new LeaderResponseTask(lastLeaderRequestSequence), 0, RESEND_MILL_SECONDS, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -299,6 +313,9 @@ public class HeartBeatTimer {
             try {
                 // 再次判断是否是Leader
                 if (tomLayer.isLeader()) {
+                    if (!tomLayer.isConnectRemotesOK()) {
+                        return;
+                    }
                     // 如果是Leader则发送心跳信息给其他节点，当前节点除外
                     HeartBeatMessage heartBeatMessage = new HeartBeatMessage(tomLayer.controller.getStaticConf().getProcessId(),
                             tomLayer.controller.getStaticConf().getProcessId(), tomLayer.getSynchronizer().getLCManager().getLastReg());
@@ -323,15 +340,14 @@ public class HeartBeatTimer {
             lrLock.lock();
             try {
                 NewLeader newLeader = newLeader(currentSequence);
-                if (newLeader == null) {
-                    // 不满足，则重新发送获取
-                    leaderResponseTimer = null;
-                    sendLeaderRequestMessage(System.currentTimeMillis());
-                } else {
+                if (newLeader != null) {
                     // 满足，则更新当前节点的Leader
                     tomLayer.execManager.setNewLeader(newLeader.getNewLeader());
                     tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
                     tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
+                    leaderResponseTimer.shutdownNow();
+                    leaderResponseTimer = null;
+                    isSendLeaderRequest = false;
                 }
             } finally {
                 lrLock.unlock();

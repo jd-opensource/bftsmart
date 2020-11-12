@@ -18,7 +18,6 @@ package bftsmart.communication.client.netty;
 import bftsmart.communication.client.CommunicationSystemClientSide;
 import bftsmart.communication.client.ReplyReceiver;
 import bftsmart.reconfiguration.ClientViewController;
-import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
 import io.netty.bootstrap.Bootstrap;
@@ -38,7 +37,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -63,6 +61,7 @@ import java.util.logging.Level;
 @Sharable
 public class NettyClientServerCommunicationSystemClientSide extends SimpleChannelInboundHandler<TOMMessage> implements CommunicationSystemClientSide {
 
+    private static final int RECONNECT_SECONDS = 20;
     private int clientId;
     protected ReplyReceiver trr;
     //******* EDUARDO BEGIN **************//
@@ -76,7 +75,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     private boolean closed = false;
 
     private EventLoopGroup workerGroup;
-    
+
     private SyncListener listener;
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(NettyClientServerCommunicationSystemClientSide.class);
@@ -86,7 +85,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
         this.clientId = clientId;
         this.workerGroup = new NioEventLoopGroup();
-        try {           
+        try {
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
 
             this.controller = controller;
@@ -106,11 +105,12 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     SecretKey authKey = fac.generateSecret(spec);
 
                     //EventLoopGroup workerGroup = new NioEventLoopGroup();
-                    
+
                     //try {
                     Bootstrap b = new Bootstrap();
                     b.group(workerGroup);
                     b.channel(NioSocketChannel.class);
+                    b.option(ChannelOption.SO_REUSEADDR, true);
                     b.option(ChannelOption.SO_KEEPALIVE, true);
                     b.option(ChannelOption.TCP_NODELAY, true);
                     b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,10000);
@@ -174,7 +174,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         if( workerGroup == null){
                             workerGroup = new NioEventLoopGroup();
                         }
-                        
+
                         //try {
                         Bootstrap b = new Bootstrap();
                         b.group(workerGroup);
@@ -239,11 +239,11 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, TOMMessage sm) throws Exception {
-        
+
         if(closed){
 
             closeChannelAndEventLoop(ctx.channel());
-            
+
             return;
         }
         trr.replyReceived(sm);
@@ -251,14 +251,14 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        
+
         if(closed){
 
             closeChannelAndEventLoop(ctx.channel());
-            
+
             return;
         }
-        
+
         LOGGER.debug("Channel active");
     }
 
@@ -285,21 +285,19 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     b.channel(NioSocketChannel.class);
                     b.option(ChannelOption.SO_KEEPALIVE, true);
                     b.option(ChannelOption.TCP_NODELAY, true);
-                    b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,10000);
+                    b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,5000);
 
                     b.handler(getChannelInitializer());
 
                     if (controller.getRemoteAddress(ncss.getReplicaId()) != null) {
 
-                        ChannelFuture future =  b.connect(controller.getRemoteSocketAddress(ncss.getReplicaId()));
-
+                        ChannelFuture future = b.connect(controller.getRemoteSocketAddress(ncss.getReplicaId()));
                         //creates MAC stuff
                         Mac macSend = ncss.getMacSend();
                         Mac macReceive = ncss.getMacReceive();
                         NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, ncss.getReplicaId());
                         sessionTable.remove(ncss.getReplicaId());
                         sessionTable.put(ncss.getReplicaId(), cs);
-
                         LOGGER.info("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
                     } else {
                         // This cleans an olde server from the session table
@@ -329,9 +327,9 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
 
         listener.waitForChannels(targets.length); // wait for the previous transmission to complete
-        
+
         LOGGER.debug("Sending request from {} with sequence number {} to {}", sm.getSender(), sm.getSequence(), Arrays.toString(targets));
-                
+
         if (sm.serializedMessage == null) {
 
             //serialize message
@@ -360,7 +358,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             sm.serializedMessageSignature = signMessage(
                     controller.getStaticConf().getRSAPrivateKey(), sm.serializedMessage);
         }
-                
+
         int sent = 0;
         for (int i = targets.length - 1; i >= 0; i--) {
             sm.destination = targets[i];
@@ -371,9 +369,9 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             if (channel.isActive()) {
                 sm.signed = sign;
                 ChannelFuture f = channel.writeAndFlush(sm);
-                                
+
                 f.addListener(listener);
-                
+
                 sent++;
             } else {
                 LOGGER.error("Channel to {} is not connected", targets[i]);
@@ -390,10 +388,12 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             //if less than f+1 servers are connected send an exception to the client
             throw new RuntimeException("Impossible to connect to servers!");
         }
-        if(targets.length == 1 && sent == 0)
-                throw new RuntimeException("Server not connected");
+        if(targets.length == 1 && sent == 0) {
+            throw new RuntimeException("Server not connected");
+        }
     }
 
+    @Override
     public void sign(TOMMessage sm) {
         //serialize message
         DataOutputStream dos = null;
@@ -450,7 +450,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         ArrayList<NettyClientServerSession> sessions = new ArrayList<>(sessionTable.values());
         rl.readLock().unlock();
         for (NettyClientServerSession ncss : sessions) {
-            Channel c = ncss.getChannel();           
+            Channel c = ncss.getChannel();
             closeChannelAndEventLoop(c);
         }
     }
@@ -470,18 +470,18 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 ch.pipeline().addLast(nettyClientPipelineFactory.getHandler());
 
             }
-        };					
-        return channelInitializer;		
+        };
+        return channelInitializer;
     }
 
     @Override
     public void channelUnregistered(final ChannelHandlerContext ctx) throws Exception {
-        scheduleReconnect(ctx,10);
+        scheduleReconnect(ctx, RECONNECT_SECONDS);
     }
-    
+
     @Override
     public void channelInactive(final ChannelHandlerContext ctx){
-        scheduleReconnect(ctx,10);
+        scheduleReconnect(ctx, RECONNECT_SECONDS);
     }
 
     private void closeChannelAndEventLoop(Channel c) {
@@ -489,45 +489,47 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             // Close the current channel
             c.close();
             // Then close the parent channel (the one attached to the bind)
-            if (c.parent() != null) c.parent().close();
+            if (c.parent() != null) {
+                c.parent().close();
+            }
             //c.eventLoop().shutdownGracefully();
             workerGroup.shutdownGracefully();
     }
-    
+
     private void scheduleReconnect(final ChannelHandlerContext ctx, int time){
         if(closed){
             closeChannelAndEventLoop(ctx.channel());
             return;
         }
-        
+
         final EventLoop loop = ctx.channel().eventLoop();
         loop.schedule(new Runnable() {
             @Override
             public void run() {
             	reconnect(ctx);
             }
-        },time,TimeUnit.SECONDS);
+        }, time, TimeUnit.SECONDS);
     }
-    
-    
+
+
     private class SyncListener implements GenericFutureListener<ChannelFuture> {
-            
+
             private int remainingFutures;
-            
+
             private final Lock futureLock;
             private final Condition enoughCompleted;
-            
+
             public SyncListener() {
-                
+
                 this.remainingFutures = 0;
 
                 this.futureLock = new ReentrantLock();
                 this.enoughCompleted = futureLock.newCondition();
             }
-            
+
             @Override
             public void operationComplete(ChannelFuture f) {
-                
+
                 this.futureLock.lock();
 
                 this.remainingFutures--;
@@ -538,32 +540,32 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 }
 
                 LOGGER.debug("(SyncListener.operationComplete) {} channel operations remaining to complete", this.remainingFutures);
-                
+
                 this.futureLock.unlock();
-              
+
             }
-            
+
             public void waitForChannels(int n) {
-                
+
                 this.futureLock.lock();
                 if (this.remainingFutures > 0) {
-                    
+
                     LOGGER.debug("(SyncListener.waitForChannels)  There are still {} channel operations pending, waiting to complete", this.remainingFutures);
-                    
+
                     try {
                         this.enoughCompleted.await(1000, TimeUnit.MILLISECONDS); // timeout if a malicous replica refuses to acknowledge the operation as completed
                     } catch (InterruptedException ex) {
                         java.util.logging.Logger.getLogger(NettyClientServerCommunicationSystemClientSide.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    
+
                 }
-                
+
                     LOGGER.debug("(SyncListener.waitForChannels)  All channel operations completed or timed out");
 
                 this.remainingFutures = n;
-                
+
                 this.futureLock.unlock();
             }
-            
+
         }
 }

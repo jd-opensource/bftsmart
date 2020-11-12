@@ -94,7 +94,10 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					ch.pipeline().addLast(serverPipelineFactory.getEncoder());
 					ch.pipeline().addLast(serverPipelineFactory.getHandler());
 				}
-			})	.childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.TCP_NODELAY, true);
+			})
+			.childOption(ChannelOption.SO_KEEPALIVE, true)
+			.childOption(ChannelOption.SO_REUSEADDR, true)
+			.childOption(ChannelOption.TCP_NODELAY, true);
 
 			// Bind and start to accept incoming connections.
 			ChannelFuture f = b.bind(new InetSocketAddress(controller.getStaticConf().getHost(
