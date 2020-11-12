@@ -811,6 +811,8 @@ public class ServiceReplica {
 
 		tomLayer.setLastExec(lastCid);
 
+		tomLayer.getStateManager().setLastCID(lastCid);
+
 		executionManager.setTOMLayer(tomLayer);
 
 		SVController.setTomLayer(tomLayer);
