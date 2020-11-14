@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
+import bftsmart.communication.server.CompletedCallback;
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.reconfiguration.views.View;
 import org.slf4j.LoggerFactory;
@@ -134,11 +135,19 @@ public class ViewManager {
 
         byte[] data = bOut.toByteArray();
 
-        for (Integer i : targets) {
+        for (Integer pid : targets) {
             //br.ufsc.das.tom.util.Logger.println("(ServersCommunicationLayer.send) Sending msg to replica "+i);
             try {
-                if (i.intValue() != id) {
-                    getConnection(i.intValue()).send(data, true);
+                if (pid.intValue() != id) {
+                    getConnection(pid.intValue()).send(data, true, new CompletedCallback<byte[], Void>() {
+						@Override
+						public void onCompleted(byte[] source, Void result, Throwable error) {
+							if (error != null) {
+								LOGGER.error("Fail to send message[" + sm.getClass().getName() + "] to target proccess["
+										+ pid + "]!");
+							}
+						}
+					});
                 }
             } catch (InterruptedException ex) {
                // ex.printStackTrace();
