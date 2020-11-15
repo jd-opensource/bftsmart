@@ -183,8 +183,12 @@ public class ServersCommunicationLayer extends Thread {
 		return ret;
 	}
 	// ******* EDUARDO END **************//
-
+	
 	public void send(int[] targets, SystemMessage sm, boolean useMAC) {
+		send(targets, sm, useMAC, true);
+	}
+
+	public void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending) {
 		// 首先判断消息类型
 		ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
 		try {
@@ -208,7 +212,7 @@ public class ServersCommunicationLayer extends Thread {
 					// ******* EDUARDO BEGIN **************//
 					// connections[i].send(data);
 //                    LOGGER.info("I am {}, send data to {}, which is {} !", controller.getStaticConf().getProcessId(), i, sm.getClass());
-					futures[i] = getConnection(pid).send(data, useMAC, new CompletedCallback<byte[], Void>() {
+					futures[i] = getConnection(pid).send(data, useMAC, retrySending, new CompletedCallback<byte[], Void>() {
 						@Override
 						public void onCompleted(byte[] source, Void result, Throwable error) {
 							if (error != null) {

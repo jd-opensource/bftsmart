@@ -346,7 +346,7 @@ public class ServerConnection {
 						this.controller.getStaticConf().getProcessId(), remoteId);
 				waitAndConnect();
 
-				if (messageTask.isRetry() && counter++ > RETRY_COUNT) {
+				if (messageTask.isRetry() && counter++ >= RETRY_COUNT) {
 					LOGGER.error("[ServerConnection.sendBytes] fails, and the fail times is out of the max retry count["
 							+ RETRY_COUNT + "]!", this.controller.getStaticConf().getProcessId(), remoteId);
 
@@ -357,7 +357,7 @@ public class ServerConnection {
 				messageTask.error(e);
 				return;
 			}
-		} while (doWork && counter > RETRY_COUNT);
+		} while (doWork && counter < RETRY_COUNT);
 
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
 	}
@@ -439,11 +439,13 @@ public class ServerConnection {
 					socket = newSocket;
 				}
 			} catch (UnknownHostException ex) {
-				ex.printStackTrace();
+				LOGGER.error(
+						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
+						ex);
 			} catch (IOException ex) {
-
-				LOGGER.error("Impossible to reconnect to replica {}", remoteId);
-				// ex.printStackTrace();
+				LOGGER.error(
+						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
+						ex);
 			}
 
 			if (socket != null) {
@@ -454,7 +456,8 @@ public class ServerConnection {
 					authKey = null;
 					authenticateAndEstablishAuthKey();
 				} catch (IOException ex) {
-					ex.printStackTrace();
+					LOGGER.error("Authentication fails while reconnect to remote replica[" + remoteId + "] ! --"
+							+ ex.getMessage(), ex);
 				}
 			}
 		}
@@ -553,12 +556,15 @@ public class ServerConnection {
 				latch.countDown();
 			}
 		} catch (Exception ex) {
-			ex.printStackTrace();
+			LOGGER.error("Error occurred while doing authenticateAndEstablishAuthKey with remote replica[" + remoteId
+					+ "] ! --" + ex.getMessage(), ex);
 		}
 	}
 
+	/**
+	 * 关闭连接；此方法不抛出任何异常；
+	 */
 	private void closeSocket() {
-
 		Socket sk = socket;
 		DataOutputStream os = socketOutStream;
 		DataInputStream is = socketInStream;
