@@ -3,7 +3,12 @@ package bftsmart.communication.server;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class AsyncFutureTask<S, R> implements AsyncFuture<S, R> {
+	
+	private static Logger LOGGER = LoggerFactory.getLogger(AsyncFutureTask.class);
 
 	private CountDownLatch latch = new CountDownLatch(1);
 
@@ -74,27 +79,36 @@ public class AsyncFutureTask<S, R> implements AsyncFuture<S, R> {
 	}
 
 	public synchronized void complete(R result) {
-		if (done) {
-			return;
+		try {
+			if (done) {
+				return;
+			}
+			this.result = result;
+			done = true;
+			latch.countDown();
+			
+			doCallback();
+		} catch (Exception e) {
+			LOGGER.error("Error occurred while invoking an completing callback! --" + e.getMessage(), e);
 		}
-		this.result = result;
-		latch.countDown();
-		done = true;
-		
-		doCallback();
 	}
 	
 	
 	
 	public synchronized void error(Throwable error) {
-		if (done) {
-			return;
+		try {
+			if (done) {
+				return;
+			}
+			this.error = error;
+			this.done = true;
+			
+			latch.countDown();
+			
+			doCallback();
+		} catch (Exception e) {
+			LOGGER.error("Error occurred while invoking an error callback! --" + e.getMessage(), e);
 		}
-		this.error = error;
-		latch.countDown();
-		done = true;
-		
-		doCallback();
 	}
 
 	

@@ -137,21 +137,16 @@ public class ViewManager {
 
         for (Integer pid : targets) {
             //br.ufsc.das.tom.util.Logger.println("(ServersCommunicationLayer.send) Sending msg to replica "+i);
-            try {
-                if (pid.intValue() != id) {
-                    getConnection(pid.intValue()).send(data, true, new CompletedCallback<byte[], Void>() {
-						@Override
-						public void onCompleted(byte[] source, Void result, Throwable error) {
-							if (error != null) {
-								LOGGER.error("Fail to send message[" + sm.getClass().getName() + "] to target proccess["
-										+ pid + "]!");
-							}
+            if (pid.intValue() != id) {
+                getConnection(pid.intValue()).send(data, true, new CompletedCallback<byte[], Void>() {
+					@Override
+					public void onCompleted(byte[] source, Void result, Throwable error) {
+						if (error != null) {
+							LOGGER.error("Fail to send message[" + sm.getClass().getName() + "] to target proccess["
+									+ pid + "]!");
 						}
-					});
-                }
-            } catch (InterruptedException ex) {
-               // ex.printStackTrace();
-                System.err.println(ex);
+					}
+				});
             }
         }
         //br.ufsc.das.tom.util.Logger.println("(ServersCommunicationLayer.send) Finished sending messages to replicas");

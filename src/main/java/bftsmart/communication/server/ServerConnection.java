@@ -70,8 +70,8 @@ public class ServerConnection {
 	private int remoteId;
 	private boolean useSenderThread;
 	private MessageQueue messageInQueue;
-	private LinkedBlockingQueue<AsyncFutureTask<byte[], Void>> outQueue;// = new
-																		// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
+	private LinkedBlockingQueue<MessageSendingTask> outQueue;// = new
+																// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
 	private HashSet<Integer> noMACs = null; // this is used to keep track of data to be sent without a MAC.
 	// It uses the reference id for that same data
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
@@ -101,8 +101,7 @@ public class ServerConnection {
 
 		this.messageInQueue = messageInQueue;
 
-		this.outQueue = new LinkedBlockingQueue<AsyncFutureTask<byte[], Void>>(
-				this.controller.getStaticConf().getOutQueueSize());
+		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(this.controller.getStaticConf().getOutQueueSize());
 
 		this.noMACs = new HashSet<Integer>();
 		// Connect to the remote process or just wait for the connection?
@@ -135,8 +134,8 @@ public class ServerConnection {
 
 		// ******* EDUARDO BEGIN **************//
 		this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
-		this.RETRY_INTERVAL =  this.controller.getStaticConf().getSendRetryInterval();
-		this.RETRY_COUNT =  this.controller.getStaticConf().getSendRetryCount();
+		this.RETRY_INTERVAL = this.controller.getStaticConf().getSendRetryInterval();
+		this.RETRY_COUNT = this.controller.getStaticConf().getSendRetryCount();
 
 		LOGGER.info("I am proc {}, useSenderThread = {}", this.controller.getStaticConf().getProcessId(),
 				this.useSenderThread);
@@ -238,8 +237,23 @@ public class ServerConnection {
 	/**
 	 * Used to send packets to the remote server.
 	 */
-	public final AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, CompletedCallback<byte[], Void> callback)
-			throws InterruptedException {
+	public final AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, CompletedCallback<byte[], Void> callback) {
+		return send(data, useMAC, true, callback);
+	}
+
+	/**
+	 * Used to send packets to the remote server.
+	 */
+	/**
+	 * @param data         要发送的数据；
+	 * @param useMAC       是否使用 MAC；
+	 * @param retrySending 当发送失败时，是否要重试；
+	 * @param callback     发送完成回调；
+	 * @return
+	 * @throws InterruptedException
+	 */
+	public final AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, boolean retrySending,
+			CompletedCallback<byte[], Void> callback) {
 		// 禁用使用内部线程，而是采用独立线程，并返回;
 
 		if (!useMAC) {
@@ -247,12 +261,12 @@ public class ServerConnection {
 			noMACs.add(System.identityHashCode(data));
 		}
 
-		AsyncFutureTask<byte[], Void> task = new AsyncFutureTask<byte[], Void>(data);
+		MessageSendingTask task = new MessageSendingTask(data, retrySending);
 		task.setCallback(callback);
 
 		if (!outQueue.offer(task)) {
 			LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", remoteId);
-			
+
 			task.error(new IllegalStateException(
 					"(ServerConnection.send) out queue for {" + remoteId + "} full (message discarded)."));
 		}
@@ -281,7 +295,7 @@ public class ServerConnection {
 	 * try to send a message through the socket if some problem is detected, a
 	 * reconnection is done
 	 */
-	private final void sendBytes(AsyncFutureTask<byte[], Void> messageTask, boolean useMAC) {
+	private final void sendBytes(MessageSendingTask messageTask, boolean useMAC) {
 		int counter = 0;
 		byte[] messageData = messageTask.getSource();
 		Throwable error = null;
@@ -313,21 +327,26 @@ public class ServerConnection {
 						messageTask.complete(null);
 						return;
 					} catch (IOException ex) {
-						LOGGER.error(
-								"[ServerConnection.sendBytes] I am proc {}, I will close socket and waitAndConnect connect with {}",
-								this.controller.getStaticConf().getProcessId(), remoteId);
-						closeSocket();
-						waitAndConnect();
-
 						error = ex;
 					}
-				} else {
-					LOGGER.error("[ServerConnection.sendBytes] I am proc {}, I will waitAndConnect connect with {}",
-							this.controller.getStaticConf().getProcessId(), remoteId);
-					waitAndConnect();
 				}
 
-				if (counter++ > RETRY_COUNT) {
+				// 如果不重试发送失败的消息，则立即报告错误；
+				if (!messageTask.isRetry()) {
+					counter = RETRY_COUNT;
+					messageTask.error(error);
+				}
+
+				LOGGER.error(
+						"[ServerConnection.sendBytes] current proc id: {}. Close socket and waitAndConnect connect with {}",
+						this.controller.getStaticConf().getProcessId(), remoteId);
+				closeSocket();
+
+				LOGGER.error("[ServerConnection.sendBytes] current proc id: {}, Wait and reonnect with {}",
+						this.controller.getStaticConf().getProcessId(), remoteId);
+				waitAndConnect();
+
+				if (messageTask.isRetry() && counter++ > RETRY_COUNT) {
 					LOGGER.error("[ServerConnection.sendBytes] fails, and the fail times is out of the max retry count["
 							+ RETRY_COUNT + "]!", this.controller.getStaticConf().getProcessId(), remoteId);
 
@@ -338,7 +357,7 @@ public class ServerConnection {
 				messageTask.error(e);
 				return;
 			}
-		} while (doWork);
+		} while (doWork && counter > RETRY_COUNT);
 
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
 	}
@@ -539,19 +558,32 @@ public class ServerConnection {
 	}
 
 	private void closeSocket() {
-		if (socket != null) {
-			try {
-				socketOutStream.flush();
-				socket.close();
-			} catch (IOException ex) {
-				LOGGER.error("Error closing socket to {}", remoteId);
-			} catch (NullPointerException npe) {
-				LOGGER.error("Socket already closed");
-			}
 
-			socket = null;
-			socketOutStream = null;
-			socketInStream = null;
+		Socket sk = socket;
+		DataOutputStream os = socketOutStream;
+		DataInputStream is = socketInStream;
+
+		socket = null;
+		socketOutStream = null;
+		socketInStream = null;
+
+		if (os != null) {
+			try {
+				os.close();
+			} catch (Exception e) {
+			}
+		}
+		if (is != null) {
+			try {
+				is.close();
+			} catch (Exception e) {
+			}
+		}
+		if (sk != null) {
+			try {
+				sk.close();
+			} catch (Exception e) {
+			}
 		}
 	}
 
@@ -586,10 +618,10 @@ public class ServerConnection {
 
 		@Override
 		public void run() {
-			AsyncFutureTask<byte[], Void> task = null;
+			MessageSendingTask task = null;
 			try {
 				countDownLatch.await();
-			} catch (Exception e) {
+			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 			while (doWork) {
@@ -789,4 +821,19 @@ public class ServerConnection {
 		}
 	}
 	// ******* EDUARDO END **************//
+
+	private static class MessageSendingTask extends AsyncFutureTask<byte[], Void> {
+
+		private boolean retry;
+
+		public MessageSendingTask(byte[] message, boolean retry) {
+			super(message);
+			this.retry = retry;
+		}
+
+		public boolean isRetry() {
+			return retry;
+		}
+
+	}
 }
