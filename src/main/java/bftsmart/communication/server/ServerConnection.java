@@ -59,8 +59,9 @@ import bftsmart.tom.util.TOMUtil;
 public class ServerConnection {
 
 	public static final String MAC_ALGORITHM = "HmacMD5";
-	private static final long POOL_TIME = 2000;
-	private static final int RETRY_COUNT = 10;
+	private static final long POOL_INTERVAL = 5000;
+	private final long RETRY_INTERVAL;
+	private final int RETRY_COUNT;
 	// private static final int SEND_QUEUE_SIZE = 50;
 	private ServerViewController controller;
 	private volatile Socket socket;
@@ -134,6 +135,8 @@ public class ServerConnection {
 
 		// ******* EDUARDO BEGIN **************//
 		this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
+		this.RETRY_INTERVAL =  this.controller.getStaticConf().getSendRetryInterval();
+		this.RETRY_COUNT =  this.controller.getStaticConf().getSendRetryCount();
 
 		LOGGER.info("I am proc {}, useSenderThread = {}", this.controller.getStaticConf().getProcessId(),
 				this.useSenderThread);
@@ -555,7 +558,7 @@ public class ServerConnection {
 	private void waitAndConnect() {
 		if (doWork) {
 			try {
-				Thread.sleep(POOL_TIME);
+				Thread.sleep(RETRY_INTERVAL);
 			} catch (InterruptedException ie) {
 			}
 //等待和重连时不清楚要发送的队列；
@@ -592,7 +595,7 @@ public class ServerConnection {
 			while (doWork) {
 				// get a message to be sent
 				try {
-					task = outQueue.poll(POOL_TIME, TimeUnit.MILLISECONDS);
+					task = outQueue.poll(POOL_INTERVAL, TimeUnit.MILLISECONDS);
 				} catch (InterruptedException ex) {
 				}
 
