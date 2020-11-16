@@ -15,6 +15,13 @@ limitations under the License.
 */
 package bftsmart.communication;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.LoggerFactory;
+
 import bftsmart.communication.client.CommunicationSystemServerSide;
 import bftsmart.communication.client.CommunicationSystemServerSideFactory;
 import bftsmart.communication.client.RequestReceiver;
@@ -26,13 +33,7 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
+import bftsmart.tom.leaderchange.LeaderRequestMessage;
 
 /**
  *
@@ -40,100 +41,101 @@ import java.util.logging.Level;
  */
 public class ServerCommunicationSystem extends Thread {
 
-    private boolean doWork = true;
-    public static final long MESSAGE_WAIT_TIME = 100;
-    private LinkedBlockingQueue<SystemMessage> inQueue = null;//new LinkedBlockingQueue<SystemMessage>(IN_QUEUE_SIZE);
-    private MessageQueue messageInQueue;
-    private MessageHandler messageHandler = new MessageHandler();
-    private ServersCommunicationLayer serversConn;
-    private CommunicationSystemServerSide clientsConn;
-    private ServerViewController controller;
-    private final List<MessageHandlerRunner> messageHandlerRunners = new ArrayList<>();
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystem.class);
+	private boolean doWork = true;
+	public static final long MESSAGE_WAIT_TIME = 100;
+	private LinkedBlockingQueue<SystemMessage> inQueue = null;// new LinkedBlockingQueue<SystemMessage>(IN_QUEUE_SIZE);
+	private MessageQueue messageInQueue;
+	private MessageHandler messageHandler = new MessageHandler();
+	private ServersCommunicationLayer serversConn;
+	private CommunicationSystemServerSide clientsConn;
+	private ServerViewController controller;
+	private final List<MessageHandlerRunner> messageHandlerRunners = new ArrayList<>();
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystem.class);
 
-    /**
-     * Creates a new instance of ServerCommunicationSystem
-     */
-    public ServerCommunicationSystem(ServerViewController controller, ServiceReplica replica) throws Exception {
-        super("Server CS");
+	/**
+	 * Creates a new instance of ServerCommunicationSystem
+	 */
+	public ServerCommunicationSystem(ServerViewController controller, ServiceReplica replica) throws Exception {
+		super("Server CS");
 
-        this.controller = controller;
+		this.controller = controller;
 
-        // 创建消息队列
-        this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QUEUE_TYPE.IN, controller.getStaticConf().getInQueueSize());
-        // 创建消息处理器
-        // 遍历枚举类
-        for (MessageQueue.MSG_TYPE msgType : MessageQueue.MSG_TYPE.values()) {
-            this.messageHandlerRunners.add(new MessageHandlerRunner(msgType, messageInQueue, messageHandler));
-        }
+		// 创建消息队列
+		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QUEUE_TYPE.IN,
+				controller.getStaticConf().getInQueueSize());
+		// 创建消息处理器
+		// 遍历枚举类
+		for (MessageQueue.MSG_TYPE msgType : MessageQueue.MSG_TYPE.values()) {
+			this.messageHandlerRunners.add(new MessageHandlerRunner(msgType, messageInQueue, messageHandler));
+		}
 
 //        inQueue = new LinkedBlockingQueue<SystemMessage>(controller.getStaticConf().getInQueueSize());
 
-        //create a new conf, with updated port number for servers
-        //TOMConfiguration serversConf = new TOMConfiguration(conf.getProcessId(),
-        //      Configuration.getHomeDir(), "hosts.config");
+		// create a new conf, with updated port number for servers
+		// TOMConfiguration serversConf = new TOMConfiguration(conf.getProcessId(),
+		// Configuration.getHomeDir(), "hosts.config");
 
-        //serversConf.increasePortNumber();
+		// serversConf.increasePortNumber();
 
-        serversConn = new ServersCommunicationLayer(controller, messageInQueue, replica);
+		serversConn = new ServersCommunicationLayer(controller, messageInQueue, replica);
 
-        //******* EDUARDO BEGIN **************//
-       // if (manager.isInCurrentView() || manager.isInInitView()) {
-            clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-       // }
-        //******* EDUARDO END **************//
-        //start();
-    }
+		// ******* EDUARDO BEGIN **************//
+		// if (manager.isInCurrentView() || manager.isInInitView()) {
+		clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
+		// }
+		// ******* EDUARDO END **************//
+		// start();
+	}
 
-    //******* EDUARDO BEGIN **************//
-    public void joinViewReceived() {
-        serversConn.joinViewReceived();
-    }
+	// ******* EDUARDO BEGIN **************//
+	public void joinViewReceived() {
+		serversConn.joinViewReceived();
+	}
 
-    public void updateServersConnections() {
-        this.serversConn.updateConnections();
-        if (clientsConn == null) {
-            clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-        }
+	public void updateServersConnections() {
+		this.serversConn.updateConnections();
+		if (clientsConn == null) {
+			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
+		}
 
-    }
+	}
 
-    //******* EDUARDO END **************//
-    public void setAcceptor(Acceptor acceptor) {
-        messageHandler.setAcceptor(acceptor);
-    }
+	// ******* EDUARDO END **************//
+	public void setAcceptor(Acceptor acceptor) {
+		messageHandler.setAcceptor(acceptor);
+	}
 
-    public void setTOMLayer(TOMLayer tomLayer) {
-        messageHandler.setTOMLayer(tomLayer);
-    }
+	public void setTOMLayer(TOMLayer tomLayer) {
+		messageHandler.setTOMLayer(tomLayer);
+	}
 
-    public void setRequestReceiver(RequestReceiver requestReceiver) {
-        if (clientsConn == null) {
-            clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-        }
-        clientsConn.setRequestReceiver(requestReceiver);
-    }
+	public void setRequestReceiver(RequestReceiver requestReceiver) {
+		if (clientsConn == null) {
+			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
+		}
+		clientsConn.setRequestReceiver(requestReceiver);
+	}
 
-    public void setMessageHandler(MessageHandler messageHandler) {
-        this.messageHandler = messageHandler;
-    }
+	public void setMessageHandler(MessageHandler messageHandler) {
+		this.messageHandler = messageHandler;
+	}
 
-    public MessageHandler getMessageHandler() {
-        return messageHandler;
-    }
+	public MessageHandler getMessageHandler() {
+		return messageHandler;
+	}
 
-    /**
-     * Thread method responsible for receiving messages sent by other servers.
-     */
-    @Override
-    public void run() {
+	/**
+	 * Thread method responsible for receiving messages sent by other servers.
+	 */
+	@Override
+	public void run() {
 
-        if (doWork) {
-            // 启动对应的消息队列处理器
-            for (MessageHandlerRunner runner : messageHandlerRunners) {
-                new Thread(runner, "MsgHandler-" + runner.msgType.name()).start();
-            }
-        }
+		if (doWork) {
+			// 启动对应的消息队列处理器
+			for (MessageHandlerRunner runner : messageHandlerRunners) {
+				new Thread(runner, "MsgHandler-" + runner.msgType.name()).start();
+			}
+		}
 
 //        long count = 0;
 //        while (doWork) {
@@ -157,101 +159,104 @@ public class ServerCommunicationSystem extends Thread {
 //        }
 //        java.util.logging.Logger.getLogger(ServerCommunicationSystem.class.getName()).log(Level.INFO, "ServerCommunicationSystem stopped.");
 
-    }
+	}
 
-    /**
-     * Send a message to target processes. If the message is an instance of 
-     * TOMMessage, it is sent to the clients, otherwise it is set to the
-     * servers.
-     *
-     * @param targets the target receivers of the message
-     * @param sm the message to be sent
-     */
-    public void send(int[] targets, SystemMessage sm) {
-        if (sm instanceof TOMMessage) {
-            clientsConn.send(targets, (TOMMessage) sm, false);
-        } else {
-            LOGGER.debug("--------sending----------> {}", sm);
-            serversConn.send(targets, sm, true);
-        }
-    }
+	/**
+	 * Send a message to target processes. If the message is an instance of
+	 * TOMMessage, it is sent to the clients, otherwise it is set to the servers.
+	 *
+	 * @param targets the target receivers of the message
+	 * @param sm      the message to be sent
+	 */
+	public void send(int[] targets, SystemMessage sm) {
+		if (sm instanceof TOMMessage) {
+			clientsConn.send(targets, (TOMMessage) sm, false);
+		} else if (sm instanceof LeaderRequestMessage) {
+			// 心跳请求消息不做重发处理；
+			LOGGER.debug("--------sending with no retrying----------> {}", sm);
+			serversConn.send(targets, sm, true, false);
+		} else {
+			LOGGER.debug("--------sending----------> {}", sm);
+			serversConn.send(targets, sm, true);
+		}
+	}
 
-    public void setServersConn(ServersCommunicationLayer serversConn) {
-        this.serversConn = serversConn;
-    }
+	public void setServersConn(ServersCommunicationLayer serversConn) {
+		this.serversConn = serversConn;
+	}
 
-    public ServersCommunicationLayer getServersConn() {
-        return serversConn;
-    }
-    
-    public CommunicationSystemServerSide getClientsConn() {
-        return clientsConn;
-    }
-    
-    @Override
-    public String toString() {
-        return serversConn.toString();
-    }
-    
-    public void shutdown() {
-        
-        LOGGER.info("Shutting down communication layer");
-        
-        this.doWork = false;        
-        clientsConn.shutdown();
-        serversConn.shutdown();
+	public ServersCommunicationLayer getServersConn() {
+		return serversConn;
+	}
 
-        // 关闭所有队列线程
-        for (MessageHandlerRunner runner : messageHandlerRunners) {
-            runner.shutdown();
-        }
-    }
+	public CommunicationSystemServerSide getClientsConn() {
+		return clientsConn;
+	}
 
-    /**
-     * 消息处理线程
-     */
-    private static class MessageHandlerRunner implements Runnable {
+	@Override
+	public String toString() {
+		return serversConn.toString();
+	}
 
-        /**
-         * 当前线程可处理的消息类型
-         */
-        MessageQueue.MSG_TYPE msgType;
+	public void shutdown() {
 
-        /**
-         * 消息队列
-         */
-        MessageQueue messageQueue;
+		LOGGER.info("Shutting down communication layer");
 
-        MessageHandler messageHandler;
+		this.doWork = false;
+		clientsConn.shutdown();
+		serversConn.shutdown();
 
-        boolean doWork = true;
+		// 关闭所有队列线程
+		for (MessageHandlerRunner runner : messageHandlerRunners) {
+			runner.shutdown();
+		}
+	}
 
-        public MessageHandlerRunner(MessageQueue.MSG_TYPE msgType,
-                                    MessageQueue messageQueue, MessageHandler messageHandler) {
-            this.msgType = msgType;
-            this.messageQueue = messageQueue;
-            this.messageHandler = messageHandler;
-        }
+	/**
+	 * 消息处理线程
+	 */
+	private static class MessageHandlerRunner implements Runnable {
 
-        @Override
-        public void run() {
-            while (doWork) {
-                try {
-                    SystemMessage sm = messageQueue.poll(msgType, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
+		/**
+		 * 当前线程可处理的消息类型
+		 */
+		MessageQueue.MSG_TYPE msgType;
 
-                    if (sm != null) {
-                        messageHandler.processData(sm);
-                    } else {
-                        messageHandler.verifyPending();
-                    }
-                } catch (Throwable e) {
-                    e.printStackTrace(System.err);
-                }
-            }
-        }
+		/**
+		 * 消息队列
+		 */
+		MessageQueue messageQueue;
 
-        public void shutdown() {
-            this.doWork = false;
-        }
-    }
+		MessageHandler messageHandler;
+
+		boolean doWork = true;
+
+		public MessageHandlerRunner(MessageQueue.MSG_TYPE msgType, MessageQueue messageQueue,
+				MessageHandler messageHandler) {
+			this.msgType = msgType;
+			this.messageQueue = messageQueue;
+			this.messageHandler = messageHandler;
+		}
+
+		@Override
+		public void run() {
+			while (doWork) {
+				try {
+					SystemMessage sm = messageQueue.poll(msgType, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
+
+					if (sm != null) {
+						messageHandler.processData(sm);
+					} else {
+						messageHandler.verifyPending();
+					}
+				} catch (Throwable e) {
+					e.printStackTrace(System.err);
+				}
+			}
+		}
+
+		public void shutdown() {
+			this.doWork = false;
+		}
+	}
 }

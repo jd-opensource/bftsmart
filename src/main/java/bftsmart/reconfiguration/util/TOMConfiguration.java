@@ -23,7 +23,7 @@ import java.util.StringTokenizer;
 public class TOMConfiguration extends Configuration {
 
 	private static final long serialVersionUID = 5498353004407888963L;
-	
+
 	private int n;
 	private int f;
 	private int requestTimeout;
@@ -43,6 +43,8 @@ public class TOMConfiguration extends Configuration {
 	private int outQueueSize;
 	private boolean shutdownHookEnabled;
 	private boolean useSenderThread;
+	private long sendRetryInterval;
+	private int sendRetryCount;
 	private RsaKeyLoader rsaLoader;
 	private int debug;
 	private int numNIOThreads;
@@ -80,20 +82,20 @@ public class TOMConfiguration extends Configuration {
 		super(processId, systemConfigFile, hostsConfigFile);
 		rsaLoader = new DefaultRSAKeyLoader();
 	}
-	
+
 	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome) {
 		super(processId, systemConfigFile, hostsConfigFile);
 		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
 	}
-	
+
 	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, String keystoreHome, Properties systemConfigs, HostsConfig hostConfig) {
 		super(processId, systemConfigs, hostConfig);
-		//init the rsaloader after another initialization was completed;
+		// init the rsaloader after another initialization was completed;
 		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
 	}
-	
+
 	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig) {
 		super(processId, systemConfigs, hostConfig);
@@ -101,7 +103,8 @@ public class TOMConfiguration extends Configuration {
 	}
 
 	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig, HostsConfig outerHostConfig) {
+	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig,
+			HostsConfig outerHostConfig) {
 		super(processId, systemConfigs, hostConfig);
 		this.outerHostConfig = outerHostConfig;
 		this.rsaLoader = new DefaultRSAKeyLoader();
@@ -126,7 +129,7 @@ public class TOMConfiguration extends Configuration {
 				f = (int) Math.ceil((n - 1) / 3);
 			} else {
 				f = Integer.parseInt(s);
-				//add verify by zhangshuang
+				// add verify by zhangshuang
 				if (f != ((int) Math.ceil((n - 1) / 3))) {
 					f = (int) Math.ceil((n - 1) / 3);
 				}
@@ -244,8 +247,6 @@ public class TOMConfiguration extends Configuration {
 				maxBatchSize = Integer.parseInt(s);
 			}
 
-
-
 			s = (String) configs.remove("system.totalordermulticast.replayVerificationTime");
 			if (s == null) {
 				replyVerificationTime = 0;
@@ -265,6 +266,22 @@ public class TOMConfiguration extends Configuration {
 				useSenderThread = false;
 			} else {
 				useSenderThread = Boolean.parseBoolean(s);
+			}
+
+			s = (String) configs.remove("system.communication.send.retryInterval");
+			if (s == null) {
+				// 默认2000；
+				sendRetryInterval = 2000;
+			} else {
+				sendRetryInterval = Long.parseLong(s);
+			}
+
+			s = (String) configs.remove("system.communication.send.retryCount");
+			if (s == null) {
+				// 默认2000；
+				sendRetryCount = 100;
+			} else {
+				sendRetryCount = Integer.parseInt(s);
 			}
 
 			s = (String) configs.remove("system.communication.numNIOThreads");
@@ -316,7 +333,7 @@ public class TOMConfiguration extends Configuration {
 					initialView[i] = i;
 				}
 			}
-			//bftsmart origin code
+			// bftsmart origin code
 			else {
 				StringTokenizer str = new StringTokenizer(s, ",");
 				initialView = new int[str.countTokens()];
@@ -324,7 +341,7 @@ public class TOMConfiguration extends Configuration {
 					initialView[i] = Integer.parseInt(str.nextToken());
 				}
 			}
-			
+
 			s = (String) configs.remove("system.ttp.id");
 			if (s == null) {
 				ttpId = -1;
@@ -455,7 +472,7 @@ public class TOMConfiguration extends Configuration {
 		return clientDatasMonitorTimeout;
 	}
 
-	public int getClientDatasMaxCount () {
+	public int getClientDatasMaxCount() {
 		return clientDatasMaxCount;
 	}
 
@@ -517,6 +534,24 @@ public class TOMConfiguration extends Configuration {
 
 	public boolean isUseSenderThread() {
 		return useSenderThread;
+	}
+
+	/**
+	 * 消息发送失败的重试间隔；单位为“毫秒”；
+	 * 
+	 * @return
+	 */
+	public long getSendRetryInterval() {
+		return sendRetryInterval;
+	}
+
+	/**
+	 * 消息发送失败的重试次数；
+	 * 
+	 * @return
+	 */
+	public int getSendRetryCount() {
+		return sendRetryCount;
 	}
 
 	/**
@@ -609,8 +644,7 @@ public class TOMConfiguration extends Configuration {
 	/**
 	 * Get RSAPublicKey of the specified process;
 	 * 
-	 * @param id
-	 *            the id of process;
+	 * @param id the id of process;
 	 * @return
 	 */
 	public PublicKey getRSAPublicKey(int id) {
