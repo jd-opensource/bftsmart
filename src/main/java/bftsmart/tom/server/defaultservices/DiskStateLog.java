@@ -29,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DiskStateLog extends StateLog {
 
 	private int id;
-	public static String DEFAULT_DIR = "";
+	public  String DEFAULT_DIR = "";
 
 	private static final int INT_BYTE_SIZE = 4;
 	private static final int EOF = 0;
