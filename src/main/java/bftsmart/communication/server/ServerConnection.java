@@ -60,6 +60,8 @@ public class ServerConnection {
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
+	// 重连周期
+	private static final long RECONNECT_MILL_SECONDS = 5000L;
 	public static final String MAC_ALGORITHM = "HmacMD5";
 	private static final long POOL_INTERVAL = 5000;
 	private final long RETRY_INTERVAL;
@@ -597,13 +599,20 @@ public class ServerConnection {
 	}
 
 	private void waitAndConnect() {
+		waitAndConnect(RETRY_INTERVAL);
+	}
+
+	/**
+	 * 等待指定时间
+	 *
+	 * @param timeout
+	 */
+	private void waitAndConnect(long timeout) {
 		if (doWork) {
 			try {
-				Thread.sleep(RETRY_INTERVAL);
+				Thread.sleep(timeout);
 			} catch (InterruptedException ie) {
 			}
-//等待和重连时不清楚要发送的队列；
-//            outQueue.clear();
 			reconnect(null);
 		}
 	}
@@ -724,12 +733,12 @@ public class ServerConnection {
 									"[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}",
 									remoteId);
 							closeSocket();
-							waitAndConnect();
+							waitAndConnect(RECONNECT_MILL_SECONDS);
 						}
 					}
 				} else {
 					LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
-					waitAndConnect();
+					waitAndConnect(RECONNECT_MILL_SECONDS);
 				}
 			}
 		}
