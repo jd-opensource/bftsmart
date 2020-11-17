@@ -124,9 +124,6 @@ public class MessageHandler {
 
         } else if (sm instanceof HeartBeatMessage) {
             // 心跳消息
-//            System.out.printf("(MessageHandler) node %s receive heart beat from %s , time = %s \r\n",
-//                    tomLayer.controller.getStaticConf().getProcessId(), ((HeartBeatMessage)sm).getLeader(), System.currentTimeMillis());
-
             tomLayer.heartBeatTimer.receiveHeartBeatMessage((HeartBeatMessage)sm);
         } else if (sm instanceof ViewMessage) {
             // 视图消息
@@ -143,6 +140,11 @@ public class MessageHandler {
         } else if (sm instanceof LeaderResponseMessage) {
             // 获取Leader节点请求的消息
             tomLayer.heartBeatTimer.receiveLeaderResponseMessage((LeaderResponseMessage) sm);
+        } else if (sm instanceof LeaderStatusResponseMessage) {
+            // 该处理顺序必须在前面，因为LeaderStatusResponseMessage继承自LeaderStatusRequestMessage
+            tomLayer.heartBeatTimer.receiveLeaderStatusResponseMessage((LeaderStatusResponseMessage) sm);
+        } else if (sm instanceof LeaderStatusRequestMessage) {
+            tomLayer.heartBeatTimer.receiveLeaderStatusRequestMessage((LeaderStatusRequestMessage) sm);
         } else {
             if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || sm.authenticated) {
                 /*** This is Joao's code, related to leader change */
