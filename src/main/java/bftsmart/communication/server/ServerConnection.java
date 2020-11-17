@@ -57,7 +57,7 @@ import bftsmart.tom.util.TOMUtil;
  * @author alysson
  */
 public class ServerConnection {
-
+	public static final long WAIT_RECONNECT_MILL_SECONDS = 5000;
 	public static final String MAC_ALGORITHM = "HmacMD5";
 	private static final long POOL_INTERVAL = 5000;
 	private final long RETRY_INTERVAL;
@@ -605,6 +605,21 @@ public class ServerConnection {
 		}
 	}
 
+	/**
+	 * 等待重连
+	 *
+	 * @param millSeconds
+	 */
+	private void waitAndConnect(long millSeconds) {
+		if (doWork) {
+			try {
+				Thread.sleep(millSeconds);
+			} catch (InterruptedException ie) {
+			}
+			reconnect(null);
+		}
+	}
+
 	@Override
 	public String toString() {
 		return "ServerConnection[RemoteID: " + remoteId + "]-outQueue: " + outQueue;
@@ -721,12 +736,12 @@ public class ServerConnection {
 									"[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}",
 									remoteId);
 							closeSocket();
-							waitAndConnect();
+							waitAndConnect(WAIT_RECONNECT_MILL_SECONDS);
 						}
 					}
 				} else {
 					LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
-					waitAndConnect();
+					waitAndConnect(WAIT_RECONNECT_MILL_SECONDS);
 				}
 			}
 		}
