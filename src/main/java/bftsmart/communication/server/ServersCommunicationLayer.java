@@ -49,6 +49,7 @@ import bftsmart.tom.ServiceReplica;
  * @author alysson
  */
 public class ServersCommunicationLayer extends Thread {
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayer.class);
 
 	private ServerViewController controller;
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
@@ -64,7 +65,6 @@ public class ServersCommunicationLayer extends Thread {
 	private SecretKey selfPwd;
 	private MessageQueue messageInQueue;
 	private static final String PASSWORD = "commsyst";
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayer.class);
 
 	public ServersCommunicationLayer(ServerViewController controller, MessageQueue messageInQueue,
 			ServiceReplica replica) throws Exception {
@@ -77,6 +77,8 @@ public class ServersCommunicationLayer extends Thread {
 		// Try connecting if a member of the current view. Otherwise, wait until the
 		// Join has been processed!
 		if (controller.isInCurrentView()) {
+			LOGGER.info("Start connecting to the other nodes of current view[{}]...[CurrentProcessID={}]",
+					controller.getCurrentView().getId(), controller.getStaticConf().getProcessId());
 			int[] initialV = controller.getCurrentViewAcceptors();
 			for (int i = 0; i < initialV.length; i++) {
 				if (initialV[i] != me) {
@@ -183,7 +185,7 @@ public class ServersCommunicationLayer extends Thread {
 		return ret;
 	}
 	// ******* EDUARDO END **************//
-	
+
 	public void send(int[] targets, SystemMessage sm, boolean useMAC) {
 		send(targets, sm, useMAC, true);
 	}
@@ -212,15 +214,16 @@ public class ServersCommunicationLayer extends Thread {
 					// ******* EDUARDO BEGIN **************//
 					// connections[i].send(data);
 //                    LOGGER.info("I am {}, send data to {}, which is {} !", controller.getStaticConf().getProcessId(), i, sm.getClass());
-					futures[i] = getConnection(pid).send(data, useMAC, retrySending, new CompletedCallback<byte[], Void>() {
-						@Override
-						public void onCompleted(byte[] source, Void result, Throwable error) {
-							if (error != null) {
-								LOGGER.error("Fail to send message[" + sm.getClass().getName() + "] to target proccess["
-										+ pid + "]!");
-							}
-						}
-					});
+					futures[i] = getConnection(pid).send(data, useMAC, retrySending,
+							new CompletedCallback<byte[], Void>() {
+								@Override
+								public void onCompleted(byte[] source, Void result, Throwable error) {
+									if (error != null) {
+										LOGGER.error("Fail to send message[" + sm.getClass().getName()
+												+ "] to target proccess[" + pid + "]!");
+									}
+								}
+							});
 
 					// ******* EDUARDO END **************//
 				}
@@ -231,7 +234,7 @@ public class ServersCommunicationLayer extends Thread {
 			i++;
 		}
 
-		//检查发送成功的数量；
+		// 检查发送成功的数量；
 //		for (int j = 0; j < futures.length; j++) {
 //			//阻塞等待返回；
 //			futures[i].getReturn(1000);
