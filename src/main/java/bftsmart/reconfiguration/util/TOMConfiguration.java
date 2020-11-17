@@ -42,7 +42,7 @@ public class TOMConfiguration extends Configuration {
 	private int inQueueSize;
 	private int outQueueSize;
 	private boolean shutdownHookEnabled;
-	private boolean useSenderThread;
+//	private boolean useSenderThread;
 	private long sendRetryInterval;
 	private int sendRetryCount;
 	private RsaKeyLoader rsaLoader;
@@ -261,12 +261,12 @@ public class TOMConfiguration extends Configuration {
 				numberOfNonces = Integer.parseInt(s);
 			}
 
-			s = (String) configs.remove("system.communication.useSenderThread");
-			if (s == null) {
-				useSenderThread = false;
-			} else {
-				useSenderThread = Boolean.parseBoolean(s);
-			}
+//			s = (String) configs.remove("system.communication.useSenderThread");
+//			if (s == null) {
+//				useSenderThread = true;
+//			} else {
+//				useSenderThread = Boolean.parseBoolean(s);
+//			}
 
 			s = (String) configs.remove("system.communication.send.retryInterval");
 			if (s == null) {
@@ -532,9 +532,9 @@ public class TOMConfiguration extends Configuration {
 		return outQueueSize;
 	}
 
-	public boolean isUseSenderThread() {
-		return useSenderThread;
-	}
+//	public boolean isUseSenderThread() {
+//		return useSenderThread;
+//	}
 
 	/**
 	 * 消息发送失败的重试间隔；单位为“毫秒”；

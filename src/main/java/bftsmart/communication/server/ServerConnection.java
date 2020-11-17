@@ -58,6 +58,8 @@ import bftsmart.tom.util.TOMUtil;
  */
 public class ServerConnection {
 
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
+
 	public static final String MAC_ALGORITHM = "HmacMD5";
 	private static final long POOL_INTERVAL = 5000;
 	private final long RETRY_INTERVAL;
@@ -68,7 +70,7 @@ public class ServerConnection {
 	private volatile DataOutputStream socketOutStream = null;
 	private DataInputStream socketInStream = null;
 	private int remoteId;
-	private boolean useSenderThread;
+	private final boolean useSenderThread = true;
 	private MessageQueue messageInQueue;
 	private LinkedBlockingQueue<MessageSendingTask> outQueue;// = new
 																// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
@@ -85,8 +87,6 @@ public class ServerConnection {
 	private boolean doWork = true;
 	private CountDownLatch latch = new CountDownLatch(1);
 	private ServiceReplica replica;
-
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
 	public ServerConnection(ServerViewController controller, Socket socket, int remoteId, MessageQueue messageInQueue,
 			ServiceReplica replica) {
@@ -115,9 +115,13 @@ public class ServerConnection {
 						.writeInt(this.controller.getStaticConf().getProcessId());
 
 			} catch (UnknownHostException ex) {
-				ex.printStackTrace();
+				LOGGER.error(
+						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
+						ex);
 			} catch (IOException ex) {
-				ex.printStackTrace();
+				LOGGER.error(
+						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
+						ex);
 			}
 		}
 		// else I have to wait a connection from the remote server
@@ -127,13 +131,12 @@ public class ServerConnection {
 				socketOutStream = new DataOutputStream(this.socket.getOutputStream());
 				socketInStream = new DataInputStream(this.socket.getInputStream());
 			} catch (IOException ex) {
-				LOGGER.error("Error creating connection to {}", remoteId);
-				ex.printStackTrace();
+				LOGGER.error("Error occurred while creating connection to {}", remoteId);
 			}
 		}
 
 		// ******* EDUARDO BEGIN **************//
-		this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
+//		this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
 		this.RETRY_INTERVAL = this.controller.getStaticConf().getSendRetryInterval();
 		this.RETRY_COUNT = this.controller.getStaticConf().getSendRetryCount();
 
