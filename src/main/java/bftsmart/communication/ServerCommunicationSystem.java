@@ -188,6 +188,10 @@ public class ServerCommunicationSystem extends Thread {
 			// 视图消息
 			LOGGER.debug("--------sending view message with no retrying----------> {}", sm);
 			serversConn.send(targets, sm, true, false);
+		} else if (sm instanceof LCMessage) {
+		    // 领导者切换相关消息
+			LOGGER.debug("--------sending leader change message with no retrying----------> {}", sm);
+			serversConn.send(targets, sm, true, false);
 		} else {
 			LOGGER.debug("--------sending with retrying----------> {}", sm);
 			serversConn.send(targets, sm, true);
