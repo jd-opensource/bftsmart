@@ -138,7 +138,11 @@ public final class Acceptor {
         } else {
 //            LOGGER.debug("out of context msg with id " + msg.getNumber());
             LOGGER.debug("out of context msg with id {}", msg.getNumber());
-            tomLayer.processOutOfContext();
+            // if without this condition, lastExec maybe inconsistent
+            if (!tomLayer.getStateManager().isRetrievingState()) {
+                tomLayer.processOutOfContext();
+                tomLayer.processOutOfContextWriteAndAccept();
+            }
         }
     }
 

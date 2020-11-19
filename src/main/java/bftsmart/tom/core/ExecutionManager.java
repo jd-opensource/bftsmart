@@ -318,6 +318,22 @@ public final class ExecutionManager {
     }
 
     /**
+     * Informs if there are messages till to be processed associated the specified consensus
+     * @param cid The ID for the consensus in question
+     * @return True if there are still messages to be processed, false otherwise
+     */
+    public boolean receivedOutOfContextWriteAndAccept(int cid) {
+        outOfContextLock.lock();
+        /******* BEGIN OUTOFCONTEXT CRITICAL SECTION *******/
+        boolean result = outOfContext.get(cid) != null;
+        /******* END OUTOFCONTEXT CRITICAL SECTION *******/
+        outOfContextLock.unlock();
+
+        return result;
+    }
+
+
+    /**
      * Removes a consensus from this manager, use when rolling back
      * @param id ID of the consensus to be removed
      * @return void
@@ -481,6 +497,14 @@ public final class ExecutionManager {
             acceptor.processMessage(prop);
         }
 
+        /******* END OUTOFCONTEXT CRITICAL SECTION *******/
+        outOfContextLock.unlock();
+    }
+
+    public void processOutOfContextWriteAndAccept(Consensus consensus) {
+        outOfContextLock.lock();
+        /******* BEGIN OUTOFCONTEXT CRITICAL SECTION *******/
+        processOutOfContext(consensus);
         /******* END OUTOFCONTEXT CRITICAL SECTION *******/
         outOfContextLock.unlock();
     }
