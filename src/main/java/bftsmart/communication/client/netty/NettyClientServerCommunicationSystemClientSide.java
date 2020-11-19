@@ -61,7 +61,12 @@ import java.util.logging.Level;
 @Sharable
 public class NettyClientServerCommunicationSystemClientSide extends SimpleChannelInboundHandler<TOMMessage> implements CommunicationSystemClientSide {
 
-    private static final int RECONNECT_SECONDS = 20;
+    private static final int DEFAULT_THREAD_SIZE = 1;
+
+    private static final int RECONNECT_SECONDS = 30;
+
+    private static final int CONNECT_TIME_OUT = 5000;
+
     private int clientId;
     protected ReplyReceiver trr;
     //******* EDUARDO BEGIN **************//
@@ -84,7 +89,8 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         super();
 
         this.clientId = clientId;
-        this.workerGroup = new NioEventLoopGroup();
+        // 使用单线程即可，因为对于每个连接具有时序性的要求
+        this.workerGroup = new NioEventLoopGroup(DEFAULT_THREAD_SIZE);
         try {
             SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
 
@@ -110,10 +116,10 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     Bootstrap b = new Bootstrap();
                     b.group(workerGroup);
                     b.channel(NioSocketChannel.class);
-                    b.option(ChannelOption.SO_REUSEADDR, true);
+//                    b.option(ChannelOption.SO_REUSEADDR, true);
                     b.option(ChannelOption.SO_KEEPALIVE, true);
                     b.option(ChannelOption.TCP_NODELAY, true);
-                    b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,10000);
+                    b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIME_OUT);
 
                     b.handler(getChannelInitializer());
 
@@ -138,7 +144,6 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     if (!future.isSuccess()) {
                             LOGGER.error("Impossible to connect to {}", currV[i]);
                     }
-
                 } catch (NullPointerException ex) {
                         //What the fuck is this??? This is not possible!!!
                         LOGGER.error("Should fix the problem, and I think it has no other implications :-), "
@@ -181,7 +186,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         b.channel(NioSocketChannel.class);
                         b.option(ChannelOption.SO_KEEPALIVE, true);
                         b.option(ChannelOption.TCP_NODELAY, true);
-                        b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,10000);
+                        b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIME_OUT);
 
                         b.handler(getChannelInitializer());
 
@@ -239,11 +244,8 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, TOMMessage sm) throws Exception {
-
         if(closed){
-
             closeChannelAndEventLoop(ctx.channel());
-
             return;
         }
         trr.replyReceived(sm);
@@ -251,70 +253,65 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-
         if(closed){
-
             closeChannelAndEventLoop(ctx.channel());
-
             return;
         }
-
         LOGGER.debug("Channel active");
     }
 
     public void reconnect(final ChannelHandlerContext ctx){
-
         rl.writeLock().lock();
-    	LOGGER.info("try to reconnect");
+        try {
+            LOGGER.info("try to reconnect");
+            //Iterator sessions = sessionTable.values().iterator();
+            ArrayList<NettyClientServerSession> sessions = new ArrayList<NettyClientServerSession>(sessionTable.values());
+            for (NettyClientServerSession ncss : sessions) {
+                if (ncss.getChannel() == ctx.channel()) {
+                    LOGGER.info("I will reconnect with consensus server !");
+                    try {
+                        // Configure the client.
+                        //EventLoopGroup workerGroup = ctx.channel().eventLoop();
+                        if( workerGroup == null){
+                            workerGroup = new NioEventLoopGroup();
+                        }
 
-        //Iterator sessions = sessionTable.values().iterator();
+                        //try {
+                        Bootstrap b = new Bootstrap();
+                        b.group(workerGroup);
+                        b.channel(NioSocketChannel.class);
+                        b.option(ChannelOption.SO_KEEPALIVE, true);
+                        b.option(ChannelOption.TCP_NODELAY, true);
+                        b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIME_OUT);
 
-        ArrayList<NettyClientServerSession> sessions = new ArrayList<NettyClientServerSession>(sessionTable.values());
-        for (NettyClientServerSession ncss : sessions) {
-            if (ncss.getChannel() == ctx.channel()) {
-                try {
-                    // Configure the client.
-                    //EventLoopGroup workerGroup = ctx.channel().eventLoop();
-                    if( workerGroup == null){
-                        workerGroup = new NioEventLoopGroup();
+                        b.handler(getChannelInitializer());
+                        if (controller.getRemoteAddress(ncss.getReplicaId()) != null) {
+                            ChannelFuture future = b.connect(controller.getRemoteSocketAddress(ncss.getReplicaId()));
+                            //creates MAC stuff
+                            Mac macSend = ncss.getMacSend();
+                            Mac macReceive = ncss.getMacReceive();
+                            NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, ncss.getReplicaId());
+                            sessionTable.remove(ncss.getReplicaId());
+                            sessionTable.put(ncss.getReplicaId(), cs);
+                            LOGGER.info("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
+                        } else {
+                            LOGGER.warn("can not found remote[{}] from session table !", ncss.getReplicaId());
+                            // This cleans an olde server from the session table
+                            sessionTable.remove(ncss.getReplicaId());
+                        }
+                    } catch (NoSuchAlgorithmException ex) {
+                        ex.printStackTrace();
                     }
-
-                    //try {
-                    Bootstrap b = new Bootstrap();
-                    b.group(workerGroup);
-                    b.channel(NioSocketChannel.class);
-                    b.option(ChannelOption.SO_KEEPALIVE, true);
-                    b.option(ChannelOption.TCP_NODELAY, true);
-                    b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,5000);
-
-                    b.handler(getChannelInitializer());
-
-                    if (controller.getRemoteAddress(ncss.getReplicaId()) != null) {
-
-                        ChannelFuture future = b.connect(controller.getRemoteSocketAddress(ncss.getReplicaId()));
-                        //creates MAC stuff
-                        Mac macSend = ncss.getMacSend();
-                        Mac macReceive = ncss.getMacReceive();
-                        NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, ncss.getReplicaId());
-                        sessionTable.remove(ncss.getReplicaId());
-                        sessionTable.put(ncss.getReplicaId(), cs);
-                        LOGGER.info("re-connecting to replica {} at {}", ncss.getReplicaId(), controller.getRemoteAddress(ncss.getReplicaId()));
-                    } else {
-                        // This cleans an olde server from the session table
-                        sessionTable.remove(ncss.getReplicaId());
-                    }
-                } catch (NoSuchAlgorithmException ex) {
-                    ex.printStackTrace();
                 }
             }
-        }
-
-        //closes all other channels to avoid messages being sent to only a subset of the replicas
+            //closes all other channels to avoid messages being sent to only a subset of the replicas
         /*Enumeration sessionElements = sessionTable.elements();
         while (sessionElements.hasMoreElements()){
             ((NettyClientServerSession) sessionElements.nextElement()).getChannel().close();
         }*/
-        rl.writeLock().unlock();
+        } finally {
+            rl.writeLock().unlock();
+        }
     }
 
     @Override
@@ -324,14 +321,9 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     @Override
     public void send(boolean sign, int[] targets, TOMMessage sm) {
-
-
         listener.waitForChannels(targets.length); // wait for the previous transmission to complete
-
         LOGGER.debug("Sending request from {} with sequence number {} to {}", sm.getSender(), sm.getSequence(), Arrays.toString(targets));
-
         if (sm.serializedMessage == null) {
-
             //serialize message
             DataOutputStream dos = null;
             try {
