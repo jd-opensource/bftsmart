@@ -632,6 +632,14 @@ public class TOMLayer extends Thread implements RequestReceiver {
         }
     }
 
+    public void processOutOfContextWriteAndAccept() {
+        for (int nextConsensus = getLastExec() + 1;
+             execManager.receivedOutOfContextWriteAndAccept(nextConsensus); ) {
+            execManager.processOutOfContextWriteAndAccept(execManager.getConsensus(nextConsensus));
+        }
+    }
+
+
     public StateManager getStateManager() {
         return stateManager;
     }
