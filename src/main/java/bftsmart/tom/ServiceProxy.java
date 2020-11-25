@@ -58,6 +58,7 @@ public class ServiceProxy extends TOMSender {
 	private int replyServer;
 	private HashResponseController hashResponseController;
 	private int invokeUnorderedHashedTimeout = 10;
+	private boolean viewObsolete = false;
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceProxy.class);
 
 	/**
@@ -252,6 +253,7 @@ public class ServiceProxy extends TOMSender {
 						LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
 						LOGGER.error("Replies received: {}", receivedReplies);
 						LOGGER.error("Replies quorum: {}", replyQuorum);
+						checkReplyNum(receivedReplies, replyQuorum);
 						return null;
 					}
 				}
@@ -325,6 +327,19 @@ public class ServiceProxy extends TOMSender {
 		}
 	}
 
+	private void checkReplyNum(int receivedReplies, int replyQuorum) {
+		LOGGER.info("checkReplyNum, receivedReplies = {}, replyQuorum = {}, viewObsolete = {}", receivedReplies, replyQuorum, viewObsolete);
+		if (receivedReplies > 0 && receivedReplies < replyQuorum && viewObsolete) {
+			LOGGER.info("################################################################################################################################");
+			LOGGER.info("########Consensus Client Recv Reply Num Is Not Satisfy Quorum, Client View Is Obsolete, Please Try To Re-auth Peer Node!########");
+			LOGGER.info("################################################################################################################################");
+		} else if (receivedReplies == 0) {
+			LOGGER.info("####################################################################################################################################################");
+			LOGGER.info("########Consensus Client Recv Reply Num Is 0, Client View Is Serious Obsolete or Consensus Node Block, Please Restart All Nodes And Gateway!########");
+			LOGGER.info("####################################################################################################################################################");
+		}
+	}
+
 	// ******* EDUARDO BEGIN **************//
 	protected void reconfigureTo(View v) {
 		LOGGER.debug("Installing a most up-to-date view with id {}", v.getId());
@@ -371,6 +386,9 @@ public class ServiceProxy extends TOMSender {
 					}
 
 				} else {
+					if (this.getViewManager().getCurrentView().getId() < reply.getViewID()) {
+						viewObsolete = true;
+					}
 					if (replies[pos] == null) {
 						receivedReplies++;
 					}
@@ -387,6 +405,7 @@ public class ServiceProxy extends TOMSender {
 							if (sameContent >= replyQuorum) {
 								response = extractor.extractResponse(replies, sameContent, pos);
 								reqId = -1;
+								viewObsolete = false;
 								this.sm.release(); // resumes the thread that is executing the "invoke" method
 								return;
 							}
@@ -398,22 +417,26 @@ public class ServiceProxy extends TOMSender {
 					if (requestType.equals(TOMMessageType.ORDERED_REQUEST)) {
 						if (receivedReplies == getViewManager().getCurrentViewN()) {
 							reqId = -1;
+							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
 					} else if (requestType.equals(TOMMessageType.UNORDERED_HASHED_REQUEST)) {
 						if (hashResponseController.getNumberReplies() == getViewManager().getCurrentViewN()) {
 							reqId = -1;
+							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
 					} else if (requestType.equals(TOMMessageType.UNORDERED_REQUEST)) {
 						// UNORDERED 消息
 						if (receivedReplies == getViewManager().getCurrentViewN()) {
 							reqId = -1;
+							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
 					} else { // OTHER
 						if (receivedReplies != sameContent) {
 							reqId = -1;
+							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
 					}
