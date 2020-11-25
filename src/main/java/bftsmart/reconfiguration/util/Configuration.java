@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.reconfiguration.util;
 
 import bftsmart.reconfiguration.views.NodeNetwork;
+import bftsmart.reconfiguration.views.NullNodeNetwork;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -203,7 +204,11 @@ public class Configuration implements Serializable{
 //	}
 
 	public final NodeNetwork getRemoteAddress(int id) {
-		return hostsConfig.getRemoteAddress(id);
+		if (hostsConfig.getRemoteAddress(id) != null) {
+			return hostsConfig.getRemoteAddress(id);
+		} else {
+			return new NullNodeNetwork();
+		}
 	}
 
 	public final NodeNetwork getServerToServerRemoteAddress(int id) {

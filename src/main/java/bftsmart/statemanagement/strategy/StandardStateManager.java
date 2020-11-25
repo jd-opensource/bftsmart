@@ -411,12 +411,18 @@ public class StandardStateManager extends BaseStateManager {
     }
 
 	@Override
-	public void currentConsensusIdAsked(int sender) {
-        LOGGER.info("I will handle currentConsensusIdAsked");
+	public void currentConsensusIdAsked(int sender, int viewId) {
+        LOGGER.info("I will handle currentConsensusIdAsked sender = {}!", sender);
+
+        if (viewId < this.SVController.getCurrentView().getId()) {
+            LOGGER.info("#################################################################################################################################################");
+            LOGGER.info("################I Am New View Owner, Notice View Backward, Please State Transfer Requester Copy Ledger Database And Restart!#####################");
+            LOGGER.info("#################################################################################################################################################");
+        }
 		int me = SVController.getStaticConf().getProcessId();
 		int lastConsensusId = tomLayer.getLastExec();
 		LOGGER.info("I wiil send consensusId = {} !", lastConsensusId);
-		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, null, 0, 0);
+		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.SVController.getCurrentView(), 0, 0);
 		tomLayer.getCommunication().send(new int[]{sender}, currentCID);
 	}
 	

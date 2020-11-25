@@ -134,8 +134,11 @@ public class ServersCommunicationLayer extends Thread {
 	public SecretKey getSecretKey(int id) {
 		if (id == controller.getStaticConf().getProcessId())
 			return selfPwd;
-		else
-			return connections.get(id).getSecretKey();
+		else if (connections.get(id) != null) {
+				return connections.get(id).getSecretKey();
+		}
+
+		return null;
 	}
 
 	// ******* EDUARDO BEGIN **************//

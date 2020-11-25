@@ -858,11 +858,14 @@ public class LCManager {
                 byte[] myMAC = null;
                                 
                 secretKey = tomLayer.getCommunication().getServersConn().getSecretKey(consMsg.getSender());
-                try {
-                    this.mac.init(secretKey);                   
-                   myMAC = this.mac.doFinal(data);
-                } catch (InvalidKeyException ex) {
-                    ex.printStackTrace();
+
+                if (secretKey != null) {
+                    try {
+                        this.mac.init(secretKey);
+                        myMAC = this.mac.doFinal(data);
+                    } catch (InvalidKeyException ex) {
+                        ex.printStackTrace();
+                    }
                 }
             
                 if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC) &&

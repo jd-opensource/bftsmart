@@ -190,7 +190,7 @@ public class MessageHandler {
                             tomLayer.getStateManager().SMReplyDeliver(smsg, tomLayer.controller.getStaticConf().isBFT());
                             break;
                         case TOMUtil.SM_ASK_INITIAL:
-                            tomLayer.getStateManager().currentConsensusIdAsked(smsg.getSender());
+                            tomLayer.getStateManager().currentConsensusIdAsked(smsg.getSender(), smsg.getView().getId());
                             break;
                         case TOMUtil.SM_REPLY_INITIAL:
                             tomLayer.getStateManager().currentConsensusIdReceived(smsg);
