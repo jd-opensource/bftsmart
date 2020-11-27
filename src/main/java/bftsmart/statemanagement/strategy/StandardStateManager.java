@@ -415,9 +415,9 @@ public class StandardStateManager extends BaseStateManager {
         LOGGER.info("I will handle currentConsensusIdAsked sender = {}!", sender);
 
         if (viewId < this.SVController.getCurrentView().getId()) {
-            LOGGER.info("#################################################################################################################################################");
-            LOGGER.info("################I Am New View Owner, Notice View Backward, Please State Transfer Requester Copy Ledger Database And Restart!#####################");
-            LOGGER.info("#################################################################################################################################################");
+            LOGGER.info("#######################################################################################################################################################");
+            LOGGER.info("################State Transfer Requester View Is Obsolete, If Block Exist Diff, Please Requester Copy Ledger Database And Restart!#####################");
+            LOGGER.info("#######################################################################################################################################################");
         }
 		int me = SVController.getStaticConf().getProcessId();
 		int lastConsensusId = tomLayer.getLastExec();

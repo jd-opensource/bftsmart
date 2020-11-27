@@ -77,7 +77,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     //the signature engine used in the system
     private Signature signatureEngine;
     private int signatureLength;
-    private boolean closed = false;
+    private volatile boolean closed = false;
 
     private EventLoopGroup workerGroup;
 

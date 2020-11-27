@@ -62,7 +62,7 @@ public abstract class BaseStateManager implements StateManager {
 
     protected volatile boolean doWork = true;
 
-    protected int STATETRANSFER_RETRY_COUNT = 40;
+    protected int STATETRANSFER_RETRY_COUNT = 50;
 
     private HashMap<Integer, Integer> senderCIDs = null;
 
@@ -223,9 +223,9 @@ public abstract class BaseStateManager implements StateManager {
             try {
                 Thread.sleep(1500);
                 if (++counter > STATETRANSFER_RETRY_COUNT) {
-                    LOGGER.info("######################################################################################################################################");
-                    LOGGER.info("################State Transfer No Reply, Notice Requester View Backward, Please Copy Ledger Database And Restart!#####################");
-                    LOGGER.info("######################################################################################################################################");
+                    LOGGER.info("###############################################################################################################################################################");
+                    LOGGER.info("################State Transfer No Replier, Maybe Requester View Is Obsolete, If Block Exist Diff, Please Copy Ledger Database And Restart!#####################");
+                    LOGGER.info("###############################################################################################################################################################");
                     break;
                 }
             } catch (InterruptedException e) {
@@ -238,9 +238,9 @@ public abstract class BaseStateManager implements StateManager {
     public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I will handle currentConsensusIdAsked, sender = {} !", sender);
         if (viewId < this.SVController.getCurrentView().getId()) {
-            LOGGER.info("#################################################################################################################################################");
-            LOGGER.info("################I Am New View Owner, Notice View Backward, Please State Transfer Requester Copy Ledger Database And Restart!#####################");
-            LOGGER.info("#################################################################################################################################################");
+            LOGGER.info("#######################################################################################################################################################");
+            LOGGER.info("################State Transfer Requester View Is Obsolete, If Block Exist Diff, Please Requester Copy Ledger Database And Restart!#####################");
+            LOGGER.info("#######################################################################################################################################################");
         }
         int me = SVController.getStaticConf().getProcessId();
         int lastConsensusId = tomLayer.getLastExec();
@@ -317,9 +317,9 @@ public abstract class BaseStateManager implements StateManager {
     private void checkViewInfo(int currViewId, HashMap<Integer, Integer> senderVids) {
         for (int sender : senderVids.keySet()) {
             if (currViewId < senderVids.get(sender)) {
-                LOGGER.info("####################################################################################################################");
-                LOGGER.info("################Check View Info, Notice View Backward, Please Copy Ledger Database And Restart!#####################");
-                LOGGER.info("####################################################################################################################");
+                LOGGER.info("#############################################################################################################################################");
+                LOGGER.info("################Check View Info, Current View Is Obsolete, If Block Exist Diff, Please Copy Ledger Database And Restart!#####################");
+                LOGGER.info("#############################################################################################################################################");
                 break;
             }
         }
