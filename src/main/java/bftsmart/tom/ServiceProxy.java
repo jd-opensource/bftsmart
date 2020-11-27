@@ -259,7 +259,7 @@ public class ServiceProxy extends TOMSender {
 						LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
 						LOGGER.error("Replies received: {}", receivedReplies);
 						LOGGER.error("Replies quorum: {}", replyQuorum);
-						checkReplyNum(receivedReplies, replyQuorum);
+						checkReplyNum(reqType, receivedReplies, replyQuorum);
 						return null;
 					}
 				}
@@ -336,17 +336,19 @@ public class ServiceProxy extends TOMSender {
 		}
 	}
 
-	private void checkReplyNum(int receivedReplies, int replyQuorum) {
-		LOGGER.info("checkReplyNum, receivedReplies = {}, replyQuorum = {}, viewObsolete = {}", receivedReplies, replyQuorum, viewObsolete);
-		if (receivedReplies > 0 && receivedReplies < replyQuorum && viewObsolete) {
-			LOGGER.info("################################################################################################################################");
-			LOGGER.info("########Consensus Client Recv Reply Num Is Not Satisfy Quorum, Client View Is Obsolete, Please Try To Re-auth Peer Node!########");
-			LOGGER.info("################################################################################################################################");
-			throw new ViewObsoleteException("Consensus Client View Obsolete, Please Try To Re Conn!");
-		} else if (receivedReplies == 0) {
-			LOGGER.info("####################################################################################################################################################");
-			LOGGER.info("########Consensus Client Recv Reply Num Is 0, Client View Is Serious Obsolete or Consensus Node Block, Please Restart All Nodes And Gateway!########");
-			LOGGER.info("####################################################################################################################################################");
+	private void checkReplyNum(TOMMessageType reqType, int receivedReplies, int replyQuorum) {
+		if (reqType == TOMMessageType.ORDERED_REQUEST) {
+			LOGGER.info("checkReplyNum, receivedReplies = {}, replyQuorum = {}, viewObsolete = {}", receivedReplies, replyQuorum, viewObsolete);
+			if (receivedReplies > 0 && receivedReplies < replyQuorum && viewObsolete) {
+				LOGGER.info("################################################################################################################################");
+				LOGGER.info("########Consensus Client Recv Reply Num Is Not Satisfy Quorum, Client View Is Obsolete, Please Try To Re-auth Peer Node!########");
+				LOGGER.info("################################################################################################################################");
+				throw new ViewObsoleteException("Consensus Client View Obsolete, Please Try To Re Conn!");
+			} else if (receivedReplies == 0) {
+				LOGGER.info("####################################################################################################################################################");
+				LOGGER.info("########Consensus Client Recv Reply Num Is 0, Client View Is Serious Obsolete or Consensus Node Block, Please Restart All Nodes And Gateway!########");
+				LOGGER.info("####################################################################################################################################################");
+			}
 		}
 	}
 
