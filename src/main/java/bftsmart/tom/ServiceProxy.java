@@ -23,6 +23,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.TOMUtil;
+import com.jd.blockchain.utils.exception.ViewObsoleteException;
 import org.slf4j.LoggerFactory;
 
 import java.security.NoSuchAlgorithmException;
@@ -176,7 +177,12 @@ public class ServiceProxy extends TOMSender {
 	}
 
 	public byte[] invokeOrdered(byte[] request) {
-		return invoke(request, TOMMessageType.ORDERED_REQUEST);
+		try {
+			return invoke(request, TOMMessageType.ORDERED_REQUEST);
+		} catch (ViewObsoleteException voe) {
+		    close();
+			throw voe;
+		}
 	}
 
 	public byte[] invokeUnordered(byte[] request) {
@@ -257,7 +263,10 @@ public class ServiceProxy extends TOMSender {
 						return null;
 					}
 				}
-			} catch (InterruptedException ex) {
+			} catch (ViewObsoleteException voe) {
+				throw voe;
+			}
+			catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
 
@@ -333,6 +342,7 @@ public class ServiceProxy extends TOMSender {
 			LOGGER.info("################################################################################################################################");
 			LOGGER.info("########Consensus Client Recv Reply Num Is Not Satisfy Quorum, Client View Is Obsolete, Please Try To Re-auth Peer Node!########");
 			LOGGER.info("################################################################################################################################");
+			throw new ViewObsoleteException("Consensus Client View Obsolete, Please Try To Re Conn!");
 		} else if (receivedReplies == 0) {
 			LOGGER.info("####################################################################################################################################################");
 			LOGGER.info("########Consensus Client Recv Reply Num Is 0, Client View Is Serious Obsolete or Consensus Node Block, Please Restart All Nodes And Gateway!########");
