@@ -45,7 +45,7 @@ public class ServiceProxy extends TOMSender {
 	protected ReentrantLock canReceiveLock = new ReentrantLock();
 	protected ReentrantLock canSendLock = new ReentrantLock();
 	private Semaphore sm = new Semaphore(0);
-	private int reqId = -1; // request id
+	private volatile int reqId = -1; // request id
 	private int operationId = -1; // request id
 	private TOMMessageType requestType;
 	private int replyQuorum = 0; // size of the reply quorum
@@ -240,7 +240,7 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.debug("Sending request {} with reqId {}", reqType, reqId);
+			LOGGER.info("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
 			// This instruction blocks the thread, until a response is obtained.
@@ -370,28 +370,36 @@ public class ServiceProxy extends TOMSender {
 	 */
 	@Override
 	public void replyReceived(TOMMessage reply) {
-		LOGGER.debug("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
+//		if (reply.getReqType() == TOMMessageType.UNORDERED_REQUEST) {
+			LOGGER.info("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
+//		}
 		canReceiveLock.lock();
 		try {
 			if (reqId == -1) {// no message being expected
-				LOGGER.debug("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
+				LOGGER.info("throwing out request: sender {}, reqId {}, hash = {}", reply.getSender(), reply.getSequence(), this.hashCode());
 				return;
 			}
 
 			int pos = getViewManager().getCurrentViewPos(reply.getSender());
 
 			if (pos < 0) { // ignore messages that don't come from replicas
+//				if (reply.getReqType() == TOMMessageType.UNORDERED_REQUEST) {
+					LOGGER.info("received reply from sender {}", reply.getSender());
+//				}
 				return;
 			}
 
 			int sameContent = 1;
 			if (reply.getSequence() == reqId && reply.getReqType() == requestType) {
 
-				LOGGER.debug("I am proc {}, Receiving reply from {} with reqId {}. Putting on pos {}", this.getProcessId(), reply.getSender(), reply.getSequence(), pos);
+//				if (reply.getReqType() == TOMMessageType.UNORDERED_REQUEST) {
+					LOGGER.info("I am proc {}, Receiving reply from {} with reqId {}. Putting on pos {}", this.getProcessId(), reply.getSender(), reply.getSequence(), pos);
+//				}
 
 				if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 					response = hashResponseController.getResponse(pos, reply);
 					if (response != null) {
+						LOGGER.info("set reqid = -1, aaaaaa");
 						reqId = -1;
 						this.sm.release(); // resumes the thread that is executing the "invoke" method
 						return;
@@ -409,13 +417,22 @@ public class ServiceProxy extends TOMSender {
 					// Compare the reply just received, to the others
 
 					for (int i = 0; i < replies.length; i++) {
+//						if (reply.getReqType() == TOMMessageType.UNORDERED_REQUEST) {
+							LOGGER.info("for start , sender = {}", reply.getSender());
+//						}
 
 						if ((i != pos || getViewManager().getCurrentViewN() == 1) && replies[i] != null
 								&& (comparator.compare(replies[i].getContent(), reply.getContent()) == 0)) {
 							sameContent++;
-							LOGGER.info("sameContent = {}, replyQuorum = {}, request type = {}", sameContent, replyQuorum, replies[i].getReqType());
+//							if (reply.getReqType() == TOMMessageType.UNORDERED_REQUEST) {
+								LOGGER.info("sameContent = {}, replyQuorum = {}, request type = {}", sameContent, replyQuorum, replies[i].getReqType());
+//							}
 							if (sameContent >= replyQuorum) {
+//								if (reply.getReqType() == TOMMessageType.UNORDERED_REQUEST) {
+									LOGGER.info("satisfy qurom!");
+//								}
 								response = extractor.extractResponse(replies, sameContent, pos);
+								LOGGER.info("set reqid = -1, bbbbbbb, hash={}", this.hashCode());
 								reqId = -1;
 								viewObsolete = false;
 								this.sm.release(); // resumes the thread that is executing the "invoke" method
@@ -428,12 +445,14 @@ public class ServiceProxy extends TOMSender {
 				if (response == null) {
 					if (requestType.equals(TOMMessageType.ORDERED_REQUEST)) {
 						if (receivedReplies == getViewManager().getCurrentViewN()) {
+							LOGGER.info("set reqid = -1, ccccccc");
 							reqId = -1;
 							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
 					} else if (requestType.equals(TOMMessageType.UNORDERED_HASHED_REQUEST)) {
 						if (hashResponseController.getNumberReplies() == getViewManager().getCurrentViewN()) {
+							LOGGER.info("set reqid = -1, ddddddd");
 							reqId = -1;
 							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
@@ -441,12 +460,14 @@ public class ServiceProxy extends TOMSender {
 					} else if (requestType.equals(TOMMessageType.UNORDERED_REQUEST)) {
 						// UNORDERED 消息
 						if (receivedReplies == getViewManager().getCurrentViewN()) {
+							LOGGER.info("set reqid = -1, eeeeeeeee");
 							reqId = -1;
 							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
 					} else { // OTHER
 						if (receivedReplies != sameContent) {
+							LOGGER.info("set reqid = -1, ffffffff");
 							reqId = -1;
 							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
