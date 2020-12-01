@@ -379,6 +379,7 @@ public class StandardStateManager extends BaseStateManager {
     }
 
     private void updateHostConfig(View currentView) {
+        LOGGER.info("State transfer, update host config!");
         for (int procId : currentView.getProcesses()) {
             NodeNetwork nodeNetwork = currentView.getAddress(procId);
             if (nodeNetwork != null) {

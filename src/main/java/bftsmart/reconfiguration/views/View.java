@@ -97,7 +97,11 @@ public class View implements Serializable {
  	public NodeNetwork getAddress(int id) {
  		return addresses.get(id);
  	}
-        
+
+ 	public void setAddresses(int id, NodeNetwork nodeNetwork) {
+ 		addresses.put(id, nodeNetwork);
+	}
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof View) {

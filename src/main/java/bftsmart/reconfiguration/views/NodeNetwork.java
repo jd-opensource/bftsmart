@@ -1,5 +1,8 @@
 package bftsmart.reconfiguration.views;
 
+import bftsmart.tom.core.ViewSyncTimer;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 
 /**
@@ -7,6 +10,8 @@ import java.io.Serializable;
  *
  */
 public class NodeNetwork implements Serializable {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(NodeNetwork.class);
 
     /**
      * 域名
@@ -56,6 +61,7 @@ public class NodeNetwork implements Serializable {
     }
 
     public void setMonitorPort(int monitorPort) {
+        LOGGER.info("host[{}] setMonitorPort-> {} !", host, monitorPort);
         this.monitorPort = monitorPort;
     }
 

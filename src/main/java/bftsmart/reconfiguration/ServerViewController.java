@@ -364,7 +364,11 @@ public class ServerViewController extends ViewController {
 
 	@Override
 	public final void reconfigureTo(View newView) {
+		int processId = this.getStaticConf().getProcessId();
+		NodeNetwork localNodeNetwork = this.getCurrentView().getAddress(processId);
 		this.currentView = newView;
+		this.currentView.setAddresses(processId, localNodeNetwork);
+		LOGGER.info("I am {}, my new current view = {} !!!", processId, this.currentView);
 		getViewStore().storeView(this.currentView);
 		if (newView.isMember(getStaticConf().getProcessId())) {
 			// membro da view atual
