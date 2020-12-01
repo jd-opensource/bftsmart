@@ -40,8 +40,8 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 	private ClientViewController viewController;
 
 	private int session = 0; // session id
-	private int sequence = 0; // sequence number
-	private int unorderedMessageSequence = 0; // sequence number for readonly messages
+	private AtomicInteger sequence = new AtomicInteger(0); // sequence number
+	private AtomicInteger unorderedMessageSequence = new AtomicInteger(0); // sequence number for readonly messages
 	private CommunicationSystemClientSide cs; // Client side comunication system
 	private Lock lock = new ReentrantLock(); // lock to manage concurrent access to this object by other threads
 	private boolean useSignatures = false;
@@ -104,14 +104,14 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 		return me;
 	}
 
-	public int generateRequestId(TOMMessageType type) {
-		lock.lock();
+	protected int generateRequestId(TOMMessageType type) {
+//		lock.lock();
 		int id;
 		if(type == TOMMessageType.ORDERED_REQUEST || type == TOMMessageType.RECONFIG)
-			id = sequence++;
+			id = sequence.getAndIncrement();
 		else
-			id = unorderedMessageSequence++; 
-		lock.unlock();
+			id = unorderedMessageSequence.getAndIncrement(); 
+//		lock.unlock();
 
 		return id;
 	}
