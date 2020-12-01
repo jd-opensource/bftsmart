@@ -48,6 +48,7 @@ public class ViewSyncTimer {
                 View view = tomLayer.controller.getCurrentView();
                 ViewMessage viewMessage = new ViewMessage(processId, view);
                 int[] otherAcceptors = tomLayer.controller.getCurrentViewOtherAcceptors();
+                LOGGER.info("I am {}, my view -> {} !", processId, view);
                 for (int id : otherAcceptors) {
                     LOGGER.info("I am {}, send view message to {} !", processId, id);
                 }
@@ -76,6 +77,7 @@ public class ViewSyncTimer {
          */
         lock.lock();
         try {
+            LOGGER.info("I am {}, start update view from [{}] !!!", processId, remoteId);
             View localView = tomLayer.controller.getCurrentView();
             Map<Integer, NodeNetwork> localViewAddresses = localView.getAddresses();
             // 获取远端的地址列表
@@ -104,6 +106,8 @@ public class ViewSyncTimer {
                             }
                         }
                     }
+                } else {
+                    LOGGER.warn("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
                 }
             }
         } finally {

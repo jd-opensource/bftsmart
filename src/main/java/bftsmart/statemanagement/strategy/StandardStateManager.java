@@ -19,6 +19,7 @@ import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
+import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.SMMessage;
@@ -312,9 +313,11 @@ public class StandardStateManager extends BaseStateManager {
                         
                         tomLayer.processOutOfContext();
                         
-                        if (SVController.getCurrentViewId() != currentView.getId()) {
+                        if (SVController.getCurrentViewId() <= currentView.getId()) {
                             LOGGER.info("Installing current view!");
+                            // 当通过交易重放回补落后区块时，不仅要更新本地视图，还需要同时更新本地的hostconfig
                             SVController.reconfigureTo(currentView);
+                            updateHostConfig(currentView);
                         }
                         
 						isInitializing = false;
@@ -374,7 +377,20 @@ public class StandardStateManager extends BaseStateManager {
         }
         lockTimer.unlock();
     }
-	
+
+    private void updateHostConfig(View currentView) {
+        LOGGER.info("State transfer, update host config!");
+        for (int procId : currentView.getProcesses()) {
+            NodeNetwork nodeNetwork = currentView.getAddress(procId);
+            if (nodeNetwork != null) {
+                this.SVController.getStaticConf().addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
+                this.SVController.getStaticConf().getOuterHostConfig().add(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
+            } else {
+                LOGGER.info("updateHostConfig, find node network is null!");
+            }
+        }
+    }
+
     /**
      * Search in the received states table for a state that was not sent by the expected
      * replica. This is used to compare both states after received the state from expected
