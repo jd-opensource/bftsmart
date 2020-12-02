@@ -135,9 +135,8 @@ public class AsynchServiceProxy extends ServiceProxy {
 	public void replyReceived(TOMMessage reply) {
 		LOGGER.debug("Asynchronously received reply from {} with sequence number {} and operation ID {}", reply.getSender(), reply.getSequence(), reply.getOperationId());
 
+		canReceiveLock.lock();
 		try {
-			canReceiveLock.lock();
-
 			RequestContext requestContext = requestsContext.get(reply.getOperationId());
 
 			if (requestContext == null) { // it is not a asynchronous request

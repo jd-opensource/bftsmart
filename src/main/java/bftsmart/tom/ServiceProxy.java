@@ -45,7 +45,7 @@ public class ServiceProxy extends TOMSender {
 	protected ReentrantLock canReceiveLock = new ReentrantLock();
 	protected ReentrantLock canSendLock = new ReentrantLock();
 	private Semaphore sm = new Semaphore(0);
-	private int reqId = -1; // request id
+	private volatile int reqId = -1; // request id
 	private int operationId = -1; // request id
 	private TOMMessageType requestType;
 	private int replyQuorum = 0; // size of the reply quorum
@@ -240,7 +240,7 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.debug("Sending request {} with reqId {}", reqType, reqId);
+			LOGGER.debug("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
 			// This instruction blocks the thread, until a response is obtained.
@@ -337,7 +337,7 @@ public class ServiceProxy extends TOMSender {
 	}
 
 	private void checkReplyNum(TOMMessageType reqType, int receivedReplies, int replyQuorum) {
-		if (reqType == TOMMessageType.ORDERED_REQUEST) {
+//		if (reqType == TOMMessageType.ORDERED_REQUEST) {
 			LOGGER.info("checkReplyNum, receivedReplies = {}, replyQuorum = {}, viewObsolete = {}", receivedReplies, replyQuorum, viewObsolete);
 			if (receivedReplies > 0 && receivedReplies < replyQuorum && viewObsolete) {
 				LOGGER.info("################################################################################################################################");
@@ -349,7 +349,7 @@ public class ServiceProxy extends TOMSender {
 				LOGGER.info("########Consensus Client Recv Reply Num Is 0, Client View Is Serious Obsolete or Consensus Node Block, Please Restart All Nodes And Gateway!########");
 				LOGGER.info("####################################################################################################################################################");
 			}
-		}
+//		}
 	}
 
 	// ******* EDUARDO BEGIN **************//
@@ -370,24 +370,27 @@ public class ServiceProxy extends TOMSender {
 	 */
 	@Override
 	public void replyReceived(TOMMessage reply) {
-		LOGGER.debug("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
+		LOGGER.info("Synchronously received reply from {} with sequence number {} ", reply.getSender(), reply.getSequence());
 		canReceiveLock.lock();
 		try {
 			if (reqId == -1) {// no message being expected
-				LOGGER.debug("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
+				LOGGER.info("throwing out request: sender {}, reqId {}, hash = {}", reply.getSender(), reply.getSequence(), this.hashCode());
 				return;
 			}
 
 			int pos = getViewManager().getCurrentViewPos(reply.getSender());
 
 			if (pos < 0) { // ignore messages that don't come from replicas
+
+				LOGGER.info("received reply from sender {}", reply.getSender());
+
 				return;
 			}
 
 			int sameContent = 1;
 			if (reply.getSequence() == reqId && reply.getReqType() == requestType) {
 
-				LOGGER.debug("I am proc {}, Receiving reply from {} with reqId {}. Putting on pos {}", this.getProcessId(), reply.getSender(), reply.getSequence(), pos);
+				LOGGER.info("I am proc {}, Receiving reply from {} with reqId {}. Putting on pos {}", this.getProcessId(), reply.getSender(), reply.getSequence(), pos);
 
 				if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 					response = hashResponseController.getResponse(pos, reply);
@@ -413,8 +416,11 @@ public class ServiceProxy extends TOMSender {
 						if ((i != pos || getViewManager().getCurrentViewN() == 1) && replies[i] != null
 								&& (comparator.compare(replies[i].getContent(), reply.getContent()) == 0)) {
 							sameContent++;
+
 							LOGGER.info("sameContent = {}, replyQuorum = {}, request type = {}", sameContent, replyQuorum, replies[i].getReqType());
+
 							if (sameContent >= replyQuorum) {
+
 								response = extractor.extractResponse(replies, sameContent, pos);
 								reqId = -1;
 								viewObsolete = false;

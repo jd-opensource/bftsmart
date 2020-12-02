@@ -57,6 +57,8 @@ public class HeartBeatTimer {
 
     private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L);
 
+    private volatile boolean isLeaderChangeRunning = false;
+
     private Lock lrLock = new ReentrantLock();
 
     private Lock hbLock = new ReentrantLock();
@@ -75,6 +77,14 @@ public class HeartBeatTimer {
     public void restart() {
         stopAll();
         start();
+    }
+
+    public void startLeaderChange() {
+        this.isLeaderChangeRunning = true;
+    }
+
+    public void stopLeaderChange() {
+        this.isLeaderChangeRunning = false;
     }
 
     public void leaderTimerStart() {
@@ -155,7 +165,7 @@ public class HeartBeatTimer {
             }
             LOGGER.info("I am {}, send leader status response [{}:{}:{}] to {} !",
                     tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSequence(),
-                    responseMessage.getLeaderId(), responseMessage.getStatus(), responseMessage.getSender());
+                    responseMessage.getLeaderId(), responseMessage.getStatus(), requestMessage.getSender());
             // 将该消息发送给请求节点
             int[] to = new int[1];
             to[0] = requestMessage.getSender();
@@ -505,7 +515,7 @@ public class HeartBeatTimer {
             // 检查是否确实需要进行领导者切换
             // 首先发送其他节点领导者切换的消息，然后等待
             long currentTimeMillis = System.currentTimeMillis();
-            if (currentTimeMillis - lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS) {
+            if (currentTimeMillis - lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS && !isLeaderChangeRunning) {
                 // 重置sequence
                 lastLeaderStatusSequence = currentTimeMillis;
                 // 可以开始处理
@@ -531,6 +541,7 @@ public class HeartBeatTimer {
                         if (statusTimeout(statusMap)) {
                             LOGGER.info("I am {}, receive more than f response for timeout, so I will start to LC !",
                                     tomLayer.controller.getStaticConf().getProcessId());
+                            startLeaderChange();
                             // 表示可以触发领导者切换流程
                             tomLayer.requestsTimer.run_lc_protocol();
                         }
