@@ -451,6 +451,12 @@ public class ServiceProxy extends TOMSender {
 							viewObsolete = false;
 							this.sm.release(); // resumes the thread that is executing the "invoke" method
 						}
+					} else if (requestType.equals(TOMMessageType.RECONFIG)) {
+						if (receivedReplies == getViewManager().getCurrentViewN()) {
+							reqId = -1;
+							viewObsolete = false;
+							this.sm.release(); // resumes the thread that is executing the "invoke" method
+						}
 					} else { // OTHER
 						if (receivedReplies != sameContent) {
 							reqId = -1;
