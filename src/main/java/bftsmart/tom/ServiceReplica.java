@@ -337,6 +337,10 @@ public class ServiceReplica {
 	public void setReplyController(Replier replier) {
 		this.replier = replier;
 	}
+	
+	public ServerViewController getViewController() {
+		return SVController;
+	}
 
 	public Executable getExecutor() {
 		return executor;
@@ -359,7 +363,6 @@ public class ServiceReplica {
 		try {
 			cs = new ServerCommunicationSystem(this.SVController, this);
 		} catch (Exception ex) {
-			ex.printStackTrace();
 //			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
 			throw new RuntimeException("Unable to build a communication system.", ex);
 		}

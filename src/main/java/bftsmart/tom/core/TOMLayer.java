@@ -190,6 +190,10 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
         this.syncher = new Synchronizer(this); // create synchronizer
     }
+    
+    public boolean isRunning() {
+		return doWork;
+	}
 
     /**
      * Computes an hash for a TOM message

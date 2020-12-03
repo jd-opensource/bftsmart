@@ -67,7 +67,7 @@ public class LCManager {
     private SHA256Utils md = new SHA256Utils();
     private TOMLayer tomLayer;
     
-    private int currentLeader;
+	private volatile int currentLeader;
     //private Cipher cipher;
     private Mac mac;
     
@@ -99,6 +99,10 @@ public class LCManager {
         }
 
     }
+    
+    public int getCurrentLeader() {
+		return currentLeader;
+	}
     
     /**
      * Deterministically elects a new leader, based current leader and membership
