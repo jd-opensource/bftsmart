@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,8 @@ public class HeartBeatTimer {
 
     private static final long LEADER_REQUEST_MILL_SECONDS = 60000L;
 
+    private static final long STOP_WAIT_SECONDS = 30L;
+
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
     private final Map<Long, List<LeaderResponseMessage>> leaderResponseMap = new LRUMap<>(1024 * 8);
@@ -42,6 +45,8 @@ public class HeartBeatTimer {
     private ScheduledExecutorService leaderResponseTimer = Executors.newSingleThreadScheduledExecutor();
 
     private ScheduledExecutorService leaderChangeStartThread = Executors.newSingleThreadScheduledExecutor();
+
+    private ExecutorService stopThreadExecutor = Executors.newSingleThreadExecutor();
 
     private TOMLayer tomLayer; // TOM layer
 
@@ -84,7 +89,15 @@ public class HeartBeatTimer {
     }
 
     public void stopLeaderChange() {
-        this.isLeaderChangeRunning = false;
+        stopThreadExecutor.execute(() -> {
+            try {
+                // 延时30s再停止，便于新的Leader发送心跳
+                TimeUnit.SECONDS.sleep(STOP_WAIT_SECONDS);
+                this.isLeaderChangeRunning = false;
+            } catch (Exception e) {
+                LOGGER.error("stop lc change !", e);
+            }
+        });
     }
 
     public void leaderTimerStart() {
@@ -541,9 +554,12 @@ public class HeartBeatTimer {
                         if (statusTimeout(statusMap)) {
                             LOGGER.info("I am {}, receive more than f response for timeout, so I will start to LC !",
                                     tomLayer.controller.getStaticConf().getProcessId());
-                            startLeaderChange();
-                            // 表示可以触发领导者切换流程
-                            tomLayer.requestsTimer.run_lc_protocol();
+                            // 再次进行判断，防止LC已处理完成再次触发
+                            if (!isLeaderChangeRunning) {
+                                startLeaderChange();
+                                // 表示可以触发领导者切换流程
+                                tomLayer.requestsTimer.run_lc_protocol();
+                            }
                         }
                     }
                 } catch (Exception e) {
