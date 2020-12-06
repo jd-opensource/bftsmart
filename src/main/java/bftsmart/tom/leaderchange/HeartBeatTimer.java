@@ -673,15 +673,18 @@ public class HeartBeatTimer {
     }
 
     private boolean statusTimeout(Map<Integer, LeaderStatus> leaderStatusMap) {
-        // 以f+1作为判断依据
-        // 保证其中有一个好的节点
+        // 以（n + f）/ 2作为判断依据
+        // 增强判断的条件，防止不必要的LC流程,如果因为网络差收不到足够的status响应，或者没有足够的共识节点心跳超时都不会触发LC流程
         int f = tomLayer.controller.getStaticConf().getF();
+        int n = tomLayer.controller.getStaticConf().getN();
+        int counter = (n + f) / 2;
+
         int receiveTimeoutSize = 0;
         for (Map.Entry<Integer, LeaderStatus> entry : leaderStatusMap.entrySet()) {
             if (entry.getValue().getStatus() == LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT) {
                 receiveTimeoutSize++;
             }
         }
-        return receiveTimeoutSize > f;
+        return receiveTimeoutSize > counter;
     }
 }
