@@ -675,8 +675,9 @@ public class HeartBeatTimer {
     private boolean statusTimeout(Map<Integer, LeaderStatus> leaderStatusMap) {
         // 以（n + f）/ 2作为判断依据
         // 增强判断的条件，防止不必要的LC流程,如果因为网络差收不到足够的status响应，或者没有足够的共识节点心跳超时都不会触发LC流程
-        int f = tomLayer.controller.getStaticConf().getF();
-        int n = tomLayer.controller.getStaticConf().getN();
+        // 注意：取值不能从this.tomLayer.controller.getStaticConf()中获得，激活新节点时TOMconfig并没有更新，只更新了视图
+        int f = this.tomLayer.controller.getCurrentViewF();
+        int n = this.tomLayer.controller.getCurrentViewN();
         int counter = (n + f) / 2;
 
         int receiveTimeoutSize = 0;
@@ -685,6 +686,7 @@ public class HeartBeatTimer {
                 receiveTimeoutSize++;
             }
         }
-        return receiveTimeoutSize > counter;
+        LOGGER.info("I am proc {}, receiveTimeoutSize = {}, counter = {}", this.tomLayer.controller.getStaticConf().getProcessId(), receiveTimeoutSize, counter);
+        return receiveTimeoutSize >= counter;
     }
 }
