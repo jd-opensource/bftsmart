@@ -1266,7 +1266,7 @@ public class Synchronizer {
             //leaderChanged = true;
             tom.setInExec(currentCID);
 
-            tom.heartBeatTimer.stopLeaderChange();
+//            tom.heartBeatTimer.stopLeaderChange();
 
             if (iAmLeader) {
                 LOGGER.info("(Synchronizer.finalise) [{}] -> I am proc {} wake up proposer thread", this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId());
@@ -1293,7 +1293,7 @@ public class Synchronizer {
             // stop the re-transmission of the STOP message for all regencies up to this one
             removeSTOPretransmissions(regency);
 
-            tom.heartBeatTimer.stopLeaderChange();
+//            tom.heartBeatTimer.stopLeaderChange();
 
             // resume normal operation
             execManager.restart();
