@@ -26,7 +26,7 @@ public class HeartBeatTimer {
 
     private static final long LEADER_DELAY_MILL_SECONDS = 20000;
 
-    private static final long LEADER_STATUS_MILL_SECONDS = 30000;
+    private static final long LEADER_STATUS_MILL_SECONDS = 60000;
 
     private static final long LEADER_STATUS_MAX_WAIT = 5000;
 
@@ -62,7 +62,7 @@ public class HeartBeatTimer {
 
     private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L);
 
-    private volatile boolean isLeaderChangeRunning = false;
+//    private volatile boolean isLeaderChangeRunning = false;
 
     private Lock lrLock = new ReentrantLock();
 
@@ -84,21 +84,21 @@ public class HeartBeatTimer {
         start();
     }
 
-    public void startLeaderChange() {
-        this.isLeaderChangeRunning = true;
-    }
-
-    public void stopLeaderChange() {
-        stopThreadExecutor.execute(() -> {
-            try {
-                // 延时30s再停止，便于新的Leader发送心跳
-                TimeUnit.SECONDS.sleep(STOP_WAIT_SECONDS);
-                this.isLeaderChangeRunning = false;
-            } catch (Exception e) {
-                LOGGER.error("stop lc change !", e);
-            }
-        });
-    }
+//    public void startLeaderChange() {
+//        this.isLeaderChangeRunning = true;
+//    }
+//
+//    public void stopLeaderChange() {
+//        stopThreadExecutor.execute(() -> {
+//            try {
+//                // 延时30s再停止，便于新的Leader发送心跳
+//                TimeUnit.SECONDS.sleep(STOP_WAIT_SECONDS);
+//                this.isLeaderChangeRunning = false;
+//            } catch (Exception e) {
+//                LOGGER.error("stop lc change !", e);
+//            }
+//        });
+//    }
 
     public void leaderTimerStart() {
         // stop Replica timer，and start leader timer
@@ -528,7 +528,7 @@ public class HeartBeatTimer {
             // 检查是否确实需要进行领导者切换
             // 首先发送其他节点领导者切换的消息，然后等待
             long currentTimeMillis = System.currentTimeMillis();
-            if (currentTimeMillis - lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS && !isLeaderChangeRunning) {
+            if (currentTimeMillis - lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS) {
                 // 重置sequence
                 lastLeaderStatusSequence = currentTimeMillis;
                 // 可以开始处理
@@ -555,11 +555,11 @@ public class HeartBeatTimer {
                             LOGGER.info("I am {}, receive more than f response for timeout, so I will start to LC !",
                                     tomLayer.controller.getStaticConf().getProcessId());
                             // 再次进行判断，防止LC已处理完成再次触发
-                            if (!isLeaderChangeRunning) {
-                                startLeaderChange();
+//                            if (!isLeaderChangeRunning) {
+//                                startLeaderChange();
                                 // 表示可以触发领导者切换流程
                                 tomLayer.requestsTimer.run_lc_protocol();
-                            }
+//                            }
                         }
                     }
                 } catch (Exception e) {
