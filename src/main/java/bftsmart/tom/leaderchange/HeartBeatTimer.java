@@ -166,19 +166,19 @@ public class HeartBeatTimer {
                     requestMessage.getSender(),
                     requestMessage.getSequence());
             LeaderStatusResponseMessage responseMessage = new LeaderStatusResponseMessage(
-                    tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSequence(), tomLayer.leader());
+                    tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSequence(), tomLayer.leader(), tomLayer.getSynchronizer().getLCManager().getLastReg(), checkLeaderStatus());
             // 判断当前本地节点的状态
             // 首先判断leader是否一致
-            if (tomLayer.leader() != requestMessage.getLeaderId()) {
-                // leader不一致，则返回不一致的情况
-                responseMessage.setStatus(LeaderStatusResponseMessage.LEADER_STATUS_NOTEQUAL);
-            } else {
-                // 判断时间戳的一致性
-                responseMessage.setStatus(checkLeaderStatus());
-            }
-            LOGGER.info("I am {}, send leader status response [{}:{}:{}] to {} !",
+//            if (tomLayer.leader() != requestMessage.getLeaderId()) {
+//                // leader不一致，则返回不一致的情况
+//                responseMessage.setStatus(LeaderStatusResponseMessage.LEADER_STATUS_NOTEQUAL);
+//            } else {
+//                // 判断时间戳的一致性
+//                responseMessage.setStatus(checkLeaderStatus());
+//            }
+            LOGGER.info("I am {}, send leader status response [sequence: leader: regency: timeoutStatus]-[{}:{}:{}:{}] to {} !",
                     tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSequence(),
-                    responseMessage.getLeaderId(), responseMessage.getStatus(), requestMessage.getSender());
+                    responseMessage.getLeaderId(), responseMessage.getRegency(), responseMessage.getStatus(), requestMessage.getSender());
             // 将该消息发送给请求节点
             int[] to = new int[1];
             to[0] = requestMessage.getSender();
@@ -194,9 +194,9 @@ public class HeartBeatTimer {
      * @param responseMessage
      */
     public void receiveLeaderStatusResponseMessage(LeaderStatusResponseMessage responseMessage) {
-        LOGGER.info("I am {}, receive leader status response from {}, which status = [{}:{}:{}] !",
+        LOGGER.info("I am {}, receive leader status response from {}, which status = [sequence: leader: regency: timeoutStatus]-[{}:{}:{}:{}] !",
                 tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSender(),
-                responseMessage.getSequence(), responseMessage.getLeaderId(), responseMessage.getStatus());
+                responseMessage.getSequence(), responseMessage.getLeaderId(), responseMessage.getRegency(), responseMessage.getStatus());
         lsLock.lock();
         try {
             long sequence = leaderStatusContext.getSequence();
@@ -222,7 +222,7 @@ public class HeartBeatTimer {
      * @return
      */
     private LeaderStatus leaderStatus(LeaderStatusResponseMessage responseMessage) {
-        return new LeaderStatus(responseMessage.getStatus(), responseMessage.getLeaderId());
+        return new LeaderStatus(responseMessage.getStatus(), responseMessage.getLeaderId(), responseMessage.getRegency());
     }
 
     /**
@@ -424,8 +424,8 @@ public class HeartBeatTimer {
         }
 
         // 判断是否满足2f+1
-        int compareLeaderSize = 2 * tomLayer.controller.getStaticConf().getF() + 1;
-        int compareRegencySize = 2 * tomLayer.controller.getStaticConf().getF() + 1;
+        int compareLeaderSize = 2 * tomLayer.controller.getCurrentView().getF() + 1;
+        int compareRegencySize = 2 * tomLayer.controller.getCurrentView().getF() + 1;
         if (leaderMaxSize >= compareLeaderSize && regencyMaxSize >= compareRegencySize) {
             return new NewLeader(leaderMaxId, regencyMaxId);
         }
@@ -534,9 +534,9 @@ public class HeartBeatTimer {
                 // 可以开始处理
                 // 首先生成领导者状态请求消息
                 LeaderStatusRequestMessage requestMessage = new LeaderStatusRequestMessage(
-                        tomLayer.controller.getStaticConf().getProcessId(), currentTimeMillis, tomLayer.leader());
-                LOGGER.info("I am {}, send leader status request[{}:{}] to others !",
-                        requestMessage.getSender(), requestMessage.getSequence(), requestMessage.getLeaderId());
+                        tomLayer.controller.getStaticConf().getProcessId(), currentTimeMillis);
+                LOGGER.info("I am {}, send leader status request[{}] to others !",
+                        requestMessage.getSender(), requestMessage.getSequence());
                 lsLock.lock();
                 try {
                     // 通过锁进行控制
@@ -558,6 +558,10 @@ public class HeartBeatTimer {
 //                            if (!isLeaderChangeRunning) {
 //                                startLeaderChange();
                                 // 表示可以触发领导者切换流程
+
+                                // 对于不一致的leaderid, regency进行本地更新，达到节点之间的一致性
+                                checkAndUpdateLeaderInfos(statusMap);
+
                                 tomLayer.requestsTimer.run_lc_protocol();
 //                            }
                         }
@@ -615,9 +619,12 @@ public class HeartBeatTimer {
 
         private int leader;
 
-        public LeaderStatus(int status, int leader) {
+        private int regency;
+
+        public LeaderStatus(int status, int leader, int regency) {
             this.status = status;
             this.leader = leader;
+            this.regency = regency;
         }
 
         public int getStatus() {
@@ -626,6 +633,10 @@ public class HeartBeatTimer {
 
         public int getLeader() {
             return leader;
+        }
+
+        public int getRegency() {
+            return regency;
         }
     }
 
@@ -688,5 +699,28 @@ public class HeartBeatTimer {
         }
         LOGGER.info("I am proc {}, receiveTimeoutSize = {}, counter = {}", this.tomLayer.controller.getStaticConf().getProcessId(), receiveTimeoutSize, counter);
         return receiveTimeoutSize >= counter;
+    }
+
+    private void checkAndUpdateLeaderInfos(Map<Integer,LeaderStatus> leaderStatusMap) {
+
+        int minLeader = leaderStatusMap.entrySet().iterator().next().getValue().leader;
+        int maxRegency = leaderStatusMap.entrySet().iterator().next().getValue().regency;
+
+        for (Map.Entry<Integer, LeaderStatus> entry : leaderStatusMap.entrySet()) {
+            int leader = entry.getValue().leader;
+            int regency = entry.getValue().regency;
+
+            if (leader < minLeader) {
+                minLeader = leader;
+            }
+            if (regency > maxRegency) {
+                maxRegency = regency;
+            }
+        }
+
+        tomLayer.getExecManager().setNewLeader(minLeader);
+        tomLayer.getSynchronizer().getLCManager().setNewLeader(minLeader);
+        tomLayer.getSynchronizer().getLCManager().setNextReg(maxRegency);
+        tomLayer.getSynchronizer().getLCManager().setLastReg(maxRegency);
     }
 }

@@ -18,31 +18,35 @@ public class LeaderStatusResponseMessage extends LeaderStatusRequestMessage {
     public static final int LEADER_STATUS_TIMEOUT = 1;
 
     // 不相同，表示当前节点收到的Leader与发送方不一致
-    public static final int LEADER_STATUS_NOTEQUAL = 2;
+//    public static final int LEADER_STATUS_NOTEQUAL = 2;
 
+    private int leaderId;
+    private int regency;
     private int status;
 
     public LeaderStatusResponseMessage() {
     }
 
-    public LeaderStatusResponseMessage(int sender, long sequence, int leaderId) {
-        super(sender, sequence, leaderId);
-    }
-
-    public LeaderStatusResponseMessage(int sender, long sequence, int leaderId, int status) {
-        super(sender, sequence, leaderId);
+    public LeaderStatusResponseMessage(int sender, long sequence, int leaderId, int regency, int status) {
+        super(sender, sequence);
+        this.leaderId = leaderId;
+        this.regency = regency;
         this.status = status;
     }
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         super.writeExternal(out);
+        out.writeInt(leaderId);
+        out.writeInt(regency);
         out.writeInt(status);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException{
         super.readExternal(in);
+        leaderId = in.readInt();
+        regency = in.readInt();
         status = in.readInt();
     }
 
@@ -52,5 +56,21 @@ public class LeaderStatusResponseMessage extends LeaderStatusRequestMessage {
 
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    public int getLeaderId() {
+        return leaderId;
+    }
+
+    public void setLeaderId(int leaderId) {
+        this.leaderId = leaderId;
+    }
+
+    public int getRegency() {
+        return regency;
+    }
+
+    public void setRegency(int regency) {
+        this.regency = regency;
     }
 }
