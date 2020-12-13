@@ -719,8 +719,14 @@ public class HeartBeatTimer {
             }
         }
 
-        tomLayer.getExecManager().setNewLeader(minLeader);
-        tomLayer.getSynchronizer().getLCManager().setNewLeader(minLeader);
+        if (maxRegency < tomLayer.getSynchronizer().getLCManager().getLastReg()) {
+            return;
+        }
+
+        if (tomLayer.getExecManager().getCurrentLeader() != minLeader) {
+            tomLayer.getExecManager().setNewLeader(minLeader);
+            tomLayer.getSynchronizer().getLCManager().setNewLeader(minLeader);
+        }
         tomLayer.getSynchronizer().getLCManager().setNextReg(maxRegency);
         tomLayer.getSynchronizer().getLCManager().setLastReg(maxRegency);
     }

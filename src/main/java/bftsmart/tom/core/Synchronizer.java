@@ -136,8 +136,8 @@ public class Synchronizer {
 
 		// still not in the leader change phase?
 		
-//		if (lcManager.tryEnterElecting(nextReg)) {
-		if (!lcManager.isElecting()) {
+		if (lcManager.tryEnterElecting(regency)) {
+//		if (!lcManager.isElecting()) {
 
 			lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
 
