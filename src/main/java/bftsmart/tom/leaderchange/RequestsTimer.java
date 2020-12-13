@@ -164,7 +164,7 @@ public class RequestsTimer {
         }
     }
 
-    public void run_lc_protocol() {
+    public void run_lc_protocol(GlobalRegencyInfo globalRegencyInfo) {
         
         long t = (shortTimeout > -1 ? shortTimeout : timeout);
 
@@ -188,7 +188,7 @@ public class RequestsTimer {
 
         rwLock.readLock().unlock();
 
-        tomLayer.getSynchronizer().triggerTimeout(pendingRequests);
+        tomLayer.getSynchronizer().triggerTimeout(globalRegencyInfo, pendingRequests);
                 
 //        if (!pendingRequests.isEmpty()) {
 //            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message
@@ -301,11 +301,11 @@ public class RequestsTimer {
             this.stop = stop;
         }
 
-        @Override
         /**
          * This is the code for the TimerTask. It sends a STOP
          * message to the other replicas
          */
+        @Override
         public void run() {
 
                 LOGGER.info("(SendStopTask.run) {} Re-transmitting STOP message to install regency {}",

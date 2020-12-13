@@ -29,7 +29,7 @@ import java.io.ObjectOutput;
 public class LCMessage extends SystemMessage {
 
     private int type;
-    private int ts;
+    private int regency;
     private byte[] payload;
     public final boolean TRIGGER_LC_LOCALLY; // indicates that the replica should
                                              // initiate the LC protocol locally
@@ -47,13 +47,13 @@ public class LCMessage extends SystemMessage {
      * Constructor
      * @param from replica that creates this message
      * @param type type of the message (STOP, SYNC, CATCH-UP)
-     * @param ts timestamp of leader change and synchronization
+     * @param regency timestamp of leader change and synchronization
      * @param payload dada that comes with the message
      */
-    public LCMessage(int from, int type, int ts, byte[] payload) {
+    public LCMessage(int from, int type, int regency, byte[] payload) {
         super(from);
         this.type = type;
-        this.ts = ts;
+        this.regency = regency;
         this.payload = payload == null ? new byte[0] : payload;
         if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1) this.TRIGGER_LC_LOCALLY = true;
         else this.TRIGGER_LC_LOCALLY  = false;
@@ -72,7 +72,7 @@ public class LCMessage extends SystemMessage {
      * @return timestamp of leader change and synchronization
      */
     public int getReg() {
-        return ts;
+        return regency;
     }
 
     /**
@@ -88,7 +88,7 @@ public class LCMessage extends SystemMessage {
         super.writeExternal(out);
 
         out.writeInt(type);
-        out.writeInt(ts);
+        out.writeInt(regency);
         out.writeObject(payload);
     }
 
@@ -97,7 +97,7 @@ public class LCMessage extends SystemMessage {
         super.readExternal(in);
 
         type = in.readInt();
-        ts = in.readInt();
+        regency = in.readInt();
         payload = (byte[]) in.readObject();
     }
 }

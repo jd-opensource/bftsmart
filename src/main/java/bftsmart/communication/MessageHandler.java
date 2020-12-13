@@ -169,7 +169,7 @@ public class MessageHandler {
                     }
 
 //	                LOGGER.debug("(MessageHandler.processData) LC_MSG received: type " + type + ", regency " + lcMsg.getReg() + ", (replica " + lcMsg.getSender() + ")");
-                    if (lcMsg.TRIGGER_LC_LOCALLY) tomLayer.requestsTimer.run_lc_protocol();
+                    if (lcMsg.TRIGGER_LC_LOCALLY) tomLayer.requestsTimer.run_lc_protocol(null);
                     else tomLayer.getSynchronizer().deliverTimeoutRequest(lcMsg);
                     /**************************************************************/
 

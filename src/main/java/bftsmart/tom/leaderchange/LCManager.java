@@ -114,7 +114,7 @@ public class LCManager {
 	 * 
 	 * @return The new leader
 	 */
-	public int getNewLeader() {
+	public int electNewLeader(GlobalRegencyInfo globalRegencyInfo) {
 
 		int[] proc = SVController.getCurrentViewProcesses();
 		int minProc = proc[0];
@@ -276,12 +276,13 @@ public class LCManager {
 	public synchronized boolean isElecting() {
 		return getLastReg() + 1 == getNextReg();
 	}
-	
+
 	/**
 	 * 尝试设置内部状态，标记开始进入选举进程；
 	 * <p>
 	 * 通过设置
-	 * @param nextReg
+	 * 
+	 * @param nextReg 试图要发起的新选举的执政期ID；
 	 * @return
 	 */
 	public synchronized boolean tryEnterElecting(int nextReg) {

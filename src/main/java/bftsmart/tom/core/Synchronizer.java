@@ -39,6 +39,7 @@ import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.leaderchange.CollectData;
+import bftsmart.tom.leaderchange.GlobalRegencyInfo;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.leaderchange.LCMessage;
@@ -124,30 +125,29 @@ public class Synchronizer {
 	 * @param requestList List of requests that the replica wanted to order but
 	 *                    didn't manage to
 	 */
-	public void triggerTimeout(List<TOMMessage> requestList) {
+	public void triggerTimeout(GlobalRegencyInfo globalRegencyInfo, List<TOMMessage> requestList) {
 
 		ObjectOutputStream out = null;
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-		int regency = lcManager.getNextReg();
+//		int regency = lcManager.getNextReg();
 
 		heartBeatTimer.stopAll();
 //        requestsTimer.Enabled(false);
 
 		// still not in the leader change phase?
-		
-		if (lcManager.tryEnterElecting(regency)) {
+		int proposedNewRegency = globalRegencyInfo.getMaxRegency() + 1;
+		if (lcManager.tryEnterElecting(proposedNewRegency)) {
 //		if (!lcManager.isElecting()) {
+//			lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
 
-			lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
-
-			regency = lcManager.getNextReg(); // update variable
+//			int regency = lcManager.getNextReg(); // update variable
 
 			// store messages to be ordered
 			lcManager.setCurrentRequestTimedOut(requestList);
 
 			// store information about messages that I'm going to send
-			lcManager.addStop(regency, this.controller.getStaticConf().getProcessId());
+			lcManager.addStop(proposedNewRegency, this.controller.getStaticConf().getProcessId());
 
 			// execManager.stop(); // stop consensus execution
 
@@ -172,7 +172,7 @@ public class Synchronizer {
 					LOGGER.debug(
 							"(Synchronizer.triggerTimeout) [{}] -> I am proc {} Strange... did not include any request in my STOP message for regency {}",
 							this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-							regency);
+							proposedNewRegency);
 				}
 
 				byte[] payload = bos.toByteArray();
@@ -187,11 +187,11 @@ public class Synchronizer {
 				LOGGER.info(
 						"(Synchronizer.triggerTimeout) [{}] -> I am proc {} sending STOP message to install regency {}, with {} request(s) to relay",
 						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						regency, (messages != null ? messages.size() : 0));
+						proposedNewRegency, (messages != null ? messages.size() : 0));
 
-				LCMessage stop = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP, regency,
+				LCMessage stop = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP, proposedNewRegency,
 						payload);
-				requestsTimer.setSTOP(regency, stop); // make replica re-transmit the stop message until a new regency
+				requestsTimer.setSTOP(proposedNewRegency, stop); // make replica re-transmit the stop message until a new regency
 														// is installed
 				communication.send(this.controller.getCurrentViewOtherAcceptors(), stop);
 
@@ -210,11 +210,11 @@ public class Synchronizer {
 
 		}
 
-		processOutOfContextSTOPs(regency); // the replica might have received STOPs
+		processOutOfContextSTOPs(proposedNewRegency); // the replica might have received STOPs
 											// that were out of context at the time they
 											// were received, but now can be processed
 
-		startSynchronization(regency); // evaluate STOP messages
+		startSynchronization(proposedNewRegency, globalRegencyInfo); // evaluate STOP messages
 
 	}
 
@@ -496,7 +496,7 @@ public class Synchronizer {
 
 	// this method is called when a timeout occurs or when a STOP message is
 	// recevied
-	private void startSynchronization(int nextReg) {
+	private void startSynchronization(int nextReg, GlobalRegencyInfo globalRegencyInfo) {
 
 		synchronizationLock.lock();
 
@@ -552,7 +552,7 @@ public class Synchronizer {
 //            requestsTimer.startTimer();
 
 				// int leader = regency % this.reconfManager.getCurrentViewN(); // new leader
-				int leader = lcManager.getNewLeader();
+				int leader = lcManager.electNewLeader(globalRegencyInfo);
 				int in = tom.getInExec(); // cid to execute
 				int last = tom.getLastExec(); // last cid decided
 
@@ -1002,7 +1002,8 @@ public class Synchronizer {
 														// that were out of context at the time they
 														// were received, but now can be processed
 
-				startSynchronization(msg.getReg()); // evaluate STOP messages
+				GlobalRegencyInfo globalRegencyInfo;
+				startSynchronization(msg.getReg(), globalRegencyInfo); // evaluate STOP messages
 
 			} else if (msg.getReg() > lcManager.getLastReg()) { // send STOP to out of context if
 				// it is for a future regency
