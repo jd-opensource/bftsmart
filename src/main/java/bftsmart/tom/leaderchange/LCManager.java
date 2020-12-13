@@ -32,940 +32,1083 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  *
- * This class implements a manager of information related to the leader change protocol
- * It also implements some predicates and methods necessary for the protocol in accordance
- * to Cachin's 'Yet Another Visit to Paxos' (April 2011).
+ * This class implements a manager of information related to the leader change
+ * protocol It also implements some predicates and methods necessary for the
+ * protocol in accordance to Cachin's 'Yet Another Visit to Paxos' (April 2011).
  * 
  * @author Joao Sousa
  */
 public class LCManager {
 
-    //timestamp info
-    private int lastreg;
-    private int nextreg;
+	// timestamp info
+	// 上次选举产生的领导者执政ID；
+	private AtomicInteger lastreg;
+	// 正在进行的选举过程的领导者执政ID，该值等于 lastreg + 1;
+	// 如果没有正在进行的选举过程，则该值等于 lastreg;
+	private AtomicInteger nextreg;
 
-    //requests that timed out
-    private List<TOMMessage> currentRequestTimedOut = null;
+	// requests that timed out
+	private List<TOMMessage> currentRequestTimedOut = null;
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(LCManager.class);
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(LCManager.class);
 
-    //requests received in STOP messages
-    private List<TOMMessage> requestsFromSTOP = null;
-    
-    //data structures for info in stop, sync and catch-up messages
-    private HashMap<Integer,HashSet<Integer>> stops;
-    private HashMap<Integer,HashSet<CertifiedDecision>> lastCIDs;
-    private HashMap<Integer,HashSet<SignedObject>> collects;
+	// requests received in STOP messages
+	private List<TOMMessage> requestsFromSTOP = null;
 
-    //stuff from the TOM layer that this object needss
-    private ServerViewController SVController;
-    private SHA256Utils md = new SHA256Utils();
-    private TOMLayer tomLayer;
-    
+	// data structures for info in stop, sync and catch-up messages
+	private Map<Integer, HashSet<Integer>> stops;
+	private Map<Integer, HashSet<CertifiedDecision>> lastCIDs;
+	private Map<Integer, HashSet<SignedObject>> collects;
+
+	// stuff from the TOM layer that this object needss
+	private ServerViewController SVController;
+	private SHA256Utils md = new SHA256Utils();
+	private TOMLayer tomLayer;
+
 	private volatile int currentLeader;
-    //private Cipher cipher;
-    private Mac mac;
-    
-    /**
-     * Constructor
-     *
-     * @param reconfManager The reconfiguration manager from TOM layer
-     * @param md The message digest engine from TOM layer
-     */
-    public LCManager(TOMLayer tomLayer, ServerViewController SVController, SHA256Utils md) {
-        this.tomLayer = tomLayer;
-        this.lastreg = 0;
-        this.nextreg = 0;
-        this.currentLeader = 0;
+	// private Cipher cipher;
+	private Mac mac;
 
-        this.stops = new HashMap<Integer,HashSet<Integer>>();
-        this.lastCIDs = new HashMap<Integer, HashSet<CertifiedDecision>>();
-        this.collects = new HashMap<Integer, HashSet<SignedObject>>();
+	/**
+	 * Constructor
+	 *
+	 * @param reconfManager The reconfiguration manager from TOM layer
+	 * @param md            The message digest engine from TOM layer
+	 */
+	public LCManager(TOMLayer tomLayer, ServerViewController SVController, SHA256Utils md) {
+		this.tomLayer = tomLayer;
+		this.lastreg = new AtomicInteger(0);
+		this.nextreg = new AtomicInteger(0);
+		this.currentLeader = 0;
 
-        this.SVController = SVController;
-        this.md = md;
+		this.stops = new ConcurrentHashMap<Integer, HashSet<Integer>>();
+		this.lastCIDs = new ConcurrentHashMap<Integer, HashSet<CertifiedDecision>>();
+		this.collects = new ConcurrentHashMap<Integer, HashSet<SignedObject>>();
 
-        try {
-            //this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-            //this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
-            this.mac = Mac.getInstance(ServerConnection.MAC_ALGORITHM);
-        } catch (NoSuchAlgorithmException /*| NoSuchPaddingException*/ ex) {
-            ex.printStackTrace();
-        }
+		this.SVController = SVController;
+		this.md = md;
 
-    }
-    
-    public int getCurrentLeader() {
+		try {
+			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
+			this.mac = Mac.getInstance(ServerConnection.MAC_ALGORITHM);
+		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
+			ex.printStackTrace();
+		}
+
+	}
+
+	public int getCurrentLeader() {
 		return currentLeader;
 	}
-    
-    /**
-     * Deterministically elects a new leader, based current leader and membership
-     * 
-     * @return The new leader
-     */
-    public int getNewLeader() {
 
-        int[] proc = SVController.getCurrentViewProcesses();
-        int minProc = proc[0];
-        int maxProc = proc[0];
-                    
-        for (int p : proc) {
-            if (p < minProc) minProc = p;
-            if (p > maxProc) maxProc = p;
-        }
- 
-        
-        do {
-            currentLeader++;
-            if (currentLeader > maxProc) {
+	/**
+	 * Deterministically elects a new leader, based current leader and membership
+	 * 
+	 * @return The new leader
+	 */
+	public int getNewLeader() {
 
-                currentLeader = minProc;    
-            }
-        } while(!SVController.isCurrentViewMember(currentLeader));
+		int[] proc = SVController.getCurrentViewProcesses();
+		int minProc = proc[0];
+		int maxProc = proc[0];
 
-        LOGGER.debug("I am proc {} , get new leader = {}",
-                tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
+		for (int p : proc) {
+			if (p < minProc)
+				minProc = p;
+			if (p > maxProc)
+				maxProc = p;
+		}
 
-        return currentLeader;
-    }
-    
-    /**
-     * Informs the object of who is the current leader
-     * @param leader The current leader
-     */
-    public void setNewLeader(int leader) {
-        currentLeader = leader;
-        LOGGER.info("I am proc {} , set new leader = {}",
-                tomLayer.controller.getStaticConf().getProcessId(), currentLeader);
-    }
-    
-    /**
-     * This is meant to keep track of timed out requests in this replica
-     *
-     * @param currentRequestTimedOut Timed out requests in this replica
-     */
-    public void setCurrentRequestTimedOut(List<TOMMessage> currentRequestTimedOut) {
-        this.currentRequestTimedOut = currentRequestTimedOut;
-    }
+		do {
+			currentLeader++;
+			if (currentLeader > maxProc) {
 
-    /**
-     * Get the timed out requests in this replica
-     * @return timed out requests in this replica
-     */
-    public List<TOMMessage> getCurrentRequestTimedOut() {
-        return currentRequestTimedOut;
-    }
-    
-    /**
-     * Discard timed out requests in this replica
-     */
-    public void clearCurrentRequestTimedOut() {
-        if (currentRequestTimedOut != null) currentRequestTimedOut.clear();
-        currentRequestTimedOut = null;
-    }
+				currentLeader = minProc;
+			}
+		} while (!SVController.isCurrentViewMember(currentLeader));
 
-    /**
-     * This is meant to keep track of requests received in STOP messages
-     *
-     * @param requestsFromSTOP Requests received in a STOP message
-     */
-    public void addRequestsFromSTOP(TOMMessage[] requestsFromSTOP) {
+		LOGGER.debug("I am proc {} , get new leader = {}", tomLayer.controller.getStaticConf().getProcessId(),
+				currentLeader);
 
-        if (requestsFromSTOP == null) {
-            return;
-        }
+		return currentLeader;
+	}
 
-        if (this.requestsFromSTOP == null)
-            this.requestsFromSTOP = new LinkedList<>();
-        
-        for (TOMMessage m : requestsFromSTOP)
-            this.requestsFromSTOP.add(m);
-    }
+	/**
+	 * Informs the object of who is the current leader
+	 * 
+	 * @param leader The current leader
+	 */
+	public void setNewLeader(int leader) {
+		currentLeader = leader;
+		LOGGER.info("I am proc {} , set new leader = {}", tomLayer.controller.getStaticConf().getProcessId(),
+				currentLeader);
+	}
 
-    /**
-     * Get the requests received in STOP messages
-     * @return requests received in STOP messages
-     */
-    public List<TOMMessage> getRequestsFromSTOP() {
-        return requestsFromSTOP;
-    }
-    
-    /**
-     * Discard requests received in STOP messages
-     */    
-    public void clearRequestsFromSTOP() {
-        if (requestsFromSTOP != null) requestsFromSTOP.clear();
-        requestsFromSTOP = null;
-    }
-    
-    
-    /**
-     * Set the previous regency
-     * @param lastreg current regency
-     */
-    public void setLastReg(int lastreg) {
-        this.lastreg = lastreg;
-    }
+	/**
+	 * This is meant to keep track of timed out requests in this replica
+	 *
+	 * @param currentRequestTimedOut Timed out requests in this replica
+	 */
+	public void setCurrentRequestTimedOut(List<TOMMessage> currentRequestTimedOut) {
+		this.currentRequestTimedOut = currentRequestTimedOut;
+	}
 
-    /**
-     * The current regency
-     * @return current regency
-     */
-    public int getLastReg() {
-        return lastreg;
-    }
+	/**
+	 * Get the timed out requests in this replica
+	 * 
+	 * @return timed out requests in this replica
+	 */
+	public List<TOMMessage> getCurrentRequestTimedOut() {
+		return currentRequestTimedOut;
+	}
 
-    /**
-     * Set the next regency
-     * @param nextts next regency
-     */
-    public void setNextReg(int nextreg) {
-        this.nextreg = nextreg;
-    }
+	/**
+	 * Discard timed out requests in this replica
+	 */
+	public void clearCurrentRequestTimedOut() {
+		if (currentRequestTimedOut != null)
+			currentRequestTimedOut.clear();
+		currentRequestTimedOut = null;
+	}
 
-    /**
-     * The next regency
-     * @return next regency
-     */
-    public int getNextReg() {
-        return nextreg;
-    }
+	/**
+	 * This is meant to keep track of requests received in STOP messages
+	 *
+	 * @param requestsFromSTOP Requests received in a STOP message
+	 */
+	public void addRequestsFromSTOP(TOMMessage[] requestsFromSTOP) {
 
-    /**
-     * Keep information about an incoming STOP message
-     * @param regency the next regency
-     * @param pid the process that sent the message
-     */
-    public void addStop(int regency, int pid) {
-        HashSet<Integer> pids = stops.get(regency);
-        if (pids == null) pids = new HashSet<Integer>();
-        pids.add(pid);
-        stops.put(regency, pids);
-    }
+		if (requestsFromSTOP == null) {
+			return;
+		}
 
-    /**
-     * Discard information about STOP messages up to specified regency
-     * @param ts timestamp up to which to discard messages
-     */
-    public void removeStops(int regency) {
-        Integer[] keys = new Integer[stops.keySet().size()];
-        stops.keySet().toArray(keys);
+		if (this.requestsFromSTOP == null)
+			this.requestsFromSTOP = new LinkedList<>();
 
-        for (int i = 0 ; i < keys.length; i++) {
-            if (keys[i] <= regency) stops.remove(keys[i]);
-        }
-    }
+		for (TOMMessage m : requestsFromSTOP)
+			this.requestsFromSTOP.add(m);
+	}
 
-    /**
-     * Get the quantity of stored STOP information
-     * @param regency Regency to be considered
-     * @return quantity of stored STOP information for given timestamp
-     */
-    public int getStopsSize(int regency) {
-        HashSet<Integer> pids = stops.get(regency);
-        return pids == null ? 0 : pids.size();
-    }
+	/**
+	 * Get the requests received in STOP messages
+	 * 
+	 * @return requests received in STOP messages
+	 */
+	public List<TOMMessage> getRequestsFromSTOP() {
+		return requestsFromSTOP;
+	}
 
-    /**
-     * Keep last CID from an incoming SYNC message
-     * @param regency the current regency
-     * @param lastCID the last CID data
-     */
-    public void addLastCID(int regency, CertifiedDecision lastCID) {
+	/**
+	 * Discard requests received in STOP messages
+	 */
+	public void clearRequestsFromSTOP() {
+		if (requestsFromSTOP != null)
+			requestsFromSTOP.clear();
+		requestsFromSTOP = null;
+	}
 
-        HashSet<CertifiedDecision> last = lastCIDs.get(regency);
-        if (last == null) last = new HashSet<CertifiedDecision>();
-        last.add(lastCID);
-        lastCIDs.put(regency, last);
-    }
+	/**
+	 * Set the previous regency
+	 * 
+	 * @param lastreg current regency
+	 */
+	public synchronized void setLastReg(int lastreg) {
+		int oldLastReg = this.lastreg.get();
+		if (lastreg != oldLastReg + 1) {
+			throw new IllegalArgumentException(
+					String.format("Illegal last regency id! --[oldLastReg=%s][newLastReg=%s]", oldLastReg, lastreg));
+		}
+		int nr = nextreg.get();
+		if (nr != lastreg) {
+			throw new IllegalArgumentException(String.format(
+					"The new last regency id is not equal to the next regency id! --[nextReg=%s][oldLastReg=%s][newLastReg=%s]",
+					nr, oldLastReg, lastreg));
 
-    /**
-     * Discard last CID information up to the specified regency
-     * @param regency Regency up to which to discard information
-     */
-    public void removeLastCIDs(int regency) {
-        Integer[] keys = new Integer[lastCIDs.keySet().size()];
-        lastCIDs.keySet().toArray(keys);
+		}
+		if (!this.lastreg.compareAndSet(oldLastReg, lastreg)) {
+			throw new IllegalStateException("Concurrently setting last regency id fails!");
+		}
+	}
 
-        for (int i = 0; i < keys.length; i++) {
-            if (keys[i] <= regency) lastCIDs.remove(keys[i]);
-        }
-    }
+	/**
+	 * The current regency
+	 * 
+	 * @return current regency
+	 */
+	public int getLastReg() {
+		return lastreg.get();
+	}
 
-    /**
-     * Get the quantity of stored last CID information
-     * @param regency regency to be considered
-     * @return quantity of stored last CID  information for given regency
-     */
-    public int getLastCIDsSize(int regency) {
-        HashSet<CertifiedDecision> last = lastCIDs.get(regency);
-        return last == null ? 0 : last.size();
-    }
+	/**
+	 * Set the next regency
+	 * 
+	 * @param nextts next regency
+	 */
+	public synchronized boolean setNextReg(int nextreg) {
+		int lr = getLastReg();
+		if (nextreg != lr + 1) {
+			throw new IllegalArgumentException(
+					String.format("Illegal next regency id! --[lastReg=%s][nextReg=%s]", lr, nextreg));
+		}
+		int oldNextReg = this.nextreg.get();
+		boolean success = this.nextreg.compareAndSet(oldNextReg + 1, nextreg);
+		if (!success) {
+			throw new IllegalArgumentException(String.format(
+					"The new next regency id do not increase by 1! --[lastReg=%s][oldNextReg=%s][newNextReg=%s]", lr,
+					oldNextReg, nextreg));
+		}
+		return success;
+	}
 
-    /**
-     * Get the set of last CIDs related to a regency
-     * @param regency Regency for the last CID info
-     * @return a set of last CID data
-     */
-    public HashSet<CertifiedDecision> getLastCIDs(int regency) {
-        return lastCIDs.get(regency);
-    }
+	/**
+	 * 当前是否开始进入 STOP 状态（已发送 STOP，包括本身主动触发和跟随其它节点触发这两种情形）；
+	 * 
+	 * @return
+	 */
+	public synchronized boolean isElecting() {
+		return getLastReg() + 1 == getNextReg();
+	}
+	
+	/**
+	 * 尝试设置内部状态，标记开始进入选举进程；
+	 * <p>
+	 * 通过设置
+	 * @param nextReg
+	 * @return
+	 */
+	public synchronized boolean tryEnterElecting(int nextReg) {
+		if (isElecting()) {
+			return false;
+		}
+		if (nextReg == this.getNextReg() + 1) {
+			return setNextReg(nextReg);
+		}
+		return false;
+	}
 
-    /**
-     * Defines the set of last CIDs related to a regency
-     * @param regency Regency for the last CID info
-     * @param lasts a set of last CID data
-     */
-    public void setLastCIDs(int regency, HashSet<CertifiedDecision> lasts) {
+	/**
+	 * The next regency
+	 * 
+	 * @return next regency
+	 */
+	public int getNextReg() {
+		return nextreg.get();
+	}
 
-        lastCIDs.put(regency, lasts);
-    }
+	/**
+	 * Keep information about an incoming STOP message
+	 * 
+	 * @param regency the next regency
+	 * @param pid     the process that sent the message
+	 */
+	public synchronized void addStop(int regency, int pid) {
+		HashSet<Integer> pids = stops.get(regency);
+		if (pids == null)
+			pids = new HashSet<Integer>();
+		pids.add(pid);
+		stops.put(regency, pids);
+	}
 
-    /**
-     * Keep collect from an incoming SYNC message
-     * @param ts the current regency
-     * @param signedCollect the signed collect data
-     */
-    public void addCollect(int regency, SignedObject signedCollect) {
+	/**
+	 * Discard information about STOP messages up to specified regency
+	 * 
+	 * @param ts timestamp up to which to discard messages
+	 */
+	public synchronized void removeStops(int regency) {
+		Integer[] keys = new Integer[stops.keySet().size()];
+		stops.keySet().toArray(keys);
 
-        HashSet<SignedObject> c = collects.get(regency);
-        if (c == null) c = new HashSet<SignedObject>();
-        c.add(signedCollect);
-        collects.put(regency, c);
-    }
-    
-    /**
-     * Discard collect information up to the given regency
-     * @param regency Regency up to which to discard information
-     */
-    public void removeCollects(int regency) {
+		for (int i = 0; i < keys.length; i++) {
+			if (keys[i] <= regency)
+				stops.remove(keys[i]);
+		}
+	}
 
-        Integer[] keys = new Integer[collects.keySet().size()];
-        collects.keySet().toArray(keys);
+	/**
+	 * Get the quantity of stored STOP information
+	 * 
+	 * @param regency Regency to be considered
+	 * @return quantity of stored STOP information for given timestamp
+	 */
+	public int getStopsSize(int regency) {
+		HashSet<Integer> pids = stops.get(regency);
+		return pids == null ? 0 : pids.size();
+	}
 
-        for (int i = 0; i < keys.length; i++) {
-            if (keys[i] <= regency) collects.remove(keys[i]);
-        }
-    }
-    
-    /**
-     * Get the quantity of stored collect information
-     * @param regency Regency to be considered
-     * @return quantity of stored collect information for given regency
-     */
-    public int getCollectsSize(int regency) {
+	/**
+	 * Keep last CID from an incoming SYNC message
+	 * 
+	 * @param regency the current regency
+	 * @param lastCID the last CID data
+	 */
+	public void addLastCID(int regency, CertifiedDecision lastCID) {
 
-        HashSet<SignedObject> c = collects.get(regency);
-        return c == null ? 0 : c.size();
-    }
+		HashSet<CertifiedDecision> last = lastCIDs.get(regency);
+		if (last == null)
+			last = new HashSet<CertifiedDecision>();
+		last.add(lastCID);
+		lastCIDs.put(regency, last);
+	}
 
-    /**
-     * Get the set of collects related to a regency
-     * @param regency Regency for collects
-     * @return a set of collect data
-     */
-    public HashSet<SignedObject> getCollects(int regency) {
-        return collects.get(regency);
-    }
+	/**
+	 * Discard last CID information up to the specified regency
+	 * 
+	 * @param regency Regency up to which to discard information
+	 */
+	public void removeLastCIDs(int regency) {
+		Integer[] keys = new Integer[lastCIDs.keySet().size()];
+		lastCIDs.keySet().toArray(keys);
 
-    /**
-     * Defines the set of collects related to a regency
-     * @param regency Regency for the last CID info
-     * @param colls a set of collect data
-     */
-    public void setCollects(int regency, HashSet<SignedObject> colls) {
+		for (int i = 0; i < keys.length; i++) {
+			if (keys[i] <= regency)
+				lastCIDs.remove(keys[i]);
+		}
+	}
 
-        collects.put(regency, colls);
-    }
-    /**
-     * The all-important predicate "sound". This method must received a set of collects that were
-     * filtered using the method selectCollects()
-     *
-     * @param collects the collect data to which to apply the predicate.
-     * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
-     * 
-     * In addition, see pages 252 and 253 from "Introduction to Reliable and Secure Distributed Programming"
-     */
-    public boolean sound(HashSet<CollectData> collects) {
+	/**
+	 * Get the quantity of stored last CID information
+	 * 
+	 * @param regency regency to be considered
+	 * @return quantity of stored last CID information for given regency
+	 */
+	public int getLastCIDsSize(int regency) {
+		HashSet<CertifiedDecision> last = lastCIDs.get(regency);
+		return last == null ? 0 : last.size();
+	}
 
-        LOGGER.info("(LCManager.sound) I collected the context from {} replicas", collects.size());
-        
-        if (collects == null) return false;
-        
-        HashSet<Integer> timestamps = new HashSet<Integer>();
-        HashSet<byte[]> values = new HashSet<byte[]>();
+	/**
+	 * Get the set of last CIDs related to a regency
+	 * 
+	 * @param regency Regency for the last CID info
+	 * @return a set of last CID data
+	 */
+	public HashSet<CertifiedDecision> getLastCIDs(int regency) {
+		return lastCIDs.get(regency);
+	}
 
-        for (CollectData c : collects) { // organize all existing timestamps and values separately
-            
-            LOGGER.debug("(LCManager.sound) Context for replica {}, CID {},WRITESET [{}], (VALTS,VAL) [{}]", c.getPid(), c.getCid(), c.getWriteSet(), c.getQuorumWrites());
-            
-            timestamps.add(c.getQuorumWrites().getTimestamp()); //store timestamp received from a Byzatine quorum of WRITES
-            
-            // store value received from a Byzantine quorum of WRITES, unless it is an empty value
-            if (!Arrays.equals(c.getQuorumWrites().getValue(), new byte[0])) {
-                boolean insert = true; // this loop avoids putting duplicated values in the set
-                for (byte[] b : values) {
+	/**
+	 * Defines the set of last CIDs related to a regency
+	 * 
+	 * @param regency Regency for the last CID info
+	 * @param lasts   a set of last CID data
+	 */
+	public void setLastCIDs(int regency, HashSet<CertifiedDecision> lasts) {
 
-                    if (Arrays.equals(b, c.getQuorumWrites().getValue())) {
-                        insert = false;
-                        break;
-                    }
-                }
-                if (insert) values.add(c.getQuorumWrites().getValue());
-            }
-            for (TimestampValuePair rv : c.getWriteSet()) { // store all timestamps and written values
-                timestamps.add(rv.getTimestamp());
+		lastCIDs.put(regency, lasts);
+	}
 
-                boolean insert = true; // this loop avoids putting duplicated values in the set
-                for (byte[] b : values) {
+	/**
+	 * Keep collect from an incoming SYNC message
+	 * 
+	 * @param ts            the current regency
+	 * @param signedCollect the signed collect data
+	 */
+	public void addCollect(int regency, SignedObject signedCollect) {
 
-                    if (Arrays.equals(b, rv.getHashedValue())) {
-                        insert = false;
-                        break;
-                    }
-                }
-                if (insert) values.add(rv.getHashedValue());
-            }
+		HashSet<SignedObject> c = collects.get(regency);
+		if (c == null)
+			c = new HashSet<SignedObject>();
+		c.add(signedCollect);
+		collects.put(regency, c);
+	}
 
-        }
+	/**
+	 * Discard collect information up to the given regency
+	 * 
+	 * @param regency Regency up to which to discard information
+	 */
+	public void removeCollects(int regency) {
 
-        LOGGER.debug("(LCManager.sound) number of timestamps: {}", timestamps.size());
-        LOGGER.debug("(LCManager.sound) number of values: {}", values.size());
+		Integer[] keys = new Integer[collects.keySet().size()];
+		collects.keySet().toArray(keys);
 
-        // after having organized all timestamps and values, properly apply the predicate
-        for (int r : timestamps) {
-            for (byte[] v : values) {
+		for (int i = 0; i < keys.length; i++) {
+			if (keys[i] <= regency)
+				collects.remove(keys[i]);
+		}
+	}
 
-                LOGGER.debug("(LCManager.sound) testing predicate BIND for timestamp/value pair [{}],[{}]", r, Arrays.toString(v));
-                if (binds(r, v, collects)) {
+	/**
+	 * Get the quantity of stored collect information
+	 * 
+	 * @param regency Regency to be considered
+	 * @return quantity of stored collect information for given regency
+	 */
+	public int getCollectsSize(int regency) {
 
-                    LOGGER.debug("(LCManager.sound) Predicate BIND is true for timestamp/value pair [{}],[{}]", r, Arrays.toString(v));
-                    LOGGER.debug("(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
-                    return true;
-                }
-            }
-        }
+		HashSet<SignedObject> c = collects.get(regency);
+		return c == null ? 0 : c.size();
+	}
 
-        LOGGER.debug("(LCManager.sound) No timestamp/value pair passed on the BIND predicate");
-        
-        boolean unbound = unbound(collects);
-        
-        if (unbound) {
-            LOGGER.info("(LCManager.sound) Predicate UNBOUND is true for N-F replicas");
-            LOGGER.info("(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
-        }
+	/**
+	 * Get the set of collects related to a regency
+	 * 
+	 * @param regency Regency for collects
+	 * @return a set of collect data
+	 */
+	public HashSet<SignedObject> getCollects(int regency) {
+		return collects.get(regency);
+	}
 
-        return unbound;
-    }
+	/**
+	 * Defines the set of collects related to a regency
+	 * 
+	 * @param regency Regency for the last CID info
+	 * @param colls   a set of collect data
+	 */
+	public void setCollects(int regency, HashSet<SignedObject> colls) {
 
-    /**
-     * The predicate "binds". This method must received a set of collects that were
-     * filtered using the method selectCollects()
-     *
-     * @param timestamp the timestamp to search for
-     * @param value the value to search for
-     * @param collects the collect data to which to apply the predicate.
-     * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
-     * 
-     * In addition, see pages 252 and 253 from "Introduction to Reliable and Secure Distributed Programming"
-     */
-    public boolean binds(int timestamp, byte[] value, HashSet<CollectData> collects) {
+		collects.put(regency, colls);
+	}
 
-        if (value == null || collects == null) {
-            LOGGER.error("(LCManager.binds) Received null objects, returning false");
-            return false;
-        }
-        
+	/**
+	 * The all-important predicate "sound". This method must received a set of
+	 * collects that were filtered using the method selectCollects()
+	 *
+	 * @param collects the collect data to which to apply the predicate.
+	 * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
+	 * 
+	 *         In addition, see pages 252 and 253 from "Introduction to Reliable and
+	 *         Secure Distributed Programming"
+	 */
+	public boolean sound(HashSet<CollectData> collects) {
+
+		LOGGER.info("(LCManager.sound) I collected the context from {} replicas", collects.size());
+
+		if (collects == null)
+			return false;
+
+		HashSet<Integer> timestamps = new HashSet<Integer>();
+		HashSet<byte[]> values = new HashSet<byte[]>();
+
+		for (CollectData c : collects) { // organize all existing timestamps and values separately
+
+			LOGGER.debug("(LCManager.sound) Context for replica {}, CID {},WRITESET [{}], (VALTS,VAL) [{}]", c.getPid(),
+					c.getCid(), c.getWriteSet(), c.getQuorumWrites());
+
+			timestamps.add(c.getQuorumWrites().getTimestamp()); // store timestamp received from a Byzatine quorum of
+																// WRITES
+
+			// store value received from a Byzantine quorum of WRITES, unless it is an empty
+			// value
+			if (!Arrays.equals(c.getQuorumWrites().getValue(), new byte[0])) {
+				boolean insert = true; // this loop avoids putting duplicated values in the set
+				for (byte[] b : values) {
+
+					if (Arrays.equals(b, c.getQuorumWrites().getValue())) {
+						insert = false;
+						break;
+					}
+				}
+				if (insert)
+					values.add(c.getQuorumWrites().getValue());
+			}
+			for (TimestampValuePair rv : c.getWriteSet()) { // store all timestamps and written values
+				timestamps.add(rv.getTimestamp());
+
+				boolean insert = true; // this loop avoids putting duplicated values in the set
+				for (byte[] b : values) {
+
+					if (Arrays.equals(b, rv.getHashedValue())) {
+						insert = false;
+						break;
+					}
+				}
+				if (insert)
+					values.add(rv.getHashedValue());
+			}
+
+		}
+
+		LOGGER.debug("(LCManager.sound) number of timestamps: {}", timestamps.size());
+		LOGGER.debug("(LCManager.sound) number of values: {}", values.size());
+
+		// after having organized all timestamps and values, properly apply the
+		// predicate
+		for (int r : timestamps) {
+			for (byte[] v : values) {
+
+				LOGGER.debug("(LCManager.sound) testing predicate BIND for timestamp/value pair [{}],[{}]", r,
+						Arrays.toString(v));
+				if (binds(r, v, collects)) {
+
+					LOGGER.debug("(LCManager.sound) Predicate BIND is true for timestamp/value pair [{}],[{}]", r,
+							Arrays.toString(v));
+					LOGGER.debug(
+							"(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
+					return true;
+				}
+			}
+		}
+
+		LOGGER.debug("(LCManager.sound) No timestamp/value pair passed on the BIND predicate");
+
+		boolean unbound = unbound(collects);
+
+		if (unbound) {
+			LOGGER.info("(LCManager.sound) Predicate UNBOUND is true for N-F replicas");
+			LOGGER.info("(LCManager.sound) Predicate SOUND is true for the for context collected from N-F replicas");
+		}
+
+		return unbound;
+	}
+
+	/**
+	 * The predicate "binds". This method must received a set of collects that were
+	 * filtered using the method selectCollects()
+	 *
+	 * @param timestamp the timestamp to search for
+	 * @param value     the value to search for
+	 * @param collects  the collect data to which to apply the predicate.
+	 * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
+	 * 
+	 *         In addition, see pages 252 and 253 from "Introduction to Reliable and
+	 *         Secure Distributed Programming"
+	 */
+	public boolean binds(int timestamp, byte[] value, HashSet<CollectData> collects) {
+
+		if (value == null || collects == null) {
+			LOGGER.error("(LCManager.binds) Received null objects, returning false");
+			return false;
+		}
+
 //        if (!(collects.size() >= (SVController.getCurrentViewN() - SVController.getCurrentViewF()))) {
-        if (!(collects.size() > 2 * SVController.getCurrentViewF())) {
-            LOGGER.error("(LCManager.binds) Less than N-F contexts collected from replicas, returning false");
-            return false;
-        }
+		if (!(collects.size() > 2 * SVController.getCurrentViewF())) {
+			LOGGER.error("(LCManager.binds) Less than N-F contexts collected from replicas, returning false");
+			return false;
+		}
 
-        return (quorumHighest(timestamp, value, collects) && certifiedValue(timestamp, value, collects));
+		return (quorumHighest(timestamp, value, collects) && certifiedValue(timestamp, value, collects));
 
-        //return value != null && collects != null && (collects.size() >= (SVController.getCurrentViewN() - SVController.getCurrentViewF()))
-        //        && quorumHighest(timestamp, value, collects) && certifiedValue(timestamp, value, collects);
-    }
+		// return value != null && collects != null && (collects.size() >=
+		// (SVController.getCurrentViewN() - SVController.getCurrentViewF()))
+		// && quorumHighest(timestamp, value, collects) && certifiedValue(timestamp,
+		// value, collects);
+	}
 
-    /**
-     * Return a value that is "bind", that is different from null, and
-     * with a timestamp greater or equal to zero
-     * @param collects Set of collects from which to determine the value
-     * @return The bind value
-     * 
-     * See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
-     * Also, see pages 252 and 253 from "Introduction to Reliable and Secure Distributed Programming"
-     */
-    public byte[] getBindValue(HashSet<CollectData> collects) {
+	/**
+	 * Return a value that is "bind", that is different from null, and with a
+	 * timestamp greater or equal to zero
+	 * 
+	 * @param collects Set of collects from which to determine the value
+	 * @return The bind value
+	 * 
+	 *         See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11 Also,
+	 *         see pages 252 and 253 from "Introduction to Reliable and Secure
+	 *         Distributed Programming"
+	 */
+	public byte[] getBindValue(HashSet<CollectData> collects) {
 
-        if (collects == null) return null;
+		if (collects == null)
+			return null;
 
-        HashSet<Integer> timestamps = new HashSet<Integer>();
-        HashSet<byte[]> values = new HashSet<byte[]>();
+		HashSet<Integer> timestamps = new HashSet<Integer>();
+		HashSet<byte[]> values = new HashSet<byte[]>();
 
-        for (CollectData c : collects) { // organize all existing timestamps and values separately
+		for (CollectData c : collects) { // organize all existing timestamps and values separately
 
-            timestamps.add(c.getQuorumWrites().getTimestamp()); //store timestamp received from a Byzantine quorum of writes
-            
-            // store value received from a Byzantine quorum of writes, unless it is an empty value
-            if (!Arrays.equals(c.getQuorumWrites().getValue(), new byte[0])) {
-                boolean insert = true; // this loops avoids putting duplicated values in the set
-                for (byte[] b : values) {
+			timestamps.add(c.getQuorumWrites().getTimestamp()); // store timestamp received from a Byzantine quorum of
+																// writes
 
-                    if (Arrays.equals(b, c.getQuorumWrites().getValue())) {
-                        insert = false;
-                        break;
-                    }
-                }
-                if (insert) values.add(c.getQuorumWrites().getValue());
-            }
-            for (TimestampValuePair rv : c.getWriteSet()) { // store all timestamps and written values
-                timestamps.add(rv.getTimestamp());
+			// store value received from a Byzantine quorum of writes, unless it is an empty
+			// value
+			if (!Arrays.equals(c.getQuorumWrites().getValue(), new byte[0])) {
+				boolean insert = true; // this loops avoids putting duplicated values in the set
+				for (byte[] b : values) {
 
-                boolean insert = true; // this loops avoids putting duplicated values in the set
-                for (byte[] b : values) {
+					if (Arrays.equals(b, c.getQuorumWrites().getValue())) {
+						insert = false;
+						break;
+					}
+				}
+				if (insert)
+					values.add(c.getQuorumWrites().getValue());
+			}
+			for (TimestampValuePair rv : c.getWriteSet()) { // store all timestamps and written values
+				timestamps.add(rv.getTimestamp());
 
-                    if (Arrays.equals(b, rv.getHashedValue())) {
-                        insert = false;
-                        break;
-                    }
-                }
-                if (insert) values.add(rv.getHashedValue());
-            }
+				boolean insert = true; // this loops avoids putting duplicated values in the set
+				for (byte[] b : values) {
 
-        }
+					if (Arrays.equals(b, rv.getHashedValue())) {
+						insert = false;
+						break;
+					}
+				}
+				if (insert)
+					values.add(rv.getHashedValue());
+			}
 
-        // after having organized all timestamps and values, properly apply the predicate
-        for (int r : timestamps) {
-            for (byte[] v : values) {
+		}
 
-                if (r >= 0 && binds(r, v, collects)) { // do we have a value that satisfys the predicate?
-                    
-                    // as we are handling hashes, we have to find the original value
-                    for (CollectData c : collects) {
-                        for (TimestampValuePair rv : c.getWriteSet()) {
+		// after having organized all timestamps and values, properly apply the
+		// predicate
+		for (int r : timestamps) {
+			for (byte[] v : values) {
 
-                            if (rv.getValue() != null && Arrays.equals(v, rv.getHashedValue())) {
-                                return rv.getValue();
-                            }
+				if (r >= 0 && binds(r, v, collects)) { // do we have a value that satisfys the predicate?
 
-                        }
-                    }
-                }
-            }
-        }
+					// as we are handling hashes, we have to find the original value
+					for (CollectData c : collects) {
+						for (TimestampValuePair rv : c.getWriteSet()) {
 
-        return null;
-    }
+							if (rv.getValue() != null && Arrays.equals(v, rv.getHashedValue())) {
+								return rv.getValue();
+							}
 
-    /**
-     * The predicate "unbound". This method must received a set of collects that were
-     * filtered using the method selectCollects()
-     *
-     * @param collects the collect data to which to apply the predicate.
-     * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
-     * 
-     * In addition, see page 253 from "Introduction to Reliable and Secure Distributed Programming"
-     */
-    public boolean unbound(HashSet<CollectData> collects) {
+						}
+					}
+				}
+			}
+		}
 
-        if (collects == null) return false;
+		return null;
+	}
 
-        boolean unbound = false;
-        int count = 0;
+	/**
+	 * The predicate "unbound". This method must received a set of collects that
+	 * were filtered using the method selectCollects()
+	 *
+	 * @param collects the collect data to which to apply the predicate.
+	 * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
+	 * 
+	 *         In addition, see page 253 from "Introduction to Reliable and Secure
+	 *         Distributed Programming"
+	 */
+	public boolean unbound(HashSet<CollectData> collects) {
 
-        if (collects.size() > (2 * SVController.getCurrentViewF())) {
+		if (collects == null)
+			return false;
 
+		boolean unbound = false;
+		int count = 0;
 
-            for (CollectData c : collects) {
+		if (collects.size() > (2 * SVController.getCurrentViewF())) {
 
-                if (c.getQuorumWrites().getTimestamp() == 0) count++;
-            }
-        }
-        else return false;
+			for (CollectData c : collects) {
 
-        if(SVController.getStaticConf().isBFT()) {
-            unbound = count > (2 * SVController.getCurrentViewF());
-        }
-        else {
-        	unbound = count > ((SVController.getCurrentViewN()) / 2);
-        }
-        return unbound;
-        
-    }
+				if (c.getQuorumWrites().getTimestamp() == 0)
+					count++;
+			}
+		} else
+			return false;
 
-    /**
-     * The predicate "quorumHighest". This method must received a set of collects that were
-     * filtered using the method selectCollects()
-     *
-     * @param timestamp the timestamp to search for
-     * @param value the value to search for
-     * @param collects the collect data to which to apply the predicate.
-     * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), pages 10-11
-     * 
-     * In addition, see pages 252 and 253 from "Introduction to Reliable and Secure Distributed Programming"
-     */
-    public boolean quorumHighest(int timestamp, byte[] value, HashSet<CollectData> collects) {
+		if (SVController.getStaticConf().isBFT()) {
+			unbound = count > (2 * SVController.getCurrentViewF());
+		} else {
+			unbound = count > ((SVController.getCurrentViewN()) / 2);
+		}
+		return unbound;
 
-        if (collects == null || value == null) return false;
+	}
 
-        boolean appears = false;
-        boolean quorum = false;
+	/**
+	 * The predicate "quorumHighest". This method must received a set of collects
+	 * that were filtered using the method selectCollects()
+	 *
+	 * @param timestamp the timestamp to search for
+	 * @param value     the value to search for
+	 * @param collects  the collect data to which to apply the predicate.
+	 * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), pages 10-11
+	 * 
+	 *         In addition, see pages 252 and 253 from "Introduction to Reliable and
+	 *         Secure Distributed Programming"
+	 */
+	public boolean quorumHighest(int timestamp, byte[] value, HashSet<CollectData> collects) {
 
-        for (CollectData c : collects) {
+		if (collects == null || value == null)
+			return false;
 
-            if (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value, c.getQuorumWrites().getValue())) {
+		boolean appears = false;
+		boolean quorum = false;
 
-                appears = true;
-                break;
-            }
-        }
+		for (CollectData c : collects) {
 
-        if (appears) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair [{}],[{}] appears in at least one replica context", timestamp, Arrays.toString(value));
-        
-        int count = 0;
-        for (CollectData c : collects) {
+			if (c.getQuorumWrites().getTimestamp() == timestamp
+					&& Arrays.equals(value, c.getQuorumWrites().getValue())) {
 
-            //LOGGER.debug(("\t\t[QUORUM HIGHEST] ts' < ts : " + (c.getQuorumWrites().getTimestamp() < timestamp));
-            //LOGGER.debug(("\t\t[QUORUM HIGHEST] ts' = ts && val' = val : " + (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value, c.getQuorumWrites().getValue())));
-            
-            if ((c.getQuorumWrites().getTimestamp() < timestamp)
-                    || (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value, c.getQuorumWrites().getValue())))
-                        count++;
+				appears = true;
+				break;
+			}
+		}
 
-        }
+		if (appears)
+			LOGGER.debug(
+					"(LCManager.quorumHighest) timestamp/value pair [{}],[{}] appears in at least one replica context",
+					timestamp, Arrays.toString(value));
 
-        if(SVController.getStaticConf().isBFT()) {
-            quorum = count > ((SVController.getCurrentViewN() + SVController.getCurrentViewF()) / 2);
-        }
-        else {
-            quorum = count > ((SVController.getCurrentViewN())/2);
-        }
-        if (quorum) LOGGER.debug("(LCManager.quorumHighest) timestamp/value pair [{}], [{}] has the highest timestamp among a {} quorum of replica contexts", timestamp, Arrays.toString(value), SVController.getStaticConf().isBFT() ? "Byzantine" : "simple");
-        return appears && quorum;
-    }
+		int count = 0;
+		for (CollectData c : collects) {
 
-    /**
-     * The predicate "certifiedValue". This method must received a set of collects that were
-     * filtered using the method selectCollects()
-     *
-     * @param timestamp the timestamp to search for
-     * @param value the value to search for
-     * @param collects the collect data to which to apply the predicate.
-     * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
-     * 
-     * In addition, see page 253 from "Introduction to Reliable and Secure Distributed Programming"
-     */
-    public boolean certifiedValue(int timestamp, byte[] value, HashSet<CollectData> collects) {
+			// LOGGER.debug(("\t\t[QUORUM HIGHEST] ts' < ts : " +
+			// (c.getQuorumWrites().getTimestamp() < timestamp));
+			// LOGGER.debug(("\t\t[QUORUM HIGHEST] ts' = ts && val' = val : " +
+			// (c.getQuorumWrites().getTimestamp() == timestamp && Arrays.equals(value,
+			// c.getQuorumWrites().getValue())));
 
-        if (collects == null || value == null) return false;
+			if ((c.getQuorumWrites().getTimestamp() < timestamp) || (c.getQuorumWrites().getTimestamp() == timestamp
+					&& Arrays.equals(value, c.getQuorumWrites().getValue())))
+				count++;
 
-        boolean certified = false;
+		}
 
-        int count = 0;
-        for (CollectData c : collects) {
+		if (SVController.getStaticConf().isBFT()) {
+			quorum = count > ((SVController.getCurrentViewN() + SVController.getCurrentViewF()) / 2);
+		} else {
+			quorum = count > ((SVController.getCurrentViewN()) / 2);
+		}
+		if (quorum)
+			LOGGER.debug(
+					"(LCManager.quorumHighest) timestamp/value pair [{}], [{}] has the highest timestamp among a {} quorum of replica contexts",
+					timestamp, Arrays.toString(value), SVController.getStaticConf().isBFT() ? "Byzantine" : "simple");
+		return appears && quorum;
+	}
 
-            for (TimestampValuePair pv : c.getWriteSet()) {
+	/**
+	 * The predicate "certifiedValue". This method must received a set of collects
+	 * that were filtered using the method selectCollects()
+	 *
+	 * @param timestamp the timestamp to search for
+	 * @param value     the value to search for
+	 * @param collects  the collect data to which to apply the predicate.
+	 * @return See Cachin's 'Yet Another Visit to Paxos' (April 2011), page 11
+	 * 
+	 *         In addition, see page 253 from "Introduction to Reliable and Secure
+	 *         Distributed Programming"
+	 */
+	public boolean certifiedValue(int timestamp, byte[] value, HashSet<CollectData> collects) {
+
+		if (collects == null || value == null)
+			return false;
+
+		boolean certified = false;
+
+		int count = 0;
+		for (CollectData c : collects) {
+
+			for (TimestampValuePair pv : c.getWriteSet()) {
 
 //                LOGGER.debug(("\t\t[CERTIFIED VALUE] " + pv.getTimestamp() + "  >= " + timestamp);
 //                LOGGER.debug(("\t\t[CERTIFIED VALUE] " + Arrays.toString(value) + "  == " + Arrays.toString(pv.getValue()));
-                if (pv.getTimestamp() >= timestamp && Arrays.equals(value, pv.getHashedValue()))
-                    count++;
-            }
+				if (pv.getTimestamp() >= timestamp && Arrays.equals(value, pv.getHashedValue()))
+					count++;
+			}
 
-        }
+		}
 
-        if(SVController.getStaticConf().isBFT()) {
-            certified = count > SVController.getCurrentViewF();
-        } else {
-            certified = count > 0;
-        }
-        if (certified) LOGGER.debug("(LCManager.certifiedValue) timestamp/value pair [{}], [{}] has been written by at least {} replica(s)", timestamp, Arrays.toString(value), count);
+		if (SVController.getStaticConf().isBFT()) {
+			certified = count > SVController.getCurrentViewF();
+		} else {
+			certified = count > 0;
+		}
+		if (certified)
+			LOGGER.debug(
+					"(LCManager.certifiedValue) timestamp/value pair [{}], [{}] has been written by at least {} replica(s)",
+					timestamp, Arrays.toString(value), count);
 
-        return certified;
-    }
+		return certified;
+	}
 
-    /**
-     * Fetchs a set of correctly signed and normalized collect data structures
-     * @param regency the regency from which the collects were stored
-     * @param cid the CID to which to normalize the collects
-     * @return a set of correctly signed and normalized collect data structures
-     */
-    public HashSet<CollectData> selectCollects(int regency, int cid) {
+	/**
+	 * Fetchs a set of correctly signed and normalized collect data structures
+	 * 
+	 * @param regency the regency from which the collects were stored
+	 * @param cid     the CID to which to normalize the collects
+	 * @return a set of correctly signed and normalized collect data structures
+	 */
+	public HashSet<CollectData> selectCollects(int regency, int cid) {
 
-        HashSet<SignedObject> c = collects.get(regency);
+		HashSet<SignedObject> c = collects.get(regency);
 
-        if (c == null) return null;
+		if (c == null)
+			return null;
 
-        return normalizeCollects(getSignedCollects(c), cid, regency);
-        
-    }
+		return normalizeCollects(getSignedCollects(c), cid, regency);
 
-    /**
-     * Fetchs a set of correctly signed and normalized collect data structures from the
-     * specified original set of collects
-     * @param signedObjects original set of signed collects
-     * @param cid the CID to which to normalize the collects
-     * @return a set of correctly signed and normalized collect data structures
-     */
-    public HashSet<CollectData> selectCollects(HashSet<SignedObject> signedObjects, int cid, int regency) {
+	}
 
-        if (signedObjects == null) return null;
+	/**
+	 * Fetchs a set of correctly signed and normalized collect data structures from
+	 * the specified original set of collects
+	 * 
+	 * @param signedObjects original set of signed collects
+	 * @param cid           the CID to which to normalize the collects
+	 * @return a set of correctly signed and normalized collect data structures
+	 */
+	public HashSet<CollectData> selectCollects(HashSet<SignedObject> signedObjects, int cid, int regency) {
 
-        return normalizeCollects(getSignedCollects(signedObjects), cid, regency);
+		if (signedObjects == null)
+			return null;
 
-    }
+		return normalizeCollects(getSignedCollects(signedObjects), cid, regency);
 
-    // Filters the correctly signed collects
-    private HashSet<CollectData> getSignedCollects(HashSet<SignedObject> signedCollects) {
+	}
 
-        HashSet<CollectData> colls = new HashSet<CollectData>();
+	// Filters the correctly signed collects
+	private HashSet<CollectData> getSignedCollects(HashSet<SignedObject> signedCollects) {
 
-        for (SignedObject so : signedCollects) {
+		HashSet<CollectData> colls = new HashSet<CollectData>();
 
-            CollectData c;
-            try {
-                c = (CollectData) so.getObject();
-                int sender = c.getPid();
-                if (tomLayer.verifySignature(so, sender)) {
-                    colls.add(c);
-                }
-            } catch (IOException ex) {
-                Logger.getLogger(LCManager.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (ClassNotFoundException ex) {
-                Logger.getLogger(LCManager.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
+		for (SignedObject so : signedCollects) {
 
-        return colls;
+			CollectData c;
+			try {
+				c = (CollectData) so.getObject();
+				int sender = c.getPid();
+				if (tomLayer.verifySignature(so, sender)) {
+					colls.add(c);
+				}
+			} catch (IOException ex) {
+				Logger.getLogger(LCManager.class.getName()).log(Level.SEVERE, null, ex);
+			} catch (ClassNotFoundException ex) {
+				Logger.getLogger(LCManager.class.getName()).log(Level.SEVERE, null, ex);
+			}
+		}
 
-    }
+		return colls;
 
-    // Normalizes the set of collects. A set of collects is considered normalized if or when
-    // all collects are related to the same CID. This is important because not all replicas
-    // may be executing the same CID when tere is a leader change
-    private HashSet<CollectData> normalizeCollects(HashSet<CollectData> collects, int cid, int regency) {
+	}
 
-        HashSet<CollectData> result = new HashSet<CollectData>();
+	// Normalizes the set of collects. A set of collects is considered normalized if
+	// or when
+	// all collects are related to the same CID. This is important because not all
+	// replicas
+	// may be executing the same CID when tere is a leader change
+	private HashSet<CollectData> normalizeCollects(HashSet<CollectData> collects, int cid, int regency) {
 
-        // if there are collects refering to other consensus instances, lets assume that they are still at timestamp zero of the consensus we want
-        for (CollectData c : collects) {
+		HashSet<CollectData> result = new HashSet<CollectData>();
 
-            if (c.getCid() == cid) {
-                result.add(c);
-            }
-            else {
-                result.add(new CollectData(c.getPid(), cid, regency, new TimestampValuePair(0, new byte[0]), new HashSet<TimestampValuePair>()));
-            }
+		// if there are collects refering to other consensus instances, lets assume that
+		// they are still at timestamp zero of the consensus we want
+		for (CollectData c : collects) {
 
-        }
+			if (c.getCid() == cid) {
+				result.add(c);
+			} else {
+				result.add(new CollectData(c.getPid(), cid, regency, new TimestampValuePair(0, new byte[0]),
+						new HashSet<TimestampValuePair>()));
+			}
 
-        // calculate hash of the values in the write set
-        for (CollectData c : result) {
+		}
 
-            for (TimestampValuePair rv : c.getWriteSet()) {
+		// calculate hash of the values in the write set
+		for (CollectData c : result) {
 
-                if  (rv.getValue() != null && rv.getValue().length > 0)
-                    rv.setHashedValue(md.hash(rv.getValue()));
-                else rv.setHashedValue(new byte[0]);
-            }
-        }
+			for (TimestampValuePair rv : c.getWriteSet()) {
 
-        return result;
+				if (rv.getValue() != null && rv.getValue().length > 0)
+					rv.setHashedValue(md.hash(rv.getValue()));
+				else
+					rv.setHashedValue(new byte[0]);
+			}
+		}
 
-    }
+		return result;
 
-    /**
-     * Gets the highest valid last CID related to the given timestamp
-     * @param ts the timestamp
-     * @return -1 if there is no such CID, otherwise returns the highest valid last CID
-     */
-    public CertifiedDecision getHighestLastCID(int ts) {
+	}
 
-        CertifiedDecision highest = new CertifiedDecision(-2, -2, null, null);
+	/**
+	 * Gets the highest valid last CID related to the given timestamp
+	 * 
+	 * @param ts the timestamp
+	 * @return -1 if there is no such CID, otherwise returns the highest valid last
+	 *         CID
+	 */
+	public CertifiedDecision getHighestLastCID(int ts) {
 
-        HashSet<CertifiedDecision> lasts = lastCIDs.get(ts);
+		CertifiedDecision highest = new CertifiedDecision(-2, -2, null, null);
 
-        if (lasts == null) return null;
-       
-        for (CertifiedDecision l : lasts) {
+		HashSet<CertifiedDecision> lasts = lastCIDs.get(ts);
 
-            //TODO: CHECK OF THE PROOF IS MISSING!!!!
-            if (tomLayer.controller.getStaticConf().isBFT() && hasValidProof(l) && l.getCID() > highest.getCID()) 
-                    highest = l;
-            else if(l.getCID() > highest.getCID()){
-                    highest = l;
-             }
-        }
+		if (lasts == null)
+			return null;
 
-        return highest;
-    }
-    
-    // verifies is a proof associated with a decided value is valid
-    public boolean hasValidProof(CertifiedDecision cDec) {
-        
-        if (cDec.getCID() == -1 || cDec.getDecision() == null || cDec.getConsMessages() == null) return true; // If the last CID is -1 it means the replica
-                                             // did not complete any consensus and cannot have
-                                             // any proof
-        LOGGER.debug("I am {}, pid = {}, cid = {}, consmsg = {}",
-                tomLayer.controller.getStaticConf().getProcessId(), cDec.getPID(), cDec.getCID(),
-                cDec.getConsMessages() == null ? "null" : cDec.getConsMessages().size());
+		for (CertifiedDecision l : lasts) {
 
-        byte[] hashedValue = null;
-        try {
-            hashedValue = md.hash(cDec.getDecision());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+			// TODO: CHECK OF THE PROOF IS MISSING!!!!
+			if (tomLayer.controller.getStaticConf().isBFT() && hasValidProof(l) && l.getCID() > highest.getCID())
+				highest = l;
+			else if (l.getCID() > highest.getCID()) {
+				highest = l;
+			}
+		}
+
+		return highest;
+	}
+
+	// verifies is a proof associated with a decided value is valid
+	public boolean hasValidProof(CertifiedDecision cDec) {
+
+		if (cDec.getCID() == -1 || cDec.getDecision() == null || cDec.getConsMessages() == null)
+			return true; // If the last CID is -1 it means the replica
+		// did not complete any consensus and cannot have
+		// any proof
+		LOGGER.debug("I am {}, pid = {}, cid = {}, consmsg = {}", tomLayer.controller.getStaticConf().getProcessId(),
+				cDec.getPID(), cDec.getCID(), cDec.getConsMessages() == null ? "null" : cDec.getConsMessages().size());
+
+		byte[] hashedValue = null;
+		try {
+			hashedValue = md.hash(cDec.getDecision());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 //        byte[] hashedValue = md.hash(cDec.getDecision());
-        Set<ConsensusMessage> ConsensusMessages = cDec.getConsMessages();
-        int myId = tomLayer.controller.getStaticConf().getProcessId();
-        int certificateCurrentView = (2*tomLayer.controller.getCurrentViewF()) + 1;
-        int certificateLastView = -1;
-        if (tomLayer.controller.getLastView() != null) certificateLastView = (2*tomLayer.controller.getLastView().getF()) + 1;
-        int countValid = 0;
-        SecretKey secretKey = null;
-        PublicKey pubRSAKey = null;
-        
-        HashSet<Integer> alreadyCounted = new HashSet<>(); //stores replica IDs that were already counted
-            
-        for (ConsensusMessage consMsg : ConsensusMessages) {
-            
-            ConsensusMessage cm = new ConsensusMessage(consMsg.getType(),consMsg.getNumber(),
-                    consMsg.getEpoch(), consMsg.getSender(), consMsg.getValue());
-            cm.setOrigPropValue(consMsg.getOrigPropValue());
+		Set<ConsensusMessage> ConsensusMessages = cDec.getConsMessages();
+		int myId = tomLayer.controller.getStaticConf().getProcessId();
+		int certificateCurrentView = (2 * tomLayer.controller.getCurrentViewF()) + 1;
+		int certificateLastView = -1;
+		if (tomLayer.controller.getLastView() != null)
+			certificateLastView = (2 * tomLayer.controller.getLastView().getF()) + 1;
+		int countValid = 0;
+		SecretKey secretKey = null;
+		PublicKey pubRSAKey = null;
 
-            ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
-            try {
-                new ObjectOutputStream(bOut).writeObject(cm);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+		HashSet<Integer> alreadyCounted = new HashSet<>(); // stores replica IDs that were already counted
 
-            byte[] data = bOut.toByteArray();
+		for (ConsensusMessage consMsg : ConsensusMessages) {
 
-            if (consMsg.getProof() instanceof HashMap) { // Certificate is made of MAC vector
-                
-                LOGGER.debug("(LCManager.hasValidProof) Proof made of MAC vector");
-            
-                HashMap<Integer, byte[]> macVector = (HashMap<Integer, byte[]>) consMsg.getProof();
-                               
-                byte[] recvMAC = macVector.get(myId);
+			ConsensusMessage cm = new ConsensusMessage(consMsg.getType(), consMsg.getNumber(), consMsg.getEpoch(),
+					consMsg.getSender(), consMsg.getValue());
+			cm.setOrigPropValue(consMsg.getOrigPropValue());
 
-                byte[] myMAC = null;
-                                
-                secretKey = tomLayer.getCommunication().getServersConn().getSecretKey(consMsg.getSender());
+			ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
+			try {
+				new ObjectOutputStream(bOut).writeObject(cm);
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
 
-                if (secretKey != null) {
-                    try {
-                        this.mac.init(secretKey);
-                        myMAC = this.mac.doFinal(data);
-                    } catch (InvalidKeyException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            
-                if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC) &&
-                        Arrays.equals(consMsg.getOrigPropValue(), hashedValue) &&
-                        consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
-                
-                    alreadyCounted.add(consMsg.getSender());
-                    countValid++;
-                }
-            } else if (consMsg.getProof() instanceof byte[]) { // certificate is made of signatures
-                
-                LOGGER.debug("(LCManager.hasValidProof) Proof made of Signatures");
-                pubRSAKey = SVController.getStaticConf().getRSAPublicKey(consMsg.getSender());
-                   
-                byte[] signature = (byte[]) consMsg.getProof();
-                            
-                if (TOMUtil.verifySignature(pubRSAKey, data, signature) && !alreadyCounted.contains(consMsg.getSender())) {
-                    
-                    alreadyCounted.add(consMsg.getSender());
-                    countValid++;
-                }
-   
-            } else {
-                LOGGER.error("(LCManager.hasValidProof) Proof is message is invalid");
-            }
-        }
-        
-        // If proofs were made of signatures, use a certificate correspondent to last view
-        // otherwise, use certificate for the current view
-        // To understand why this is important, check the comments in Acceptor.computeWrite()
-                
-        if (certificateLastView != -1 && pubRSAKey != null)
-            LOGGER.debug("(LCManager.hasValidProof) Computing certificate based on previous view");
-        
-        //return countValid >= certificateCurrentView;
+			byte[] data = bOut.toByteArray();
 
-        boolean result = countValid >=  (certificateLastView != -1 && pubRSAKey != null ? certificateLastView : certificateCurrentView);
-        LOGGER.debug("Proof is valid ? {}", result);
-        return result;
-    }
+			if (consMsg.getProof() instanceof HashMap) { // Certificate is made of MAC vector
 
-    /**
-     * Returns the value of the specified last CID for a given regency
-     * @param regency the related regency
-     * @param cid the last CID
-     * @return null if there is no such CID or is invalid, otherwise returns the value
-     */
-    public byte[] getLastCIDValue(int regency, int cid) {
+				LOGGER.debug("(LCManager.hasValidProof) Proof made of MAC vector");
 
-        HashSet<CertifiedDecision> lasts = lastCIDs.get(regency);
+				HashMap<Integer, byte[]> macVector = (HashMap<Integer, byte[]>) consMsg.getProof();
 
-        if (lasts == null) return null;
+				byte[] recvMAC = macVector.get(myId);
 
-        byte[] result = null;
+				byte[] myMAC = null;
 
-        for (CertifiedDecision l : lasts) {
+				secretKey = tomLayer.getCommunication().getServersConn().getSecretKey(consMsg.getSender());
 
-            if (l.getCID() == cid) {
+				if (secretKey != null) {
+					try {
+						this.mac.init(secretKey);
+						myMAC = this.mac.doFinal(data);
+					} catch (InvalidKeyException ex) {
+						ex.printStackTrace();
+					}
+				}
 
-                //TODO: CHECK OF THE PROOF IS MISSING!!!!
-                result = l.getDecision();
-                break;
-            }
-        }
+				if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC)
+						&& Arrays.equals(consMsg.getOrigPropValue(), hashedValue)
+						&& consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
 
-        return result;
-    }
-    
-    /**
-     * Gets the highest ETS associated with a
-     * consensus ID from the given collects
-     * 
-     * @param cid The consensus ID
-     * @param collects The collects from the other replicas
-     * @return  The highest ETS
-     */
-    public int getETS(int cid, Set<CollectData> collects) {
-        
-        int ets = -1;
-        int count = 0;
-        
-        for (CollectData c : collects) {
-            
-            if (c.getCid() == cid) {
-                
-                if (c.getEts() > ets) {
-                    
-                    ets = c.getEts();
-                    count = 1;
-                } else if (c.getEts() == ets) {
-                    count++;
-                }
-                
-            }
-        }
-        
-        return (count > this.SVController.getCurrentViewF() ? ets : -1);
-    }
+					alreadyCounted.add(consMsg.getSender());
+					countValid++;
+				}
+			} else if (consMsg.getProof() instanceof byte[]) { // certificate is made of signatures
+
+				LOGGER.debug("(LCManager.hasValidProof) Proof made of Signatures");
+				pubRSAKey = SVController.getStaticConf().getRSAPublicKey(consMsg.getSender());
+
+				byte[] signature = (byte[]) consMsg.getProof();
+
+				if (TOMUtil.verifySignature(pubRSAKey, data, signature)
+						&& !alreadyCounted.contains(consMsg.getSender())) {
+
+					alreadyCounted.add(consMsg.getSender());
+					countValid++;
+				}
+
+			} else {
+				LOGGER.error("(LCManager.hasValidProof) Proof is message is invalid");
+			}
+		}
+
+		// If proofs were made of signatures, use a certificate correspondent to last
+		// view
+		// otherwise, use certificate for the current view
+		// To understand why this is important, check the comments in
+		// Acceptor.computeWrite()
+
+		if (certificateLastView != -1 && pubRSAKey != null)
+			LOGGER.debug("(LCManager.hasValidProof) Computing certificate based on previous view");
+
+		// return countValid >= certificateCurrentView;
+
+		boolean result = countValid >= (certificateLastView != -1 && pubRSAKey != null ? certificateLastView
+				: certificateCurrentView);
+		LOGGER.debug("Proof is valid ? {}", result);
+		return result;
+	}
+
+	/**
+	 * Returns the value of the specified last CID for a given regency
+	 * 
+	 * @param regency the related regency
+	 * @param cid     the last CID
+	 * @return null if there is no such CID or is invalid, otherwise returns the
+	 *         value
+	 */
+	public byte[] getLastCIDValue(int regency, int cid) {
+
+		HashSet<CertifiedDecision> lasts = lastCIDs.get(regency);
+
+		if (lasts == null)
+			return null;
+
+		byte[] result = null;
+
+		for (CertifiedDecision l : lasts) {
+
+			if (l.getCID() == cid) {
+
+				// TODO: CHECK OF THE PROOF IS MISSING!!!!
+				result = l.getDecision();
+				break;
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Gets the highest ETS associated with a consensus ID from the given collects
+	 * 
+	 * @param cid      The consensus ID
+	 * @param collects The collects from the other replicas
+	 * @return The highest ETS
+	 */
+	public int getETS(int cid, Set<CollectData> collects) {
+
+		int ets = -1;
+		int count = 0;
+
+		for (CollectData c : collects) {
+
+			if (c.getCid() == cid) {
+
+				if (c.getEts() > ets) {
+
+					ets = c.getEts();
+					count = 1;
+				} else if (c.getEts() == ets) {
+					count++;
+				}
+
+			}
+		}
+
+		return (count > this.SVController.getCurrentViewF() ? ets : -1);
+	}
 }
