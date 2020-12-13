@@ -376,7 +376,7 @@ public class HeartBeatTimer {
         if (leaderResponseMessages == null || leaderResponseMessages.isEmpty()) {
             return null;
         } else {
-            return newLeaderCheck(leaderResponseMessages);
+            return newLeaderCheck(leaderResponseMessages, tomLayer.controller.getCurrentViewF());
         }
     }
 
@@ -385,7 +385,7 @@ public class HeartBeatTimer {
      * @param leaderResponseMessages
      * @return
      */
-    private NewLeader newLeaderCheck(List<LeaderResponseMessage> leaderResponseMessages) {
+    public static NewLeader newLeaderCheck(List<LeaderResponseMessage> leaderResponseMessages, int f) {
         // 判断收到的应答结果是不是满足2f+1的规则
         Map<Integer, Integer> leader2Size = new HashMap<>();
         Map<Integer, Integer> regency2Size = new HashMap<>();
@@ -424,8 +424,9 @@ public class HeartBeatTimer {
         }
 
         // 判断是否满足2f+1
-        int compareLeaderSize = 2 * tomLayer.controller.getCurrentView().getF() + 1;
-        int compareRegencySize = 2 * tomLayer.controller.getCurrentView().getF() + 1;
+        int compareLeaderSize = 2 * f + 1;
+        int compareRegencySize = 2 * f + 1;
+
         if (leaderMaxSize >= compareLeaderSize && regencyMaxSize >= compareRegencySize) {
             return new NewLeader(leaderMaxId, regencyMaxId);
         }
@@ -593,7 +594,7 @@ public class HeartBeatTimer {
         }
     }
 
-    class NewLeader {
+    static class NewLeader {
 
         private int newLeader;
 
