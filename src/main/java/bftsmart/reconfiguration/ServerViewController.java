@@ -25,11 +25,12 @@ import bftsmart.tom.util.BytesUtils;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 /**
@@ -173,6 +174,7 @@ public class ServerViewController extends ViewController {
 		int f = -1;
 
 		List<String> jSetInfo = new LinkedList<>();
+		Map<Integer, NodeNetwork> currentAddresses = getCurrentView().getAddresses();
 
 		for (int i = 0; i < updates.size(); i++) {
 			ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(updates.get(i).getContent());
@@ -186,7 +188,7 @@ public class ServerViewController extends ViewController {
 					StringTokenizer str = new StringTokenizer(value, ":");
 					if (str.countTokens() > 2) {
 						int id = Integer.parseInt(str.nextToken());
-						if (!isCurrentViewMember(id) && !contains(id, jSet)) {
+						if (!currentAddresses.containsKey(id) && !contains(id, jSet)) {
 							jSetInfo.add(value);
 							jSet.add(id);
 							String host = str.nextToken();
@@ -199,11 +201,14 @@ public class ServerViewController extends ViewController {
 								this.getStaticConf().addHostInfo(id, host, port, -1);
 
 							}
+							currentAddresses.put(id, new NodeNetwork(host, port, -1));
 						}
 					}
 				} else if (key == REMOVE_SERVER) {
-					if (isCurrentViewMember(Integer.parseInt(value))) {
-						rSet.add(Integer.parseInt(value));
+					int id = Integer.parseInt(value);
+					if (currentAddresses.containsKey(id)) {
+						rSet.add(id);
+						currentAddresses.remove(id);
 						this.getStaticConf().getOuterHostConfig().del(Integer.parseInt(value));
 					}
 				} else if (key == CHANGE_F) {
@@ -314,6 +319,9 @@ public class ServerViewController extends ViewController {
 		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
 
 		LOGGER.info("I am proc {}, I adjust reply view, reply view = {}", this.getStaticConf().getProcessId(), replyView);
+
+		// 更新 TOMConfiguration
+		getStaticConf().updateConfiguration(replyView.getProcesses(), replyView.getN(), replyView.getF());
 
 		return TOMUtil.getBytes(new ReconfigureReply(replyView, jSetInfo.toArray(new String[0]), cid,
 				tomLayer.execManager.getCurrentLeader()));
