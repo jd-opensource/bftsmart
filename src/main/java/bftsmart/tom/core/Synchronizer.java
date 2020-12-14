@@ -13,6 +13,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.security.SignedObject;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -62,7 +63,7 @@ import bftsmart.tom.util.TOMUtil;
 public class Synchronizer {
 
 	// out of context messages related to the leader change are stored here
-	private final HashSet<LCMessage> outOfContextLC;
+	private final Set<LCMessage> outOfContextLC;
 
 	// Manager of the leader change
 	private final LCManager lcManager;
@@ -110,7 +111,7 @@ public class Synchronizer {
 		this.acceptor = this.tom.acceptor;
 		this.md = this.tom.md;
 
-		this.outOfContextLC = new HashSet<>();
+		this.outOfContextLC = Collections.synchronizedSet(new HashSet<>());
 		this.lcManager = new LCManager(this.tom, this.controller, this.md);
 	}
 
@@ -132,12 +133,14 @@ public class Synchronizer {
 
 //		int regency = lcManager.getNextReg();
 
-		heartBeatTimer.stopAll();
+//		heartBeatTimer.stopAll();
 //        requestsTimer.Enabled(false);
 
 		// still not in the leader change phase?
 		int proposedNewRegency = globalRegencyInfo.getMaxRegency() + 1;
 		if (lcManager.tryEnterElecting(proposedNewRegency)) {
+			heartBeatTimer.stopAll();
+
 //		if (!lcManager.isElecting()) {
 //			lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
 
@@ -146,8 +149,12 @@ public class Synchronizer {
 			// store messages to be ordered
 			lcManager.setCurrentRequestTimedOut(requestList);
 
+			// 当前领导者；
+			final int currentLeader = tom.getExecManager().getCurrentLeader();
+
 			// store information about messages that I'm going to send
-			lcManager.addStop(proposedNewRegency, this.controller.getStaticConf().getProcessId());
+			// 加入当前节点的执政期选举提议；
+			lcManager.addStop(currentLeader, proposedNewRegency, this.controller.getStaticConf().getProcessId());
 
 			// execManager.stop(); // stop consensus execution
 
@@ -189,11 +196,12 @@ public class Synchronizer {
 						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 						proposedNewRegency, (messages != null ? messages.size() : 0));
 
-				LCMessage stop = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP, proposedNewRegency,
-						payload);
-				requestsTimer.setSTOP(proposedNewRegency, stop); // make replica re-transmit the stop message until a new regency
-														// is installed
-				communication.send(this.controller.getCurrentViewOtherAcceptors(), stop);
+				LCMessage msgSTOP = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP,
+						currentLeader, proposedNewRegency, payload);
+				requestsTimer.setSTOP(proposedNewRegency, msgSTOP); // make replica re-transmit the stop message until a
+																	// new regency
+				// is installed
+				communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP);
 
 			} catch (IOException ex) {
 				ex.printStackTrace();
@@ -211,8 +219,8 @@ public class Synchronizer {
 		}
 
 		processOutOfContextSTOPs(proposedNewRegency); // the replica might have received STOPs
-											// that were out of context at the time they
-											// were received, but now can be processed
+		// that were out of context at the time they
+		// were received, but now can be processed
 
 		startSynchronization(proposedNewRegency, globalRegencyInfo); // evaluate STOP messages
 
@@ -245,7 +253,7 @@ public class Synchronizer {
 			lcManager.addRequestsFromSTOP(requests);
 
 			// store information about the STOP message
-			lcManager.addStop(regency, m.getSender());
+			lcManager.addStop(m.getLeader(), regency, m.getSender());
 		}
 	}
 
@@ -370,8 +378,17 @@ public class Synchronizer {
 		}
 	}
 
-	// Fetches synchronization messages that were not process upon reception,
-	// because they were ahead of the replica's expected regency
+	/**
+	 * Fetches synchronization messages that were not process upon reception,
+	 * because they were ahead of the replica's expected regency
+	 * 
+	 * <p>
+	 * 返回指定执政期的指定类型的超前抵达的消息；
+	 * 
+	 * @param type
+	 * @param regency
+	 * @return
+	 */
 	private Set<LCMessage> getOutOfContextLC(int type, int regency) {
 
 		HashSet<LCMessage> result = new HashSet<>();
@@ -516,7 +533,7 @@ public class Synchronizer {
 			// Ask to start the synchronizations phase if enough messages have been received
 			// already
 			if (stopQuruomOK && lcManager.getNextReg() == lcManager.getLastReg()) {
-				prepareStopping();
+				broadcast_LC_STOP();
 			} // if (condition && lcManager.getNextReg() == lcManager.getLastReg())
 
 			final boolean canSendStopData;
@@ -529,6 +546,11 @@ public class Synchronizer {
 			// Did the synchronization phase really started?
 			// if (lcManager.getStopsSize(nextReg) > this.reconfManager.getQuorum2F() &&
 			// lcManager.getNextReg() > lcManager.getLastReg()) {
+			
+			// LCManager有两种状态： 
+			// 1: 进入“选举中”状态；
+			// 2：在本次“选举周期”下并发地收到其它节点的 STOPDATA 消息，完成了本次轮选举；
+			// 需要考虑
 			if (canSendStopData && lcManager.getNextReg() > lcManager.getLastReg()) {
 
 				if (!execManager.stopped())
@@ -564,7 +586,7 @@ public class Synchronizer {
 				// If I am not the leader, I have to send a STOPDATA message to the elected
 				// leader
 				if (leader != this.controller.getStaticConf().getProcessId()) {
-					sendStopDataInFollow(regency, leader, in, last);
+					sendStopDataInFollower(regency, leader, in, last);
 
 				} else {
 					processStopDataInLeader(regency, in, last);
@@ -710,7 +732,7 @@ public class Synchronizer {
 		}
 	}
 
-	private void sendStopDataInFollow(int regency, int leader, int in, int last) {
+	private void sendStopDataInFollower(int regency, int leader, int in, int last) {
 		ObjectOutputStream out = null;
 		ByteArrayOutputStream bos = null;
 		try { // serialize content of the STOPDATA message
@@ -846,8 +868,11 @@ public class Synchronizer {
 					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(), regency,
 					leader, new Date());
 			// send message SYNC to the new leader
-			communication.send(b,
-					new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOPDATA, regency, payload));
+
+			int currentLeader = tom.getExecManager().getCurrentLeader();
+			LCMessage msgSTOPDATA = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOPDATA,
+					currentLeader, regency, payload);
+			communication.send(b, msgSTOPDATA);
 
 			// TODO: Turn on timeout again?
 		} catch (IOException ex) {
@@ -887,21 +912,39 @@ public class Synchronizer {
 		}
 	}
 
-	private void prepareStopping() {
-		// 由于收到其它节点报告的 STOP 消息数量满足至少 f+1 个;
-		// 触发当前节点跟随发送 STOP 消息，进入 STOP 状态，开启选举进程；
+	/**
+	 * 由于收到其它节点报告的 STOP 消息数量满足至少 f+1 个;
+	 * 
+	 * <br>
+	 * 触发当前节点跟随发送 STOP 消息，进入 STOP 状态，开启选举进程；
+	 */
+	private void broadcast_LC_STOP() {
+		//
+		//
 		LOGGER.info("(Synchronizer.startSynchronization) [{}] -> I am proc {}, initialize synchr phase",
 				this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId());
 //            requestsTimer.Enabled(false);
 //            requestsTimer.stopTimer();
+
+		// 此处可能会 Follower 的心跳检测超时处理线程形成竞争进入选举进程；
+		// 如果此时已经处于选举进程，则不作后续处理；
+		
+		//TODO: 此处有错误！！！！！！ 未延续 STOP 消息的提议 regency；
+		!
+		final int proposedNewRegency = lcManager.getLastReg() + 1;
+		if (!lcManager.tryEnterElecting(proposedNewRegency)) {
+			return;
+		}
 		heartBeatTimer.stopAll();
 
-		lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
+//		lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
+//		int regency = lcManager.getNextReg();
 
-		int regency = lcManager.getNextReg();
-
+		// 当前的领导者；
+		final int currentLeader = tom.getExecManager().getCurrentLeader();
+		// 加入当前节点的领导者执政期提议；
 		// store information about message I am going to send
-		lcManager.addStop(regency, this.controller.getStaticConf().getProcessId());
+		lcManager.addStop(currentLeader, proposedNewRegency, this.controller.getStaticConf().getProcessId());
 
 		// execManager.stop(); // stop execution of consensus
 
@@ -928,7 +971,7 @@ public class Synchronizer {
 				out.writeBoolean(false);
 				LOGGER.debug(
 						"(Synchronizer.startSynchronization) [{}] -> Strange... did not include any request in my STOP message for regency {}",
-						this.execManager.getTOMLayer().getRealName(), regency);
+						this.execManager.getTOMLayer().getRealName(), proposedNewRegency);
 			}
 
 			out.flush();
@@ -941,14 +984,14 @@ public class Synchronizer {
 			// send message STOP
 			LOGGER.info(
 					"(Synchronizer.startSynchronization) [{}] -> I am proc {}, sending STOP message to install regency {} with {} request(s) to relay",
-					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(), regency,
-					(messages != null ? messages.size() : 0));
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					proposedNewRegency, (messages != null ? messages.size() : 0));
 
-			LCMessage stop = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP, regency,
-					payload);
-			requestsTimer.setSTOP(regency, stop); // make replica re-transmit the stop message until a new
-													// regency is installed
-			communication.send(this.controller.getCurrentViewOtherAcceptors(), stop);
+			LCMessage msgSTOP = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP,
+					currentLeader, proposedNewRegency, payload);
+			requestsTimer.setSTOP(proposedNewRegency, msgSTOP); // make replica re-transmit the stop message until a new
+			// regency is installed
+			communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP);
 
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -973,150 +1016,161 @@ public class Synchronizer {
 	public void deliverTimeoutRequest(LCMessage msg) {
 
 		switch (msg.getType()) {
-		case TOMUtil.STOP: { // message STOP
-
-			LOGGER.info(
-					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Recv Stop msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}",
-					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-					lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(),
-					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-
-			// this message is for the next leader change?
-			if (msg.getReg() == lcManager.getLastReg() + 1) {
-
-				LOGGER.info(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} received regency change request, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-
-				TOMMessage[] requests = deserializeTOMMessages(msg.getPayload());
-
-				// store requests that came with the STOP message
-				lcManager.addRequestsFromSTOP(requests);
-
-				// store information about the message STOP
-				lcManager.addStop(msg.getReg(), msg.getSender());
-
-				processOutOfContextSTOPs(msg.getReg()); // the replica might have received STOPs
-														// that were out of context at the time they
-														// were received, but now can be processed
-
-				GlobalRegencyInfo globalRegencyInfo;
-				startSynchronization(msg.getReg(), globalRegencyInfo); // evaluate STOP messages
-
-			} else if (msg.getReg() > lcManager.getLastReg()) { // send STOP to out of context if
-				// it is for a future regency
-				LOGGER.info(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Keeping STOP message as out of context for regency {}, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getReg(), msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-				outOfContextLC.add(msg);
-
-			} else {
-				LOGGER.error(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Discarding STOP message, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-			}
-		}
+		case TOMUtil.STOP: {
+			process_LC_STOP(msg);
+		} // End of: case TOMUtil.STOP;
 			break;
-		case TOMUtil.STOPDATA: { // STOPDATA messages
-
-			int regency = msg.getReg();
-
-			LOGGER.info(
-					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Recv Stopdata msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}",
-					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-					lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(),
-					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-
-			// Am I the new leader, and am I expecting this messages?
-			if (regency == lcManager.getLastReg() && this.controller.getStaticConf().getProcessId() == execManager
-					.getCurrentLeader()/* (regency % this.reconfManager.getCurrentViewN()) */) {
-
-				LOGGER.info(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} I'm the new leader and I received a STOPDATA, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-				processSTOPDATA(msg, regency);
-			} else if (msg.getReg() > lcManager.getLastReg()) { // send STOPDATA to out of context if
-																// it is for a future regency
-				LOGGER.info(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Keeping STOPDATA message as out of context for regency {}, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getReg(), msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-				outOfContextLC.add(msg);
-
-			} else {
-				LOGGER.error(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Discarding STOPDATA message, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-			}
-		}
+		case TOMUtil.STOPDATA: {
+			process_LC_STOPDATA(msg);
+		} // End of : case TOMUtil.STOPDATA;
 			break;
-		case TOMUtil.SYNC: { // message SYNC
-
-			int regency = msg.getReg();
-
-			LOGGER.info(
-					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Recv Sync msg, Last regency {}, next regency {}, from proc {}, from port {}",
-					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-					lcManager.getLastReg(), lcManager.getNextReg(), msg.getSender(),
-					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-
-			// I am expecting this sync?
-			boolean isExpectedSync = (regency == lcManager.getLastReg() && regency == lcManager.getNextReg());
-
-			// Is this sync what I wanted to get in the previous iteration of the
-			// synchoronization phase?
-			boolean islateSync = (regency == lcManager.getLastReg() && regency == (lcManager.getNextReg() - 1));
-
-			// Did I already sent a stopdata in this iteration?
-			boolean sentStopdata = (lcManager.getStopsSize(lcManager.getNextReg()) == 0); // if 0, I already purged the
-																							// stops,
-																							// which I only do when I am
-																							// about to
-																							// send the stopdata
-
-			// I am (or was) waiting for this message, and did I received it from the new
-			// leader?
-			if ((isExpectedSync || // Expected case
-					(islateSync && !sentStopdata)) && // might happen if I timeout before receiving the SYNC
-					(msg.getSender() == execManager.getCurrentLeader())) {
-
-				// if (msg.getReg() == lcManager.getLastReg() &&
-				// msg.getReg() == lcManager.getNextReg() && msg.getSender() ==
-				// lm.getCurrentLeader()/*(regency % this.reconfManager.getCurrentViewN())*/) {
-				processSYNC(msg.getPayload(), regency);
-
-			} else if (msg.getReg() > lcManager.getLastReg()) { // send SYNC to out of context if
-				// it is for a future regency
-				LOGGER.info(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Keeping SYNC message as out of context for regency {}, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getReg(), msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-				outOfContextLC.add(msg);
-
-			} else {
-				LOGGER.info(
-						"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Discarding SYNC message, from proc {}, from port {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						msg.getSender(),
-						controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-			}
-		}
+		case TOMUtil.SYNC: {
+			process_LC_SYNC(msg);
+		} // End of: case TOMUtil.SYNC;
 			break;
 
-		}
+		}// End of: switch (msg.getType());
 
+	}
+
+	private void process_LC_SYNC(LCMessage msg) {
+		// message SYNC
+		int regency = msg.getReg();
+
+		LOGGER.info(
+				"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Recv Sync msg, Last regency {}, next regency {}, from proc {}, from port {}",
+				this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+				lcManager.getLastReg(), lcManager.getNextReg(), msg.getSender(),
+				controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+
+		// I am expecting this sync?
+		boolean isExpectedSync = (regency == lcManager.getLastReg() && regency == lcManager.getNextReg());
+
+		// Is this sync what I wanted to get in the previous iteration of the
+		// synchoronization phase?
+		boolean islateSync = (regency == lcManager.getLastReg() && regency == (lcManager.getNextReg() - 1));
+
+		// Did I already sent a stopdata in this iteration?
+		boolean sentStopdata = (lcManager.getStopsSize(lcManager.getNextReg()) == 0); // if 0, I already purged the
+																						// stops,
+																						// which I only do when I am
+																						// about to
+																						// send the stopdata
+
+		// I am (or was) waiting for this message, and did I received it from the new
+		// leader?
+		if ((isExpectedSync || // Expected case
+				(islateSync && !sentStopdata)) && // might happen if I timeout before receiving the SYNC
+				(msg.getSender() == execManager.getCurrentLeader())) {
+
+			// if (msg.getReg() == lcManager.getLastReg() &&
+			// msg.getReg() == lcManager.getNextReg() && msg.getSender() ==
+			// lm.getCurrentLeader()/*(regency % this.reconfManager.getCurrentViewN())*/) {
+			processSYNC(msg.getPayload(), regency);
+
+		} else if (msg.getReg() > lcManager.getLastReg()) { // send SYNC to out of context if
+			// it is for a future regency
+			LOGGER.info(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Keeping SYNC message as out of context for regency {}, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getReg(), msg.getSender(),
+					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+			outOfContextLC.add(msg);
+
+		} else {
+			LOGGER.info(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Discarding SYNC message, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+		}
+	}
+
+	private void process_LC_STOPDATA(LCMessage msg) {
+		// STOPDATA messages
+
+		int regency = msg.getReg();
+
+		LOGGER.info(
+				"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Recv Stopdata msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}",
+				this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+				lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(),
+				controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+
+		// Am I the new leader, and am I expecting this messages?
+		if (regency == lcManager.getLastReg() && this.controller.getStaticConf().getProcessId() == execManager
+				.getCurrentLeader()/* (regency % this.reconfManager.getCurrentViewN()) */) {
+
+			LOGGER.info(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} I'm the new leader and I received a STOPDATA, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+			processSTOPDATA(msg, regency);
+		} else if (msg.getReg() > lcManager.getLastReg()) { // send STOPDATA to out of context if
+															// it is for a future regency
+			LOGGER.info(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Keeping STOPDATA message as out of context for regency {}, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getReg(), msg.getSender(),
+					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+			outOfContextLC.add(msg);
+
+		} else {
+			LOGGER.error(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Discarding STOPDATA message, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+		}
+	}
+
+	private void process_LC_STOP(LCMessage msg) {
+		// message STOP
+
+		LOGGER.info(
+				"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {}, Recv Stop msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}",
+				this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+				lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(),
+				controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+
+		// TODO: 收到 STOP 消息；
+		// this message is for the next leader change?
+		if (msg.getReg() == lcManager.getLastReg() + 1) {
+
+			LOGGER.info(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} received regency change request, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+
+			TOMMessage[] requests = deserializeTOMMessages(msg.getPayload());
+
+			// store requests that came with the STOP message
+			lcManager.addRequestsFromSTOP(requests);
+
+			// 当前的领导者；
+			// store information about the message STOP
+			lcManager.addStop(msg.getLeader(), msg.getReg(), msg.getSender());
+
+			processOutOfContextSTOPs(msg.getReg()); // the replica might have received STOPs
+													// that were out of context at the time they
+													// were received, but now can be processed
+			// TODO:
+			GlobalRegencyInfo globalRegencyInfo;
+			startSynchronization(msg.getReg(), globalRegencyInfo); // evaluate STOP messages
+
+		} else if (msg.getReg() > lcManager.getLastReg()) { // send STOP to out of context if
+			// it is for a future regency
+			LOGGER.info(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Keeping STOP message as out of context for regency {}, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getReg(), msg.getSender(),
+					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+			outOfContextLC.add(msg);
+
+		} else {
+			LOGGER.error(
+					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Discarding STOP message, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+		}
 	}
 
 	// this method is used to verify if the leader can make the message catch-up
@@ -1172,8 +1226,10 @@ public class Synchronizer {
 						regency);
 
 				// send the CATCH-UP message
-				communication.send(this.controller.getCurrentViewOtherAcceptors(),
-						new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.SYNC, regency, payload));
+				int currentLeader = tom.getExecManager().getCurrentLeader();
+				LCMessage msgSYNC = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.SYNC,
+						currentLeader, regency, payload);
+				communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSYNC);
 
 				finalise(regency, lastHighestCID, signedCollects, propose, batchSize, true);
 

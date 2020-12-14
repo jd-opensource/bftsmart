@@ -1,10 +1,12 @@
 package bftsmart.tom.leaderchange;
 
-import bftsmart.tom.core.TOMLayer;
-import org.apache.commons.collections4.map.LRUMap;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -13,6 +15,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import org.apache.commons.collections4.map.LRUMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import bftsmart.tom.core.TOMLayer;
 
 /**
  * This thread serves as a manager for all timers of pending requests.
@@ -55,13 +63,16 @@ public class HeartBeatTimer {
 
 	private volatile long lastSendLeaderRequestTime = -1L;
 
+	/**
+	 * TODO: 给予此变量的生命周期一个严格定义；
+	 */
 	private volatile InnerHeartBeatMessage innerHeartBeatMessage;
 
 	private volatile long lastLeaderRequestSequence = -1L;
 
 	private volatile long lastLeaderStatusSequence = -1L;
 
-	private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L);
+	private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L, this);
 
 //    private volatile boolean isLeaderChangeRunning = false;
 
@@ -106,7 +117,7 @@ public class HeartBeatTimer {
 		if (leaderTimer == null) {
 			leaderTimer = Executors.newSingleThreadScheduledExecutor();
 		}
-		leaderTimer.scheduleWithFixedDelay(new LeaderTimerTask(), LEADER_DELAY_MILL_SECONDS,
+		leaderTimer.scheduleWithFixedDelay(new LeaderHeartbeatBroadcastingTask(this), LEADER_DELAY_MILL_SECONDS,
 				tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 	}
 
@@ -114,8 +125,8 @@ public class HeartBeatTimer {
 		if (replicaTimer == null) {
 			replicaTimer = Executors.newSingleThreadScheduledExecutor();
 		}
-		replicaTimer.scheduleWithFixedDelay(new ReplicaTimerTask(), DELAY_MILL_SECONDS,
-				tomLayer.controller.getStaticConf().getHeartBeatTimeout(), TimeUnit.MILLISECONDS);
+		replicaTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(this), DELAY_MILL_SECONDS,
+				tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 	}
 
 	public void stopAll() {
@@ -143,9 +154,11 @@ public class HeartBeatTimer {
 		try {
 			// 需要考虑是否每次都更新innerHeartBeatMessage
 			if (heartBeatMessage.getLeader() == tomLayer.leader()) {
-				innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
 				if (heartBeatMessage.getLastRegency() != tomLayer.getSynchronizer().getLCManager().getLastReg()) {
 					sendLeaderRequestMessage();
+				}else {
+					// TODO: 此处是否应该延后？
+					innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
 				}
 			} else {
 				sendLeaderRequestMessage();
@@ -208,7 +221,11 @@ public class HeartBeatTimer {
 			long sequence = leaderStatusContext.getSequence();
 			// 将状态加入到其中
 			LeaderStatus leaderStatus = leaderStatus(responseMessage);
-			leaderStatusContext.addStatus(responseMessage.getSender(), leaderStatus, sequence);
+			boolean valid = leaderStatusContext.addStatus(responseMessage.getSender(), leaderStatus, sequence);
+			if (!valid) {
+				LOGGER.warn("I am {}, receive leader status response[{}:{}] is not match !!!",
+						tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSender(), sequence);
+			}
 		} finally {
 			lsLock.unlock();
 		}
@@ -441,28 +458,43 @@ public class HeartBeatTimer {
 	}
 
 	/**
-	 *
+	 * 在领导者节点上运行的心跳广播任务；
+	 * <p>
+	 * 该任务以配置文件指定的“心跳周期时长（HeartBeatPeriod）”为间隔周期性地广播心跳消息；
 	 */
-	class LeaderTimerTask implements Runnable {
+	static class LeaderHeartbeatBroadcastingTask implements Runnable {
+
+		private static Logger LOGGER = LoggerFactory.getLogger(LeaderHeartbeatBroadcastingTask.class);
+
+		private final HeartBeatTimer HEART_BEAT_TIMER;
+
+		public LeaderHeartbeatBroadcastingTask(HeartBeatTimer heartBeatTimer) {
+			this.HEART_BEAT_TIMER = heartBeatTimer;
+		}
 
 		@Override
 		public void run() {
+			// 判断是否是Leader
+			if (!HEART_BEAT_TIMER.tomLayer.isLeader()) {
+				return;
+			}
+
+			// 作为 Leader 发送心跳信息；
+			int currentProcessId = HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId();
 			try {
-				// 再次判断是否是Leader
-				if (tomLayer.isLeader()) {
-					if (!tomLayer.isConnectRemotesOK()) {
-						return;
-					}
-					// 如果是Leader则发送心跳信息给其他节点，当前节点除外
-					HeartBeatMessage heartBeatMessage = new HeartBeatMessage(
-							tomLayer.controller.getStaticConf().getProcessId(),
-							tomLayer.controller.getStaticConf().getProcessId(),
-							tomLayer.getSynchronizer().getLCManager().getLastReg());
-					tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(),
-							heartBeatMessage);
+				if (!HEART_BEAT_TIMER.tomLayer.isConnectRemotesOK()) {
+					return;
 				}
+				// 如果是Leader则发送心跳信息给其他节点，当前节点除外
+				int currentRegency = HEART_BEAT_TIMER.tomLayer.getSynchronizer().getLCManager().getLastReg();
+				HeartBeatMessage heartBeatMessage = new HeartBeatMessage(currentProcessId, currentProcessId,
+						currentRegency);
+
+				int[] followers = HEART_BEAT_TIMER.tomLayer.controller.getCurrentViewOtherAcceptors();
+				HEART_BEAT_TIMER.tomLayer.getCommunication().send(followers, heartBeatMessage);
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOGGER.warn("Error occurred while broadcasting heartbeat message from process[" + currentProcessId
+						+ "]! --" + e.getMessage(), e);
 			}
 		}
 	}
@@ -495,81 +527,105 @@ public class HeartBeatTimer {
 		}
 	}
 
-	class ReplicaTimerTask extends TimerTask {
+	/**
+	 * 在非领导者节点上检查心跳超时的定时任务；
+	 * <p>
+	 * 
+	 * 该任务以配置文件指定的“心跳超时时长”为周期执行；
+	 *
+	 */
+	static class FollowerHeartbeatCheckingTask extends TimerTask {
+		private static Logger LOGGER = LoggerFactory.getLogger(FollowerHeartbeatCheckingTask.class);
+
+		private final HeartBeatTimer HEART_BEAT_TIMER;
+
+		public FollowerHeartbeatCheckingTask(HeartBeatTimer heartbeatTimer) {
+			this.HEART_BEAT_TIMER = heartbeatTimer;
+		}
 
 		@Override
 		public void run() {
 			// 再次判断是否是Leader
-			if (!tomLayer.isLeader()) {
-				// 检查收到的InnerHeartBeatMessage是否超时
-				hbLock.lock();
-				try {
-					// 需要判断所有连接是否已经成功建立
-					if (!tomLayer.isConnectRemotesOK()) {
-						return;
-					}
-					if (innerHeartBeatMessage == null) {
-						// 此处触发超时
-						LOGGER.info("I am proc {} trigger hb timeout, because heart beat message is NULL !!!",
-								tomLayer.controller.getStaticConf().getProcessId());
-						if (tomLayer.requestsTimer != null) {
-							leaderChangeStartThread.execute(new LeaderChangeTask());
-						}
-					} else {
-						// 判断时间
-						long lastTime = innerHeartBeatMessage.getTime();
-						if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf()
-								.getHeartBeatTimeout()) {
-							// 此处触发超时
-							LOGGER.info("I am proc {} trigger hb timeout, time = {}, last hb time = {}",
-									tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis(),
-									innerHeartBeatMessage.getTime());
-							if (tomLayer.requestsTimer != null) {
-								leaderChangeStartThread.execute(new LeaderChangeTask());
-							}
-						}
-					}
-				} finally {
-					hbLock.unlock();
-				}
+			if (HEART_BEAT_TIMER.tomLayer.isLeader()) {
+				return;
 			}
-		}
-	}
+			// 作为 Follower 节点处理消息；
+			// 检查收到的InnerHeartBeatMessage是否超时
+			HEART_BEAT_TIMER.hbLock.lock();
+			try {
+				// 需要判断所有连接是否已经成功建立
+				if (!HEART_BEAT_TIMER.tomLayer.isConnectRemotesOK()) {
+					return;
+				}
+				if (HEART_BEAT_TIMER.innerHeartBeatMessage == null) {
+					// 此处触发超时
+					LOGGER.info("I am proc {} trigger hb timeout, because heart beat message is NULL !!!",
+							HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId());
+					if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
+						HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
+					}
+				} else {
+					// 判断时间
+					long lastTime = HEART_BEAT_TIMER.innerHeartBeatMessage.getTime();
+					if (System.currentTimeMillis() - lastTime > HEART_BEAT_TIMER.tomLayer.controller.getStaticConf()
+							.getHeartBeatTimeout()) {
+						// 此处触发超时
+						LOGGER.info("I am proc {} trigger hb timeout, time = {}, last hb time = {}",
+								HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(),
+								System.currentTimeMillis(), HEART_BEAT_TIMER.innerHeartBeatMessage.getTime());
+						if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
+							HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
+						}
+					}
+				}
+			} finally {
+				HEART_BEAT_TIMER.hbLock.unlock();
+			}
+		}// End of : public void run();
+	}// End of : class FollowerHeartbeatCheckingTask;
 
-	class LeaderChangeTask implements Runnable {
+	static class LeaderChangeTask implements Runnable {
+
+		private static Logger LOGGER = LoggerFactory.getLogger(LeaderChangeTask.class);
+
+		private final HeartBeatTimer HEART_BEAT_TIMER;
+
+		public LeaderChangeTask(HeartBeatTimer heartbeatTimer) {
+			this.HEART_BEAT_TIMER = heartbeatTimer;
+		}
 
 		@Override
 		public void run() {
 			// 检查是否确实需要进行领导者切换
 			// 首先发送其他节点领导者切换的消息，然后等待
 			long currentTimeMillis = System.currentTimeMillis();
-			if (currentTimeMillis - lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS) {
+			if (currentTimeMillis - HEART_BEAT_TIMER.lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS) {
 				// 重置sequence
-				lastLeaderStatusSequence = currentTimeMillis;
+				HEART_BEAT_TIMER.lastLeaderStatusSequence = currentTimeMillis;
 				// 可以开始处理
 				// 首先生成领导者状态请求消息
 				LeaderStatusRequestMessage requestMessage = new LeaderStatusRequestMessage(
-						tomLayer.controller.getStaticConf().getProcessId(), currentTimeMillis);
+						HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(), currentTimeMillis);
 				LOGGER.info("I am {}, send leader status request[{}] to others !", requestMessage.getSender(),
 						requestMessage.getSequence());
-				lsLock.lock();
+				HEART_BEAT_TIMER.lsLock.lock();
 				try {
 					// 通过锁进行控制
-					leaderStatusContext = new LeaderStatusContext(currentTimeMillis);
+					HEART_BEAT_TIMER.leaderStatusContext = new LeaderStatusContext(currentTimeMillis, HEART_BEAT_TIMER);
 					// 调用发送线程
-					tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(),
-							requestMessage);
+					HEART_BEAT_TIMER.tomLayer.getCommunication()
+							.send(HEART_BEAT_TIMER.tomLayer.controller.getCurrentViewOtherAcceptors(), requestMessage);
 				} finally {
-					lsLock.unlock();
+					HEART_BEAT_TIMER.lsLock.unlock();
 				}
 				try {
 					// 等待应答结果
 //					Map<Integer, LeaderStatus> statusMap = leaderStatusContext
 //							.waitLeaderStatuses(LEADER_STATUS_MAX_WAIT);
 					// 状态不为空的情况下进行汇总，并且是同一个Sequence
-					if (leaderStatusContext.waitLeaderStatuses(LEADER_STATUS_MAX_WAIT)) {
+					if (HEART_BEAT_TIMER.leaderStatusContext.waitLeaderStatuses(LEADER_STATUS_MAX_WAIT)) {
 						LOGGER.info("I am {}, receive more than f response for timeout, so I will start to LC !",
-								tomLayer.controller.getStaticConf().getProcessId());
+								HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId());
 						// 再次进行判断，防止LC已处理完成再次触发
 //                            if (!isLeaderChangeRunning) {
 //                                startLeaderChange();
@@ -577,10 +633,11 @@ public class HeartBeatTimer {
 
 						// 对于不一致的leaderid, regency进行本地更新，达到节点之间的一致性
 //						checkAndUpdateLeaderInfos(statusMap);
-						GlobalRegencyInfo globalRegencyInfo = leaderStatusContext.getGlobalRegencyInfo();
+						GlobalRegencyInfo globalRegencyInfo = HEART_BEAT_TIMER.leaderStatusContext
+								.getGlobalRegencyInfo();
 
-						tomLayer.requestsTimer.run_lc_protocol(globalRegencyInfo);
-//                            }
+						HEART_BEAT_TIMER.tomLayer.requestsTimer.run_lc_protocol(globalRegencyInfo);
+//                     }
 					}
 				} catch (Exception e) {
 					LOGGER.info("Handle leader status response error !!!", e);
@@ -590,7 +647,7 @@ public class HeartBeatTimer {
 		}
 	}
 
-	class InnerHeartBeatMessage {
+	static class InnerHeartBeatMessage {
 
 		private long time;
 
@@ -630,34 +687,9 @@ public class HeartBeatTimer {
 		}
 	}
 
-	class LeaderStatus {
+	
 
-		private int status;
-
-		private int leader;
-
-		private int regency;
-
-		public LeaderStatus(int status, int leader, int regency) {
-			this.status = status;
-			this.leader = leader;
-			this.regency = regency;
-		}
-
-		public int getStatus() {
-			return status;
-		}
-
-		public int getLeader() {
-			return leader;
-		}
-
-		public int getRegency() {
-			return regency;
-		}
-	}
-
-	class LeaderStatusContext {
+	static class LeaderStatusContext {
 
 		private long sequence;
 
@@ -665,11 +697,24 @@ public class HeartBeatTimer {
 
 		private Map<Integer, LeaderStatus> leaderStatuses = new ConcurrentHashMap<>();
 
-		public LeaderStatusContext(long sequence) {
+		private final HeartBeatTimer HEART_BEAT_TIMER;
+
+		public LeaderStatusContext(long sequence, HeartBeatTimer heartbeatTimer) {
 			this.sequence = sequence;
+			this.HEART_BEAT_TIMER = heartbeatTimer;
 		}
 
-		public synchronized void addStatus(int sender, LeaderStatus leaderStatus, long sequence) {
+		/**
+		 * 记录指定节点的领导者状态；
+		 * <p>
+		 * 
+		 * 如果加入的是有效的状态数据，即序列号相同，则返回 true；否则返回 false；
+		 * 
+		 * @param sender
+		 * @param leaderStatus
+		 * @param sequence
+		 */
+		public synchronized boolean addStatus(int sender, LeaderStatus leaderStatus, long sequence) {
 			if (this.sequence == sequence) {
 				// 将状态加入到其中
 				leaderStatuses.put(sender, leaderStatus);
@@ -678,9 +723,9 @@ public class HeartBeatTimer {
 					latch.countDown();
 				}
 
+				return true;
 			} else {
-				LOGGER.warn("I am {}, receive leader status response[{}:{}] is not match !!!",
-						tomLayer.controller.getStaticConf().getProcessId(), sender, sequence);
+				return false;
 			}
 		}
 
@@ -723,8 +768,8 @@ public class HeartBeatTimer {
 			// 以（n + f）/ 2作为判断依据
 			// 增强判断的条件，防止不必要的LC流程,如果因为网络差收不到足够的status响应，或者没有足够的共识节点心跳超时都不会触发LC流程
 			// 注意：取值不能从this.tomLayer.controller.getStaticConf()中获得，激活新节点时TOMconfig并没有更新，只更新了视图
-			int f = tomLayer.controller.getCurrentViewF();
-			int n = tomLayer.controller.getCurrentViewN();
+			int f = HEART_BEAT_TIMER.tomLayer.controller.getCurrentViewF();
+			int n = HEART_BEAT_TIMER.tomLayer.controller.getCurrentViewN();
 			int counter = (n + f) / 2;
 
 			int receiveTimeoutSize = 0;
@@ -734,17 +779,17 @@ public class HeartBeatTimer {
 				}
 			}
 			LOGGER.info("I am proc {}, receiveTimeoutSize = {}, counter = {}",
-					tomLayer.controller.getStaticConf().getProcessId(), receiveTimeoutSize, counter);
+					HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(), receiveTimeoutSize, counter);
 			return receiveTimeoutSize >= counter;
 		}
 
 		public synchronized GlobalRegencyInfo getGlobalRegencyInfo() {
-			int minLeader = tomLayer.getExecManager().getCurrentLeader();
-			int maxRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
+			int minLeader = HEART_BEAT_TIMER.tomLayer.getExecManager().getCurrentLeader();
+			int maxRegency = HEART_BEAT_TIMER.tomLayer.getSynchronizer().getLCManager().getLastReg();
 			boolean consistant = false;
 			for (Map.Entry<Integer, LeaderStatus> entry : leaderStatuses.entrySet()) {
-				int leader = entry.getValue().leader;
-				int regency = entry.getValue().regency;
+				int leader = entry.getValue().getLeader();
+				int regency = entry.getValue().getRegency();
 
 				if (leader != minLeader || regency != maxRegency) {
 					consistant = true;

@@ -63,7 +63,9 @@ public class LCManager {
 	private List<TOMMessage> requestsFromSTOP = null;
 
 	// data structures for info in stop, sync and catch-up messages
-	private Map<Integer, HashSet<Integer>> stops;
+//	private Map<Integer, HashSet<Integer>> stops;
+	// 执政期的 STOP 消息映射表；“键”为提议的执政期（regency），“值”为
+	private Map<Integer, Map<Integer, LeaderRegency>> stops; 
 	private Map<Integer, HashSet<CertifiedDecision>> lastCIDs;
 	private Map<Integer, HashSet<SignedObject>> collects;
 
@@ -88,7 +90,7 @@ public class LCManager {
 		this.nextreg = new AtomicInteger(0);
 		this.currentLeader = 0;
 
-		this.stops = new ConcurrentHashMap<Integer, HashSet<Integer>>();
+		this.stops = new ConcurrentHashMap<Integer, Map<Integer, LeaderRegency>>();
 		this.lastCIDs = new ConcurrentHashMap<Integer, HashSet<CertifiedDecision>>();
 		this.collects = new ConcurrentHashMap<Integer, HashSet<SignedObject>>();
 
@@ -310,12 +312,13 @@ public class LCManager {
 	 * @param regency the next regency
 	 * @param pid     the process that sent the message
 	 */
-	public synchronized void addStop(int regency, int pid) {
-		HashSet<Integer> pids = stops.get(regency);
-		if (pids == null)
-			pids = new HashSet<Integer>();
-		pids.add(pid);
-		stops.put(regency, pids);
+	public synchronized void addStop(int leader, int regency, int pid) {
+		Map<Integer, LeaderRegency> regencyInfos = stops.get(regency);
+		if (regencyInfos == null) {
+			regencyInfos = new ConcurrentHashMap<Integer, LeaderRegency>();
+			stops.put(regency, regencyInfos);
+		}
+		regencyInfos.put(pid, new LeaderRegency(leader, regency));
 	}
 
 	/**
@@ -340,7 +343,7 @@ public class LCManager {
 	 * @return quantity of stored STOP information for given timestamp
 	 */
 	public int getStopsSize(int regency) {
-		HashSet<Integer> pids = stops.get(regency);
+		Map<Integer, LeaderRegency> pids = stops.get(regency);
 		return pids == null ? 0 : pids.size();
 	}
 

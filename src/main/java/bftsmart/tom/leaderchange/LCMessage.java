@@ -24,80 +24,102 @@ import java.io.ObjectOutput;
 
 /**
  * Message used during leader change and synchronization
+ * 
  * @author Joao Sousa
  */
 public class LCMessage extends SystemMessage {
 
-    private int type;
-    private int regency;
-    private byte[] payload;
-    public final boolean TRIGGER_LC_LOCALLY; // indicates that the replica should
-                                             // initiate the LC protocol locally
+	private int type;
+	private int leader;
+	private int regency;
+	private byte[] payload;
+	public final boolean TRIGGER_LC_LOCALLY; // indicates that the replica should
+												// initiate the LC protocol locally
 
-    /**
-     * Empty constructor
-     */
-    public LCMessage(){
-    
-        this.TRIGGER_LC_LOCALLY = false;
-    }
+	/**
+	 * Empty constructor
+	 */
+	public LCMessage() {
 
+		this.TRIGGER_LC_LOCALLY = false;
+	}
 
-    /**
-     * Constructor
-     * @param from replica that creates this message
-     * @param type type of the message (STOP, SYNC, CATCH-UP)
-     * @param regency timestamp of leader change and synchronization
-     * @param payload dada that comes with the message
-     */
-    public LCMessage(int from, int type, int regency, byte[] payload) {
-        super(from);
-        this.type = type;
-        this.regency = regency;
-        this.payload = payload == null ? new byte[0] : payload;
-        if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1) this.TRIGGER_LC_LOCALLY = true;
-        else this.TRIGGER_LC_LOCALLY  = false;
-    }
+	/**
+	 * Constructor
+	 * 
+	 * @param from    replica that creates this message
+	 * @param type    type of the message (STOP, SYNC, CATCH-UP)
+	 * @param leader  the leader id of the current regency in the replica created
+	 *                this message;
+	 * @param regency timestamp of leader change and synchronization; besides, it is
+	 *                the new regency will be elected;
+	 * @param payload dada that comes with the message
+	 */
+	public LCMessage(int from, int type, int leader, int regency, byte[] payload) {
+		super(from);
+		this.type = type;
+		this.leader = leader;
+		this.regency = regency;
+		this.payload = payload == null ? new byte[0] : payload;
+		if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1)
+			this.TRIGGER_LC_LOCALLY = true;
+		else
+			this.TRIGGER_LC_LOCALLY = false;
+	}
 
-    /**
-     * Get type of message
-     * @return type of message
-     */
-    public int getType() {
-        return type;
-    }
+	/**
+	 * Get type of message
+	 * 
+	 * @return type of message
+	 */
+	public int getType() {
+		return type;
+	}
 
-    /**
-     * Get timestamp of leader change and synchronization
-     * @return timestamp of leader change and synchronization
-     */
-    public int getReg() {
-        return regency;
-    }
+	/**
+	 * Get timestamp of leader change and synchronization
+	 * 
+	 * @return timestamp of leader change and synchronization
+	 */
+	public int getReg() {
+		return regency;
+	}
 
-    /**
-     * Obter data of the message
-     * @return data of the message
-     */
-    public byte[] getPayload() {
-        return payload;
-    }
+	/**
+	 * the leader id of the current regency in the replica created this message;
+	 * 
+	 * @return
+	 */
+	public int getLeader() {
+		return leader;
+	}
 
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException{
-        super.writeExternal(out);
+	/**
+	 * Obter data of the message
+	 * 
+	 * @return data of the message
+	 */
+	public byte[] getPayload() {
+		return payload;
+	}
 
-        out.writeInt(type);
-        out.writeInt(regency);
-        out.writeObject(payload);
-    }
+	@Override
+	public void writeExternal(ObjectOutput out) throws IOException {
+		super.writeExternal(out);
 
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException{
-        super.readExternal(in);
+		out.writeInt(type);
+		out.writeInt(leader);
+		out.writeInt(regency);
+		out.writeObject(payload);
+	}
 
-        type = in.readInt();
-        regency = in.readInt();
-        payload = (byte[]) in.readObject();
-    }
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		super.readExternal(in);
+
+		type = in.readInt();
+		leader = in.readInt();
+		regency = in.readInt();
+		payload = (byte[]) in.readObject();
+	}
 }
