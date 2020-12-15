@@ -80,7 +80,7 @@ public class ServiceReplica {
 	private ServerViewController SVController;
 	private ReentrantLock waitTTPJoinMsgLock = new ReentrantLock();
 	private Condition canProceed = waitTTPJoinMsgLock.newCondition();
-	private Executable executor = null;
+	private final Executable executor;
 	private Recoverable recoverer = null;
 	private TOMLayer tomLayer = null;
 	private boolean tomStackCreated = false;
@@ -528,7 +528,7 @@ public class ServiceReplica {
 		boolean noop = true;
 
 		for (TOMMessage[] requestsFromConsensus : requests) {
-
+			
 			TOMMessage firstRequest = requestsFromConsensus[0];
 			int requestCount = 0;
 			noop = true;
@@ -726,7 +726,7 @@ public class ServiceReplica {
 			}
 
 			consensusCount++;
-		}
+		}// End of: for (TOMMessage[] requestsFromConsensus : requests)
 
 		if (executor instanceof PreComputeBatchExecutable && numRequests > 0) {
 			// Make new batch to deliver
@@ -776,7 +776,7 @@ public class ServiceReplica {
 
 			// DEBUG
 			LOGGER.debug("BATCHEXECUTOR END");
-		}
+		}//End of: if (executor instanceof PreComputeBatchExecutable && numRequests > 0)
 	}
 
 	/**

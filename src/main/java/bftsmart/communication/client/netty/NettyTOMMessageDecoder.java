@@ -44,7 +44,7 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
      */
     //private final int BENCHMARK_PERIOD = 10000;
     private boolean isClient;
-    private Map sessionTable;
+    private Map<Integer, NettyClientServerSession> sessionTable;
     //private Storage st;
     private int macSize;
     private int signatureSize;
@@ -68,7 +68,7 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(NettyTOMMessageDecoder.class);
 
     
-    public NettyTOMMessageDecoder(boolean isClient, Map sessionTable, int macLength, ViewController controller, ReentrantReadWriteLock rl, int signatureLength, boolean useMAC) {
+    public NettyTOMMessageDecoder(boolean isClient, Map<Integer, NettyClientServerSession> sessionTable, int macLength, ViewController controller, ReentrantReadWriteLock rl, int signatureLength, boolean useMAC) {
         this.isClient = isClient;
         this.sessionTable = sessionTable;
         this.macSize = macLength;

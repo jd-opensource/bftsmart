@@ -48,7 +48,7 @@ public class ServerCommunicationSystem extends Thread {
 	private MessageQueue messageInQueue;
 	private MessageHandler messageHandler = new MessageHandler();
 	private ServersCommunicationLayer serversConn;
-	private CommunicationSystemServerSide clientsConn;
+	private volatile CommunicationSystemServerSide clientsConn;
 	private ServerViewController controller;
 	private final List<MessageHandlerRunner> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystem.class);
@@ -93,7 +93,7 @@ public class ServerCommunicationSystem extends Thread {
 		serversConn.joinViewReceived();
 	}
 
-	public void updateServersConnections() {
+	public synchronized void updateServersConnections() {
 		this.serversConn.updateConnections();
 		if (clientsConn == null) {
 			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
@@ -110,7 +110,7 @@ public class ServerCommunicationSystem extends Thread {
 		messageHandler.setTOMLayer(tomLayer);
 	}
 
-	public void setRequestReceiver(RequestReceiver requestReceiver) {
+	public synchronized void setRequestReceiver(RequestReceiver requestReceiver) {
 		if (clientsConn == null) {
 			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
 		}
