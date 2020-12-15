@@ -116,7 +116,7 @@ public class LCManager {
 	 * 
 	 * @return The new leader
 	 */
-	public int electNewLeader(GlobalRegencyInfo globalRegencyInfo) {
+	public int electNewLeader(LeaderRegencyPropose globalRegencyInfo) {
 
 		int[] proc = SVController.getCurrentViewProcesses();
 		int minProc = proc[0];

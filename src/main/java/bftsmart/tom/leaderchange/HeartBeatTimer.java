@@ -633,7 +633,7 @@ public class HeartBeatTimer {
 
 						// 对于不一致的leaderid, regency进行本地更新，达到节点之间的一致性
 //						checkAndUpdateLeaderInfos(statusMap);
-						GlobalRegencyInfo globalRegencyInfo = HEART_BEAT_TIMER.leaderStatusContext
+						LeaderRegencyPropose globalRegencyInfo = HEART_BEAT_TIMER.leaderStatusContext
 								.getGlobalRegencyInfo();
 
 						HEART_BEAT_TIMER.tomLayer.requestsTimer.run_lc_protocol(globalRegencyInfo);
@@ -783,7 +783,7 @@ public class HeartBeatTimer {
 			return receiveTimeoutSize >= counter;
 		}
 
-		public synchronized GlobalRegencyInfo getGlobalRegencyInfo() {
+		public synchronized LeaderRegencyPropose getGlobalRegencyInfo() {
 			int minLeader = HEART_BEAT_TIMER.tomLayer.getExecManager().getCurrentLeader();
 			int maxRegency = HEART_BEAT_TIMER.tomLayer.getSynchronizer().getLCManager().getLastReg();
 			boolean consistant = false;
@@ -803,7 +803,7 @@ public class HeartBeatTimer {
 				}
 			}
 
-			return new GlobalRegencyInfo(minLeader, maxRegency, consistant);
+			return new LeaderRegencyPropose(minLeader, maxRegency, consistant);
 
 //			if (maxRegency < tomLayer.getSynchronizer().getLCManager().getLastReg()) {
 //				return;

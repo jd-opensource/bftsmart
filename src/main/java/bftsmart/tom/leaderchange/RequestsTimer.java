@@ -167,7 +167,7 @@ public class RequestsTimer {
 		}
 	}
 
-	public void run_lc_protocol(GlobalRegencyInfo globalRegencyInfo) {
+	public void run_lc_protocol(LeaderRegencyPropose globalRegencyInfo) {
 
 		long t = (shortTimeout > -1 ? shortTimeout : timeout);
 

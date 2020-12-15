@@ -40,7 +40,7 @@ import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.leaderchange.CollectData;
-import bftsmart.tom.leaderchange.GlobalRegencyInfo;
+import bftsmart.tom.leaderchange.LeaderRegencyPropose;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.leaderchange.LCMessage;
@@ -127,7 +127,7 @@ public class Synchronizer {
 	 * @param requestList List of requests that the replica wanted to order but
 	 *                    didn't manage to
 	 */
-	public void triggerTimeout(GlobalRegencyInfo globalRegencyInfo, List<TOMMessage> requestList) {
+	public void triggerTimeout(LeaderRegencyPropose globalRegencyInfo, List<TOMMessage> requestList) {
 
 		ObjectOutputStream out = null;
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -514,7 +514,7 @@ public class Synchronizer {
 
 	// this method is called when a timeout occurs or when a STOP message is
 	// recevied
-	private void startSynchronization(int nextReg, GlobalRegencyInfo globalRegencyInfo) {
+	private void startSynchronization(LeaderRegencyPropose regencyPropose) {
 
 		synchronizationLock.lock();
 
@@ -931,6 +931,7 @@ public class Synchronizer {
 		// 如果此时已经处于选举进程，则不作后续处理；
 
 		// TODO: 此处有错误！！！！！！ 未延续 STOP 消息的提议 regency；
+		final int a = b;
 		final int proposedNewRegency = lcManager.getLastReg() + 1;
 		if (!lcManager.tryEnterElecting(proposedNewRegency)) {
 			return;
@@ -1149,7 +1150,7 @@ public class Synchronizer {
 													// that were out of context at the time they
 													// were received, but now can be processed
 			// TODO:
-			final GlobalRegencyInfo globalRegencyInfo = null;
+			LeaderRegencyPropose globalRegencyInfo;
 			startSynchronization(msg.getReg(), globalRegencyInfo); // evaluate STOP messages
 
 		} else if (msg.getReg() > lcManager.getLastReg()) { // send STOP to out of context if
