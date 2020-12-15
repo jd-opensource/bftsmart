@@ -44,6 +44,7 @@ import bftsmart.tom.leaderchange.GlobalRegencyInfo;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.leaderchange.LCMessage;
+import bftsmart.tom.leaderchange.LCType;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchBuilder;
@@ -196,8 +197,8 @@ public class Synchronizer {
 						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 						proposedNewRegency, (messages != null ? messages.size() : 0));
 
-				LCMessage msgSTOP = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP,
-						currentLeader, proposedNewRegency, payload);
+				LCMessage msgSTOP = LCMessage.createSTOP(this.controller.getStaticConf().getProcessId(), currentLeader,
+						proposedNewRegency, payload);
 				requestsTimer.setSTOP(proposedNewRegency, msgSTOP); // make replica re-transmit the stop message until a
 																	// new regency
 				// is installed
@@ -233,7 +234,7 @@ public class Synchronizer {
 
 //        Logger.println("(Synchronizer.processOutOfContextSTOPs) Checking if there are out of context STOPs for regency " + regency);
 
-		Set<LCMessage> stops = getOutOfContextLC(TOMUtil.STOP, regency);
+		Set<LCMessage> stops = getOutOfContextLC(LCType.STOP, regency);
 
 		if (stops.size() > 0) {
 			LOGGER.info(
@@ -389,7 +390,7 @@ public class Synchronizer {
 	 * @param regency
 	 * @return
 	 */
-	private Set<LCMessage> getOutOfContextLC(int type, int regency) {
+	private Set<LCMessage> getOutOfContextLC(LCType type, int regency) {
 
 		HashSet<LCMessage> result = new HashSet<>();
 
@@ -546,8 +547,8 @@ public class Synchronizer {
 			// Did the synchronization phase really started?
 			// if (lcManager.getStopsSize(nextReg) > this.reconfManager.getQuorum2F() &&
 			// lcManager.getNextReg() > lcManager.getLastReg()) {
-			
-			// LCManager有两种状态： 
+
+			// LCManager有两种状态：
 			// 1: 进入“选举中”状态；
 			// 2：在本次“选举周期”下并发地收到其它节点的 STOPDATA 消息，完成了本次轮选举；
 			// 需要考虑
@@ -713,7 +714,7 @@ public class Synchronizer {
 
 		// the replica might have received STOPDATAs that were out of context at the
 		// time they were received, but now can be processed
-		Set<LCMessage> stopdatas = getOutOfContextLC(TOMUtil.STOPDATA, regency);
+		Set<LCMessage> stopdatas = getOutOfContextLC(LCType.STOP_DATA, regency);
 
 //                Logger.println("(Synchronizer.startSynchronization) Checking if there are out of context STOPDATAs for regency " + regency);
 		if (stopdatas.size() > 0) {
@@ -870,7 +871,7 @@ public class Synchronizer {
 			// send message SYNC to the new leader
 
 			int currentLeader = tom.getExecManager().getCurrentLeader();
-			LCMessage msgSTOPDATA = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOPDATA,
+			LCMessage msgSTOPDATA = LCMessage.createSTOP_DATA(this.controller.getStaticConf().getProcessId(),
 					currentLeader, regency, payload);
 			communication.send(b, msgSTOPDATA);
 
@@ -890,7 +891,7 @@ public class Synchronizer {
 
 		// the replica might have received a SYNC that was out of context at the time it
 		// was received, but now can be processed
-		Set<LCMessage> sync = getOutOfContextLC(TOMUtil.SYNC, regency);
+		Set<LCMessage> sync = getOutOfContextLC(LCType.SYNC, regency);
 
 //                Logger.println("(Synchronizer.startSynchronization) Checking if there are out of context SYNC for regency " + regency);
 
@@ -928,9 +929,8 @@ public class Synchronizer {
 
 		// 此处可能会 Follower 的心跳检测超时处理线程形成竞争进入选举进程；
 		// 如果此时已经处于选举进程，则不作后续处理；
-		
-		//TODO: 此处有错误！！！！！！ 未延续 STOP 消息的提议 regency；
-		!
+
+		// TODO: 此处有错误！！！！！！ 未延续 STOP 消息的提议 regency；
 		final int proposedNewRegency = lcManager.getLastReg() + 1;
 		if (!lcManager.tryEnterElecting(proposedNewRegency)) {
 			return;
@@ -987,8 +987,8 @@ public class Synchronizer {
 					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 					proposedNewRegency, (messages != null ? messages.size() : 0));
 
-			LCMessage msgSTOP = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.STOP,
-					currentLeader, proposedNewRegency, payload);
+			LCMessage msgSTOP = LCMessage.createSTOP(this.controller.getStaticConf().getProcessId(), currentLeader,
+					proposedNewRegency, payload);
 			requestsTimer.setSTOP(proposedNewRegency, msgSTOP); // make replica re-transmit the stop message until a new
 			// regency is installed
 			communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP);
@@ -1014,23 +1014,19 @@ public class Synchronizer {
 	 * @param msg Message received from the other replica
 	 */
 	public void deliverTimeoutRequest(LCMessage msg) {
-
 		switch (msg.getType()) {
-		case TOMUtil.STOP: {
+		case STOP:
 			process_LC_STOP(msg);
-		} // End of: case TOMUtil.STOP;
 			break;
-		case TOMUtil.STOPDATA: {
+		case STOP_DATA:
 			process_LC_STOPDATA(msg);
-		} // End of : case TOMUtil.STOPDATA;
 			break;
-		case TOMUtil.SYNC: {
+		case SYNC:
 			process_LC_SYNC(msg);
-		} // End of: case TOMUtil.SYNC;
 			break;
-
-		}// End of: switch (msg.getType());
-
+		default:
+			throw new IllegalStateException("Unsupported LCType[" + msg.getType().NAME + "]!");
+		}
 	}
 
 	private void process_LC_SYNC(LCMessage msg) {
@@ -1153,7 +1149,7 @@ public class Synchronizer {
 													// that were out of context at the time they
 													// were received, but now can be processed
 			// TODO:
-			GlobalRegencyInfo globalRegencyInfo;
+			final GlobalRegencyInfo globalRegencyInfo = null;
 			startSynchronization(msg.getReg(), globalRegencyInfo); // evaluate STOP messages
 
 		} else if (msg.getReg() > lcManager.getLastReg()) { // send STOP to out of context if
@@ -1227,8 +1223,8 @@ public class Synchronizer {
 
 				// send the CATCH-UP message
 				int currentLeader = tom.getExecManager().getCurrentLeader();
-				LCMessage msgSYNC = new LCMessage(this.controller.getStaticConf().getProcessId(), TOMUtil.SYNC,
-						currentLeader, regency, payload);
+				LCMessage msgSYNC = LCMessage.createSYNC(this.controller.getStaticConf().getProcessId(), currentLeader,
+						regency, payload);
 				communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSYNC);
 
 				finalise(regency, lastHighestCID, signedCollects, propose, batchSize, true);

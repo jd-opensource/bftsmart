@@ -15,12 +15,11 @@ limitations under the License.
 */
 package bftsmart.tom.leaderchange;
 
-import bftsmart.communication.SystemMessage;
-import bftsmart.tom.util.TOMUtil;
-
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+
+import bftsmart.communication.SystemMessage;
 
 /**
  * Message used during leader change and synchronization
@@ -29,7 +28,7 @@ import java.io.ObjectOutput;
  */
 public class LCMessage extends SystemMessage {
 
-	private int type;
+	private LCType type;
 	private int leader;
 	private int regency;
 	private byte[] payload;
@@ -40,7 +39,6 @@ public class LCMessage extends SystemMessage {
 	 * Empty constructor
 	 */
 	public LCMessage() {
-
 		this.TRIGGER_LC_LOCALLY = false;
 	}
 
@@ -55,16 +53,32 @@ public class LCMessage extends SystemMessage {
 	 *                the new regency will be elected;
 	 * @param payload dada that comes with the message
 	 */
-	public LCMessage(int from, int type, int leader, int regency, byte[] payload) {
+	private LCMessage(int from, LCType type, int leader, int regency, byte[] payload) {
 		super(from);
 		this.type = type;
 		this.leader = leader;
 		this.regency = regency;
 		this.payload = payload == null ? new byte[0] : payload;
-		if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1)
-			this.TRIGGER_LC_LOCALLY = true;
-		else
+//		if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1)
+//			this.TRIGGER_LC_LOCALLY = true;
+//		else
 			this.TRIGGER_LC_LOCALLY = false;
+	}
+	
+	public static LCMessage createSTOP(int from, int leader, int regency, byte[] payload) {
+		return new LCMessage(from, LCType.STOP, leader, regency, payload);
+	}
+	
+	public static LCMessage createSTOP_APPEND(int from, int leader, int regency, byte[] payload) {
+		return new LCMessage(from, LCType.STOP_APPEND, leader, regency, payload);
+	}
+	
+	public static LCMessage createSTOP_DATA(int from, int leader, int regency, byte[] payload) {
+		return new LCMessage(from, LCType.STOP_DATA, leader, regency, payload);
+	}
+	
+	public static LCMessage createSYNC(int from, int leader, int regency, byte[] payload) {
+		return new LCMessage(from, LCType.SYNC, leader, regency, payload);
 	}
 
 	/**
@@ -72,7 +86,7 @@ public class LCMessage extends SystemMessage {
 	 * 
 	 * @return type of message
 	 */
-	public int getType() {
+	public LCType getType() {
 		return type;
 	}
 
@@ -107,7 +121,7 @@ public class LCMessage extends SystemMessage {
 	public void writeExternal(ObjectOutput out) throws IOException {
 		super.writeExternal(out);
 
-		out.writeInt(type);
+		out.writeInt(type.CODE);
 		out.writeInt(leader);
 		out.writeInt(regency);
 		out.writeObject(payload);
@@ -117,7 +131,7 @@ public class LCMessage extends SystemMessage {
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		super.readExternal(in);
 
-		type = in.readInt();
+		type =LCType.valueOf(in.readInt());
 		leader = in.readInt();
 		regency = in.readInt();
 		payload = (byte[]) in.readObject();
