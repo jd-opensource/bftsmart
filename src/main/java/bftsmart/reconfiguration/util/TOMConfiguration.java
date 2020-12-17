@@ -24,8 +24,8 @@ public class TOMConfiguration extends Configuration {
 
 	private static final long serialVersionUID = 5498353004407888963L;
 
-	private int n;
-	private int f;
+	private volatile int n;
+	private volatile int f;
 	private int requestTimeout;
 	private int clientDatasMonitorTimeout;
 	private int clientDatasMaxCount;
@@ -54,7 +54,7 @@ public class TOMConfiguration extends Configuration {
 	private int checkpointPeriod;
 	private int globalCheckpointPeriod;
 	private int useControlFlow;
-	private int[] initialView;
+	private volatile int[] initialView;
 	private int ttpId;
 	private boolean isToLog;
 	private boolean syncLog;
@@ -686,5 +686,11 @@ public class TOMConfiguration extends Configuration {
 
 	public HostsConfig getOuterHostConfig() {
 		return outerHostConfig;
+	}
+
+	public void updateConfiguration(int[] newView, int n, int f) {
+		this.initialView = newView;
+		this.n = n;
+		this.f = f;
 	}
 }
