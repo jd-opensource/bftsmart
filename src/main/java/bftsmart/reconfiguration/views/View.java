@@ -36,13 +36,13 @@ public class View implements Serializable {
 
  	public View(int id, int[] processes, int f, NodeNetwork[] addresses){
  		this.id = id;
- 		this.processes = processes;
+ 		this.processes = processes.clone();
+ 		Arrays.sort(this.processes);
+ 		
  		this.addresses = new HashMap<Integer, NodeNetwork>();
-
  		for(int i = 0; i < this.processes.length;i++) {
 			this.addresses.put(processes[i],addresses[i]);
 		}
- 		Arrays.sort(this.processes);
  		this.f = f;
  	}
 
@@ -78,7 +78,7 @@ public class View implements Serializable {
  	}
 
  	public int[] getProcesses() {
- 		return processes;
+ 		return processes.clone();
  	}
 
 	public Map<Integer, NodeNetwork> getAddresses() {

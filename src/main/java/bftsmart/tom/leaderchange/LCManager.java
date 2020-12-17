@@ -15,6 +15,30 @@ limitations under the License.
 */
 package bftsmart.tom.leaderchange;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.SignedObject;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.jd.blockchain.utils.ArrayUtils;
+
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.TimestampValuePair;
 import bftsmart.consensus.app.SHA256Utils;
@@ -23,19 +47,6 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.security.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -46,26 +57,31 @@ import java.util.logging.Logger;
  * @author Joao Sousa
  */
 public class LCManager {
+	private static final Logger LOGGER = LoggerFactory.getLogger(LCManager.class);
 
-	// timestamp info
-	// 上次选举产生的领导者执政ID；
-	private AtomicInteger lastreg;
+//	private volatile int currentLeader;
+//
+//	// timestamp info
+//	// 上次选举产生的领导者执政ID；
+//	private int lastreg;
+
+	// 当前的执政期；
+	private LeaderRegency currentRegency;
+
 	// 正在进行的选举过程的领导者执政ID，该值等于 lastreg + 1;
 	// 如果没有正在进行的选举过程，则该值等于 lastreg;
-	private AtomicInteger nextreg;
+	private int nextreg;
 
 	// requests that timed out
 	private List<TOMMessage> currentRequestTimedOut = null;
 
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(LCManager.class);
-
 	// requests received in STOP messages
 	private List<TOMMessage> requestsFromSTOP = null;
 
-	// data structures for info in stop, sync and catch-up messages
-//	private Map<Integer, HashSet<Integer>> stops;
-	// 执政期的 STOP 消息映射表；“键”为提议的执政期（regency），“值”为
-	private Map<Integer, Map<Integer, LeaderRegency>> stops; 
+	/**
+	 * 执政期的 STOP 消息映射表；“键”为提议的执政期（regency），“值”为各个节点发送的提议；
+	 */
+	private Map<Integer, Map<Integer, LeaderRegencyPropose>> stops;
 	private Map<Integer, HashSet<CertifiedDecision>> lastCIDs;
 	private Map<Integer, HashSet<SignedObject>> collects;
 
@@ -74,7 +90,6 @@ public class LCManager {
 	private SHA256Utils md = new SHA256Utils();
 	private TOMLayer tomLayer;
 
-	private volatile int currentLeader;
 	// private Cipher cipher;
 	private Mac mac;
 
@@ -86,11 +101,12 @@ public class LCManager {
 	 */
 	public LCManager(TOMLayer tomLayer, ServerViewController SVController, SHA256Utils md) {
 		this.tomLayer = tomLayer;
-		this.lastreg = new AtomicInteger(0);
-		this.nextreg = new AtomicInteger(0);
-		this.currentLeader = 0;
+//		this.lastreg = 0;
+//		this.currentLeader = 0;
+		this.currentRegency = new LeaderRegency(0, 0);
+		this.nextreg = 0;
 
-		this.stops = new ConcurrentHashMap<Integer, Map<Integer, LeaderRegency>>();
+		this.stops = new ConcurrentHashMap<Integer, Map<Integer, LeaderRegencyPropose>>();
 		this.lastCIDs = new ConcurrentHashMap<Integer, HashSet<CertifiedDecision>>();
 		this.collects = new ConcurrentHashMap<Integer, HashSet<SignedObject>>();
 
@@ -108,50 +124,143 @@ public class LCManager {
 	}
 
 	public int getCurrentLeader() {
-		return currentLeader;
+		return currentRegency.getLeaderId();
 	}
 
+//	/**
+//	 * Deterministically elects a new leader, based current leader and membership
+//	 * 
+//	 * @return The new leader
+//	 */
+//	public LeaderRegency chooseNew(int regency) {
+//
+//		int[] proc = SVController.getCurrentViewProcesses();
+//		int minProc = proc[0];
+//		int maxProc = proc[0];
+//
+//		for (int p : proc) {
+//			if (p < minProc)
+//				minProc = p;
+//			if (p > maxProc)
+//				maxProc = p;
+//		}
+//
+//		do {
+//			currentLeader++;
+//			if (currentLeader > maxProc) {
+//
+//				currentLeader = minProc;
+//			}
+//		} while (!SVController.isCurrentViewMember(currentLeader));
+//
+//		LOGGER.debug("I am proc {} , get new leader = {}", tomLayer.controller.getStaticConf().getProcessId(),
+//				currentLeader);
+//
+//		return currentLeader;
+//	}
+
 	/**
-	 * Deterministically elects a new leader, based current leader and membership
+	 * 根据已经收集的全部选举提议生成选举结果；
+	 * <p>
+	 * 如果总的提议数低于法定的可提交提议数（{@link #getBFTCommitQuorum()}），则返回 null；
+	 * <p>
+	 * 如果选举结果中的有效投票数低于合法提议数（{@link #getBFTCommitQuorum()}），则返回 null；
+	 * <p>
+	 * 如果选举结果中的视图与当前节点的视图不一致，则返回 null；
+	 * <p>
+	 * 此方法仅计算选举结果，也不会提交选举结果，也不会影响选举进程；
+	 * <p>
 	 * 
-	 * @return The new leader
+	 * @return
 	 */
-	public int electNewLeader(LeaderRegencyPropose globalRegencyInfo) {
-
-		int[] proc = SVController.getCurrentViewProcesses();
-		int minProc = proc[0];
-		int maxProc = proc[0];
-
-		for (int p : proc) {
-			if (p < minProc)
-				minProc = p;
-			if (p > maxProc)
-				maxProc = p;
+	public ElectionResult generateQuorumElectionResult(int regencyId) {
+		ElectionResult result = generateElectionResult(regencyId);
+		if (result == null) {
+			return null;
 		}
-
-		do {
-			currentLeader++;
-			if (currentLeader > maxProc) {
-
-				currentLeader = minProc;
+		int validProposedCount = result.getValidCount();
+		if (SVController.getStaticConf().isBFT()) {
+			if (validProposedCount < getBFTCommitQuorum()) {
+				return null;
 			}
-		} while (!SVController.isCurrentViewMember(currentLeader));
-
-		LOGGER.debug("I am proc {} , get new leader = {}", tomLayer.controller.getStaticConf().getProcessId(),
-				currentLeader);
-
-		return currentLeader;
+		} else {
+			if (validProposedCount < getCFTCommitQuorum()) {
+				return null;
+			}
+		}
+		if (!isEqualToCurrentView(result)) {
+			return null;
+		}
+		return result;
 	}
 
 	/**
-	 * Informs the object of who is the current leader
+	 * 根据已经收集的全部选举提议生成选举结果；
+	 * <p>
+	 * 如果总的提议数低于法定的可提交提议总数（{@link #getBFTCommitQuorum()}），则返回 null；
+	 * <p>
+	 * 此方法仅计算选举结果，不检查选举结果中的有效投票数是否满足合法性要求，也不会提交选举结果，也不会影响选举进程；
+	 * <p>
 	 * 
-	 * @param leader The current leader
+	 * @return
 	 */
-	public void setNewLeader(int leader) {
-		currentLeader = leader;
-		LOGGER.info("I am proc {} , set new leader = {}", tomLayer.controller.getStaticConf().getProcessId(),
-				currentLeader);
+	public ElectionResult generateElectionResult(int regencyId) {
+		if (!isUpToCommitQuorum(regencyId)) {
+			// 选举提议的数量未达到法定数量；
+			return null;
+//			throw new IllegalStateException(
+//					"The election of regency[" + regencyId + "] is not up to the commiting quorum!");
+		}
+		// 检查所有选举提议的一致性：
+		// 1. 是否在一致的视图下，提出了一致的领导者执政期提议；
+		// 2. 满足一致性的提议数量是否满足法定数量的要求；
+		Map<Integer, LeaderRegencyPropose> peerProposeMap = stops.get(regencyId);
+		if (peerProposeMap == null) {
+			return null;
+		}
+		LeaderRegencyPropose[] proposes = peerProposeMap.values()
+				.toArray(new LeaderRegencyPropose[peerProposeMap.size()]);
+		return ElectionResult.generateResult(regencyId, proposes);
+	}
+
+//	/**
+//	 * Informs the object of who is the current leader
+//	 * 
+//	 * @param leader The current leader
+//	 */
+//	public void setNewLeader(int leader) {
+//		currentLeader = leader;
+//		LOGGER.info("I am proc {} , set new leader = {}", tomLayer.controller.getStaticConf().getProcessId(),
+//				currentLeader);
+//	}
+
+	/**
+	 * 跃迁至指定的执政期；
+	 * <p>
+	 * 
+	 * 新的执政期必须大于当前执政期，否则引发 {@link IllegalStateException} 异常；
+	 * 
+	 * @param newRegency
+	 */
+	public void jumpToRegency(int newLeader, int newRegency) {
+		jumpToRegency(new LeaderRegency(newLeader, newRegency));
+	}
+
+	/**
+	 * 跃迁至指定的执政期；
+	 * <p>
+	 * 
+	 * 新的执政期必须大于当前执政期，否则引发 {@link IllegalStateException} 异常；
+	 * 
+	 * @param newRegency
+	 */
+	public synchronized void jumpToRegency(LeaderRegency newRegency) {
+		if (newRegency.getId() <= currentRegency.getId()) {
+			throw new IllegalStateException(
+					String.format("The regency id can't be jumped forward! --[current regency=%s][new regency=%s]",
+							currentRegency.getId(), newRegency.getId()));
+		}
+		this.currentRegency = newRegency;
 	}
 
 	/**
@@ -218,26 +327,147 @@ public class LCManager {
 	}
 
 	/**
-	 * Set the previous regency
+	 * 计算指定执政期的选举发起投票数（（STOP消息数 + STOP_APPEND消息数））是否达到正式发起选举的法定数量；
+	 * <p>
 	 * 
-	 * @param lastreg current regency
+	 * 在 BFT 模式下，正式发起选举的条件是：“投票数” 大于等于 f + 1；
+	 * <p>
+	 * 在 CFT 模式下，正式发起选举的条件是：“投票数” 大于等于 f ；
+	 * <p>
+	 * 
+	 * @param regency
+	 * @return
 	 */
-	public synchronized void setLastReg(int lastreg) {
-		int oldLastReg = this.lastreg.get();
-		if (lastreg != oldLastReg + 1) {
-			throw new IllegalArgumentException(
-					String.format("Illegal last regency id! --[oldLastReg=%s][newLastReg=%s]", oldLastReg, lastreg));
+	public boolean isUpToBeginQuorum(int regency) {
+		int countOfSTOP = getStopsSize(regency);
+		if (SVController.getStaticConf().isBFT()) {
+			return countOfSTOP > SVController.getCurrentViewF();
+		} else {
+			return countOfSTOP > 0;
 		}
-		int nr = nextreg.get();
-		if (nr != lastreg) {
-			throw new IllegalArgumentException(String.format(
-					"The new last regency id is not equal to the next regency id! --[nextReg=%s][oldLastReg=%s][newLastReg=%s]",
-					nr, oldLastReg, lastreg));
+	}
 
+	/**
+	 * 计算指定执政期的选举发起投票数（（STOP消息数 + STOP_APPEND消息数））是否达到完成选举产生新一轮执政期的法定数量；
+	 * <p>
+	 * 
+	 * 在 BFT 模式下，正式完成选举的条件是：“投票数” 大于等于 2 * f + 1；
+	 * <p>
+	 * 在 CFT 模式下，正式发起选举的条件是：“投票数” 大于等于 f + 1；
+	 * <p>
+	 * 
+	 * @param regency
+	 * @return
+	 */
+	public boolean isUpToCommitQuorum(int regency) {
+		int countOfSTOP = getStopsSize(regency);
+		if (SVController.getStaticConf().isBFT()) {
+			return countOfSTOP >= getBFTCommitQuorum();
+		} else {
+			return countOfSTOP >= getCFTCommitQuorum();
 		}
-		if (!this.lastreg.compareAndSet(oldLastReg, lastreg)) {
-			throw new IllegalStateException("Concurrently setting last regency id fails!");
+	}
+
+	public int getBFTCommitQuorum() {
+		return 2 * SVController.getCurrentViewF() + 1;
+	}
+
+	public int getCFTCommitQuorum() {
+		return SVController.getCurrentViewF() + 1;
+	}
+
+	/**
+	 * 提交正在进行的 regency 为指定值的选举；
+	 * <p>
+	 * 
+	 * 如果指定的 regency 与正在进行选举的 regency 一致，则完成选举则正常返回；
+	 * <p>
+	 * 
+	 * 如果当前没有正在进行的选举，或者正在进行的选举与指定的 regency 不匹配，则此操作导致异常
+	 * {@link IllegalStateException}；
+	 * 
+	 * @param regency 正在进行选举的执政期 Id；
+	 */
+	public synchronized ElectionResult commitElection(int regency) {
+		if (!isInProgress(regency)) {
+			// 指定的执政期不是正在选举的执政期；
+			throw new IllegalStateException("The election with id[" + regency + "] is not in progress!");
 		}
+
+		ElectionResult electionResult = generateQuorumElectionResult(regency);
+		if (electionResult == null) {
+			throw new IllegalStateException("No quorum election result!");
+		}
+
+		// 如果选举结果的视图和当前节点的视图不一致，则报告异常；
+		// 此种情况无法处理，需要管理员检查网络的视图状态，并通过进行 RECONFIG 操作调整视图；
+		if (!isEqualToCurrentView(electionResult)) {
+			// 选举结果所依赖的视图和本地的视图不一致；
+			String errorMessage = String.format(
+					"The view of the election result is not consist with the view of current node[%s]!",
+					SVController.getStaticConf().getProcessId());
+			LOGGER.error(errorMessage);
+			throw new IllegalStateException(errorMessage);
+		}
+
+		this.currentRegency = electionResult.getRegency();
+		this.nextreg = electionResult.getRegency().getId();
+
+		// 移除已完成的选举之前的投标信息；
+		removeStops(regency);
+
+		return electionResult;
+	}
+
+	/**
+	 * 提交正在进行的 regency 为指定值的选举；
+	 * <p>
+	 * 
+	 * 如果指定的 regency 与正在进行选举的 regency 一致，则完成选举则正常返回；
+	 * <p>
+	 * 
+	 * 如果当前没有正在进行的选举，或者正在进行的选举与指定的 regency 不匹配，则此操作导致异常
+	 * {@link IllegalStateException}；
+	 * 
+	 * @param regency 正在进行选举的执政期 Id；
+	 */
+	public synchronized ElectionResult tryCommitElection(int regency) {
+		if (!isInProgress(regency)) {
+			// 指定的执政期不是正在选举的执政期；
+			return null;
+		}
+
+		ElectionResult electionResult = generateQuorumElectionResult(regency);
+		if (electionResult == null) {
+			return null;
+		}
+
+		// 如果选举结果的视图和当前节点的视图不一致，则报告异常；
+		// 此种情况无法处理，需要管理员检查网络的视图状态，并通过进行 RECONFIG 操作调整视图；
+		if (!isEqualToCurrentView(electionResult)) {
+			// 选举结果所依赖的视图和本地的视图不一致；
+			return null;
+		}
+
+		this.currentRegency = electionResult.getRegency();
+		this.nextreg = electionResult.getRegency().getId();
+
+		// 移除已完成的选举之前的投标信息；
+		removeStops(regency);
+
+		return electionResult;
+	}
+
+	public boolean isEqualToCurrentView(ElectionResult electionResult) {
+		int currentViewId = SVController.getCurrentViewId();
+		int[] currentViewProcessIds = SVController.getCurrentViewProcesses();
+		Arrays.sort(currentViewProcessIds);
+		if (electionResult.getViewId() != currentViewId
+				|| !ArrayUtils.equals(electionResult.getViewProcessIds(), currentViewProcessIds)) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -246,55 +476,100 @@ public class LCManager {
 	 * @return current regency
 	 */
 	public int getLastReg() {
-		return lastreg.get();
+		return currentRegency.getId();
+	}
+
+//	/**
+//	 * Set the next regency
+//	 * 
+//	 * @param nextts next regency
+//	 */
+//	public synchronized void setNextReg(int nextreg) {
+//		if (nextreg <= lastreg) {
+//			throw new IllegalArgumentException(String.format(
+//					"The next regency id is less than or equal to the last regency of LCManager! --[lastReg=%s][nextReg=%s]",
+//					lr, nextreg));
+//		}
+//		this.nextreg = nextreg;
+//	}
+
+	public boolean canPropose(int regency) {
+		return regency > getLastReg();
 	}
 
 	/**
-	 * Set the next regency
-	 * 
-	 * @param nextts next regency
-	 */
-	public synchronized boolean setNextReg(int nextreg) {
-		int lr = getLastReg();
-		if (nextreg != lr + 1) {
-			throw new IllegalArgumentException(
-					String.format("Illegal next regency id! --[lastReg=%s][nextReg=%s]", lr, nextreg));
-		}
-		int oldNextReg = this.nextreg.get();
-		boolean success = this.nextreg.compareAndSet(oldNextReg + 1, nextreg);
-		if (!success) {
-			throw new IllegalArgumentException(String.format(
-					"The new next regency id do not increase by 1! --[lastReg=%s][oldNextReg=%s][newNextReg=%s]", lr,
-					oldNextReg, nextreg));
-		}
-		return success;
-	}
-
-	/**
-	 * 当前是否开始进入 STOP 状态（已发送 STOP，包括本身主动触发和跟随其它节点触发这两种情形）；
+	 * 当前是否正在进行一轮选举中；
 	 * 
 	 * @return
 	 */
-	public synchronized boolean isElecting() {
-		return getLastReg() + 1 == getNextReg();
+	public synchronized boolean isInProgress() {
+		return getLastReg() != nextreg;
 	}
 
 	/**
-	 * 尝试设置内部状态，标记开始进入选举进程；
+	 * 当前是否正在进行指定执政期的选举中；
+	 * 
+	 * @return
+	 */
+	public synchronized boolean isInProgress(int regency) {
+		return isInProgress() && nextreg == regency;
+	}
+
+	/**
+	 * 指定执政期在当下 {@link LCManager} 状态下是否属于未来的超前执政期，即在下一次完成选举之后更远的执政期；
 	 * <p>
-	 * 通过设置
+	 * 
+	 * 只有在当前已经处于选举进程，且指定的执政期Id大于当前正在选举中的执政期 Id 时，指定执政期属于未来的超前执政期，此时返回 true；
+	 * <p>
+	 * 
+	 * 其它情况都返回 false；
+	 * 
+	 * @param regency
+	 * @return
+	 */
+	public synchronized boolean isFutureRegency(int regency) {
+		return isInProgress() && regency > getNextReg();
+	}
+
+	/**
+	 * 尝试以指定的执政期 Id 从“非选举”状态开始进入“选举中”状态；
+	 * <p>
+	 * 如果成功，则返回 true；
+	 * <p>
+	 * 如果当前已经处于选举中，或者提议
 	 * 
 	 * @param nextReg 试图要发起的新选举的执政期ID；
-	 * @return
+	 * @return 是否成功地以指定的 regency 提议开启了新的一轮选举；
 	 */
-	public synchronized boolean tryEnterElecting(int nextReg) {
-		if (isElecting()) {
+	public synchronized boolean tryBeginElection(LeaderRegency proposedRegency) {
+		int proposedRegencyId = proposedRegency.getId();
+		if (proposedRegencyId < nextreg) {
+			// 过期的提议；
+			LOGGER.warn("Try to begin an outdated regency election! --[current_regency={}][proposed_regency={}]",
+					nextreg, proposedRegencyId);
 			return false;
 		}
-		if (nextReg == this.getNextReg() + 1) {
-			return setNextReg(nextReg);
+		if (isInProgress(proposedRegencyId)) {
+			// 指定的regency已经在选举中，不必切换；
+			return false;
 		}
-		return false;
+		if (nextreg == proposedRegencyId) {
+			// 未在选举进程中；
+			// 但是提议的新执政期与当前的执政期相同，不能对同一个执政期反复进行选举；
+			LOGGER.warn("Try to begin an outdated regency election! --[current_regency={}][proposed_regency={}]",
+					nextreg, proposedRegencyId);
+			return false;
+		}
+
+		if (!isUpToBeginQuorum(proposedRegencyId)) {
+			// 指定的执政期提议数量未达到法定的选举发起投票数量；
+			return false;
+		}
+
+		// 新的执政期大于当前执政期；
+		// 即：表达式 proposedRegencyId > nextreg && !isInProgress() 为 true；
+		nextreg = proposedRegencyId;
+		return true;
 	}
 
 	/**
@@ -303,7 +578,7 @@ public class LCManager {
 	 * @return next regency
 	 */
 	public int getNextReg() {
-		return nextreg.get();
+		return nextreg;
 	}
 
 	/**
@@ -312,21 +587,26 @@ public class LCManager {
 	 * @param regency the next regency
 	 * @param pid     the process that sent the message
 	 */
-	public synchronized void addStop(int leader, int regency, int pid) {
-		Map<Integer, LeaderRegency> regencyInfos = stops.get(regency);
-		if (regencyInfos == null) {
-			regencyInfos = new ConcurrentHashMap<Integer, LeaderRegency>();
-			stops.put(regency, regencyInfos);
+	public synchronized void addStop(LeaderRegencyPropose regencyPropose) {
+		int propsedRegencyId = regencyPropose.getRegency().getId();
+		if (!canPropose(propsedRegencyId)) {
+			// 过期的无效提议；
+			return;
 		}
-		regencyInfos.put(pid, new LeaderRegency(leader, regency));
+		Map<Integer, LeaderRegencyPropose> peerProposes = stops.get(propsedRegencyId);
+		if (peerProposes == null) {
+			peerProposes = new ConcurrentHashMap<Integer, LeaderRegencyPropose>();
+			stops.put(propsedRegencyId, peerProposes);
+		}
+		peerProposes.put(regencyPropose.getSender(), regencyPropose);
 	}
 
 	/**
 	 * Discard information about STOP messages up to specified regency
 	 * 
-	 * @param ts timestamp up to which to discard messages
+	 * @param regency regency id up to which to discard messages
 	 */
-	public synchronized void removeStops(int regency) {
+	private synchronized void removeStops(int regency) {
 		Integer[] keys = new Integer[stops.keySet().size()];
 		stops.keySet().toArray(keys);
 
@@ -343,7 +623,7 @@ public class LCManager {
 	 * @return quantity of stored STOP information for given timestamp
 	 */
 	public int getStopsSize(int regency) {
-		Map<Integer, LeaderRegency> pids = stops.get(regency);
+		Map<Integer, LeaderRegencyPropose> pids = stops.get(regency);
 		return pids == null ? 0 : pids.size();
 	}
 
@@ -871,9 +1151,9 @@ public class LCManager {
 					colls.add(c);
 				}
 			} catch (IOException ex) {
-				Logger.getLogger(LCManager.class.getName()).log(Level.SEVERE, null, ex);
+				LOGGER.error(ex.getMessage(), ex);
 			} catch (ClassNotFoundException ex) {
-				Logger.getLogger(LCManager.class.getName()).log(Level.SEVERE, null, ex);
+				LOGGER.error(ex.getMessage(), ex);
 			}
 		}
 

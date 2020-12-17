@@ -167,7 +167,7 @@ public class RequestsTimer {
 		}
 	}
 
-	public void run_lc_protocol(LeaderRegencyPropose globalRegencyInfo) {
+	public void run_lc_protocol(LeaderRegencyPropose regencyPropose) {
 
 		long t = (shortTimeout > -1 ? shortTimeout : timeout);
 
@@ -192,7 +192,7 @@ public class RequestsTimer {
 
 		rwLock.readLock().unlock();
 
-		tomLayer.getSynchronizer().triggerTimeout(globalRegencyInfo, pendingRequests);
+		tomLayer.getSynchronizer().triggerTimeout(regencyPropose, pendingRequests);
 
 //        if (!pendingRequests.isEmpty()) {
 //            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message

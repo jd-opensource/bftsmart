@@ -20,6 +20,7 @@ import org.apache.commons.collections4.map.LRUMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.TOMLayer;
 
 /**
@@ -633,10 +634,10 @@ public class HeartBeatTimer {
 
 						// 对于不一致的leaderid, regency进行本地更新，达到节点之间的一致性
 //						checkAndUpdateLeaderInfos(statusMap);
-						LeaderRegencyPropose globalRegencyInfo = HEART_BEAT_TIMER.leaderStatusContext
-								.getGlobalRegencyInfo();
+						LeaderRegencyPropose regencyPropose = HEART_BEAT_TIMER.leaderStatusContext
+								.generateRegencyPropose();
 
-						HEART_BEAT_TIMER.tomLayer.requestsTimer.run_lc_protocol(globalRegencyInfo);
+						HEART_BEAT_TIMER.tomLayer.requestsTimer.run_lc_protocol(regencyPropose);
 //                     }
 					}
 				} catch (Exception e) {
@@ -783,27 +784,24 @@ public class HeartBeatTimer {
 			return receiveTimeoutSize >= counter;
 		}
 
-		public synchronized LeaderRegencyPropose getGlobalRegencyInfo() {
-			int minLeader = HEART_BEAT_TIMER.tomLayer.getExecManager().getCurrentLeader();
+		public synchronized LeaderRegencyPropose generateRegencyPropose() {
+			if (!isStatusTimeout()) {
+				throw new IllegalStateException("Cann't generate regency propose without timeout!");
+			}
 			int maxRegency = HEART_BEAT_TIMER.tomLayer.getSynchronizer().getLCManager().getLastReg();
-			boolean consistant = false;
 			for (Map.Entry<Integer, LeaderStatus> entry : leaderStatuses.entrySet()) {
-				int leader = entry.getValue().getLeader();
-				int regency = entry.getValue().getRegency();
+				int leader = entry.getValue().getLeaderId();
+				int regency = entry.getValue().getId();
 
-				if (leader != minLeader || regency != maxRegency) {
-					consistant = true;
-				}
-
-				if (leader < minLeader) {
-					minLeader = leader;
-				}
 				if (regency > maxRegency) {
 					maxRegency = regency;
 				}
 			}
-
-			return new LeaderRegencyPropose(minLeader, maxRegency, consistant);
+			int nextRegency = maxRegency + 1;
+			View view = HEART_BEAT_TIMER.tomLayer.controller.getCurrentView();
+			int sender = HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId();
+			
+			return LeaderRegencyPropose.chooseFromView(nextRegency, view, sender);
 
 //			if (maxRegency < tomLayer.getSynchronizer().getLCManager().getLastReg()) {
 //				return;

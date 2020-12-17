@@ -20,6 +20,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
 import bftsmart.communication.SystemMessage;
+import bftsmart.reconfiguration.views.View;
 
 /**
  * Message used during leader change and synchronization
@@ -31,6 +32,8 @@ public class LCMessage extends SystemMessage {
 	private LCType type;
 	private int leader;
 	private int regency;
+	private int viewId;
+	private int[] viewProcessIds;
 	private byte[] payload;
 	public final boolean TRIGGER_LC_LOCALLY; // indicates that the replica should
 												// initiate the LC protocol locally
@@ -53,32 +56,41 @@ public class LCMessage extends SystemMessage {
 	 *                the new regency will be elected;
 	 * @param payload dada that comes with the message
 	 */
-	private LCMessage(int from, LCType type, int leader, int regency, byte[] payload) {
+	private LCMessage(int from, LCType type, int leader, int regency, int viewId, int[] viewProcessIds,
+			byte[] payload) {
 		super(from);
 		this.type = type;
 		this.leader = leader;
 		this.regency = regency;
+		this.viewId = viewId;
+		this.viewProcessIds = viewProcessIds;// 通过静态的工厂方法传入的对象已经是克隆和排序后的结果；
+
 		this.payload = payload == null ? new byte[0] : payload;
 //		if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1)
 //			this.TRIGGER_LC_LOCALLY = true;
 //		else
-			this.TRIGGER_LC_LOCALLY = false;
+		this.TRIGGER_LC_LOCALLY = false;
 	}
-	
-	public static LCMessage createSTOP(int from, int leader, int regency, byte[] payload) {
-		return new LCMessage(from, LCType.STOP, leader, regency, payload);
+
+	public static LCMessage createSTOP(int from, LeaderRegency regency, View view, byte[] payload) {
+		return new LCMessage(from, LCType.STOP, regency.getLeaderId(), regency.getId(), view.getId(),
+				view.getProcesses(), payload);
 	}
-	
-	public static LCMessage createSTOP_APPEND(int from, int leader, int regency, byte[] payload) {
-		return new LCMessage(from, LCType.STOP_APPEND, leader, regency, payload);
+
+	public static LCMessage createSTOP_APPEND(int from, LeaderRegency regency, View view, byte[] payload) {
+		return new LCMessage(from, LCType.STOP_APPEND, regency.getLeaderId(), regency.getId(), view.getId(),
+				view.getProcesses(), payload);
 	}
-	
-	public static LCMessage createSTOP_DATA(int from, int leader, int regency, byte[] payload) {
-		return new LCMessage(from, LCType.STOP_DATA, leader, regency, payload);
+
+	public static LCMessage createSTOP_DATA(int from, ElectionResult electionResult, byte[] payload) {
+		return new LCMessage(from, LCType.STOP_DATA, electionResult.getRegency().getLeaderId(),
+				electionResult.getRegency().getId(), electionResult.getViewId(), electionResult.getViewProcessIds(),
+				payload);
 	}
-	
-	public static LCMessage createSYNC(int from, int leader, int regency, byte[] payload) {
-		return new LCMessage(from, LCType.SYNC, leader, regency, payload);
+
+	public static LCMessage createSYNC(int from, LeaderRegency regency, View view, byte[] payload) {
+		return new LCMessage(from, LCType.SYNC, regency.getLeaderId(), regency.getId(), view.getId(),
+				view.getProcesses(), payload);
 	}
 
 	/**
@@ -108,6 +120,14 @@ public class LCMessage extends SystemMessage {
 		return leader;
 	}
 
+	public int getViewId() {
+		return viewId;
+	}
+
+	public int[] getViewProcessIds() {
+		return viewProcessIds;
+	}
+
 	/**
 	 * Obter data of the message
 	 * 
@@ -124,6 +144,8 @@ public class LCMessage extends SystemMessage {
 		out.writeInt(type.CODE);
 		out.writeInt(leader);
 		out.writeInt(regency);
+		out.writeInt(viewId);
+		out.writeObject(viewProcessIds);
 		out.writeObject(payload);
 	}
 
@@ -131,9 +153,11 @@ public class LCMessage extends SystemMessage {
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		super.readExternal(in);
 
-		type =LCType.valueOf(in.readInt());
+		type = LCType.valueOf(in.readInt());
 		leader = in.readInt();
 		regency = in.readInt();
+		viewId = in.readInt();
+		viewProcessIds = (int[]) in.readObject();
 		payload = (byte[]) in.readObject();
 	}
 }

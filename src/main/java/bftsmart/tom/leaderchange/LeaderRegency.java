@@ -1,21 +1,37 @@
 package bftsmart.tom.leaderchange;
 
+/**
+ * 领导者执政期；
+ * 
+ * @author huanghaiquan
+ *
+ */
 public class LeaderRegency {
 
-	private int leader;
+	private int id;
 
-	private int regency;
+	private int leaderId;
 
-	public LeaderRegency(int leader, int regency) {
-		this.leader = leader;
-		this.regency = regency;
+	public LeaderRegency(int leaderId, int regencyId) {
+		this.leaderId = leaderId;
+		this.id = regencyId;
 	}
 
-	public int getLeader() {
-		return leader;
+	/**
+	 * 执政期 Id；
+	 * 
+	 * @return
+	 */
+	public int getId() {
+		return id;
 	}
 
-	public int getRegency() {
-		return regency;
+	/**
+	 * 领导者节点的 Id；
+	 * 
+	 * @return
+	 */
+	public int getLeaderId() {
+		return leaderId;
 	}
 }
