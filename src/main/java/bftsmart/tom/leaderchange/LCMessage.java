@@ -35,14 +35,11 @@ public class LCMessage extends SystemMessage {
 	private int viewId;
 	private int[] viewProcessIds;
 	private byte[] payload;
-	public final boolean TRIGGER_LC_LOCALLY; // indicates that the replica should
-												// initiate the LC protocol locally
 
 	/**
 	 * Empty constructor
 	 */
 	public LCMessage() {
-		this.TRIGGER_LC_LOCALLY = false;
 	}
 
 	/**
@@ -66,10 +63,6 @@ public class LCMessage extends SystemMessage {
 		this.viewProcessIds = viewProcessIds;// 通过静态的工厂方法传入的对象已经是克隆和排序后的结果；
 
 		this.payload = payload == null ? new byte[0] : payload;
-//		if (type == TOMUtil.TRIGGER_LC_LOCALLY && from == -1)
-//			this.TRIGGER_LC_LOCALLY = true;
-//		else
-		this.TRIGGER_LC_LOCALLY = false;
 	}
 
 	public static LCMessage createSTOP(int from, LeaderRegency regency, View view, byte[] payload) {

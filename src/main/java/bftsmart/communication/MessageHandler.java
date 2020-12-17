@@ -157,12 +157,7 @@ public class MessageHandler {
 				/*** This is Joao's code, related to leader change */
 				if (sm instanceof LCMessage) {
 					LCMessage lcMsg = (LCMessage) sm;
-//	                LOGGER.debug("(MessageHandler.processData) LC_MSG received: type " + type + ", regency " + lcMsg.getReg() + ", (replica " + lcMsg.getSender() + ")");
-					if (lcMsg.TRIGGER_LC_LOCALLY) {
-						tomLayer.requestsTimer.run_lc_protocol(null);
-					} else {
-						tomLayer.getSynchronizer().deliverTimeoutRequest(lcMsg);
-					}
+					tomLayer.getSynchronizer().deliverTimeoutRequest(lcMsg);
 					/**************************************************************/
 
 				} else if (sm instanceof ForwardedMessage) {

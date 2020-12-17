@@ -193,6 +193,7 @@ public class StandardStateManager extends BaseStateManager {
                 CertifiedDecision currentProof = null;
                 
                 if (!appStateOnly) {
+                	//TODO: 未正确更新 regency 和 leader；
                 	senderRegencies.put(msg.getSender(), msg.getRegency());
                 	senderLeaders.put(msg.getSender(), msg.getLeader());
                 	senderViews.put(msg.getSender(), msg.getView());
