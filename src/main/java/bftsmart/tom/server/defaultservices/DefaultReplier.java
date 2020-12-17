@@ -38,20 +38,16 @@ public class DefaultReplier implements Replier{
     
     @Override
     public void manageReply(TOMMessage request, MessageContext msgCtx) {
-        
-        
         while (rc == null) {
-            
+        	this.replyLock.lock();
             try {
 
-                this.replyLock.lock();
-
                 this.contextSetted.await();
-         
-                this.replyLock.unlock();
 
             } catch (InterruptedException ex) {
                 Logger.getLogger(DefaultReplier.class.getName()).log(Level.SEVERE, null, ex);
+            }finally {
+            	this.replyLock.unlock();
             }
         }
         
