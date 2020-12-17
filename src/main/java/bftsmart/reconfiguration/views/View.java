@@ -82,7 +82,7 @@ public class View implements Serializable {
  	}
 
 	public Map<Integer, NodeNetwork> getAddresses() {
-		return new HashMap<>(addresses);
+		return addresses;
 	}
 
 	@Override

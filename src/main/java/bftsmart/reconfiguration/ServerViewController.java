@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -174,7 +175,7 @@ public class ServerViewController extends ViewController {
 		int f = -1;
 
 		List<String> jSetInfo = new LinkedList<>();
-		Map<Integer, NodeNetwork> currentAddresses = getCurrentView().getAddresses();
+		Map<Integer, NodeNetwork> currentAddresses = new HashMap<>(getCurrentView().getAddresses());
 
 		for (int i = 0; i < updates.size(); i++) {
 			ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(updates.get(i).getContent());
