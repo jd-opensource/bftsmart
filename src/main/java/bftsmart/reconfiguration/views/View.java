@@ -101,6 +101,16 @@ public class View implements Serializable {
  	public void setAddresses(int id, NodeNetwork nodeNetwork) {
  		addresses.put(id, nodeNetwork);
 	}
+ 	
+ 	/**
+ 	 * 判断指定视图 Id 和进程 Id 列表是否与当前视图的一致；
+ 	 * @param viewId
+ 	 * @param viewProcesses
+ 	 * @return
+ 	 */
+ 	public boolean equals(int viewId, int[] viewProcesses) {
+ 		return this.id == viewId && Arrays.equals(this.processes, viewProcesses);
+ 	}
 
     @Override
     public boolean equals(Object obj) {

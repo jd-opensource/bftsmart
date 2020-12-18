@@ -19,7 +19,7 @@ public class LeaderRegencyPropose {
 	private int viewId;
 
 	private int[] viewProcessIds;
-	
+
 	private int sender;
 
 	/**
@@ -65,7 +65,7 @@ public class LeaderRegencyPropose {
 		}
 		return new LeaderRegencyPropose(new LeaderRegency(leaderId, regencyId), viewId, viewProcessIds, proposer);
 	}
-	
+
 	/**
 	 * 从指定的视图的节点 Id 列表中选择一个节点作为指定执政期的领导者；
 	 * 
@@ -105,12 +105,12 @@ public class LeaderRegencyPropose {
 	public int[] getViewProcessIds() {
 		return viewProcessIds.clone();
 	}
-	
-	protected int[] directlyGetViewProcessIds() {
-		return viewProcessIds;
-	}
-	
+
 	public boolean isViewEquals(View view) {
-		return view.getId() == viewId && ArrayUtils.equals(view.getProcesses(), viewProcessIds);
+		return view.equals(viewId, this.viewProcessIds);
+	}
+
+	public boolean isViewEquals(LeaderRegencyPropose propose2) {
+		return this.viewId == propose2.viewId && Arrays.equals(this.viewProcessIds, propose2.viewProcessIds);
 	}
 }

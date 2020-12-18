@@ -18,6 +18,7 @@ package bftsmart.tom.leaderchange;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Arrays;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.reconfiguration.views.View;
@@ -60,7 +61,9 @@ public class LCMessage extends SystemMessage {
 		this.leader = leader;
 		this.regency = regency;
 		this.viewId = viewId;
-		this.viewProcessIds = viewProcessIds;// 通过静态的工厂方法传入的对象已经是克隆和排序后的结果；
+
+		// 通过静态的工厂方法传入的对象已经进行了克隆和排序，确保此处是升序排序的序列；
+		this.viewProcessIds = viewProcessIds;
 
 		this.payload = payload == null ? new byte[0] : payload;
 	}
@@ -122,6 +125,15 @@ public class LCMessage extends SystemMessage {
 	}
 
 	/**
+	 * 验证 {@link LCMessage} 的视图消息与指定的视图是否匹配；
+	 * 
+	 * @param view
+	 */
+	public boolean matchesView(View view) {
+		return view.equals(this.viewId, this.viewProcessIds);
+	}
+
+	/**
 	 * Obter data of the message
 	 * 
 	 * @return data of the message
@@ -151,6 +163,7 @@ public class LCMessage extends SystemMessage {
 		regency = in.readInt();
 		viewId = in.readInt();
 		viewProcessIds = (int[]) in.readObject();
+		Arrays.sort(viewProcessIds);
 		payload = (byte[]) in.readObject();
 	}
 }

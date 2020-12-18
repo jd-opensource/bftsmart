@@ -122,6 +122,10 @@ public class LCManager {
 		}
 
 	}
+	
+	public LeaderRegency getCurrentRegency() {
+		return currentRegency;
+	}
 
 	public int getCurrentLeader() {
 		return currentRegency.getLeaderId();
@@ -521,13 +525,12 @@ public class LCManager {
 	 * 
 	 * 只有在当前已经处于选举进程，且指定的执政期Id大于当前正在选举中的执政期 Id 时，指定执政期属于未来的超前执政期，此时返回 true；
 	 * <p>
-	 * 
-	 * 其它情况都返回 false；
+	 * 如果当前不处于选举进程，而指定的 regency 尽管大于当前的 {@link #getNextReg()} ，也无法确定是否会落在下一次执政期的范围内；
 	 * 
 	 * @param regency
 	 * @return
 	 */
-	public synchronized boolean isFutureRegency(int regency) {
+	public synchronized boolean isFutureAfterNextRegency(int regency) {
 		return isInProgress() && regency > getNextReg();
 	}
 

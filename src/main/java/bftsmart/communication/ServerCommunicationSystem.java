@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit;
 
 import bftsmart.tom.core.messages.ViewMessage;
 import bftsmart.tom.leaderchange.*;
+
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.CommunicationSystemServerSide;
@@ -189,7 +191,7 @@ public class ServerCommunicationSystem extends Thread {
 			LOGGER.debug("--------sending view message with no retrying----------> {}", sm);
 			serversConn.send(targets, sm, true, false);
 		} else if (sm instanceof LCMessage) {
-		    // 领导者切换相关消息
+			// 领导者切换相关消息
 			LOGGER.debug("--------sending leader change message with no retrying----------> {}", sm);
 			serversConn.send(targets, sm, true, false);
 		} else {
@@ -234,6 +236,8 @@ public class ServerCommunicationSystem extends Thread {
 	 */
 	private static class MessageHandlerRunner implements Runnable {
 
+		public static final Logger LOGGER = LoggerFactory.getLogger(MessageHandlerRunner.class);
+
 		/**
 		 * 当前线程可处理的消息类型
 		 */
@@ -258,8 +262,9 @@ public class ServerCommunicationSystem extends Thread {
 		@Override
 		public void run() {
 			while (doWork) {
+				SystemMessage sm = null;
 				try {
-					SystemMessage sm = messageQueue.poll(msgType, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
+					sm = messageQueue.poll(msgType, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
 
 					if (sm != null) {
 						messageHandler.processData(sm);
@@ -267,7 +272,16 @@ public class ServerCommunicationSystem extends Thread {
 						messageHandler.verifyPending();
 					}
 				} catch (Throwable e) {
-					e.printStackTrace(System.err);
+					if (sm == null) {
+						String errMsg = String
+								.format("Error occurred while process a null message! -- [HandlerType=%s]", msgType);
+						LOGGER.error(errMsg, e);
+					} else {
+						String errMsg = String.format(
+								"Error occurred while process message! -- %s [HandlerType=%s][MessageType=%s][MessageFrom=%s]",
+								e.getMessage(), msgType, sm.getClass().getName(), sm.getSender());
+						LOGGER.error(errMsg, e);
+					}
 				}
 			}
 		}

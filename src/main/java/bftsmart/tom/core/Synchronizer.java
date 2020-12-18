@@ -47,6 +47,7 @@ import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LCType;
+import bftsmart.tom.leaderchange.LeaderRegency;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchBuilder;
@@ -125,7 +126,7 @@ public class Synchronizer {
 	 * @param requestList List of requests that the replica wanted to order but
 	 *                    didn't manage to
 	 */
-	public void triggerTimeout(LeaderRegencyPropose regencyPropose, List<TOMMessage> requestList) {
+	public synchronized void triggerTimeout(LeaderRegencyPropose regencyPropose, List<TOMMessage> requestList) {
 
 		ObjectOutputStream out = null;
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -278,7 +279,7 @@ public class Synchronizer {
 		LeaderRegencyPropose regencyPropose = LeaderRegencyPropose.copy(msg.getLeader(), msg.getReg(), msg.getViewId(),
 				msg.getViewProcessIds(), msg.getSender());
 		// TODO：验证 STOPDATA 选举
-		
+
 		try { // deserialize the content of the message
 
 			bis = new ByteArrayInputStream(msg.getPayload());
@@ -655,7 +656,7 @@ public class Synchronizer {
 		}
 	}
 
-	private void commitElection(final int proposedRegencyId) {
+	private synchronized void commitElection(final int proposedRegencyId) {
 		ElectionResult electionResult;
 		if (!execManager.stopped()) {
 			execManager.stop(); // stop consensus execution if more than f replicas sent a STOP message
@@ -693,7 +694,7 @@ public class Synchronizer {
 		}
 	}
 
-	private void processStopDataInLeader(ElectionResult electionResult, int in, int last) {
+	private synchronized void processStopDataInLeader(ElectionResult electionResult, int in, int last) {
 		final int regency = electionResult.getRegency().getId();
 
 		// If leader, I will store information that I would send in a SYNC message
@@ -1017,7 +1018,7 @@ public class Synchronizer {
 	 *
 	 * @param msg Message received from the other replica
 	 */
-	public void deliverTimeoutRequest(LCMessage msg) {
+	public synchronized void deliverTimeoutRequest(LCMessage msg) {
 		switch (msg.getType()) {
 		case STOP:
 			process_LC_STOP(msg);
@@ -1090,42 +1091,92 @@ public class Synchronizer {
 
 	/**
 	 * 处理从其它节点发来的 STOPDATA 消息；
+	 * <p>
 	 * 
 	 * @param msg
 	 */
-	private void process_LC_STOPDATA(LCMessage msg) {
-		// STOPDATA messages
-		int regency = msg.getReg();
-//		lcManager.isFutureRegency(regency);
-		LOGGER.info(
-				"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Recv Stopdata msg, Last regency {}, next regency {}, time {}, from proc {}, from port {}",
-				this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-				lcManager.getLastReg(), lcManager.getNextReg(), new Date(), msg.getSender(),
-				controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+	private synchronized void process_LC_STOPDATA(LCMessage msg) {
+		log_debug("process_LC_STOPDATA", "start processing STOPDATA message...", msg.getType(), msg.getSender());
+
+		// 检查执政期是否过期；
+		if (msg.getReg() < lcManager.getLastReg()) {
+			// 执政期过期的消息，直接抛弃 ；
+			log_error("process_LC_STOPDATA", "receive an outdated STOPDATA message with wrong view!", msg.getType(),
+					msg.getSender());
+			return;
+		}
+		// 检查消息的视图；
+		if (!msg.matchesView(this.controller.getCurrentView())) {
+			// STOPDATA 消息的视图与当前视图不一致；
+			// 由于执政期未过期，或者当前正处于选举进程中，尽管视图不一致，但也可以先放到超前消息列表里，暂时不做处理；
+			LOGGER.info(
+					"(Synchronizer.process_LC_STOPDATA) [{}] -> I am proc {} Keeping STOPDATA message as out of context for regency {}, from proc {}, from port {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					msg.getReg(), msg.getSender(),
+					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+			outOfContextLC.add(msg);
+			return;
+		}
+
+		// STOPDATA 消息是由新的一轮执政期中的非领导者节点向领导者节点发送的选举结果的信息；
+		// 当前节点需要确认如果自己是新领导者节点
+		final int newRegency = msg.getReg();
+		final int newLeader = msg.getLeader();
+		LeaderRegency currentRegency = this.lcManager.getCurrentRegency();
+		if (newRegency == currentRegency.getId()) {
+			// 新的执政期与当前执政期相同；
+			if (newLeader != currentRegency.getLeaderId()) {
+				// 相同的执政期，但是领导者不相同，属于无效消息；
+				log_error("process_LC_STOPDATA",
+						"Discard STOPDATA message due to different leader[curr=" + currentRegency.getId() + ", new="
+								+ newLeader + "] in the same regency[" + newRegency + "]!",
+						msg.getType(), msg.getSender());
+				return;
+			}
+			if (newLeader != getCurrentId()) {
+				log_error("process_LC_STOPDATA", "Discarding STOPDATA message", msg.getType(), msg.getSender());
+				return;
+			}
+			// 当前节点是领导者；
+			log_info("process_LC_STOPDATA", "This is new leader of regency[" + newRegency + "]!", msg.getType(),
+					msg.getSender());
+
+			processSTOPDATA(msg, newRegency);
+			return;
+		}
+
+		// new regency > current regency , 等同于 new regency > last regency；
+		// 新的执政期大于当前执政期；
+		// 由于并发的原因，此时需要区分一种情况，即当前处于是否处于选举进程中；
+		// 1. 如果未处于选举进程中, 可以确认此 STODDATA 消息是超前到达的消息；
+		// 2. 如果处于选举进程中，并且：
+		// **** 2.1 如果 newRegency > nextRegency ，也可以确认此 STODDATA 消息是超前到达的消息；
+		// **** 2.2 如果 newRegency == nextRegency ，且当前节点也是领导者 newLeader == proposedLeader，
+		// ******** 则也可以确认此 STODDATA 消息正好是此轮选举完成后领导者待处理的 STOPDATA 消息；
+		// **** 2.3 如果 newRegency < nextRegency , 这意味着网络中同时出现了两个不一致的选举结果，
+		// ******** 可以确认此消息属于异常情况，当此轮正在进行的选举被提交后，此刻到达的消息便是作废的信息，所以这种情况直接抛弃；
+		
 
 		// Am I the new leader, and am I expecting this messages?
-		if (regency == lcManager.getLastReg() && this.controller.getStaticConf().getProcessId() == execManager
+		if (newRegency == lcManager.getLastReg() && this.controller.getStaticConf().getProcessId() == execManager
 				.getCurrentLeader()/* (regency % this.reconfManager.getCurrentViewN()) */) {
 
 			LOGGER.info(
 					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} I'm the new leader and I received a STOPDATA, from proc {}, from port {}",
 					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
-			processSTOPDATA(msg, regency);
+			processSTOPDATA(msg, newRegency);
 		} else if (msg.getReg() > lcManager.getLastReg()) { // send STOPDATA to out of context if
 															// it is for a future regency
 			LOGGER.info(
-					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Keeping STOPDATA message as out of context for regency {}, from proc {}, from port {}",
+					"(Synchronizer.process_LC_STOPDATA) [{}] -> I am proc {} Keeping STOPDATA message as out of context for regency {}, from proc {}, from port {}",
 					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 					msg.getReg(), msg.getSender(),
 					controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
 			outOfContextLC.add(msg);
 
 		} else {
-			LOGGER.error(
-					"(Synchronizer.deliverTimeoutRequest) [{}] -> I am proc {} Discarding STOPDATA message, from proc {}, from port {}",
-					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-					msg.getSender(), controller.getStaticConf().getRemoteAddress(msg.getSender()).getConsensusPort());
+			log_error("process_LC_STOPDATA", "Discarding STOPDATA message", msg.getType(), msg.getSender());
 		}
 	}
 
@@ -1134,19 +1185,19 @@ public class Synchronizer {
 				msg.getSender());
 	}
 
-	private void process_LC_STOP(LCMessage msg) {
+	private synchronized void process_LC_STOP(LCMessage msg) {
 		// message STOP
-		log_DEBUG("process_LC_STOP", "begin...", msg.getType(), msg.getSender());
+		log_debug("process_LC_STOP", "begin...", msg.getType(), msg.getSender());
 
 		// TODO: 收到 STOP 消息；
 		// this message is for the next leader change?
 		LeaderRegencyPropose regencyPropose = copyPropose(msg);
 		final int proposedRegencyId = regencyPropose.getRegency().getId();
 		if (lcManager.canPropose(proposedRegencyId)) {
-			if (lcManager.isFutureRegency(proposedRegencyId)) { // send STOP to out of context
+			if (lcManager.isFutureAfterNextRegency(proposedRegencyId)) { // send STOP to out of context
 				// 处于选举进程中，但是提议的执政期Id 大于当前选举中的执政期 Id，说明这是一个执政期Id超前的提议；
 				// it is for a future regency
-				log_DEBUG("process_LC_STOP",
+				log_debug("process_LC_STOP",
 						"Keeping STOP message as out of context for regency[" + msg.getReg() + "]!", msg.getType(),
 						msg.getSender());
 
@@ -1155,7 +1206,7 @@ public class Synchronizer {
 				// 未开始选举进程，或者已经开始选举进程并且提议的执政期等于正在选举中的执政期；
 				// 等同于表达式：(!lcManager.isInProgress()) || proposedRegencyId ==
 				// lcManager.getNextReg()
-				log_DEBUG("process_LC_STOP", "received regency change request.", msg.getType(), msg.getSender());
+				log_debug("process_LC_STOP", "received regency change request.", msg.getType(), msg.getSender());
 
 				TOMMessage[] requests = deserializeTOMMessages(msg.getPayload());
 
@@ -1579,8 +1630,24 @@ public class Synchronizer {
 		}
 	}
 
-	private void log_DEBUG(String processName, String message, LCType messageType, int sender) {
+	private void log_debug(String processName, String message, LCType messageType, int sender) {
 		LOGGER.debug(
+				"[{}]-[Synchronizer.{}] -> {}  --[curr.proc={}][recv.message.type={}][curr.LC.last_reg={}][curr.LC.next_reg={}][time={}][recv.from=({} - {}:{})]",
+				this.execManager.getTOMLayer().getRealName(), //
+				processName, //
+				message, //
+				getCurrentId(), //
+				messageType, //
+				this.lcManager.getLastReg(), //
+				this.lcManager.getNextReg(), //
+				new Date(), //
+				sender, //
+				this.controller.getStaticConf().getRemoteAddress(sender).getHost(), //
+				this.controller.getStaticConf().getRemoteAddress(sender).getConsensusPort());
+	}
+
+	private void log_info(String processName, String message, LCType messageType, int sender) {
+		LOGGER.info(
 				"[{}]-[Synchronizer.{}] -> {}  --[curr.proc={}][recv.message.type={}][curr.LC.last_reg={}][curr.LC.next_reg={}][time={}][recv.from=({} - {}:{})]",
 				this.execManager.getTOMLayer().getRealName(), //
 				processName, //
@@ -1616,6 +1683,10 @@ public class Synchronizer {
 					this.controller.getStaticConf().getRemoteAddress(sender).getConsensusPort());
 			LOGGER.warn(logMsg, error);
 		}
+	}
+
+	private void log_error(String processName, String message, LCType messageType, int sender) {
+		log_error(processName, message, messageType, sender, null);
 	}
 
 	private void log_error(String processName, String message, LCType messageType, int sender, Throwable error) {

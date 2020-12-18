@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.jd.blockchain.utils.ArrayUtils;
-
 /**
  * 选举结果；
  * 
@@ -118,13 +116,13 @@ public class ElectionResult {
 
 			// 与标准提议具有相同的视图 Id；
 			// 验证视图 Id 列表是否一致；
-			if (!ArrayUtils.equals(standard.directlyGetViewProcessIds(), proposes[i].directlyGetViewProcessIds())) {
+			if (!standard.isViewEquals(proposes[i])) {
 				// 如果来自不同节点的提议具有相同的视图 Id，却有不同的 process id 列表，则抛出异常；
 				String errorMessage = String.format("The leader regency proposes from node[%s] and node[%s] "
 						+ "have the same view id[%s] but diferent process id list! \r\n--View processes of node[%s]=%s\r\nView processes of node[%s]=%s",
 						standard.getSender(), proposes[i].getSender(), standard.getViewId(), //
-						standard.getSender(), Arrays.toString(standard.directlyGetViewProcessIds()), //
-						proposes[i].getSender(), Arrays.toString(proposes[i].directlyGetViewProcessIds()));
+						standard.getSender(), Arrays.toString(standard.getViewProcessIds()), //
+						proposes[i].getSender(), Arrays.toString(proposes[i].getViewProcessIds()));
 				throw new IllegalStateException(errorMessage);
 			}
 
