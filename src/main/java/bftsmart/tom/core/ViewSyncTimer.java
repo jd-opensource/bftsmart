@@ -5,6 +5,8 @@ import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.messages.ViewMessage;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -82,33 +84,47 @@ public class ViewSyncTimer {
             Map<Integer, NodeNetwork> localViewAddresses = localView.getAddresses();
             // 获取远端的地址列表
             Map<Integer, NodeNetwork> remoteViewAddresses = remoteView.getAddresses();
-            for (Map.Entry<Integer, NodeNetwork> entry : remoteViewAddresses.entrySet()) {
-                int nodeId = entry.getKey();
-                NodeNetwork nodeNetwork = entry.getValue();
-                if (checkNodeNetwork(nodeNetwork)) {
-                    if (nodeId == remoteId) {
-                        LOGGER.info("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
-                        // 是远端节点的配置信息，则更新本地
-                        localViewAddresses.put(nodeId, nodeNetwork);
-                    } else if (nodeId != processId) {
-                        // 非本地节点，则需要进行判断
-                        NodeNetwork localNodeNetwork = localViewAddresses.get(nodeId);
-                        if (localNodeNetwork == null) {
-                            LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is NULL !", remoteId, nodeId, nodeNetwork.toUrl());
-                            // 若本地不存在该配置，则更新
+
+            if (localView.getId() == remoteView.getId()) {
+
+                // 对视图addresses的副本进行http端口更新
+                for (Map.Entry<Integer, NodeNetwork> entry : remoteViewAddresses.entrySet()) {
+                    int nodeId = entry.getKey();
+                    NodeNetwork nodeNetwork = entry.getValue();
+                    if (checkNodeNetwork(nodeNetwork)) {
+                        if (nodeId == remoteId) {
+                            LOGGER.info("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
+                            // 是远端节点的配置信息，则更新本地
                             localViewAddresses.put(nodeId, nodeNetwork);
-                        } else {
-                            // 判断本地配置是否合法
-                            if (!checkNodeNetwork(localNodeNetwork)) {
-                                LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is illegal !", remoteId, nodeId, nodeNetwork.toUrl());
-                                // 本地不合法，表示本地配置信息不合法，可以更新
+                        } else if (nodeId != processId) {
+                            // 非本地节点，则需要进行判断
+                            NodeNetwork localNodeNetwork = localViewAddresses.get(nodeId);
+                            if (localNodeNetwork == null) {
+                                LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is NULL !", remoteId, nodeId, nodeNetwork.toUrl());
+                                // 若本地不存在该配置，则更新
                                 localViewAddresses.put(nodeId, nodeNetwork);
+                            } else {
+                                // 判断本地配置是否合法
+                                if (!checkNodeNetwork(localNodeNetwork)) {
+                                    LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is illegal !", remoteId, nodeId, nodeNetwork.toUrl());
+                                    // 本地不合法，表示本地配置信息不合法，可以更新
+                                    localViewAddresses.put(nodeId, nodeNetwork);
+                                }
                             }
                         }
+                    } else {
+                        LOGGER.warn("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
                     }
-                } else {
-                    LOGGER.warn("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
                 }
+
+                List<NodeNetwork> addressesTemp = new ArrayList<>();
+                for (NodeNetwork nodeNetwork : localViewAddresses.values()) {
+                    addressesTemp.add(nodeNetwork);
+                }
+                View newView = new View(localView.getId(), localView.getProcesses(), localView.getF(), addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+
+                // 通过reconfigureTo这个唯一的方法进行视图更新
+                this.tomLayer.controller.reconfigureTo(newView);
             }
         } finally {
             lock.unlock();

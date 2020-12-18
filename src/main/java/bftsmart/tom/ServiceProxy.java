@@ -240,7 +240,7 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.debug("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
+			LOGGER.info("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
 			// This instruction blocks the thread, until a response is obtained.
@@ -279,13 +279,16 @@ public class ServiceProxy extends TOMSender {
 				// a replyQuorum of matching replies
 				LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {} !", request.length, reqType);
 
-				if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
-					// invoke the operation again, whitout the read-only flag
-					LOGGER.debug("###################RETRY#######################");
-					return invokeOrdered(request);
-				} else {
-					throw new RuntimeException("Received n-f replies without f+1 of them matching.");
-				}
+//				if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
+//					// invoke the operation again, whitout the read-only flag
+//					LOGGER.debug("###################RETRY#######################");
+//					return invokeUnordered(request);
+//				} else {
+//					throw new RuntimeException("Received n-f replies without f+1 of them matching.");
+//				}
+
+				throw new RuntimeException("Received n-f replies without f+1 of them matching.");
+
 			} else {
 				// normal operation
 				// ******* EDUARDO BEGIN **************//
