@@ -175,7 +175,7 @@ public class ServerViewController extends ViewController {
 		int f = -1;
 
 		List<String> jSetInfo = new LinkedList<>();
-		Map<Integer, NodeNetwork> currentAddresses = new HashMap<>(getCurrentView().getAddresses());
+		Map<Integer, NodeNetwork> currentAddresses = getCurrentView().getAddresses();
 
 		for (int i = 0; i < updates.size(); i++) {
 			ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(updates.get(i).getContent());
@@ -373,6 +373,13 @@ public class ServerViewController extends ViewController {
 
 	@Override
 	public final void reconfigureTo(View newView) {
+
+		// 防止reconfig过程中其他线程比如view sync 更改视图
+		if (newView.getId() < this.getCurrentView().getId()) {
+		    LOGGER.info("reconfigureTo error, new view id little than loacal view id!");
+			return;
+		}
+
 		int processId = this.getStaticConf().getProcessId();
 		NodeNetwork localNodeNetwork = this.getCurrentView().getAddress(processId);
 		this.currentView = newView;
