@@ -484,6 +484,8 @@ public class ServiceReplica {
 			}
 		};
 		t.start();
+		//TODO: 考虑等待返回；
+		//t.join();
 	}
 
 	public void restart() {

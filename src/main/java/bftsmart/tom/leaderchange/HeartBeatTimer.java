@@ -67,7 +67,7 @@ public class HeartBeatTimer {
 	/**
 	 * TODO: 给予此变量的生命周期一个严格定义；
 	 */
-	private volatile InnerHeartBeatMessage innerHeartBeatMessage;
+	private volatile HeartBeating innerHeartBeatMessage;
 
 	private volatile long lastLeaderRequestSequence = -1L;
 
@@ -87,6 +87,10 @@ public class HeartBeatTimer {
 
 	}
 
+	private int getCurrentProcessId() {
+		return tomLayer.controller.getStaticConf().getProcessId();
+	}
+
 	public void start() {
 		leaderTimerStart();
 		replicaTimerStart();
@@ -95,6 +99,21 @@ public class HeartBeatTimer {
 	public void restart() {
 		stopAll();
 		start();
+	}
+
+	public void stopAll() {
+		if (replicaTimer != null) {
+			replicaTimer.shutdownNow();
+		}
+		if (leaderTimer != null) {
+			leaderTimer.shutdownNow();
+		}
+		replicaTimer = null;
+		leaderTimer = null;
+	}
+
+	public void shutdown() {
+		stopAll();
 	}
 
 //    public void startLeaderChange() {
@@ -130,21 +149,6 @@ public class HeartBeatTimer {
 				tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 	}
 
-	public void stopAll() {
-		if (replicaTimer != null) {
-			replicaTimer.shutdownNow();
-		}
-		if (leaderTimer != null) {
-			leaderTimer.shutdownNow();
-		}
-		replicaTimer = null;
-		leaderTimer = null;
-	}
-
-	public void shutdown() {
-		stopAll();
-	}
-
 	/**
 	 * 收到心跳消息
 	 * 
@@ -154,14 +158,15 @@ public class HeartBeatTimer {
 		hbLock.lock();
 		try {
 			// 需要考虑是否每次都更新innerHeartBeatMessage
-			if (heartBeatMessage.getLeader() == tomLayer.leader()) {
-				if (heartBeatMessage.getLastRegency() != tomLayer.getSynchronizer().getLCManager().getLastReg()) {
-					sendLeaderRequestMessage();
-				}else {
-					// TODO: 此处是否应该延后？
-					innerHeartBeatMessage = new InnerHeartBeatMessage(System.currentTimeMillis(), heartBeatMessage);
-				}
+			int beatingLeader = heartBeatMessage.getLeader();
+			int beatingRegengy = heartBeatMessage.getLastRegency();
+			if (beatingLeader == tomLayer.leader()
+					&& beatingRegengy == tomLayer.getSynchronizer().getLCManager().getLastReg()) {
+				// 领导者心跳正常；
+				innerHeartBeatMessage = new HeartBeating(new LeaderRegency(beatingLeader, beatingRegengy),
+						heartBeatMessage.getSender(), System.currentTimeMillis());
 			} else {
+				// 收到的心跳的执政期与当前节点所处的执政期不一致；
 				sendLeaderRequestMessage();
 			}
 		} finally {
@@ -481,7 +486,7 @@ public class HeartBeatTimer {
 			}
 
 			// 作为 Leader 发送心跳信息；
-			int currentProcessId = HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId();
+			int currentProcessId = HEART_BEAT_TIMER.getCurrentProcessId();
 			try {
 				if (!HEART_BEAT_TIMER.tomLayer.isConnectRemotesOK()) {
 					return;
@@ -648,23 +653,30 @@ public class HeartBeatTimer {
 		}
 	}
 
-	static class InnerHeartBeatMessage {
+	private static class HeartBeating {
 
 		private long time;
 
-		private HeartBeatMessage heartBeatMessage;
+		private LeaderRegency regency;
 
-		public InnerHeartBeatMessage(long time, HeartBeatMessage heartBeatMessage) {
+		private int from;
+
+		public HeartBeating(LeaderRegency regency, int from, long time) {
+			this.regency = regency;
+			this.from = from;
 			this.time = time;
-			this.heartBeatMessage = heartBeatMessage;
 		}
 
 		public long getTime() {
 			return time;
 		}
 
-		public HeartBeatMessage getHeartBeatMessage() {
-			return heartBeatMessage;
+		public LeaderRegency getRegency() {
+			return regency;
+		}
+
+		public int getFrom() {
+			return from;
 		}
 	}
 
@@ -687,8 +699,6 @@ public class HeartBeatTimer {
 			return lastRegency;
 		}
 	}
-
-	
 
 	static class LeaderStatusContext {
 
@@ -800,7 +810,7 @@ public class HeartBeatTimer {
 			int nextRegency = maxRegency + 1;
 			View view = HEART_BEAT_TIMER.tomLayer.controller.getCurrentView();
 			int sender = HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId();
-			
+
 			return LeaderRegencyPropose.chooseFromView(nextRegency, view, sender);
 
 //			if (maxRegency < tomLayer.getSynchronizer().getLCManager().getLastReg()) {

@@ -383,10 +383,11 @@ public class ServerViewController extends ViewController {
 		int processId = this.getStaticConf().getProcessId();
 		NodeNetwork localNodeNetwork = this.getCurrentView().getAddress(processId);
 		this.currentView = newView;
-		this.currentView.setAddresses(processId, localNodeNetwork);
 		LOGGER.info("I am {}, my new current view = {} !!!", processId, this.currentView);
 		getViewStore().storeView(this.currentView);
 		if (newView.isMember(getStaticConf().getProcessId())) {
+			this.currentView.setAddresses(processId, localNodeNetwork);
+			
 			// membro da view atual
 			otherProcesses = new int[currentView.getProcesses().length - 1];
 			int c = 0;
