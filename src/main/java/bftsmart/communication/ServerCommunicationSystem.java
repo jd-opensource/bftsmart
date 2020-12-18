@@ -20,9 +20,6 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import bftsmart.tom.core.messages.ViewMessage;
-import bftsmart.tom.leaderchange.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +34,12 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.core.messages.ViewMessage;
+import bftsmart.tom.leaderchange.HeartBeatMessage;
+import bftsmart.tom.leaderchange.LCMessage;
+import bftsmart.tom.leaderchange.LeaderRequestMessage;
+import bftsmart.tom.leaderchange.LeaderResponseMessage;
+import bftsmart.tom.leaderchange.LeaderStatusRequestMessage;
 
 /**
  *
@@ -162,6 +165,21 @@ public class ServerCommunicationSystem extends Thread {
 //        }
 //        java.util.logging.Logger.getLogger(ServerCommunicationSystem.class.getName()).log(Level.INFO, "ServerCommunicationSystem stopped.");
 
+	}
+
+	/**
+	 * Send a message to target processes. If the message is an instance of
+	 * TOMMessage, it is sent to the clients, otherwise it is set to the servers.
+	 *
+	 * @param sm      the message to be sent
+	 * @param targets the target receivers of the message
+	 */
+	public void send(SystemMessage sm, int... targets) {
+		if (targets == null || targets.length == 0) {
+			LOGGER.warn("No target to send system message[{}] from node[{}]!", sm.getClass().getName(), sm.getSender());
+			return;
+		}
+		send(targets, sm);
 	}
 
 	/**

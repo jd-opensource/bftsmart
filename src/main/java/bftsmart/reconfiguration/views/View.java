@@ -102,6 +102,57 @@ public class View implements Serializable {
  		addresses.put(id, nodeNetwork);
 	}
  	
+ 	public int computeBFT_F() {
+ 		return computeBFT_F(this.processes.length);
+ 	}
+ 	
+ 	public int computeCFT_F() {
+ 		return computeCFT_F(this.processes.length);
+ 	}
+ 	
+ 	public int computeBFT_QUORUM() {
+ 		return this.processes.length - computeBFT_F();
+ 	}
+ 	
+ 	public int computeCFT_QUORUM() {
+ 		return this.processes.length - computeCFT_F();
+ 	}
+ 	
+ 	/**
+	 * 计算在指定节点数量下的拜占庭容错数；
+	 * 
+	 * @param n
+	 * @return
+	 */
+	public static int computeBFT_F(int n) {
+		if (n < 1) {
+			throw new IllegalArgumentException("Node number is less than 1!");
+		}
+		int f = 0;
+		while (true) {
+			if (n >= (3 * f + 1) && n < (3 * (f + 1) + 1)) {
+				break;
+			}
+			f++;
+		}
+		return f;
+	}
+	
+	public static int computeCFT_F(int n) {
+		if (n < 1) {
+			throw new IllegalArgumentException("Node number is less than 1!");
+		}
+		int f = 0;
+		while (true) {
+			if (n >= (2 * f + 1) && n < (2 * (f + 1) + 1)) {
+				break;
+			}
+			f++;
+		}
+		return f;
+	}
+ 	
+ 	
  	/**
  	 * 判断指定视图 Id 和进程 Id 列表是否与当前视图的一致；
  	 * @param viewId
@@ -124,7 +175,7 @@ public class View implements Serializable {
         }
         return false;
     }
-
+    
     @Override
     public int hashCode() {
         int hash = 1;

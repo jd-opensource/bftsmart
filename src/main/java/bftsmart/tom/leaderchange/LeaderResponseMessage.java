@@ -1,10 +1,12 @@
 package bftsmart.tom.leaderchange;
 
 import bftsmart.communication.SystemMessage;
+import bftsmart.reconfiguration.views.View;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Arrays;
 
 /**
  * Message used during leader change and synchronization
@@ -17,6 +19,10 @@ public class LeaderResponseMessage extends SystemMessage {
     private int leader;
 
     private int lastRegency;
+    
+    private int viewId;
+    
+    private int[] viewProcessIds;
 
     public LeaderResponseMessage() {
     }
@@ -26,11 +32,13 @@ public class LeaderResponseMessage extends SystemMessage {
      * @param from replica that creates this message
      * @param leader type of the message (STOP, SYNC, CATCH-UP)
      */
-    public LeaderResponseMessage(int from, int leader, long sequence, int lastRegency) {
+    public LeaderResponseMessage(int from, LeaderRegency regency, View view, long sequence) {
         super(from);
-        this.leader = leader;
+        this.lastRegency = regency.getId();
+        this.leader = regency.getLeaderId();
+        this.viewId = view.getId();
+        this.viewProcessIds = view.getProcesses();
         this.sequence = sequence;
-        this.lastRegency = lastRegency;
     }
 
     public int getLeader() {
@@ -62,8 +70,10 @@ public class LeaderResponseMessage extends SystemMessage {
         super.writeExternal(out);
 
         out.writeInt(leader);
-        out.writeLong(sequence);
         out.writeInt(lastRegency);
+        out.writeInt(viewId);
+        out.writeObject(viewProcessIds);
+        out.writeLong(sequence);
     }
 
     @Override
@@ -71,9 +81,11 @@ public class LeaderResponseMessage extends SystemMessage {
         super.readExternal(in);
 
         leader = in.readInt();
-
+        lastRegency = in.readInt();
+        viewId = in.readInt();
+        viewProcessIds = (int[]) in.readObject();
+        Arrays.sort(viewProcessIds);
         sequence = in.readLong();
 
-        lastRegency = in.readInt();
     }
 }

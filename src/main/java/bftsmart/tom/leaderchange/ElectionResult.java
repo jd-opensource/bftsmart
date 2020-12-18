@@ -87,17 +87,24 @@ public class ElectionResult {
 
 		List<LeaderRegencyPropose> validProposeList = new ArrayList<LeaderRegencyPropose>();
 
-		LeaderRegencyPropose standard = proposes[0];
-		if (regency != standard.getRegency().getId()) {
-			throw new IllegalStateException("The regency of propose from node[" + standard.getSender()
-					+ "] is not the expected regency[" + regency + "]!");
-		}
+		LeaderRegencyPropose standard = null;
+//		LeaderRegencyPropose standard = proposes[0];
+//		if (regency != standard.getRegency().getId()) {
+//			throw new IllegalStateException("The regency of propose from node[" + standard.getSender()
+//					+ "] is not the expected regency[" + regency + "]!");
+//		}
 		validProposeList.add(standard);
 
-		for (int i = 1; i < proposes.length; i++) {
+		for (int i = 0; i < proposes.length; i++) {
 			if (regency != proposes[i].getRegency().getId()) {
-				throw new IllegalStateException("The regency of propose from node[" + proposes[i].getSender()
-						+ "] is not the expected regency[" + regency + "]!");
+//				throw new IllegalStateException("The regency of propose from node[" + proposes[i].getSender()
+//						+ "] is not the expected regency[" + regency + "]!");
+				continue;
+			}
+			if (standard == null) {
+				standard = proposes[i];
+				validProposeList.add(standard);
+				continue;
 			}
 
 			if (proposes[i].getViewId() < standard.getViewId()) {
@@ -116,7 +123,7 @@ public class ElectionResult {
 
 			// 与标准提议具有相同的视图 Id；
 			// 验证视图 Id 列表是否一致；
-			if (!standard.isViewEquals(proposes[i])) {
+			if (!proposes[i].isViewEquals(standard)) {
 				// 如果来自不同节点的提议具有相同的视图 Id，却有不同的 process id 列表，则抛出异常；
 				String errorMessage = String.format("The leader regency proposes from node[%s] and node[%s] "
 						+ "have the same view id[%s] but diferent process id list! \r\n--View processes of node[%s]=%s\r\nView processes of node[%s]=%s",
