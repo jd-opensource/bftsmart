@@ -120,16 +120,15 @@ public class Synchronizer {
 	}
 
 	/**
-	 * This method is called when there is a timeout and the request has already
-	 * been forwarded to the leader
+	 * 领导者超时并触发选举；
+	 * 
+	 * <p>
+	 * 此方法将尝试开启一轮新的领导者选举进程，并发送 STOP 消息；
 	 *
 	 * @param requestList List of requests that the replica wanted to order but
 	 *                    didn't manage to
 	 */
 	public synchronized void triggerTimeout(LeaderRegencyPropose regencyPropose, List<TOMMessage> requestList) {
-
-		ObjectOutputStream out = null;
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
 //		int regency = lcManager.getNextReg();
 
@@ -150,7 +149,7 @@ public class Synchronizer {
 			lcManager.setCurrentRequestTimedOut(requestList);
 
 			// 当前领导者；
-			final int currentLeader = tom.getExecManager().getCurrentLeader();
+//			final int currentLeader = tom.getExecManager().getCurrentLeader();
 
 			// store information about messages that I'm going to send
 			// 加入当前节点的执政期选举提议；
@@ -158,73 +157,77 @@ public class Synchronizer {
 			lcManager.addStop(regencyPropose);
 
 			// execManager.stop(); // stop consensus execution
-
-			// Get requests that timed out and the requests received in STOP messages
-			// and add those STOPed requests to the client manager
-			addSTOPedRequestsToClientManager();
-			List<TOMMessage> messages = getRequestsToRelay();
-
-			try { // serialize content to send in STOP message
-				out = new ObjectOutputStream(bos);
-
-				if (messages != null && messages.size() > 0) {
-
-					// TODO: If this is null, then there was no timeout nor STOP messages.
-					// What to do?
-					byte[] serialized = bb.makeBatch(messages, 0, 0, controller);
-					out.writeBoolean(true);
-					out.writeObject(serialized);
-				} else {
-					out.writeBoolean(false);
-
-					LOGGER.debug(
-							"(Synchronizer.triggerTimeout) [{}] -> I am proc {} Strange... did not include any request in my STOP message for regency {}",
-							this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-							proposedNewRegency);
-				}
-
-				byte[] payload = bos.toByteArray();
-
-				out.flush();
-				bos.flush();
-
-				out.close();
-				bos.close();
-
-				// send STOP-message
-				LOGGER.info(
-						"(Synchronizer.triggerTimeout) [{}] -> I am proc {} sending STOP message to install regency {}, with {} request(s) to relay",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						proposedNewRegency, (messages != null ? messages.size() : 0));
-
-				LCMessage msgSTOP = LCMessage.createSTOP(this.controller.getStaticConf().getProcessId(),
-						regencyPropose.getRegency(), this.controller.getCurrentView(), payload);
-				requestsTimer.setSTOP(proposedNewRegency, msgSTOP); // make replica re-transmit the stop message until a
-																	// new regency
-				// is installed
-				communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP);
-
-			} catch (IOException ex) {
-				ex.printStackTrace();
-				java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.SEVERE, null, ex);
-			} finally {
-				try {
-					out.close();
-					bos.close();
-				} catch (IOException ex) {
-					ex.printStackTrace();
-					java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.SEVERE, null, ex);
-				}
-			}
-
 		}
 
+		sendSTOP(regencyPropose, proposedNewRegency);
+		
 		processOutOfContextSTOPs(proposedNewRegency); // the replica might have received STOPs
 		// that were out of context at the time they
 		// were received, but now can be processed
 
 		startSynchronization(regencyPropose); // evaluate STOP messages
+	}
 
+	private void sendSTOP(LeaderRegencyPropose regencyPropose, int proposedNewRegency) {
+		// Get requests that timed out and the requests received in STOP messages
+		// and add those STOPed requests to the client manager
+		addSTOPedRequestsToClientManager();
+		
+		List<TOMMessage> messages = getRequestsToRelay();
+		ObjectOutputStream out = null;
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try { // serialize content to send in STOP message
+			out = new ObjectOutputStream(bos);
+
+			if (messages != null && messages.size() > 0) {
+
+				// TODO: If this is null, then there was no timeout nor STOP messages.
+				// What to do?
+				byte[] serialized = bb.makeBatch(messages, 0, 0, controller);
+				out.writeBoolean(true);
+				out.writeObject(serialized);
+			} else {
+				out.writeBoolean(false);
+
+				LOGGER.debug(
+						"(Synchronizer.triggerTimeout) [{}] -> I am proc {} Strange... did not include any request in my STOP message for regency {}",
+						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+						proposedNewRegency);
+			}
+
+			byte[] payload = bos.toByteArray();
+
+			out.flush();
+			bos.flush();
+
+			out.close();
+			bos.close();
+
+			// send STOP-message
+			LOGGER.info(
+					"(Synchronizer.triggerTimeout) [{}] -> I am proc {} sending STOP message to install regency {}, with {} request(s) to relay",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					proposedNewRegency, (messages != null ? messages.size() : 0));
+
+			LCMessage msgSTOP = LCMessage.createSTOP(this.controller.getStaticConf().getProcessId(),
+					regencyPropose.getRegency(), this.controller.getCurrentView(), payload);
+			requestsTimer.setSTOP(proposedNewRegency, msgSTOP); // make replica re-transmit the stop message until a
+																// new regency
+			// is installed
+			communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP);
+
+		} catch (IOException ex) {
+			ex.printStackTrace();
+			java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.SEVERE, null, ex);
+		} finally {
+			try {
+				out.close();
+				bos.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+				java.util.logging.Logger.getLogger(TOMLayer.class.getName()).log(Level.SEVERE, null, ex);
+			}
+		}
 	}
 
 	// Processes STOP messages that were not process upon reception, because they

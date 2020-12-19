@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +29,6 @@ public class HeartBeatTimer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
-	// 重复发送LeaderRequest的间隔时间
-	private static final long RESEND_MILL_SECONDS = 10000;
-
 	private static final long DELAY_MILL_SECONDS = 30000;
 
 	private static final long LEADER_DELAY_MILL_SECONDS = 20000;
@@ -41,42 +37,24 @@ public class HeartBeatTimer {
 
 	private static final long LEADER_STATUS_MAX_WAIT = 5000;
 
-//	private static final long LEADER_REQUEST_MILL_SECONDS = 60000L;
-
-	private static final long STOP_WAIT_SECONDS = 30L;
-
-	private final Map<Long, List<LeaderResponseMessage>> leaderResponseMap = new LRUMap<>(1024 * 8);
-
 	private ScheduledExecutorService leaderTimer = Executors.newSingleThreadScheduledExecutor();
 
 	private ScheduledExecutorService replicaTimer = Executors.newSingleThreadScheduledExecutor();
 
-//	private ScheduledExecutorService leaderResponseTimer = Executors.newSingleThreadScheduledExecutor();
-
 	private ScheduledExecutorService leaderChangeStartThread = Executors.newSingleThreadScheduledExecutor();
-
-	private ExecutorService stopThreadExecutor = Executors.newSingleThreadExecutor();
 
 	private TOMLayer tomLayer; // TOM layer
 
-//	private volatile boolean isSendLeaderRequest = false;
-
 	private LeaderConfirmationTask leaderConfirmTask;
-
-	private volatile long lastSendLeaderRequestTime = -1L;
 
 	/**
 	 * TODO: 给予此变量的生命周期一个严格定义；
 	 */
 	private volatile HeartBeating innerHeartBeatMessage;
 
-	private volatile long lastLeaderRequestSequence = -1L;
-
 	private volatile long lastLeaderStatusSequence = -1L;
 
 	private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L, this);
-
-//    private volatile boolean isLeaderChangeRunning = false;
 
 	private Lock lsLock = new ReentrantLock();
 
@@ -356,21 +334,6 @@ public class HeartBeatTimer {
 	}
 
 	/**
-	 * 获取新的Leader
-	 * 
-	 * @return 返回null表示未达成一致，否则表示达成一致
-	 */
-	private NewLeader newLeader(long currentSequence) {
-		// 从缓存中获取应答
-		List<LeaderResponseMessage> leaderResponseMessages = leaderResponseMap.get(currentSequence);
-		if (leaderResponseMessages == null || leaderResponseMessages.isEmpty()) {
-			return null;
-		} else {
-			return newLeaderCheck(leaderResponseMessages, tomLayer.controller.getCurrentViewF());
-		}
-	}
-
-	/**
 	 * 新领导者check过程
 	 * 
 	 * @param leaderResponseMessages
@@ -609,7 +572,7 @@ public class HeartBeatTimer {
 		}
 	}
 
-	static class NewLeader {
+	private static class NewLeader {
 
 		private int newLeader;
 
