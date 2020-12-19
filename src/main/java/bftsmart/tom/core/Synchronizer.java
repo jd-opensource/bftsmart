@@ -159,8 +159,8 @@ public class Synchronizer {
 			// execManager.stop(); // stop consensus execution
 		}
 
-		sendSTOP(regencyPropose, proposedNewRegency);
-		
+		sendSTOP(regencyPropose);
+
 		processOutOfContextSTOPs(proposedNewRegency); // the replica might have received STOPs
 		// that were out of context at the time they
 		// were received, but now can be processed
@@ -168,11 +168,12 @@ public class Synchronizer {
 		startSynchronization(regencyPropose); // evaluate STOP messages
 	}
 
-	private void sendSTOP(LeaderRegencyPropose regencyPropose, int proposedNewRegency) {
+	private void sendSTOP(LeaderRegencyPropose regencyPropose) {
+		int proposedNewRegency = regencyPropose.getRegency().getId();
 		// Get requests that timed out and the requests received in STOP messages
 		// and add those STOPed requests to the client manager
 		addSTOPedRequestsToClientManager();
-		
+
 		List<TOMMessage> messages = getRequestsToRelay();
 		ObjectOutputStream out = null;
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -822,7 +823,8 @@ public class Synchronizer {
 		} else {
 			LOGGER.info(
 					"(Synchronizer.startSynchronization) [{}] -> I am proc {} No out of context STOPDATAs for regency {}",
-					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(), newRegencyId);
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					newRegencyId);
 		}
 
 		for (LCMessage m : stopdatas) {
@@ -1304,7 +1306,8 @@ public class Synchronizer {
 
 				// send the CATCH-UP message
 				int currentLeader = tom.getExecManager().getCurrentLeader();
-				LCMessage msgSYNC = LCMessage.createSYNC(getCurrentId(), regency, this.controller.getCurrentView(), payload);
+				LCMessage msgSYNC = LCMessage.createSYNC(getCurrentId(), regency, this.controller.getCurrentView(),
+						payload);
 				communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSYNC);
 
 				finalise(regencyId, lastHighestCID, signedCollects, propose, batchSize, true);
