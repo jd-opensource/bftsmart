@@ -74,11 +74,11 @@ public class TOMLayer extends Thread implements RequestReceiver {
     /**
      * Manage timers for pending requests
      */
-    public RequestsTimer requestsTimer;
+    public final RequestsTimer requestsTimer;
 
-    public HeartBeatTimer heartBeatTimer;
+    public final HeartBeatTimer heartBeatTimer;
 
-    public ViewSyncTimer viewSyncTimer;
+    public final ViewSyncTimer viewSyncTimer;
 
     // Monitor timer for client datas and clear too old datas;
     public ClientDatasMonitorTimer clientDatasMonitorTimer;
@@ -146,9 +146,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
         this.communication = cs;
         this.controller = controller;
         this.requestsTimer = new RequestsTimer(this, communication, this.controller); // Create requests timers manager (a thread)
-        this.heartBeatTimer = new HeartBeatTimer();
-//        this.heartBeatTimer = receiver.getHeartBeatTimer();
-        this.heartBeatTimer.setTomLayer(this);
+        this.heartBeatTimer = new HeartBeatTimer(this);
         this.viewSyncTimer = new ViewSyncTimer(this);
         //do not create a timer manager if the timeout is 0
 //        if (this.controller.getStaticConf().getRequestTimeout() == 0) {

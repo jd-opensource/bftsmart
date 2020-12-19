@@ -29,7 +29,7 @@ public class HeartBeatTimer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
 	private static final long INIT_DELAY = 30000;
-	
+
 	private static final long NORMAL_DELAY = 2000;
 
 	private static final long LEADER_STATUS_MILL_SECONDS = 60000;
@@ -49,7 +49,7 @@ public class HeartBeatTimer {
 	/**
 	 * TODO: 给予此变量的生命周期一个严格定义；
 	 */
-	private volatile HeartBeating innerHeartBeatMessage;
+	private volatile HeartBeating heartBeatting;
 
 	private volatile long lastLeaderStatusSequence = -1L;
 
@@ -57,7 +57,11 @@ public class HeartBeatTimer {
 
 	private Lock lsLock = new ReentrantLock();
 
-	public HeartBeatTimer() {
+	public HeartBeatTimer(TOMLayer tomLayer) {
+		this.tomLayer = tomLayer;
+		this.heartBeatting = new HeartBeating(tomLayer.getSynchronizer().getLCManager().getCurrentRegency(),
+				tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
+
 		// 首次启动的初始化延迟加大一些，等待其它的初始化任务完成；
 		leaderTimerStart(INIT_DELAY);
 		// 非领导者的初始化延迟比领导者的增加10秒；
@@ -126,8 +130,7 @@ public class HeartBeatTimer {
 		int currentRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
 		if (beatingRegengy.getLeaderId() == tomLayer.leader() && beatingRegengy.getId() == currentRegency) {
 			// 领导者心跳正常；
-			innerHeartBeatMessage = new HeartBeating(beatingRegengy, heartBeatMessage.getSender(),
-					System.currentTimeMillis());
+			heartBeatting = new HeartBeating(beatingRegengy, heartBeatMessage.getSender(), System.currentTimeMillis());
 		} else {
 			// 收到的心跳执政期与当前节点所处的执政期不一致；
 			// 1. 当心跳执政期大于当前节点所处的执政期，则向其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
@@ -163,7 +166,7 @@ public class HeartBeatTimer {
 			return;
 		}
 
-		leaderConfirmTask = new LeaderConfirmationTask(beatingRegency, this, this.tomLayer) {
+		leaderConfirmTask = new LeaderConfirmationTask(this, this.tomLayer) {
 			@Override
 			protected void onCanceled() {
 				leaderConfirmTask = null;
@@ -173,7 +176,6 @@ public class HeartBeatTimer {
 		leaderConfirmTask.start();
 
 		// 假设收到的消息不是当前的Leader，则需要发送获取其他节点Leader
-
 //		lrLock.lock();
 //		try {
 		// 防止一段时间内重复发送多次请求
@@ -284,7 +286,6 @@ public class HeartBeatTimer {
 	/**
 	 * 检查本地节点领导者状态
 	 *
-	 *
 	 * @return
 	 */
 	private int checkLeaderStatus() {
@@ -297,27 +298,27 @@ public class HeartBeatTimer {
 			// 流程还没有处理完的话，也返回成功
 			return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
 		}
-		if (innerHeartBeatMessage == null) {
+		if (heartBeatting == null) {
 			// 有超时，则返回超时
-			if (tomLayer.requestsTimer != null) {
-				return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
-			}
+//			if (tomLayer.requestsTimer != null) {
+			return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
+//			}
 		} else {
 			// 判断时间
-			long lastTime = innerHeartBeatMessage.getTime();
+			long lastTime = heartBeatting.getTime();
 			if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
 				// 此处触发超时
-				if (tomLayer.requestsTimer != null) {
-					return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
-				}
+//				if (tomLayer.requestsTimer != null) {
+				return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
+//				}
 			}
 		}
 		return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
 	}
 
-	public void setTomLayer(TOMLayer tomLayer) {
-		this.tomLayer = tomLayer;
-	}
+//	public void setTomLayer(TOMLayer tomLayer) {
+//		this.tomLayer = tomLayer;
+//	}
 
 	/**
 	 * 新领导者check过程
@@ -423,7 +424,7 @@ public class HeartBeatTimer {
 	 * 该任务以配置文件指定的“心跳超时时长”为周期执行；
 	 *
 	 */
-	static class FollowerHeartbeatCheckingTask extends TimerTask {
+	private static class FollowerHeartbeatCheckingTask extends TimerTask {
 		private static Logger LOGGER = LoggerFactory.getLogger(FollowerHeartbeatCheckingTask.class);
 
 		private final HeartBeatTimer HEART_BEAT_TIMER;
@@ -432,9 +433,19 @@ public class HeartBeatTimer {
 			this.HEART_BEAT_TIMER = heartbeatTimer;
 		}
 
+		/**
+		 * 心跳是否超时；
+		 * 
+		 * @return
+		 */
+		private boolean isHeartBeatTimeout() {
+			return System.currentTimeMillis() - HEART_BEAT_TIMER.heartBeatting
+					.getTime() > HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getHeartBeatTimeout();
+		}
+
 		@Override
 		public void run() {
-			// 再次判断是否是Leader
+			// 再次判断是否是Leader；
 			if (HEART_BEAT_TIMER.tomLayer.isLeader()) {
 				return;
 			}
@@ -444,31 +455,19 @@ public class HeartBeatTimer {
 			if (!HEART_BEAT_TIMER.tomLayer.isConnectRemotesOK()) {
 				return;
 			}
-			if (HEART_BEAT_TIMER.innerHeartBeatMessage == null) {
-				// 此处触发超时
-				LOGGER.info("I am proc {} trigger hb timeout, because heart beat message is NULL !!!",
-						HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId());
-				if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
-					HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
-				}
-			} else {
-				// 判断时间
-				long lastTime = HEART_BEAT_TIMER.innerHeartBeatMessage.getTime();
-				if (System.currentTimeMillis() - lastTime > HEART_BEAT_TIMER.tomLayer.controller.getStaticConf()
-						.getHeartBeatTimeout()) {
-					// 此处触发超时
-					LOGGER.info("I am proc {} trigger hb timeout, time = {}, last hb time = {}",
-							HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(),
-							System.currentTimeMillis(), HEART_BEAT_TIMER.innerHeartBeatMessage.getTime());
-					if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
-						HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
-					}
-				}
+			// 判断时间是否超时；
+			if (isHeartBeatTimeout()) {
+				// 触发超时；
+				LOGGER.info("I am proc {} trigger hb timeout, time = {}, last hb time = {}",
+						HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis(),
+						HEART_BEAT_TIMER.heartBeatting.getTime());
+
+				HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
 			}
 		}// End of : public void run();
 	}// End of : class FollowerHeartbeatCheckingTask;
 
-	static class LeaderChangeTask implements Runnable {
+	private static class LeaderChangeTask implements Runnable {
 
 		private static Logger LOGGER = LoggerFactory.getLogger(LeaderChangeTask.class);
 

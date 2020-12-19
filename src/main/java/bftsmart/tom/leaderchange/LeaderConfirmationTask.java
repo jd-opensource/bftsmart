@@ -20,7 +20,8 @@ import bftsmart.tom.core.TOMLayer;
  * 领导者同步任务；
  * <p>
  * 
- * 当发现收到的领导者心跳执政期异常时，触发领导者同步任务向其它节点询问领导者信息，并更新同步后的结果；<p>
+ * 当发现收到的领导者心跳执政期异常时，触发领导者同步任务向其它节点询问领导者信息，并更新同步后的结果；
+ * <p>
  * 
  * @author huanghaiquan
  *
@@ -40,11 +41,6 @@ public class LeaderConfirmationTask {
 
 	private Synchronizer synchronizer;
 
-	/**
-	 * 有争议的心跳执政期；
-	 */
-	private LeaderRegency beatingRegency;
-
 	private final long startTimestamp;
 
 	private ScheduledExecutorService executor;
@@ -60,8 +56,7 @@ public class LeaderConfirmationTask {
 	 * @param hearbeatTimer
 	 * @param tomLayer
 	 */
-	public LeaderConfirmationTask(LeaderRegency beatingRegency, HeartBeatTimer hearbeatTimer, TOMLayer tomLayer) {
-		this.beatingRegency = beatingRegency;
+	public LeaderConfirmationTask(HeartBeatTimer hearbeatTimer, TOMLayer tomLayer) {
 		this.hearbeatTimer = hearbeatTimer;
 		this.tomLayer = tomLayer;
 		this.synchronizer = tomLayer.getSynchronizer();
@@ -204,7 +199,7 @@ public class LeaderConfirmationTask {
 		taskFuture = null;
 		onCanceled();
 	}
-	
+
 	protected void onCanceled() {
 	}
 
@@ -242,18 +237,23 @@ public class LeaderConfirmationTask {
 
 		@Override
 		public void run() {
-			if (synchronizer.getLCManager().isInProgress()) {
-				cancelTask();
-				return;
-			}
+			try {
+				if (synchronizer.getLCManager().isInProgress()) {
+					cancelTask();
+					return;
+				}
+				
+				// 如果已经超时，且尚未完成任务，则终止任务，并回复心跳定时器；
+				if (isTaskTimeout()) {
+					cancelTask();
+					resumeHeartBeatTimer();
+				}
 
-			// 向未回复的节点重复发请求；
-			sendLeaderRequestMessage(startTimestamp);
-
-			// 如果已经超时，且尚未完成任务，则终止任务，并回复心跳定时器；
-			if (isTaskTimeout()) {
-				cancelTask();
-				resumeHeartBeatTimer();
+				// 向未回复的节点重复发请求；
+				sendLeaderRequestMessage(startTimestamp);
+			} catch (Exception e) {
+				// 捕捉错误，避免终端定时任务；
+				LOGGER.error("Error occurred while waiting leader responses! --" + e.getMessage(), e);
 			}
 		}
 	}
