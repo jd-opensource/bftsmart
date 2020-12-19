@@ -24,6 +24,7 @@ import bftsmart.statemanagement.strategy.BaseStateManager;
 import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.TOMLayer;
+import bftsmart.tom.leaderchange.LeaderRegency;
 import bftsmart.tom.server.defaultservices.CommandsInfo;
 import bftsmart.tom.server.defaultservices.durability.DurabilityCoordinator;
 import bftsmart.tom.util.TOMUtil;
@@ -299,10 +300,7 @@ public class DurableStateManager extends BaseStateManager {
 						LOGGER.info("(TOMLayer.SMReplyDeliver) CID State requested: {}", reply.getCID());
 						LOGGER.info("(TOMLayer.SMReplyDeliver) CID State received: {}", stateUpper.getLastCID());
 
-						tomLayer.getSynchronizer().getLCManager().setLastReg(currentRegency);
-						tomLayer.getSynchronizer().getLCManager().setNextReg(currentRegency);
-						tomLayer.getSynchronizer().getLCManager().setNewLeader(currentLeader);
-
+						tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
 						tomLayer.execManager.setNewLeader(currentLeader);
 
 //						if (currentProof != null && !appStateOnly) {

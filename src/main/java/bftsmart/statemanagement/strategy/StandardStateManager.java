@@ -27,6 +27,7 @@ import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
+import bftsmart.tom.leaderchange.LeaderRegency;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
@@ -242,9 +243,7 @@ public class StandardStateManager extends BaseStateManager {
 
                     	LOGGER.debug("Received state. Will install it");
                     	
-                        tomLayer.getSynchronizer().getLCManager().setLastReg(currentRegency);
-                        tomLayer.getSynchronizer().getLCManager().setNextReg(currentRegency);
-                        tomLayer.getSynchronizer().getLCManager().setNewLeader(currentLeader);
+                        tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
                         tomLayer.execManager.setNewLeader(currentLeader);
                         
                         if (currentProof != null && !appStateOnly) {

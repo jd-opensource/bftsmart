@@ -122,13 +122,17 @@ public class LCManager {
 		}
 
 	}
-	
+
 	public LeaderRegency getCurrentRegency() {
 		return currentRegency;
 	}
 
 	public int getCurrentLeader() {
 		return currentRegency.getLeaderId();
+	}
+
+	private int getCurrentProcessId() {
+		return SVController.getStaticConf().getProcessId();
 	}
 
 //	/**
@@ -255,6 +259,10 @@ public class LCManager {
 	 * <p>
 	 * 
 	 * 新的执政期必须大于当前执政期，否则引发 {@link IllegalStateException} 异常；
+	 * <p>
+	 * 
+	 * 如果当前处于另一个选举进程中，则不允许跃迁执政期，引发 {@link IllegalStateException} 异常；
+	 * <p>
 	 * 
 	 * @param newRegency
 	 */
@@ -264,7 +272,54 @@ public class LCManager {
 					String.format("The regency id can't be jumped forward! --[current regency=%s][new regency=%s]",
 							currentRegency.getId(), newRegency.getId()));
 		}
+		if (isInProgress()) {
+			throw new IllegalStateException(String.format(
+					"There is a eclection in progress! The regency can't be jumped a new one concurrently! --[PropsedNextRegency=%s][NewRegency=%s]",
+					getNextReg(), newRegency.getId()));
+		}
 		this.currentRegency = newRegency;
+
+		LOGGER.info(
+				"The regency jumps from [Regency={},Leader={}] to {Regency={},Leader={}} successfully! --[ElectionInProgress={}][CurrentProcess={}]",
+				currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(), newRegency.getLeaderId(),
+				isInProgress(), getCurrentProcessId());
+	}
+
+	/**
+	 * 尝试跃迁至指定的执政期；
+	 * <p>
+	 * 
+	 * 新的执政期必须大于当前执政期，否则返回 false；
+	 * <p>
+	 * 如果当前处于一个选举进程中，则不允许跃迁，返回 false；
+	 * 
+	 * @param newRegency 新的执政期；
+	 * @return 跃迁成功返回 true，否则返回 false；
+	 */
+	public synchronized boolean tryJumpToRegency(LeaderRegency newRegency) {
+		if (newRegency.getId() <= currentRegency.getId()) {
+			LOGGER.warn(
+					"Could not jumps from [Regency={},Leader={}] to {Regency={},Leader={}}! --[ElectionInProgress={}][CurrentProcess={}]",
+					currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(), newRegency.getLeaderId(),
+					isInProgress(), getCurrentProcessId());
+			return false;
+		}
+		if (isInProgress()) {
+			LOGGER.warn(
+					"Could not jumps from [Regency={},Leader={}] to {Regency={},Leader={}}! --[ElectionInProgress={}][CurrentProcess={}]",
+					currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(), newRegency.getLeaderId(),
+					isInProgress(), getCurrentProcessId());
+			return false;
+		}
+
+		this.currentRegency = newRegency;
+
+		LOGGER.info(
+				"The regency jumps from [Regency={},Leader={}] to {Regency={},Leader={}} successfully! --[ElectionInProgress={}][CurrentProcess={}]",
+				currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(), newRegency.getLeaderId(),
+				isInProgress(), getCurrentProcessId());
+
+		return true;
 	}
 
 	/**

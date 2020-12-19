@@ -1,6 +1,5 @@
 package bftsmart.tom.leaderchange;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -78,10 +77,6 @@ public class HeartBeatTimer {
 	private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L, this);
 
 //    private volatile boolean isLeaderChangeRunning = false;
-
-//	private Lock lrLock = new ReentrantLock();
-
-//	private Lock hbLock = new ReentrantLock();
 
 	private Lock lsLock = new ReentrantLock();
 
@@ -161,8 +156,6 @@ public class HeartBeatTimer {
 	 * @param heartBeatMessage
 	 */
 	public synchronized void receiveHeartBeatMessage(HeartBeatMessage heartBeatMessage) {
-//		hbLock.lock();
-//		try {
 		// 需要考虑是否每次都更新innerHeartBeatMessage
 		LeaderRegency beatingRegengy = new LeaderRegency(heartBeatMessage.getLeader(),
 				heartBeatMessage.getLastRegency());
@@ -193,9 +186,6 @@ public class HeartBeatTimer {
 				confirmLeaderRegency(beatingRegengy);
 			}
 		}
-//		} finally {
-//			hbLock.unlock();
-//		}
 	}
 
 	/**
@@ -209,7 +199,12 @@ public class HeartBeatTimer {
 			return;
 		}
 
-		leaderConfirmTask = new LeaderConfirmationTask(beatingRegency, this, this.tomLayer);
+		leaderConfirmTask = new LeaderConfirmationTask(beatingRegency, this, this.tomLayer) {
+			@Override
+			protected void onCanceled() {
+				leaderConfirmTask = null;
+			}
+		};
 
 		leaderConfirmTask.start();
 
@@ -258,17 +253,15 @@ public class HeartBeatTimer {
 	 *
 	 * @param requestMessage
 	 */
-	public void receiveLeaderStatusRequestMessage(LeaderStatusRequestMessage requestMessage) {
-		hbLock.lock();
-		try {
-			LOGGER.info("I am {}, receive leader status request for [{}:{}] !",
-					tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSender(),
-					requestMessage.getSequence());
-			LeaderStatusResponseMessage responseMessage = new LeaderStatusResponseMessage(
-					tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSequence(), tomLayer.leader(),
-					tomLayer.getSynchronizer().getLCManager().getLastReg(), checkLeaderStatus());
-			// 判断当前本地节点的状态
-			// 首先判断leader是否一致
+	public synchronized void receiveLeaderStatusRequestMessage(LeaderStatusRequestMessage requestMessage) {
+		LOGGER.info("I am {}, receive leader status request for [{}:{}] !",
+				tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSender(),
+				requestMessage.getSequence());
+		LeaderStatusResponseMessage responseMessage = new LeaderStatusResponseMessage(
+				tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSequence(), tomLayer.leader(),
+				tomLayer.getSynchronizer().getLCManager().getLastReg(), checkLeaderStatus());
+		// 判断当前本地节点的状态
+		// 首先判断leader是否一致
 //            if (tomLayer.leader() != requestMessage.getLeaderId()) {
 //                // leader不一致，则返回不一致的情况
 //                responseMessage.setStatus(LeaderStatusResponseMessage.LEADER_STATUS_NOTEQUAL);
@@ -276,18 +269,15 @@ public class HeartBeatTimer {
 //                // 判断时间戳的一致性
 //                responseMessage.setStatus(checkLeaderStatus());
 //            }
-			LOGGER.info(
-					"I am {}, send leader status response [sequence: leader: regency: timeoutStatus]-[{}:{}:{}:{}] to {} !",
-					tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSequence(),
-					responseMessage.getLeaderId(), responseMessage.getRegency(), responseMessage.getStatus(),
-					requestMessage.getSender());
-			// 将该消息发送给请求节点
-			int[] to = new int[1];
-			to[0] = requestMessage.getSender();
-			tomLayer.getCommunication().send(to, responseMessage);
-		} finally {
-			hbLock.unlock();
-		}
+		LOGGER.info(
+				"I am {}, send leader status response [sequence: leader: regency: timeoutStatus]-[{}:{}:{}:{}] to {} !",
+				tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSequence(),
+				responseMessage.getLeaderId(), responseMessage.getRegency(), responseMessage.getStatus(),
+				requestMessage.getSender());
+		// 将该消息发送给请求节点
+		int[] to = new int[1];
+		to[0] = requestMessage.getSender();
+		tomLayer.getCommunication().send(to, responseMessage);
 	}
 
 	/**
@@ -501,35 +491,30 @@ public class HeartBeatTimer {
 			}
 			// 作为 Follower 节点处理消息；
 			// 检查收到的InnerHeartBeatMessage是否超时
-			HEART_BEAT_TIMER.hbLock.lock();
-			try {
-				// 需要判断所有连接是否已经成功建立
-				if (!HEART_BEAT_TIMER.tomLayer.isConnectRemotesOK()) {
-					return;
+			// 需要判断所有连接是否已经成功建立
+			if (!HEART_BEAT_TIMER.tomLayer.isConnectRemotesOK()) {
+				return;
+			}
+			if (HEART_BEAT_TIMER.innerHeartBeatMessage == null) {
+				// 此处触发超时
+				LOGGER.info("I am proc {} trigger hb timeout, because heart beat message is NULL !!!",
+						HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId());
+				if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
+					HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
 				}
-				if (HEART_BEAT_TIMER.innerHeartBeatMessage == null) {
+			} else {
+				// 判断时间
+				long lastTime = HEART_BEAT_TIMER.innerHeartBeatMessage.getTime();
+				if (System.currentTimeMillis() - lastTime > HEART_BEAT_TIMER.tomLayer.controller.getStaticConf()
+						.getHeartBeatTimeout()) {
 					// 此处触发超时
-					LOGGER.info("I am proc {} trigger hb timeout, because heart beat message is NULL !!!",
-							HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId());
+					LOGGER.info("I am proc {} trigger hb timeout, time = {}, last hb time = {}",
+							HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(),
+							System.currentTimeMillis(), HEART_BEAT_TIMER.innerHeartBeatMessage.getTime());
 					if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
 						HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
 					}
-				} else {
-					// 判断时间
-					long lastTime = HEART_BEAT_TIMER.innerHeartBeatMessage.getTime();
-					if (System.currentTimeMillis() - lastTime > HEART_BEAT_TIMER.tomLayer.controller.getStaticConf()
-							.getHeartBeatTimeout()) {
-						// 此处触发超时
-						LOGGER.info("I am proc {} trigger hb timeout, time = {}, last hb time = {}",
-								HEART_BEAT_TIMER.tomLayer.controller.getStaticConf().getProcessId(),
-								System.currentTimeMillis(), HEART_BEAT_TIMER.innerHeartBeatMessage.getTime());
-						if (HEART_BEAT_TIMER.tomLayer.requestsTimer != null) {
-							HEART_BEAT_TIMER.leaderChangeStartThread.execute(new LeaderChangeTask(HEART_BEAT_TIMER));
-						}
-					}
 				}
-			} finally {
-				HEART_BEAT_TIMER.hbLock.unlock();
 			}
 		}// End of : public void run();
 	}// End of : class FollowerHeartbeatCheckingTask;

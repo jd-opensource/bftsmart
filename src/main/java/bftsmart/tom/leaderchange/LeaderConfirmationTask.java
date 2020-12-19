@@ -12,18 +12,15 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jd.blockchain.utils.ArrayUtils;
-
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.Synchronizer;
 import bftsmart.tom.core.TOMLayer;
-import bftsmart.tom.leaderchange.HeartBeatTimer.NewLeader;
 
 /**
  * 领导者同步任务；
  * <p>
  * 
- * 当发现收到的领导者心跳执政期异常时，触发领导者同步任务向其它节点询问领导者信息，并更新同步后的结果；
+ * 当发现收到的领导者心跳执政期异常时，触发领导者同步任务向其它节点询问领导者信息，并更新同步后的结果；<p>
  * 
  * @author huanghaiquan
  *
@@ -31,6 +28,11 @@ import bftsmart.tom.leaderchange.HeartBeatTimer.NewLeader;
 public class LeaderConfirmationTask {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(LeaderConfirmationTask.class);
+
+	/**
+	 * 任务最长的超时时长；
+	 */
+	private static final long TASK_TIMEOUT = 30000;
 
 	private HeartBeatTimer hearbeatTimer;
 
@@ -51,7 +53,7 @@ public class LeaderConfirmationTask {
 
 	private View currentView;
 
-	private ScheduledFuture<?> future;
+	private volatile ScheduledFuture<?> taskFuture;
 
 	/**
 	 * @param beatingRegency 有争议的心跳执政期；
@@ -71,7 +73,7 @@ public class LeaderConfirmationTask {
 	}
 
 	public synchronized void start() {
-		if (future != null) {
+		if (taskFuture != null) {
 			return;
 		}
 		// 如果当前节点是 Leader 节点，先停止心跳；
@@ -83,14 +85,18 @@ public class LeaderConfirmationTask {
 		responsedRegencies.put(getCurrentProcessId(), synchronizer.getLCManager().getCurrentRegency());
 
 		// 先启动接收任务；
-		future = scheduleResponseReciever();
+		taskFuture = scheduleResponseReciever();
 
 		// 发送领导者询问请求；
 		sendLeaderRequestMessage(startTimestamp);
 	}
 
 	private ScheduledFuture<?> scheduleResponseReciever() {
-		return executor.scheduleWithFixedDelay(new LeaderResponseReceiver(), 0, 1000L, TimeUnit.MILLISECONDS);
+		return executor.scheduleWithFixedDelay(new LeaderResponseWaiting(), 0, 2000L, TimeUnit.MILLISECONDS);
+	}
+
+	private boolean isStopped() {
+		return taskFuture == null;
 	}
 
 	/**
@@ -99,7 +105,7 @@ public class LeaderConfirmationTask {
 	 * @param sequence
 	 */
 	private void sendLeaderRequestMessage(long sequence) {
-		// 向未收到的节点发送请求；
+		// 向未收到的节点重复发送请求；
 		int[] processIds = currentView.getProcesses();
 		List<Integer> targetList = new ArrayList<>();
 		for (int i = 0; i < processIds.length; i++) {
@@ -118,6 +124,11 @@ public class LeaderConfirmationTask {
 		tomLayer.getCommunication().send(targets, requestMessage);
 	}
 
+	/**
+	 * 获取当前线程；
+	 * 
+	 * @return
+	 */
 	private int getCurrentProcessId() {
 		return tomLayer.controller.getStaticConf().getProcessId();
 	}
@@ -127,7 +138,10 @@ public class LeaderConfirmationTask {
 	 * 
 	 * @param leaderRegencyResponse
 	 */
-	public void receiveLeaderResponseMessage(LeaderResponseMessage leaderRegencyResponse) {
+	public synchronized void receiveLeaderResponseMessage(LeaderResponseMessage leaderRegencyResponse) {
+		if (isStopped()) {
+			return;
+		}
 		// 判断是否是自己发送的sequence
 		long msgSequence = leaderRegencyResponse.getSequence();
 		if (msgSequence != startTimestamp) {
@@ -135,6 +149,12 @@ public class LeaderConfirmationTask {
 			LOGGER.warn(
 					"Receved a invalid LeaderReponseMessage with mismatched sequence! --[ExpectedSequence={}][MessageSequence={}][CurrentProcessId={}][MessageSender={}]",
 					startTimestamp, msgSequence, getCurrentProcessId(), leaderRegencyResponse.getSender());
+			return;
+		}
+
+		// 如果当前已经处于领导者选举进程中，则不作处理，并取消此任务；
+		if (synchronizer.getLCManager().isInProgress()) {
+			cancelTask();
 			return;
 		}
 
@@ -147,34 +167,45 @@ public class LeaderConfirmationTask {
 		int quorum = tomLayer.controller.getStaticConf().isBFT() ? currentView.computeBFT_QUORUM()
 				: currentView.computeCFT_QUORUM();
 		if (greatestRegencies.size() >= quorum) {
-			
+			// 符合法定数量；
+			// 尝试跃迁到新的执政期；
+			LeaderRegency newRegency = greatestRegencies.get(0);
+			LeaderRegency currentRegency = synchronizer.getLCManager().getCurrentRegency();
+			if (synchronizer.getLCManager().tryJumpToRegency(newRegency)) {
+				tomLayer.execManager.setNewLeader(newRegency.getLeaderId());
+				tomLayer.getSynchronizer().removeSTOPretransmissions(newRegency.getId());
+			} else {
+				LOGGER.warn("The regency could not jumps from [Regency={},Leader={}] to {Regency={},Leader={}}!",
+						currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(),
+						newRegency.getLeaderId());
+			}
+
+			// 结束当前任务；
+			cancelTask();
+
+			// 恢复心跳定时器；
+			resumeHeartBeatTimer();
+		}
+	}
+
+	private void resumeHeartBeatTimer() {
+		// TODO Auto-generated method stub
+		// 如果当前页不在选举进程中，则恢复心跳进程；
+		// 如果处于选举进程中，则此处不必恢复，当选举进程结束后会自行恢复；
+		if (synchronizer.getLCManager().isInProgress()) {
+			return;
 		}
 
-		// 判断收到的心跳信息是否满足
-		NewLeader newLeader = newLeader(leaderRegencyResponse.getSequence());
-		if (newLeader != null) {
-			if (leaderResponseTimer != null) {
-				leaderResponseTimer.shutdownNow(); // 取消定时器
-				leaderResponseTimer = null;
-			}
-			// 表示满足条件，设置新的Leader与regency
-			// 如果我本身是领导者，又收到来自其他领导者的心跳，经过领导者查询之后需要取消一个领导者定时器
-			if ((tomLayer.leader() != newLeader.getNewLeader())
-					|| (tomLayer.getSynchronizer().getLCManager().getLastReg() != newLeader.getLastRegency())) {
-				// 重置leader和regency
-				tomLayer.execManager.setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
-				tomLayer.getSynchronizer().getLCManager().setNewLeader(newLeader.getNewLeader()); // 设置新的Leader
-				tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
-				tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
-				// 重启定时器
-				restart();
-			}
-			// 重置last regency以后，所有在此之前添加的stop 重传定时器需要取消
-			tomLayer.getSynchronizer()
-					.removeSTOPretransmissions(tomLayer.getSynchronizer().getLCManager().getLastReg());
-			isSendLeaderRequest = false;
-		}
+		hearbeatTimer.start();
+	}
 
+	private synchronized void cancelTask() {
+		taskFuture.cancel(true);
+		taskFuture = null;
+		onCanceled();
+	}
+	
+	protected void onCanceled() {
 	}
 
 	/**
@@ -199,16 +230,30 @@ public class LeaderConfirmationTask {
 		return greatestRegencies;
 	}
 
-	private class LeaderResponseReceiver implements Runnable {
+	private boolean isTaskTimeout() {
+		return (System.currentTimeMillis() - startTimestamp) > TASK_TIMEOUT;
+	}
+
+	/**
+	 * @author huanghaiquan
+	 *
+	 */
+	private class LeaderResponseWaiting implements Runnable {
 
 		@Override
 		public void run() {
-			NewLeader newLeader = newLeader(currentSequence);
-			if (newLeader != null) {
-				// 满足，则更新当前节点的Leader
-				tomLayer.execManager.setNewLeader(newLeader.getNewLeader());
-				tomLayer.getSynchronizer().getLCManager().setNextReg(newLeader.getLastRegency());
-				tomLayer.getSynchronizer().getLCManager().setLastReg(newLeader.getLastRegency());
+			if (synchronizer.getLCManager().isInProgress()) {
+				cancelTask();
+				return;
+			}
+
+			// 向未回复的节点重复发请求；
+			sendLeaderRequestMessage(startTimestamp);
+
+			// 如果已经超时，且尚未完成任务，则终止任务，并回复心跳定时器；
+			if (isTaskTimeout()) {
+				cancelTask();
+				resumeHeartBeatTimer();
 			}
 		}
 	}
