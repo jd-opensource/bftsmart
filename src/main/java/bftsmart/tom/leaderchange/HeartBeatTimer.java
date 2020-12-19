@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.collections4.map.LRUMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +28,9 @@ public class HeartBeatTimer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
-	private static final long DELAY_MILL_SECONDS = 30000;
-
-	private static final long LEADER_DELAY_MILL_SECONDS = 20000;
+	private static final long INIT_DELAY = 30000;
+	
+	private static final long NORMAL_DELAY = 2000;
 
 	private static final long LEADER_STATUS_MILL_SECONDS = 60000;
 
@@ -39,7 +38,7 @@ public class HeartBeatTimer {
 
 	private ScheduledExecutorService leaderTimer = Executors.newSingleThreadScheduledExecutor();
 
-	private ScheduledExecutorService replicaTimer = Executors.newSingleThreadScheduledExecutor();
+	private ScheduledExecutorService followerTimer = Executors.newSingleThreadScheduledExecutor();
 
 	private ScheduledExecutorService leaderChangeStartThread = Executors.newSingleThreadScheduledExecutor();
 
@@ -59,7 +58,10 @@ public class HeartBeatTimer {
 	private Lock lsLock = new ReentrantLock();
 
 	public HeartBeatTimer() {
-
+		// 首次启动的初始化延迟加大一些，等待其它的初始化任务完成；
+		leaderTimerStart(INIT_DELAY);
+		// 非领导者的初始化延迟比领导者的增加10秒；
+		followerTimerStart(INIT_DELAY + 10000);
 	}
 
 	private int getCurrentProcessId() {
@@ -67,8 +69,8 @@ public class HeartBeatTimer {
 	}
 
 	public synchronized void start() {
-		leaderTimerStart();
-		replicaTimerStart();
+		leaderTimerStart(NORMAL_DELAY);
+		followerTimerStart(NORMAL_DELAY);
 	}
 
 	public synchronized void restart() {
@@ -77,13 +79,13 @@ public class HeartBeatTimer {
 	}
 
 	public synchronized void stopAll() {
-		if (replicaTimer != null) {
-			replicaTimer.shutdownNow();
+		if (followerTimer != null) {
+			followerTimer.shutdownNow();
 		}
 		if (leaderTimer != null) {
 			leaderTimer.shutdownNow();
 		}
-		replicaTimer = null;
+		followerTimer = null;
 		leaderTimer = null;
 	}
 
@@ -91,41 +93,25 @@ public class HeartBeatTimer {
 		stopAll();
 	}
 
-//    public void startLeaderChange() {
-//        this.isLeaderChangeRunning = true;
-//    }
-//
-//    public void stopLeaderChange() {
-//        stopThreadExecutor.execute(() -> {
-//            try {
-//                // 延时30s再停止，便于新的Leader发送心跳
-//                TimeUnit.SECONDS.sleep(STOP_WAIT_SECONDS);
-//                this.isLeaderChangeRunning = false;
-//            } catch (Exception e) {
-//                LOGGER.error("stop lc change !", e);
-//            }
-//        });
-//    }
-
 	private long getHearBeatPeriod() {
 		return tomLayer.controller.getStaticConf().getHeartBeatPeriod();
 	}
 
-	private void leaderTimerStart() {
+	private void leaderTimerStart(long delay) {
 		// stop Replica timer，and start leader timer
 		if (leaderTimer == null) {
 			leaderTimer = Executors.newSingleThreadScheduledExecutor();
+			leaderTimer.scheduleWithFixedDelay(new LeaderHeartbeatBroadcastingTask(this), delay,
+					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 		}
-		leaderTimer.scheduleWithFixedDelay(new LeaderHeartbeatBroadcastingTask(this), LEADER_DELAY_MILL_SECONDS,
-				tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 	}
 
-	private void replicaTimerStart() {
-		if (replicaTimer == null) {
-			replicaTimer = Executors.newSingleThreadScheduledExecutor();
+	private void followerTimerStart(long delay) {
+		if (followerTimer == null) {
+			followerTimer = Executors.newSingleThreadScheduledExecutor();
+			followerTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(this), delay,
+					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 		}
-		replicaTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(this), DELAY_MILL_SECONDS,
-				tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
