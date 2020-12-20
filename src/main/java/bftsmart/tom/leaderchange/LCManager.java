@@ -273,6 +273,8 @@ public class LCManager {
 		}
 		this.currentRegency = newRegency;
 
+		this.nextreg = newRegency.getId();
+
 		LOGGER.info(
 				"The regency jumps from [Regency={},Leader={}] to {Regency={},Leader={}} successfully! --[ElectionInProgress={}][CurrentProcess={}]",
 				currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(), newRegency.getLeaderId(),
@@ -307,6 +309,8 @@ public class LCManager {
 		}
 
 		this.currentRegency = newRegency;
+
+		this.nextreg = newRegency.getId();
 
 		LOGGER.info(
 				"The regency jumps from [Regency={},Leader={}] to {Regency={},Leader={}} successfully! --[ElectionInProgress={}][CurrentProcess={}]",

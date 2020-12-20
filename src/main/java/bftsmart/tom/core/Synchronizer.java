@@ -574,6 +574,10 @@ public class Synchronizer {
 		// store information about message I am going to send
 		lcManager.addStop(regencyPropose);
 
+		// 对于已经收到满足f+1条件stop的情形，本身会发送stop_append, 定时器停止，不会再触发超时，此时需要把自己的投票
+		LeaderRegencyPropose leaderRegencyPropose = LeaderRegencyPropose.copy(regencyPropose.getRegency().getLeaderId(), regencyPropose.getRegency().getId(), this.controller.getCurrentView().getId(), this.controller.getCurrentView().getProcesses(), getCurrentId());
+		lcManager.addStop(leaderRegencyPropose);
+
 		// Get requests that timed out and the requests received in STOP messages
 		// and add those STOPed requests to the client manager
 		addSTOPedRequestsToClientManager();
