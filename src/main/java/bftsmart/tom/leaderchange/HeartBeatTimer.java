@@ -47,7 +47,6 @@ public class HeartBeatTimer {
 	 */
 	private static final long NORMAL_LEADER_CONFIRM_TIMEOUT = 30 * 1000;
 
-	
 	private static final long NORMAL_DELAY = 2000;
 
 	private static final long LEADER_STATUS_MILL_SECONDS = 60000;
@@ -88,6 +87,8 @@ public class HeartBeatTimer {
 	 * 领导者轮询确认的过程会关闭心跳定时器，并在完成之后重新开启心跳定时器；
 	 */
 	private boolean initialized;
+
+	private boolean inactived;
 
 	public HeartBeatTimer(TOMLayer tomLayer) {
 		this.tomLayer = tomLayer;
@@ -248,6 +249,10 @@ public class HeartBeatTimer {
 		}
 	}
 
+	public void setLeaderInactived(boolean inactived) {
+		this.inactived = inactived;
+	}
+
 	/**
 	 * 收到其他节点发送来的领导者状态请求消息
 	 *
@@ -325,7 +330,8 @@ public class HeartBeatTimer {
 	private int checkLeaderStatus() {
 		if (tomLayer.leader() == tomLayer.controller.getStaticConf().getProcessId()) {
 			// 如果我是Leader，返回正常
-			return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
+			return inactived ? LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT
+					: LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
 		}
 		// 需要判断所有连接是否已经成功建立
 		if (!tomLayer.isConnectRemotesOK()) {

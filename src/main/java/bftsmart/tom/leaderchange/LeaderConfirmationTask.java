@@ -175,6 +175,23 @@ public class LeaderConfirmationTask {
 			resumeHeartBeatTimer();
 		}
 	}
+	
+	public synchronized LeaderRegencyPropose generateRegencyPropose() {
+		int maxRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
+		for (Map.Entry<Integer, LeaderRegency> entry : responsedRegencies.entrySet()) {
+			int leader = entry.getValue().getLeaderId();
+			int regency = entry.getValue().getId();
+
+			if (regency > maxRegency) {
+				maxRegency = regency;
+			}
+		}
+		int nextRegency = maxRegency + 1;
+		View view = tomLayer.controller.getCurrentView();
+		int sender = tomLayer.controller.getStaticConf().getProcessId();
+
+		return LeaderRegencyPropose.chooseFromView(nextRegency, view, sender);
+	}
 
 	private void resumeHeartBeatTimer() {
 		// TODO Auto-generated method stub
@@ -236,10 +253,13 @@ public class LeaderConfirmationTask {
 					return;
 				}
 
-				// 如果已经超时，且尚未完成任务，则终止任务，并回复心跳定时器；
+				// 如果已经超时，且尚未完成任务，则终止任务，发起超时；
 				if (isTaskTimeout()) {
+					hearbeatTimer.setLeaderInactived(true);
+					LeaderRegencyPropose propose = generateRegencyPropose();
+					tomLayer.getRequestsTimer().run_lc_protocol(propose);
 					cancelTask();
-					resumeHeartBeatTimer();
+//					resumeHeartBeatTimer();
 					return;
 				}
 

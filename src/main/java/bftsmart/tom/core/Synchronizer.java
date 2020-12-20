@@ -686,6 +686,7 @@ public class Synchronizer {
 		execManager.setNewLeader(electionResult.getRegency().getLeaderId());
 
 		// 重启心跳
+		tom.heartBeatTimer.setLeaderInactived(false);
 		tom.heartBeatTimer.restart();
 
 		// If I am not the leader, I have to send a STOPDATA message to the elected
