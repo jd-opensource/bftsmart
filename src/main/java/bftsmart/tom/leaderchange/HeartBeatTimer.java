@@ -36,9 +36,9 @@ public class HeartBeatTimer {
 
 	private static final long LEADER_STATUS_MAX_WAIT = 5000;
 
-	private ScheduledExecutorService leaderTimer = Executors.newSingleThreadScheduledExecutor();
+	private ScheduledExecutorService leaderTimer;
 
-	private ScheduledExecutorService followerTimer = Executors.newSingleThreadScheduledExecutor();
+	private ScheduledExecutorService followerTimer;
 
 	private ScheduledExecutorService leaderChangeStartThread = Executors.newSingleThreadScheduledExecutor();
 
