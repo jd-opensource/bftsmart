@@ -239,6 +239,17 @@ public class HeartBeatTimer {
 	public void setLeaderInactived(boolean inactived) {
 		this.inactived = inactived;
 	}
+	
+
+	/**
+	 * 心跳是否超时；
+	 * 
+	 * @return
+	 */
+	public boolean isHeartBeatTimeout() {
+		return System.currentTimeMillis() - heartBeatting.getTime() > tomLayer.controller.getStaticConf()
+				.getHeartBeatTimeout();
+	}
 
 	/**
 	 * 收到其他节点发送来的领导者状态请求消息
@@ -251,7 +262,7 @@ public class HeartBeatTimer {
 				requestMessage.getSequence());
 		LeaderStatusResponseMessage responseMessage = new LeaderStatusResponseMessage(
 				tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSequence(), tomLayer.leader(),
-				tomLayer.getSynchronizer().getLCManager().getLastReg(), checkLeaderStatus());
+				tomLayer.getSynchronizer().getLCManager().getLastReg(), getLeaderStatus());
 		// 判断当前本地节点的状态
 		// 首先判断leader是否一致
 //            if (tomLayer.leader() != requestMessage.getLeaderId()) {
@@ -289,29 +300,24 @@ public class HeartBeatTimer {
 	 *
 	 * @return
 	 */
-	private int checkLeaderStatus() {
+	public LeaderStatus getLeaderStatus() {
 		if (tomLayer.leader() == tomLayer.controller.getStaticConf().getProcessId()) {
 			// 如果我是Leader，返回正常
-			return inactived ? LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT
-					: LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
+			return inactived ? LeaderStatus.TIMEOUT
+					: LeaderStatus.OK;
 		}
 		// 需要判断所有连接是否已经成功建立
 		if (!tomLayer.isConnectRemotesOK()) {
 			// 流程还没有处理完的话，也返回成功
-			return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
+			return LeaderStatus.OK;
 		}
 		// 判断时间
-		long lastTime = heartBeatting.getTime();
-		if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
+		if (isHeartBeatTimeout()) {
 			// 此处触发超时
-			return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
+			return LeaderStatus.TIMEOUT;
 		}
-		return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
+		return LeaderStatus.OK;
 	}
-
-//	public void setTomLayer(TOMLayer tomLayer) {
-//		this.tomLayer = tomLayer;
-//	}
 
 	/**
 	 * 新领导者check过程
@@ -419,16 +425,6 @@ public class HeartBeatTimer {
 	 */
 	private class FollowerHeartbeatCheckingTask implements Runnable {
 
-		/**
-		 * 心跳是否超时；
-		 * 
-		 * @return
-		 */
-		private boolean isHeartBeatTimeout() {
-			return System.currentTimeMillis() - heartBeatting.getTime() > tomLayer.controller.getStaticConf()
-					.getHeartBeatTimeout();
-		}
-
 		@Override
 		public void run() {
 			// 再次判断是否是Leader；
@@ -457,13 +453,7 @@ public class HeartBeatTimer {
 				}
 
 				try {
-					leaderTimeoutTask = new LeaderTimeoutTask(HeartBeatTimer.this, tomLayer) {
-						@Override
-						protected void onCompleted() {
-							// 完成后移除任务；
-							leaderTimeoutTask = null;
-						}
-					};
+					leaderTimeoutTask = new LeaderTimeoutTask(HeartBeatTimer.this, tomLayer);
 					Future<?> future = leaderTimeoutTask.start();
 					future.get();
 				} catch (CancellationException e) {
@@ -471,6 +461,8 @@ public class HeartBeatTimer {
 				} catch (Exception e) {
 					// 捕捉所有异常，防止异常抛出后终止心跳超时检测任务；
 					LOGGER.error("Error occurred while running LeaderTimeoutTask! --" + e.getMessage(), e);
+				}finally {
+					leaderTimeoutTask = null;
 				}
 			}
 		}// End of : public void run();

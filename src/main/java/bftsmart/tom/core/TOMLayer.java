@@ -192,6 +192,10 @@ public class TOMLayer extends Thread implements RequestReceiver {
     public boolean isRunning() {
 		return doWork;
 	}
+    
+    public int getCurrentProcessId() {
+    	return controller.getStaticConf().getProcessId();
+    }
 
     /**
      * Computes an hash for a TOM message

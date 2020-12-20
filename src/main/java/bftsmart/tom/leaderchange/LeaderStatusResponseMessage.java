@@ -11,23 +11,23 @@ import java.io.ObjectOutput;
  */
 public class LeaderStatusResponseMessage extends LeaderStatusRequestMessage {
 
-    // 正常，表示当前节点认为Leader是正常的
-    public static final int LEADER_STATUS_NORMAL = 0;
-
-    // 超时，表示当前节点认为与Leader连接超时（即可以触发LC）
-    public static final int LEADER_STATUS_TIMEOUT = 1;
+//    // 正常，表示当前节点认为Leader是正常的
+//    public static final int LEADER_STATUS_NORMAL = 0;
+//
+//    // 超时，表示当前节点认为与Leader连接超时（即可以触发LC）
+//    public static final int LEADER_STATUS_TIMEOUT = 1;
 
     // 不相同，表示当前节点收到的Leader与发送方不一致
 //    public static final int LEADER_STATUS_NOTEQUAL = 2;
 
     private int leaderId;
     private int regency;
-    private int status;
+    private LeaderStatus status;
 
     public LeaderStatusResponseMessage() {
     }
 
-    public LeaderStatusResponseMessage(int sender, long sequence, int leaderId, int regency, int status) {
+    public LeaderStatusResponseMessage(int sender, long sequence, int leaderId, int regency, LeaderStatus status) {
         super(sender, sequence);
         this.leaderId = leaderId;
         this.regency = regency;
@@ -39,7 +39,7 @@ public class LeaderStatusResponseMessage extends LeaderStatusRequestMessage {
         super.writeExternal(out);
         out.writeInt(leaderId);
         out.writeInt(regency);
-        out.writeInt(status);
+        out.writeInt(status.CODE);
     }
 
     @Override
@@ -47,14 +47,14 @@ public class LeaderStatusResponseMessage extends LeaderStatusRequestMessage {
         super.readExternal(in);
         leaderId = in.readInt();
         regency = in.readInt();
-        status = in.readInt();
+        status = LeaderStatus.valueOf(in.readInt());
     }
 
-    public int getStatus() {
+    public LeaderStatus getStatus() {
         return status;
     }
 
-    public void setStatus(int status) {
+    public void setStatus(LeaderStatus status) {
         this.status = status;
     }
 

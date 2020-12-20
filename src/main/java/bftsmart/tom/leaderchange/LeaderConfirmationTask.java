@@ -175,13 +175,16 @@ public class LeaderConfirmationTask {
 			resumeHeartBeatTimer();
 		}
 	}
-	
+
+	/**
+	 * 根据收集的全局的执政期清单，以当前视图为基准生成新的执政期提议；
+	 * 
+	 * @return
+	 */
 	public synchronized LeaderRegencyPropose generateRegencyPropose() {
 		int maxRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
 		for (Map.Entry<Integer, LeaderRegency> entry : responsedRegencies.entrySet()) {
-			int leader = entry.getValue().getLeaderId();
 			int regency = entry.getValue().getId();
-
 			if (regency > maxRegency) {
 				maxRegency = regency;
 			}
@@ -205,9 +208,18 @@ public class LeaderConfirmationTask {
 	}
 
 	private synchronized void cancelTask() {
-		taskFuture.cancel(true);
+		ScheduledFuture<?> future = taskFuture;
 		taskFuture = null;
-		onCompleted();
+		if (future != null) {
+			future.cancel(true);
+
+			try {
+				executor.shutdown();
+			} catch (Exception e) {
+			}
+
+			onCompleted();
+		}
 	}
 
 	protected void onCompleted() {
@@ -265,7 +277,8 @@ public class LeaderConfirmationTask {
 
 				if (!selfVoted) {
 					// 加入自己当前的执政期；
-					responsedRegencies.put(getCurrentProcessId(), tomLayer.getSynchronizer().getLCManager().getCurrentRegency());
+					responsedRegencies.put(getCurrentProcessId(),
+							tomLayer.getSynchronizer().getLCManager().getCurrentRegency());
 					selfVoted = true;
 				}
 
