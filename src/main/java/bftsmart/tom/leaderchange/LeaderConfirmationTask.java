@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.reconfiguration.views.View;
-import bftsmart.tom.core.Synchronizer;
 import bftsmart.tom.core.TOMLayer;
 
 /**
@@ -39,7 +38,7 @@ public class LeaderConfirmationTask {
 
 	private TOMLayer tomLayer;
 
-	private Synchronizer synchronizer;
+	private volatile boolean selfVoted = false;
 
 	private final long startTimestamp;
 
@@ -60,7 +59,6 @@ public class LeaderConfirmationTask {
 		this.taskTimeout = taskTimeout;
 		this.hearbeatTimer = hearbeatTimer;
 		this.tomLayer = tomLayer;
-		this.synchronizer = tomLayer.getSynchronizer();
 		this.currentView = this.tomLayer.controller.getCurrentView();
 		this.startTimestamp = System.currentTimeMillis();
 
@@ -77,14 +75,8 @@ public class LeaderConfirmationTask {
 			hearbeatTimer.stopAll();
 		}
 
-		// 加入自己当前的执政期；
-		responsedRegencies.put(getCurrentProcessId(), synchronizer.getLCManager().getCurrentRegency());
-
 		// 先启动接收任务；
 		taskFuture = scheduleResponseReciever(delay);
-
-		// 发送领导者询问请求；
-		sendLeaderRequestMessage(startTimestamp);
 	}
 
 	private ScheduledFuture<?> scheduleResponseReciever(long delay) {
@@ -149,7 +141,7 @@ public class LeaderConfirmationTask {
 		}
 
 		// 如果当前已经处于领导者选举进程中，则不作处理，并取消此任务；
-		if (synchronizer.getLCManager().isInProgress()) {
+		if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 			cancelTask();
 			return;
 		}
@@ -166,8 +158,8 @@ public class LeaderConfirmationTask {
 			// 符合法定数量；
 			// 尝试跃迁到新的执政期；
 			LeaderRegency newRegency = greatestRegencies.get(0);
-			LeaderRegency currentRegency = synchronizer.getLCManager().getCurrentRegency();
-			if (synchronizer.getLCManager().tryJumpToRegency(newRegency)) {
+			LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
+			if (tomLayer.getSynchronizer().getLCManager().tryJumpToRegency(newRegency)) {
 				tomLayer.execManager.setNewLeader(newRegency.getLeaderId());
 				tomLayer.getSynchronizer().removeSTOPretransmissions(newRegency.getId());
 			} else {
@@ -188,7 +180,7 @@ public class LeaderConfirmationTask {
 		// TODO Auto-generated method stub
 		// 如果当前页不在选举进程中，则恢复心跳进程；
 		// 如果处于选举进程中，则此处不必恢复，当选举进程结束后会自行恢复；
-		if (synchronizer.getLCManager().isInProgress()) {
+		if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 			return;
 		}
 
@@ -239,7 +231,7 @@ public class LeaderConfirmationTask {
 		@Override
 		public void run() {
 			try {
-				if (synchronizer.getLCManager().isInProgress()) {
+				if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 					cancelTask();
 					return;
 				}
@@ -248,6 +240,13 @@ public class LeaderConfirmationTask {
 				if (isTaskTimeout()) {
 					cancelTask();
 					resumeHeartBeatTimer();
+					return;
+				}
+
+				if (!selfVoted) {
+					// 加入自己当前的执政期；
+					responsedRegencies.put(getCurrentProcessId(), tomLayer.getSynchronizer().getLCManager().getCurrentRegency());
+					selfVoted = true;
 				}
 
 				// 向未回复的节点重复发请求；
