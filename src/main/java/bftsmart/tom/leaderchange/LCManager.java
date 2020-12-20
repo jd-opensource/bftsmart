@@ -59,12 +59,6 @@ import bftsmart.tom.util.TOMUtil;
 public class LCManager {
 	private static final Logger LOGGER = LoggerFactory.getLogger(LCManager.class);
 
-//	private volatile int currentLeader;
-//
-//	// timestamp info
-//	// 上次选举产生的领导者执政ID；
-//	private int lastreg;
-
 	// 当前的执政期；
 	private LeaderRegency currentRegency;
 

@@ -33,7 +33,7 @@ public class LeaderConfirmationTask {
 	/**
 	 * 任务最长的超时时长；
 	 */
-	private static final long TASK_TIMEOUT = 30000;
+	private final long taskTimeout;
 
 	private HeartBeatTimer hearbeatTimer;
 
@@ -52,11 +52,12 @@ public class LeaderConfirmationTask {
 	private volatile ScheduledFuture<?> taskFuture;
 
 	/**
-	 * @param beatingRegency 有争议的心跳执政期；
-	 * @param hearbeatTimer
-	 * @param tomLayer
+	 * @param taskTimeout   任务结束的最大超时时长；
+	 * @param hearbeatTimer 系统中的心跳定时器；
+	 * @param tomLayer      通讯层接口；
 	 */
-	public LeaderConfirmationTask(HeartBeatTimer hearbeatTimer, TOMLayer tomLayer) {
+	public LeaderConfirmationTask(long taskTimeout, HeartBeatTimer hearbeatTimer, TOMLayer tomLayer) {
+		this.taskTimeout = taskTimeout;
 		this.hearbeatTimer = hearbeatTimer;
 		this.tomLayer = tomLayer;
 		this.synchronizer = tomLayer.getSynchronizer();
@@ -67,7 +68,7 @@ public class LeaderConfirmationTask {
 		this.responsedRegencies = new ConcurrentHashMap<>();
 	}
 
-	public synchronized void start() {
+	public synchronized void start(long delay) {
 		if (taskFuture != null) {
 			return;
 		}
@@ -80,14 +81,14 @@ public class LeaderConfirmationTask {
 		responsedRegencies.put(getCurrentProcessId(), synchronizer.getLCManager().getCurrentRegency());
 
 		// 先启动接收任务；
-		taskFuture = scheduleResponseReciever();
+		taskFuture = scheduleResponseReciever(delay);
 
 		// 发送领导者询问请求；
 		sendLeaderRequestMessage(startTimestamp);
 	}
 
-	private ScheduledFuture<?> scheduleResponseReciever() {
-		return executor.scheduleWithFixedDelay(new LeaderResponseWaiting(), 0, 2000L, TimeUnit.MILLISECONDS);
+	private ScheduledFuture<?> scheduleResponseReciever(long delay) {
+		return executor.scheduleWithFixedDelay(new LeaderResponseWaiting(), delay, 2000L, TimeUnit.MILLISECONDS);
 	}
 
 	private boolean isStopped() {
@@ -197,10 +198,10 @@ public class LeaderConfirmationTask {
 	private synchronized void cancelTask() {
 		taskFuture.cancel(true);
 		taskFuture = null;
-		onCanceled();
+		onCompleted();
 	}
 
-	protected void onCanceled() {
+	protected void onCompleted() {
 	}
 
 	/**
@@ -226,7 +227,7 @@ public class LeaderConfirmationTask {
 	}
 
 	private boolean isTaskTimeout() {
-		return (System.currentTimeMillis() - startTimestamp) > TASK_TIMEOUT;
+		return (System.currentTimeMillis() - startTimestamp) > taskTimeout;
 	}
 
 	/**
@@ -242,7 +243,7 @@ public class LeaderConfirmationTask {
 					cancelTask();
 					return;
 				}
-				
+
 				// 如果已经超时，且尚未完成任务，则终止任务，并回复心跳定时器；
 				if (isTaskTimeout()) {
 					cancelTask();

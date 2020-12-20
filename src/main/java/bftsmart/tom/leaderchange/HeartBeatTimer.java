@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.reconfiguration.views.View;
+import bftsmart.tom.core.Synchronizer;
 import bftsmart.tom.core.TOMLayer;
 
 /**
@@ -28,17 +29,34 @@ public class HeartBeatTimer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(HeartBeatTimer.class);
 
-	private static final long INIT_DELAY = 30000;
+	/**
+	 * 启动初始化阶段的领导者确认任务的开始延迟；值为 10 秒；
+	 */
+	private static final long INIT_LEADER_CONFIRM_DELAY = 10000;
+	/**
+	 * 启动初始化阶段的领导者确认任务的超时时长；值为 2 分钟；
+	 */
+	private static final long INIT_LEADER_CONFIRM_TIMEOUT = 2 * 60 * 1000;
 
+	/**
+	 * 正常阶段的领导者确认任务的开始延迟；值为 0 ，表示立即启动；
+	 */
+	private static final long NORMAL_LEADER_CONFIRM_DELAY = 0;
+	/**
+	 * 正常阶段的领导者确认任务的超时时长；值为 30 秒；
+	 */
+	private static final long NORMAL_LEADER_CONFIRM_TIMEOUT = 30 * 1000;
+
+	
 	private static final long NORMAL_DELAY = 2000;
 
 	private static final long LEADER_STATUS_MILL_SECONDS = 60000;
 
 	private static final long LEADER_STATUS_MAX_WAIT = 5000;
 
-	private ScheduledExecutorService leaderTimer = Executors.newSingleThreadScheduledExecutor();
+	private ScheduledExecutorService leaderTimer;
 
-	private ScheduledExecutorService followerTimer = Executors.newSingleThreadScheduledExecutor();
+	private ScheduledExecutorService followerTimer;
 
 	private ScheduledExecutorService leaderChangeStartThread = Executors.newSingleThreadScheduledExecutor();
 
@@ -57,15 +75,28 @@ public class HeartBeatTimer {
 
 	private Lock lsLock = new ReentrantLock();
 
+	/**
+	 * 是否已经完成初始化；
+	 * <p>
+	 * 
+	 * 心跳定时器在创建后会先进行初始化，这个过程中会向其它节点轮询领导者的状态，并根据占据多数的结果来初始化自身的状态；
+	 * <p>
+	 * 在完成首次领导者轮询确认之前 {@link #initialized} 为 false ；
+	 * <p>
+	 * 在完成首次领导者轮询确认之后，无论结果怎样，{@link #initialized} 都设置为 true；
+	 * <p>
+	 * 领导者轮询确认的过程会关闭心跳定时器，并在完成之后重新开启心跳定时器；
+	 */
+	private boolean initialized;
+
 	public HeartBeatTimer(TOMLayer tomLayer) {
 		this.tomLayer = tomLayer;
 		this.heartBeatting = new HeartBeating(new LeaderRegency(0, -1),
 				tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
 
-		// 首次启动的初始化延迟加大一些，等待其它的初始化任务完成；
-		leaderTimerStart(INIT_DELAY);
-		// 非领导者的初始化延迟比领导者的增加10秒；
-		followerTimerStart(INIT_DELAY + 10000);
+		// 启动后延迟 10 秒确认领导者；
+		this.initialized = false;
+		confirmLeaderRegency(INIT_LEADER_CONFIRM_DELAY, INIT_LEADER_CONFIRM_TIMEOUT);
 	}
 
 	private int getCurrentProcessId() {
@@ -103,7 +134,7 @@ public class HeartBeatTimer {
 
 	private void leaderTimerStart(long delay) {
 		// stop Replica timer，and start leader timer
-		if (leaderTimer == null) {
+		if (initialized && leaderTimer == null) {
 			leaderTimer = Executors.newSingleThreadScheduledExecutor();
 			leaderTimer.scheduleWithFixedDelay(new LeaderHeartbeatBroadcastingTask(this), delay,
 					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
@@ -111,7 +142,7 @@ public class HeartBeatTimer {
 	}
 
 	private void followerTimerStart(long delay) {
-		if (followerTimer == null) {
+		if (initialized && followerTimer == null) {
 			followerTimer = Executors.newSingleThreadScheduledExecutor();
 			followerTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(this), delay,
 					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
@@ -150,7 +181,7 @@ public class HeartBeatTimer {
 						currentRegency, beatingRegengy);
 			} else {
 				// 向其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
-				confirmLeaderRegency(beatingRegengy);
+				confirmLeaderRegency(NORMAL_LEADER_CONFIRM_DELAY, NORMAL_LEADER_CONFIRM_TIMEOUT);
 			}
 		}
 	}
@@ -159,21 +190,24 @@ public class HeartBeatTimer {
 	 * 向其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
 	 * <p>
 	 * 此方法在收到领导者执政期不一致的心跳消息后出发，向网络中的其它节点询问“领导者执政期”；
+	 * 
+	 * @param startDelay 延迟启动的毫秒数；
 	 */
-	private synchronized void confirmLeaderRegency(LeaderRegency beatingRegency) {
+	private synchronized void confirmLeaderRegency(long startDelay, long taskTimeout) {
 		// 避免同时有多个领导者查询确认的任务在执行；
 		if (leaderConfirmTask != null) {
 			return;
 		}
 
-		leaderConfirmTask = new LeaderConfirmationTask(this, this.tomLayer) {
+		leaderConfirmTask = new LeaderConfirmationTask(taskTimeout, this, this.tomLayer) {
 			@Override
-			protected void onCanceled() {
+			protected void onCompleted() {
 				leaderConfirmTask = null;
+				initialized = true;
 			}
 		};
 
-		leaderConfirmTask.start();
+		leaderConfirmTask.start(startDelay);
 
 		// 假设收到的消息不是当前的Leader，则需要发送获取其他节点Leader
 //		lrLock.lock();
@@ -476,7 +510,7 @@ public class HeartBeatTimer {
 			if (currentTimeMillis - HEART_BEAT_TIMER.lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS) {
 				// 重置sequence
 				HEART_BEAT_TIMER.lastLeaderStatusSequence = currentTimeMillis;
-				
+
 				// 可以开始处理
 				// 首先生成领导者状态请求消息
 				LeaderStatusRequestMessage requestMessage = new LeaderStatusRequestMessage(
