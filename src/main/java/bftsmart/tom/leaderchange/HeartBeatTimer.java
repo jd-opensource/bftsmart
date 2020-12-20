@@ -160,7 +160,7 @@ public class HeartBeatTimer {
 	 * <p>
 	 * 此方法在收到领导者执政期不一致的心跳消息后出发，向网络中的其它节点询问“领导者执政期”；
 	 */
-	private void confirmLeaderRegency(LeaderRegency beatingRegency) {
+	private synchronized void confirmLeaderRegency(LeaderRegency beatingRegency) {
 		// 避免同时有多个领导者查询确认的任务在执行；
 		if (leaderConfirmTask != null) {
 			return;
@@ -298,20 +298,11 @@ public class HeartBeatTimer {
 			// 流程还没有处理完的话，也返回成功
 			return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
 		}
-		if (heartBeatting == null) {
-			// 有超时，则返回超时
-//			if (tomLayer.requestsTimer != null) {
+		// 判断时间
+		long lastTime = heartBeatting.getTime();
+		if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
+			// 此处触发超时
 			return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
-//			}
-		} else {
-			// 判断时间
-			long lastTime = heartBeatting.getTime();
-			if (System.currentTimeMillis() - lastTime > tomLayer.controller.getStaticConf().getHeartBeatTimeout()) {
-				// 此处触发超时
-//				if (tomLayer.requestsTimer != null) {
-				return LeaderStatusResponseMessage.LEADER_STATUS_TIMEOUT;
-//				}
-			}
 		}
 		return LeaderStatusResponseMessage.LEADER_STATUS_NORMAL;
 	}
@@ -485,6 +476,7 @@ public class HeartBeatTimer {
 			if (currentTimeMillis - HEART_BEAT_TIMER.lastLeaderStatusSequence > LEADER_STATUS_MILL_SECONDS) {
 				// 重置sequence
 				HEART_BEAT_TIMER.lastLeaderStatusSequence = currentTimeMillis;
+				
 				// 可以开始处理
 				// 首先生成领导者状态请求消息
 				LeaderStatusRequestMessage requestMessage = new LeaderStatusRequestMessage(

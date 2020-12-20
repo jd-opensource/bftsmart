@@ -19,8 +19,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 import org.apache.commons.codec.binary.Base64;
@@ -42,17 +40,16 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.leaderchange.CollectData;
 import bftsmart.tom.leaderchange.ElectionResult;
-import bftsmart.tom.leaderchange.LeaderRegencyPropose;
 import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LCType;
 import bftsmart.tom.leaderchange.LeaderRegency;
+import bftsmart.tom.leaderchange.LeaderRegencyPropose;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
-import bftsmart.tom.util.TOMUtil;
 
 /**
  *
@@ -136,32 +133,33 @@ public class Synchronizer {
 //        requestsTimer.Enabled(false);
 
 		// still not in the leader change phase?
-		int proposedNewRegency = regencyPropose.getRegency().getId();
-		if (lcManager.tryBeginElection(regencyPropose.getRegency())) {
-			heartBeatTimer.stopAll();
+//		int proposedNewRegency = regencyPropose.getRegency().getId();
+//		if (lcManager.tryBeginElection(regencyPropose.getRegency())) {
+//			heartBeatTimer.stopAll();
+//
+////		if (!lcManager.isElecting()) {
+////			lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
+//
+////			int regency = lcManager.getNextReg(); // update variable
+//
+//			// store messages to be ordered
+//			lcManager.setCurrentRequestTimedOut(requestList);
+//
+//			// store information about messages that I'm going to send
+//			// 加入当前节点的执政期选举提议；
+////			lcManager.addStop(currentLeader, proposedNewRegency, this.controller.getStaticConf().getProcessId());
+//			lcManager.addStop(regencyPropose);
+//
+//			// execManager.stop(); // stop consensus execution
+//		}
 
-//		if (!lcManager.isElecting()) {
-//			lcManager.setNextReg(lcManager.getLastReg() + 1); // define next timestamp
+		lcManager.setCurrentRequestTimedOut(requestList);
 
-//			int regency = lcManager.getNextReg(); // update variable
-
-			// store messages to be ordered
-			lcManager.setCurrentRequestTimedOut(requestList);
-
-			// 当前领导者；
-//			final int currentLeader = tom.getExecManager().getCurrentLeader();
-
-			// store information about messages that I'm going to send
-			// 加入当前节点的执政期选举提议；
-//			lcManager.addStop(currentLeader, proposedNewRegency, this.controller.getStaticConf().getProcessId());
-			lcManager.addStop(regencyPropose);
-
-			// execManager.stop(); // stop consensus execution
-		}
+		lcManager.addStop(regencyPropose);
 
 		sendSTOP(regencyPropose);
 
-		processOutOfContextSTOPs(proposedNewRegency); // the replica might have received STOPs
+		processOutOfContextSTOPs(regencyPropose.getRegency().getId()); // the replica might have received STOPs
 		// that were out of context at the time they
 		// were received, but now can be processed
 

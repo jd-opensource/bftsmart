@@ -93,7 +93,7 @@ public class ElectionResult {
 //			throw new IllegalStateException("The regency of propose from node[" + standard.getSender()
 //					+ "] is not the expected regency[" + regency + "]!");
 //		}
-		validProposeList.add(standard);
+//		validProposeList.add(standard);
 
 		for (int i = 0; i < proposes.length; i++) {
 			if (regency != proposes[i].getRegency().getId()) {

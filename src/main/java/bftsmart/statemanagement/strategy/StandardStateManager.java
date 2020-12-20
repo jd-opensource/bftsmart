@@ -243,8 +243,10 @@ public class StandardStateManager extends BaseStateManager {
 
                     	LOGGER.debug("Received state. Will install it");
                     	
-                        tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
-                        tomLayer.execManager.setNewLeader(currentLeader);
+                    	if (currentRegency > tomLayer.getSynchronizer().getLCManager().getLastReg()) {
+                    		tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
+                    		tomLayer.execManager.setNewLeader(currentLeader);
+						}
                         
                         if (currentProof != null && !appStateOnly) {
                             
