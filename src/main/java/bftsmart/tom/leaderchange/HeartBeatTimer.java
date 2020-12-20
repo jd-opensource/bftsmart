@@ -59,7 +59,7 @@ public class HeartBeatTimer {
 
 	public HeartBeatTimer(TOMLayer tomLayer) {
 		this.tomLayer = tomLayer;
-		this.heartBeatting = new HeartBeating(tomLayer.getSynchronizer().getLCManager().getCurrentRegency(),
+		this.heartBeatting = new HeartBeating(new LeaderRegency(0, -1),
 				tomLayer.controller.getStaticConf().getProcessId(), System.currentTimeMillis());
 
 		// 首次启动的初始化延迟加大一些，等待其它的初始化任务完成；
