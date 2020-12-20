@@ -44,10 +44,6 @@ public class HeartBeatTimer {
 
 	private static final long NORMAL_DELAY = 2000;
 
-	private static final long LEADER_STATUS_MILL_SECONDS = 60000;
-
-	private static final long LEADER_STATUS_MAX_WAIT = 5000;
-
 	private ScheduledExecutorService leaderTimer;
 
 	private ScheduledExecutorService followerTimer;
@@ -62,8 +58,6 @@ public class HeartBeatTimer {
 	 * TODO: 给予此变量的生命周期一个严格定义；
 	 */
 	private volatile HeartBeating heartBeatting;
-
-//	private volatile LeaderStatusContext leaderStatusContext = new LeaderStatusContext(-1L, this);
 
 	private volatile LeaderTimeoutTask leaderTimeoutTask;
 
@@ -136,7 +130,7 @@ public class HeartBeatTimer {
 	private void followerTimerStart(long delay) {
 		if (initialized && followerTimer == null) {
 			followerTimer = Executors.newSingleThreadScheduledExecutor();
-			followerTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(this), delay,
+			followerTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(), delay,
 					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
 		}
 	}
@@ -278,18 +272,10 @@ public class HeartBeatTimer {
 	 * @param responseMessage
 	 */
 	public void receiveLeaderStatusResponseMessage(LeaderStatusResponseMessage responseMessage) {
-
-	}
-
-	/**
-	 * 领导者状态
-	 *
-	 * @param responseMessage
-	 * @return
-	 */
-	private LeaderStatus leaderStatus(LeaderStatusResponseMessage responseMessage) {
-		return new LeaderStatus(responseMessage.getStatus(), responseMessage.getLeaderId(),
-				responseMessage.getRegency());
+		LeaderTimeoutTask timeoutTask = leaderTimeoutTask;
+		if (timeoutTask != null) {
+			timeoutTask.receiveLeaderStatusResponseMessage(responseMessage);
+		}
 	}
 
 	/**

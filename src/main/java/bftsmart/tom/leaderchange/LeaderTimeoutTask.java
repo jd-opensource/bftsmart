@@ -16,9 +16,15 @@ class LeaderTimeoutTask {
 
 	private static Logger LOGGER = LoggerFactory.getLogger(LeaderTimeoutTask.class);
 
+	private static final long LEADER_STATUS_MILL_SECONDS = 60000;
+
+	private static final long LEADER_STATUS_MAX_WAIT = 5000;
+
 	private final HeartBeatTimer HEART_BEAT_TIMER;
 	
 	private final TOMLayer tomLayer;
+
+	private LeaderStatusContext leaderStatusContext;
 
 	public LeaderTimeoutTask(HeartBeatTimer heartbeatTimer, TOMLayer tomLayer) {
 		this.HEART_BEAT_TIMER = heartbeatTimer;
@@ -37,7 +43,7 @@ class LeaderTimeoutTask {
 		LOGGER.info("I am {}, send leader status request[{}] to others !", requestMessage.getSender(),
 				requestMessage.getSequence());
 
-		HEART_BEAT_TIMER.leaderStatusContext = new LeaderStatusContext(startTs, HEART_BEAT_TIMER);
+		leaderStatusContext = new LeaderStatusContext(startTs, HEART_BEAT_TIMER);
 		// 调用发送线程
 		tomLayer.getCommunication()
 				.send(tomLayer.controller.getCurrentViewOtherAcceptors(), requestMessage);
@@ -47,7 +53,7 @@ class LeaderTimeoutTask {
 //					Map<Integer, LeaderStatus> statusMap = leaderStatusContext
 //							.waitLeaderStatuses(LEADER_STATUS_MAX_WAIT);
 			// 状态不为空的情况下进行汇总，并且是同一个Sequence
-			if (HEART_BEAT_TIMER.leaderStatusContext.waitLeaderStatuses(LEADER_STATUS_MAX_WAIT)) {
+			if (leaderStatusContext.waitLeaderStatuses(LEADER_STATUS_MAX_WAIT)) {
 				LOGGER.info("I am {}, receive more than f response for timeout, so I will start to LC !",
 						tomLayer.controller.getStaticConf().getProcessId());
 				// 再次进行判断，防止LC已处理完成再次触发
@@ -57,7 +63,7 @@ class LeaderTimeoutTask {
 
 				// 对于不一致的leaderid, regency进行本地更新，达到节点之间的一致性
 //						checkAndUpdateLeaderInfos(statusMap);
-				LeaderRegencyPropose regencyPropose = HEART_BEAT_TIMER.leaderStatusContext.generateRegencyPropose();
+				LeaderRegencyPropose regencyPropose = leaderStatusContext.generateRegencyPropose();
 
 				tomLayer.requestsTimer.run_lc_protocol(regencyPropose);
 //                     }
@@ -84,12 +90,23 @@ class LeaderTimeoutTask {
 		
 			long sequence = leaderStatusContext.getSequence();
 			// 将状态加入到其中
-			LeaderStatus leaderStatus = leaderStatus(responseMessage);
+			LeaderStatus leaderStatus = resolveLeaderStatus(responseMessage);
 			boolean valid = leaderStatusContext.addStatus(responseMessage.getSender(), leaderStatus, sequence);
 			if (!valid) {
 				LOGGER.warn("I am {}, receive leader status response[{}:{}] is not match !!!",
 						tomLayer.controller.getStaticConf().getProcessId(), responseMessage.getSender(), sequence);
 			}
+	}
+	
+	/**
+	 * 领导者状态
+	 *
+	 * @param responseMessage
+	 * @return
+	 */
+	private LeaderStatus resolveLeaderStatus(LeaderStatusResponseMessage responseMessage) {
+		return new LeaderStatus(responseMessage.getStatus(), responseMessage.getLeaderId(),
+				responseMessage.getRegency());
 	}
 
 	private class LeaderStatusContext {
@@ -97,7 +114,7 @@ class LeaderTimeoutTask {
 		private long sequence;
 
 		private CountDownLatch latch = new CountDownLatch(1);
-
+		
 		private Map<Integer, LeaderStatus> leaderStatuses = new ConcurrentHashMap<>();
 
 		private final HeartBeatTimer HEART_BEAT_TIMER;
