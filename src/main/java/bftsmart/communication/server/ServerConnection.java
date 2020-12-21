@@ -39,6 +39,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
@@ -58,7 +59,7 @@ import bftsmart.tom.util.TOMUtil;
  */
 public class ServerConnection {
 
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
 	// 重连周期
 	private static final long RECONNECT_MILL_SECONDS = 5000L;
@@ -444,11 +445,11 @@ public class ServerConnection {
 					socket = newSocket;
 				}
 			} catch (UnknownHostException ex) {
-				LOGGER.error(
+				LOGGER.warn(
 						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
 						ex);
 			} catch (IOException ex) {
-				LOGGER.error(
+				LOGGER.warn(
 						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
 						ex);
 			}
