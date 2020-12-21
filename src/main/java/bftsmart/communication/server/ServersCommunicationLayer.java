@@ -265,7 +265,8 @@ public class ServersCommunicationLayer extends Thread {
 		try {
 			serverSocket.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.warn("Error occurred while closing server socket! --["
+					+ this.controller.getStaticConf().getProcessId() + "] " + e.getMessage(), e);
 		}
 	}
 
@@ -313,7 +314,10 @@ public class ServersCommunicationLayer extends Thread {
 			} catch (SocketTimeoutException ex) {
 				// timeout on the accept... do nothing
 			} catch (Exception ex) {
-				LOGGER.error("Error occurred while accepting incoming connection! --" + ex.getMessage(), ex);
+				if (doWork) {
+					LOGGER.error("Error occurred while accepting incoming connection! --[CurrentProcessId="
+							+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+				}
 			}
 		}
 
@@ -324,7 +328,7 @@ public class ServersCommunicationLayer extends Thread {
 			LOGGER.warn("Error occurred while closing the server socket of current node! --" + e.getMessage(), e);
 		}
 
-		LOGGER.info("ServerCommunicationLayer stopped.");
+		LOGGER.info("ServerCommunicationLayer stopped! --[" + this.controller.getStaticConf().getProcessId() + "]");
 	}
 
 	// ******* EDUARDO BEGIN **************//

@@ -240,12 +240,26 @@ public class ServerCommunicationSystem extends Thread {
 		LOGGER.info("Shutting down communication layer");
 
 		this.doWork = false;
-		clientsConn.shutdown();
-		serversConn.shutdown();
+		
+		try {
+			clientsConn.shutdown();
+		} catch (Exception e) {
+			LOGGER.warn(e.getMessage(), e);
+		}
+		
+		try {
+			serversConn.shutdown();
+		} catch (Exception e) {
+			LOGGER.warn(e.getMessage(), e);
+		}
 
 		// 关闭所有队列线程
 		for (MessageHandlerRunner runner : messageHandlerRunners) {
-			runner.shutdown();
+			try {
+				runner.shutdown();
+			} catch (Exception e) {
+				LOGGER.warn(e.getMessage(), e);
+			}
 		}
 	}
 

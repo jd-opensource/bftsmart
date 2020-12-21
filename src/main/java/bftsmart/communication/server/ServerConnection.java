@@ -118,11 +118,11 @@ public class ServerConnection {
 						.writeInt(this.controller.getStaticConf().getProcessId());
 
 			} catch (UnknownHostException ex) {
-				LOGGER.error(
+				LOGGER.warn(
 						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
 						ex);
 			} catch (IOException ex) {
-				LOGGER.error(
+				LOGGER.warn(
 						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
 						ex);
 			}
