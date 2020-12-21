@@ -1384,13 +1384,23 @@ public class LCManager {
 					}
 				}
 
-				if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC)
-						&& Arrays.equals(consMsg.getOrigPropValue(), hashedValue)
-						&& consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
+				// 不能判断mac, 对于部分节点宕机，或者重启的情况mac是会为空的，这样证据就验证失败了
+//				if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC)
+//						&& Arrays.equals(consMsg.getOrigPropValue(), hashedValue)
+//						&& consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
+//
+//					alreadyCounted.add(consMsg.getSender());
+//					countValid++;
+//				}
 
-					alreadyCounted.add(consMsg.getSender());
-					countValid++;
-				}
+                if (Arrays.equals(consMsg.getOrigPropValue(), hashedValue)
+                        && consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
+
+                    alreadyCounted.add(consMsg.getSender());
+                    countValid++;
+                }
+                LOGGER.info("(LCManager.hasValidProof) countValid = {}", countValid);
+
 			} else if (consMsg.getProof() instanceof byte[]) { // certificate is made of signatures
 
 				LOGGER.debug("(LCManager.hasValidProof) Proof made of Signatures");
