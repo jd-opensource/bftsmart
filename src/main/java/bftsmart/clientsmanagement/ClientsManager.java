@@ -471,7 +471,7 @@ public class ClientsManager {
         clientsLock.lock();
         clientsData.clear();
         clientsLock.unlock();
-        java.util.logging.Logger.getLogger(ClientsManager.class.getName()).log(Level.INFO, "ClientsManager cleared.");
+        LOGGER.info("ClientsManager cleared.");
 
     }
 }

@@ -484,8 +484,10 @@ public class ServiceReplica {
 			}
 		};
 		t.start();
-		//TODO: 考虑等待返回；
-		//t.join();
+		try {
+			t.join();
+		} catch (InterruptedException e) {
+		}
 	}
 
 	public void restart() {
@@ -672,7 +674,7 @@ public class ServiceReplica {
 									request.getReqType()));
 				}
 				requestCount++;
-			}
+			}// End of : for (TOMMessage request : requestsFromConsensus);
 
 			// This happens when a consensus finishes but there are no requests to deliver
 			// to the application. This can happen if a reconfiguration is issued and is the
@@ -728,7 +730,7 @@ public class ServiceReplica {
 			}
 
 			consensusCount++;
-		}// End of: for (TOMMessage[] requestsFromConsensus : requests)
+		}// End of: for (TOMMessage[] requestsFromConsensus : requests) 
 
 		if (executor instanceof PreComputeBatchExecutable && numRequests > 0) {
 			// Make new batch to deliver

@@ -173,7 +173,7 @@ public class Synchronizer {
 	public void sendSTOP_APPEND(LeaderRegencyPropose regencyPropose) {
 		// 发送 STOP_APPEND 消息；
 		try {
-			byte[] payload = makeRequestRelyPayload(regencyPropose.getRegency().getId());
+			byte[] payload = makeTomMessageReplyBatch(regencyPropose.getRegency().getId());
 			LCMessage msgSTOP_APPEND = LCMessage.createSTOP_APPEND(this.controller.getStaticConf().getProcessId(),
 					regencyPropose.getRegency(), controller.getCurrentView(), payload);
 			requestsTimer.setSTOP(regencyPropose.getRegency().getId(), msgSTOP_APPEND); // make replica
@@ -194,7 +194,7 @@ public class Synchronizer {
 		int proposedNewRegency = regencyPropose.getRegency().getId();
 
 		try {
-			byte[] payload = makeRequestRelyPayload(proposedNewRegency);
+			byte[] payload = makeTomMessageReplyBatch(proposedNewRegency);
 
 			LCMessage msgSTOP = LCMessage.createSTOP(this.controller.getStaticConf().getProcessId(),
 					regencyPropose.getRegency(), this.controller.getCurrentView(), payload);
@@ -641,7 +641,7 @@ public class Synchronizer {
 		addSTOPedRequestsToClientManager();
 
 		try { // serialize conent to send in the STOP message
-			byte[] payload = makeRequestRelyPayload(PROPOSED_NEXT_REGENCY_ID);
+			byte[] payload = makeTomMessageReplyBatch(PROPOSED_NEXT_REGENCY_ID);
 
 			if (FROM_REMOTE) {
 				View currentView = this.controller.getCurrentView();
@@ -676,7 +676,7 @@ public class Synchronizer {
 		}
 	}
 
-	private byte[] makeRequestRelyPayload(final int proposedNextRegencyId) throws IOException {
+	private byte[] makeTomMessageReplyBatch(final int proposedNextRegencyId) throws IOException {
 		try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
 				ObjectOutputStream out = new ObjectOutputStream(bos)) {
 

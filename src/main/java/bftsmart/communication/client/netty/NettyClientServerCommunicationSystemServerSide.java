@@ -134,7 +134,6 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 
 	@Override
 	public void shutdown() {
-
 		LOGGER.debug("Shutting down Netty system");
 
 		this.closed = true;
@@ -150,9 +149,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 
 		}
 
-		java.util.logging.Logger.getLogger(NettyClientServerCommunicationSystemServerSide.class.getName())
-				.log(Level.INFO, "NettyClientServerCommunicationSystemServerSide is halting.");
-
+		LOGGER.info("NettyClientServerCommunicationSystemServerSide is halting.");
 	}
 
 	@Override

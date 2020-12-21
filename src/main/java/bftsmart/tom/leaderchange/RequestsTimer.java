@@ -15,19 +15,23 @@ limitations under the License.
 */
 package bftsmart.tom.leaderchange;
 
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TreeSet;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import org.slf4j.LoggerFactory;
+
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.Consensus;
-import bftsmart.consensus.Epoch;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
-import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.Level;
 
 /**
  * This thread serves as a manager for all timers of pending requests.
@@ -277,7 +281,7 @@ public class RequestsTimer {
 	public void shutdown() {
 //        timer.cancel();
 		stopAllSTOPs();
-		java.util.logging.Logger.getLogger(RequestsTimer.class.getName()).log(Level.INFO, "RequestsTimer stopped.");
+		LOGGER.info("RequestsTimer stopped.");
 
 	}
 
