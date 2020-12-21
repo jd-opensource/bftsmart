@@ -2,8 +2,6 @@ package bftsmart.tom.leaderchange;
 
 import java.util.Arrays;
 
-import com.jd.blockchain.utils.ArrayUtils;
-
 import bftsmart.reconfiguration.views.View;
 
 /**

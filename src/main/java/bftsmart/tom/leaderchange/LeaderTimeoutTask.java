@@ -43,9 +43,13 @@ class LeaderTimeoutTask {
 		if (taskFuture != null) {
 			return taskFuture;
 		}
+
 		// 检查是否确实需要进行领导者切换
 		// 首先发送其他节点领导者切换的消息，然后等待
 		startTimestamp = System.currentTimeMillis();
+
+		LOGGER.debug("Start the timeout task ...[CurrentId={}][Sequence={}]", tomLayer.getCurrentProcessId(),
+				startTimestamp);
 
 		// 可以开始处理
 		long sequence = startTimestamp;
@@ -80,13 +84,15 @@ class LeaderTimeoutTask {
 		taskFuture = null;
 		if (future != null) {
 			future.cancel(true);
-			
+
 			try {
 				executor.shutdown();
 			} catch (Exception e) {
 			}
-			
+
 			onCompleted();
+			
+			LOGGER.debug("Quit the timeout task! [CurrentId={}]", tomLayer.getCurrentProcessId());
 		}
 	}
 
@@ -169,9 +175,9 @@ class LeaderTimeoutTask {
 			// 如果任务的执行时间超时了仍然未能等到退出条件；
 			// 则继续重复发送超时状态请求，并继续接收其它节点的回复，不断更新本地接收到全局的执政期状态；
 			if (isTaskTimeout()) {
-				//更新自身的状态；
+				// 更新自身的状态；
 				setSelfStatus();
-				//发送超时状态请求；
+				// 发送超时状态请求；
 				sendStatusRequest(leaderStatusContext.sequence);
 
 				// 重置任务执行超时状态;
@@ -189,8 +195,10 @@ class LeaderTimeoutTask {
 		try {
 			LeaderStatusRequestMessage requestMessage = new LeaderStatusRequestMessage(
 					tomLayer.controller.getStaticConf().getProcessId(), startTs);
+
 			LOGGER.info("I am {}, send leader status request[{}] to others !", requestMessage.getSender(),
 					requestMessage.getSequence());
+
 			// 调用发送线程
 			tomLayer.getCommunication().send(tomLayer.controller.getCurrentViewOtherAcceptors(), requestMessage);
 		} catch (Exception e) {

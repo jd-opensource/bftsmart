@@ -70,6 +70,10 @@ public class LeaderConfirmationTask {
 		if (taskFuture != null) {
 			return;
 		}
+
+		LOGGER.debug("Start the timeout task ...[CurrentId={}][ExecLeaderId={}][StartTime={}]",
+				tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), startTimestamp);
+
 		// 如果当前节点是 Leader 节点，先停止心跳；
 		if (tomLayer.isLeader()) {
 			hearbeatTimer.stopAll();
@@ -109,6 +113,10 @@ public class LeaderConfirmationTask {
 		}
 
 		LeaderRequestMessage requestMessage = new LeaderRequestMessage(getCurrentProcessId(), sequence);
+		
+		LOGGER.debug("Send leader request message ...[CurrentId={}][ExecLeaderId={}][Sequence={}]",
+				tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), sequence);
+
 		tomLayer.getCommunication().send(targets, requestMessage);
 	}
 
@@ -218,6 +226,9 @@ public class LeaderConfirmationTask {
 			} catch (Exception e) {
 			}
 
+			LOGGER.debug("Quit the leader confirm task! --[CurrentId={}][ExecLeaderId={}][Sequence={}]",
+					tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), startTimestamp);
+			
 			onCompleted();
 		}
 	}

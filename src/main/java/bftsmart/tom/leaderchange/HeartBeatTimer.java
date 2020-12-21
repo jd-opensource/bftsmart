@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.TOMLayer;
 
 /**
@@ -102,6 +103,46 @@ public class HeartBeatTimer {
 	}
 
 	public synchronized void stopAll() {
+		innerStop();
+	}
+
+	/**
+	 * 关闭；
+	 */
+	public synchronized void shutdown() {
+		// 停止定时器；
+		innerStop();
+
+		// 发送 STOP 消息触发选举；
+		triggerSTOP();
+	}
+
+	private void triggerSTOP() {
+		try {
+			if (tomLayer.isLeader()) {
+				// 基于当前视图验证当前 Regency 的正确性;
+				// 如果正确并且当前节点是领导者，则基于该执政期发送 STOP 消息，告知其它节点原领导者已经失效退出，需要重新选举；
+				int currentProcessId = tomLayer.getCurrentProcessId();
+				LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
+				View currentView = tomLayer.controller.getCurrentView();
+				int choosenLeader = LeaderRegencyPropose.chooseLeader(currentRegency.getId(), currentView);
+				if (choosenLeader == currentRegency.getLeaderId() && choosenLeader == currentProcessId) {
+					// 发送 STOP 消息，通知其它节点重新选举；
+					LeaderRegencyPropose propose = LeaderRegencyPropose.chooseFromView(currentRegency.getId() + 1,
+							currentView, currentProcessId);
+					tomLayer.getSynchronizer().sendSTOP(propose);
+					
+					//等待 10 秒；
+					Thread.sleep(10 *1000);
+				}
+			}
+		} catch (Exception e) {
+			LOGGER.warn("Error occurred when STOP was triggered before the shutdown of leader! --[LeaderId="
+					+ tomLayer.getCurrentProcessId() + "] " + e.getMessage(), e);
+		}
+	}
+
+	private void innerStop() {
 		if (followerTimer != null) {
 			followerTimer.shutdownNow();
 		}
@@ -110,10 +151,6 @@ public class HeartBeatTimer {
 		}
 		followerTimer = null;
 		leaderTimer = null;
-	}
-
-	public synchronized void shutdown() {
-		stopAll();
 	}
 
 	private long getHearBeatPeriod() {
@@ -239,7 +276,6 @@ public class HeartBeatTimer {
 	public void setLeaderInactived(boolean inactived) {
 		this.inactived = inactived;
 	}
-	
 
 	/**
 	 * 心跳是否超时；
@@ -303,8 +339,7 @@ public class HeartBeatTimer {
 	public LeaderStatus getLeaderStatus() {
 		if (tomLayer.leader() == tomLayer.controller.getStaticConf().getProcessId()) {
 			// 如果我是Leader，返回正常
-			return inactived ? LeaderStatus.TIMEOUT
-					: LeaderStatus.OK;
+			return inactived ? LeaderStatus.TIMEOUT : LeaderStatus.OK;
 		}
 		// 需要判断所有连接是否已经成功建立
 		if (!tomLayer.isConnectRemotesOK()) {
@@ -461,7 +496,7 @@ public class HeartBeatTimer {
 				} catch (Exception e) {
 					// 捕捉所有异常，防止异常抛出后终止心跳超时检测任务；
 					LOGGER.error("Error occurred while running LeaderTimeoutTask! --" + e.getMessage(), e);
-				}finally {
+				} finally {
 					leaderTimeoutTask = null;
 				}
 			}

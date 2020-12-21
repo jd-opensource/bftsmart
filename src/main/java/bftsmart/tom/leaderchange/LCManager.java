@@ -397,10 +397,25 @@ public class LCManager {
 	 */
 	public boolean isUpToBeginQuorum(int regency) {
 		int countOfSTOP = getStopsSize(regency);
+		return countOfSTOP >= getBeginQuorum();
+	}
+
+	/**
+	 * 达到正式发起选举的法定数量；
+	 * <p>
+	 * 
+	 * 在 BFT 模式下，返回 f + 1；
+	 * <p>
+	 * 在 CFT 模式下，返回 f ；
+	 * <p>
+	 * 
+	 * @return
+	 */
+	public int getBeginQuorum() {
 		if (SVController.getStaticConf().isBFT()) {
-			return countOfSTOP > SVController.getCurrentViewF();
+			return SVController.getCurrentViewF() + 1;
 		} else {
-			return countOfSTOP > 0;
+			return SVController.getCurrentViewF();
 		}
 	}
 
@@ -598,33 +613,46 @@ public class LCManager {
 	 * @return 是否成功地以指定的 regency 提议开启了新的一轮选举；
 	 */
 	public synchronized boolean tryBeginElection(LeaderRegency proposedRegency) {
+		LOGGER.debug("Try to begin election ... [ProposedRegencyId={}][ProposedLeaderId={}]", proposedRegency.getId(),
+				proposedRegency.getLeaderId());
+
 		int proposedRegencyId = proposedRegency.getId();
 		if (proposedRegencyId < nextreg) {
 			// 过期的提议；
-			LOGGER.warn("Try to begin an outdated regency election! --[current_regency={}][proposed_regency={}]",
+			LOGGER.warn("Try to begin an outdated regency election! --[CurrentRegencyId={}][ProposedRegencyId={}]",
 					nextreg, proposedRegencyId);
 			return false;
 		}
 		if (isInProgress(proposedRegencyId)) {
 			// 指定的regency已经在选举中，不必切换；
+			LOGGER.debug("The proposed regency has been in progress! --[ProposedRegencyId={}][ProposedLeaderId={}]",
+					proposedRegencyId, proposedRegency.getLeaderId());
 			return false;
 		}
 		if (nextreg == proposedRegencyId) {
 			// 未在选举进程中；
 			// 但是提议的新执政期与当前的执政期相同，不能对同一个执政期反复进行选举；
-			LOGGER.warn("Try to begin an outdated regency election! --[current_regency={}][proposed_regency={}]",
-					nextreg, proposedRegencyId);
+			LOGGER.warn(
+					"Try to begin an outdated regency election! --[CurrentRegencyId={}][ProposedRegencyId={}][ProposedLeaderId={}]",
+					nextreg, proposedRegencyId, proposedRegency.getLeaderId());
 			return false;
 		}
 
 		if (!isUpToBeginQuorum(proposedRegencyId)) {
 			// 指定的执政期提议数量未达到法定的选举发起投票数量；
+			LOGGER.debug(
+					"The proposed regency is not up to the begin quorum! --[ProposedRegencyId={}][ProposedLeaderId={}][BeginQuorum={}]",
+					proposedRegency.getId(), proposedRegency.getLeaderId(), getBeginQuorum());
 			return false;
 		}
 
 		// 新的执政期大于当前执政期；
 		// 即：表达式 proposedRegencyId > nextreg && !isInProgress() 为 true；
 		nextreg = proposedRegencyId;
+
+		LOGGER.debug(
+				"The proposed regency begin election! --[BeginQuorum={}][ProposedRegencyId={}][ProposedLeaderId={}]",
+				getBeginQuorum(), proposedRegency.getId(), proposedRegency.getLeaderId());
 		return true;
 	}
 

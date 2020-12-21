@@ -442,8 +442,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 				try {
 					doEpoch();
 				} catch (Exception e) {
-					LOGGER.error("Error occurred while doing epoch! --[CurrentProcessId="
-							+ this.getCurrentProcessId() + "] " + e.getMessage(), e);
+					LOGGER.error("Error occurred while doing epoch! --[CurrentProcessId=" + this.getCurrentProcessId()
+							+ "] " + e.getMessage(), e);
 				}
 			}
 		} catch (Throwable e) {
@@ -688,14 +688,21 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	}
 
 	public void shutdown() {
+		if (!doWork) {
+			// 已经关闭，不必重复执行；
+			return;
+		}
+		// 先关闭心跳定时器；
+		// 如果当前节点是领导者，那么当心跳定时器关闭前会主动发送 STOP 消息通知其它节点触发选举；
+		if (this.heartBeatTimer != null) {
+			this.heartBeatTimer.shutdown();
+		}
+
 		this.doWork = false;
 		imAmTheLeader();
 		haveMessages();
 		setNoExec();
 
-		if (this.heartBeatTimer != null) {
-			this.heartBeatTimer.shutdown();
-		}
 		if (viewSyncTimer != null) {
 			viewSyncTimer.shutdown();
 		}
