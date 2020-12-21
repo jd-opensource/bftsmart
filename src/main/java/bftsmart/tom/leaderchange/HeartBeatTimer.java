@@ -337,9 +337,12 @@ public class HeartBeatTimer {
 	 * @return
 	 */
 	public LeaderStatus getLeaderStatus() {
+		if (inactived) {
+			return LeaderStatus.TIMEOUT;
+		}
 		if (tomLayer.leader() == tomLayer.controller.getStaticConf().getProcessId()) {
 			// 如果我是Leader，返回正常
-			return inactived ? LeaderStatus.TIMEOUT : LeaderStatus.OK;
+			return LeaderStatus.OK;
 		}
 		// 需要判断所有连接是否已经成功建立
 		if (!tomLayer.isConnectRemotesOK()) {

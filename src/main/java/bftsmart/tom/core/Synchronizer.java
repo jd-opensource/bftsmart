@@ -170,6 +170,26 @@ public class Synchronizer {
 		startSynchronization(regencyPropose); // evaluate STOP messages
 	}
 
+	public void sendSTOP_APPEND(LeaderRegencyPropose regencyPropose) {
+		// 发送 STOP_APPEND 消息；
+		try {
+			byte[] payload = makeRequestRelyPayload(regencyPropose.getRegency().getId());
+			LCMessage msgSTOP_APPEND = LCMessage.createSTOP_APPEND(this.controller.getStaticConf().getProcessId(),
+					regencyPropose.getRegency(), controller.getCurrentView(), payload);
+			requestsTimer.setSTOP(regencyPropose.getRegency().getId(), msgSTOP_APPEND); // make replica
+																						// re-transmit the
+																						// stop
+			// message
+			// until a
+			// new
+			// regency is installed
+			communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP_APPEND);
+		} catch (Exception e) {
+			LOGGER.error("Error occurred while sending STOP_APPEND from node[" + tom.getCurrentProcessId() + "]! --"
+					+ e.getMessage(), e);
+		}
+	}
+
 	public void sendSTOP(LeaderRegencyPropose regencyPropose) {
 		int proposedNewRegency = regencyPropose.getRegency().getId();
 
@@ -560,18 +580,7 @@ public class Synchronizer {
 					lcManager.addStop(nextRegencyPropose);
 
 					// 发送 STOP_APPEND 消息；
-					byte[] payload = makeRequestRelyPayload(nextRegencyPropose.getRegency().getId());
-					LCMessage msgSTOP_APPEND = LCMessage.createSTOP_APPEND(
-							this.controller.getStaticConf().getProcessId(), regencyPropose.getRegency(), currentView,
-							payload);
-					requestsTimer.setSTOP(nextRegencyPropose.getRegency().getId(), msgSTOP_APPEND); // make replica
-																									// re-transmit the
-																									// stop
-					// message
-					// until a
-					// new
-					// regency is installed
-					communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP_APPEND);
+					sendSTOP_APPEND(nextRegencyPropose);
 				}
 			}
 
@@ -730,7 +739,6 @@ public class Synchronizer {
 		execManager.setNewLeader(electionResult.getRegency().getLeaderId());
 
 		// 重启心跳
-		tom.heartBeatTimer.setLeaderInactived(false);
 		tom.heartBeatTimer.restart();
 
 		// If I am not the leader, I have to send a STOPDATA message to the elected

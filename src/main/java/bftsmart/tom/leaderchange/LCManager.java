@@ -275,6 +275,7 @@ public class LCManager {
 
 		this.nextreg = newRegency.getId();
 
+		tomLayer.heartBeatTimer.setLeaderInactived(false);
 		LOGGER.info(
 				"The regency jumps from [Regency={},Leader={}] to {Regency={},Leader={}} successfully! --[ElectionInProgress={}][CurrentProcess={}]",
 				currentRegency.getId(), currentRegency.getLeaderId(), newRegency.getId(), newRegency.getLeaderId(),
@@ -311,6 +312,8 @@ public class LCManager {
 		this.currentRegency = newRegency;
 
 		this.nextreg = newRegency.getId();
+		
+		tomLayer.heartBeatTimer.setLeaderInactived(false);
 
 		LOGGER.info(
 				"The regency jumps from [Regency={},Leader={}] to {Regency={},Leader={}} successfully! --[ElectionInProgress={}][CurrentProcess={}]",
@@ -484,7 +487,9 @@ public class LCManager {
 
 		this.currentRegency = electionResult.getRegency();
 		this.nextreg = electionResult.getRegency().getId();
-
+		
+		tomLayer.heartBeatTimer.setLeaderInactived(false);
+		
 		// 移除已完成的选举之前的投标信息；
 		removeStops(regency);
 
@@ -523,6 +528,8 @@ public class LCManager {
 
 		this.currentRegency = electionResult.getRegency();
 		this.nextreg = electionResult.getRegency().getId();
+		
+		tomLayer.heartBeatTimer.setLeaderInactived(false);
 
 		// 移除已完成的选举之前的投标信息；
 		removeStops(regency);
