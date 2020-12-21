@@ -29,9 +29,9 @@ public class HeartBeatTimer {
 	 */
 	private static final long INIT_LEADER_CONFIRM_DELAY = 10000;
 	/**
-	 * 启动初始化阶段的领导者确认任务的超时时长；值为 2 分钟；
+	 * 启动初始化阶段的领导者确认任务的超时时长；值为 30 秒；
 	 */
-	private static final long INIT_LEADER_CONFIRM_TIMEOUT = 2 * 60 * 1000;
+	private static final long INIT_LEADER_CONFIRM_TIMEOUT = 30 * 1000;
 
 	/**
 	 * 正常阶段的领导者确认任务的开始延迟；值为 0 ，表示立即启动；
