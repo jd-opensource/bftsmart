@@ -29,14 +29,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.jd.blockchain.utils.io.RuntimeIOException;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
@@ -49,7 +50,7 @@ import bftsmart.tom.ServiceReplica;
  * @author alysson
  */
 public class ServersCommunicationLayer extends Thread {
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayer.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayer.class);
 
 	private ServerViewController controller;
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
@@ -135,7 +136,7 @@ public class ServersCommunicationLayer extends Thread {
 		if (id == controller.getStaticConf().getProcessId())
 			return selfPwd;
 		else if (connections.get(id) != null) {
-				return connections.get(id).getSecretKey();
+			return connections.get(id).getSecretKey();
 		}
 
 		return null;
@@ -199,7 +200,7 @@ public class ServersCommunicationLayer extends Thread {
 		try {
 			new ObjectOutputStream(bOut).writeObject(sm);
 		} catch (IOException ex) {
-			Logger.getLogger(ServerConnection.class.getName()).log(Level.SEVERE, null, ex);
+			throw new RuntimeIOException(ex.getMessage(), ex);
 		}
 
 		byte[] data = bOut.toByteArray();
@@ -311,21 +312,19 @@ public class ServersCommunicationLayer extends Thread {
 
 			} catch (SocketTimeoutException ex) {
 				// timeout on the accept... do nothing
-			} catch (IOException ex) {
-				Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);
+			} catch (Exception ex) {
+				LOGGER.error("Error occurred while accepting incoming connection! --" + ex.getMessage(), ex);
 			}
 		}
 
 		try {
 			serverSocket.close();
-		} catch (IOException ex) {
-			Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);
 		} catch (Throwable e) {
 			// other exception or error
+			LOGGER.warn("Error occurred while closing the server socket of current node! --" + e.getMessage(), e);
 		}
 
-		Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.INFO,
-				"ServerCommunicationLayer stopped.");
+		LOGGER.info("ServerCommunicationLayer stopped.");
 	}
 
 	// ******* EDUARDO BEGIN **************//
@@ -352,12 +351,8 @@ public class ServersCommunicationLayer extends Thread {
 	}
 	// ******* EDUARDO END **************//
 
-	public static void setSocketOptions(Socket socket) {
-		try {
-			socket.setTcpNoDelay(true);
-		} catch (SocketException ex) {
-			Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);
-		}
+	public static void setSocketOptions(Socket socket) throws SocketException {
+		socket.setTcpNoDelay(true);
 	}
 
 	@Override
