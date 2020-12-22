@@ -299,7 +299,7 @@ public abstract class BaseStateManager implements StateManager {
                         dt.canDeliver();
                         dt.deliverUnlock();
                         break;
-                    } else {
+                    } else if (lastCID < key){
                         //ask for state
                         LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
 //                        this.lastLogCid = lastCID;
