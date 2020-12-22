@@ -34,4 +34,9 @@ public class LeaderRegency {
 	public int getLeaderId() {
 		return leaderId;
 	}
+	
+	@Override
+	public String toString() {
+		return String.format("[regency=%s,leader=%s]", id, leaderId);
+	}
 }

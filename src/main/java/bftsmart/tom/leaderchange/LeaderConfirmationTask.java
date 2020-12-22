@@ -113,9 +113,10 @@ public class LeaderConfirmationTask {
 		}
 
 		LeaderRequestMessage requestMessage = new LeaderRequestMessage(getCurrentProcessId(), sequence);
-		
-		LOGGER.debug("Send leader request message ...[CurrentId={}][ExecLeaderId={}][Sequence={}]",
-				tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), sequence);
+
+		LOGGER.debug("Send leader request message ...[CurrentId={}][ExecLeaderId={}][Regency={}][Sequence={}]",
+				tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(),
+				tomLayer.getSynchronizer().getLCManager().getCurrentRegency(), sequence);
 
 		tomLayer.getCommunication().send(targets, requestMessage);
 	}
@@ -228,7 +229,7 @@ public class LeaderConfirmationTask {
 
 			LOGGER.debug("Quit the leader confirm task! --[CurrentId={}][ExecLeaderId={}][Sequence={}]",
 					tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), startTimestamp);
-			
+
 			onCompleted();
 		}
 	}
@@ -271,6 +272,11 @@ public class LeaderConfirmationTask {
 		@Override
 		public void run() {
 			try {
+				if (!tomLayer.isRunning()) {
+					// 系统已经关闭，直接退出；
+					cancelTask();
+					return;
+				}
 				if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 					cancelTask();
 					return;
@@ -282,7 +288,6 @@ public class LeaderConfirmationTask {
 					LeaderRegencyPropose propose = generateRegencyPropose();
 					tomLayer.getRequestsTimer().run_lc_protocol(propose);
 					cancelTask();
-//					resumeHeartBeatTimer();
 					return;
 				}
 

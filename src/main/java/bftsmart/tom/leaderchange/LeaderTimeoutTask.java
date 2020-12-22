@@ -72,6 +72,10 @@ class LeaderTimeoutTask {
 	}
 
 	private void setSelfStatus() {
+		if (!tomLayer.isRunning()) {
+			cancelTask();
+			return;
+		}
 		LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
 		LeaderStatus status = HEART_BEAT_TIMER.getLeaderStatus();
 		LeaderRegencyStatus timeoutStatus = new LeaderRegencyStatus(status, currentRegency.getLeaderId(),

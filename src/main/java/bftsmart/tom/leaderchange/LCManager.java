@@ -312,7 +312,7 @@ public class LCManager {
 		this.currentRegency = newRegency;
 
 		this.nextreg = newRegency.getId();
-		
+
 		tomLayer.heartBeatTimer.setLeaderInactived(false);
 
 		LOGGER.info(
@@ -487,9 +487,9 @@ public class LCManager {
 
 		this.currentRegency = electionResult.getRegency();
 		this.nextreg = electionResult.getRegency().getId();
-		
+
 		tomLayer.heartBeatTimer.setLeaderInactived(false);
-		
+
 		// 移除已完成的选举之前的投标信息；
 		removeStops(regency);
 
@@ -528,11 +528,14 @@ public class LCManager {
 
 		this.currentRegency = electionResult.getRegency();
 		this.nextreg = electionResult.getRegency().getId();
-		
+
 		tomLayer.heartBeatTimer.setLeaderInactived(false);
 
 		// 移除已完成的选举之前的投标信息；
 		removeStops(regency);
+
+		LOGGER.info("Commit election result! --[NewRegency={}][NewLeader={}][CurrentProcessId={}]",
+				currentRegency.getId(), currentRegency.getLeaderId(), tomLayer.getCurrentProcessId());
 
 		return electionResult;
 	}
@@ -620,8 +623,8 @@ public class LCManager {
 	 * @return 是否成功地以指定的 regency 提议开启了新的一轮选举；
 	 */
 	public synchronized boolean tryBeginElection(LeaderRegency proposedRegency) {
-		LOGGER.debug("Try to begin election ... [ProposedRegencyId={}][ProposedLeaderId={}]", proposedRegency.getId(),
-				proposedRegency.getLeaderId());
+		LOGGER.debug("Try to begin election ... [ProposedRegencyId={}][ProposedLeaderId={}][CurrentProccessId={}]",
+				proposedRegency.getId(), proposedRegency.getLeaderId(), tomLayer.getCurrentProcessId());
 
 		int proposedRegencyId = proposedRegency.getId();
 		if (proposedRegencyId < nextreg) {
@@ -648,8 +651,9 @@ public class LCManager {
 		if (!isUpToBeginQuorum(proposedRegencyId)) {
 			// 指定的执政期提议数量未达到法定的选举发起投票数量；
 			LOGGER.debug(
-					"The proposed regency is not up to the begin quorum! --[ProposedRegencyId={}][ProposedLeaderId={}][BeginQuorum={}]",
-					proposedRegency.getId(), proposedRegency.getLeaderId(), getBeginQuorum());
+					"The proposed regency is not up to the begin quorum! --[BeginQuorum={}][ProposedRegencyId={}][ProposedLeaderId={}][CurrentProccessId={}]",
+					getBeginQuorum(), proposedRegency.getId(), proposedRegency.getLeaderId(),
+					tomLayer.getCurrentProcessId());
 			return false;
 		}
 
@@ -1393,13 +1397,13 @@ public class LCManager {
 //					countValid++;
 //				}
 
-                if (Arrays.equals(consMsg.getOrigPropValue(), hashedValue)
-                        && consMsg.getNumber() == cDec.getCID() && !alreadyCounted.contains(consMsg.getSender())) {
+				if (Arrays.equals(consMsg.getOrigPropValue(), hashedValue) && consMsg.getNumber() == cDec.getCID()
+						&& !alreadyCounted.contains(consMsg.getSender())) {
 
-                    alreadyCounted.add(consMsg.getSender());
-                    countValid++;
-                }
-                LOGGER.info("(LCManager.hasValidProof) countValid = {}", countValid);
+					alreadyCounted.add(consMsg.getSender());
+					countValid++;
+				}
+				LOGGER.info("(LCManager.hasValidProof) countValid = {}", countValid);
 
 			} else if (consMsg.getProof() instanceof byte[]) { // certificate is made of signatures
 
