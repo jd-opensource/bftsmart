@@ -2,6 +2,7 @@ package bftsmart.tom.leaderchange;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -64,6 +65,42 @@ public class ElectionResult {
 	public LeaderRegencyPropose[] getTotalProposes() {
 		return totalProposes;
 	}
+	
+	public boolean containsProposer(int proposerId) {
+		for (int i = 0; i < totalProposes.length; i++) {
+			if (totalProposes[i].getSender() == proposerId) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 生成最高执政期的选举结果；
+	 * 
+	 * @param proposes
+	 * @return
+	 */
+	public static ElectionResult generateHighestRegnecy(LeaderRegencyPropose... proposes) {
+		int highestRegency = -1;
+		for (int i = 0; i < proposes.length; i++) {
+			if (proposes[i].getRegency().getId() > highestRegency) {
+				highestRegency = proposes[i].getRegency().getId();
+			}
+		}
+		return generateResult(highestRegency, proposes);
+	}
+
+	/**
+	 * 生成最高执政期的选举结果；
+	 * 
+	 * @param proposes
+	 * @return
+	 */
+	public static ElectionResult generateHighestRegnecy(Collection<LeaderRegencyPropose> proposes) {
+		LeaderRegencyPropose[] proposeArray = proposes.toArray(new LeaderRegencyPropose[proposes.size()]);
+		return generateHighestRegnecy(proposeArray);
+	}
 
 	/**
 	 * 根据指定的提议生成选举结果；
@@ -88,12 +125,6 @@ public class ElectionResult {
 		List<LeaderRegencyPropose> validProposeList = new ArrayList<LeaderRegencyPropose>();
 
 		LeaderRegencyPropose standard = null;
-//		LeaderRegencyPropose standard = proposes[0];
-//		if (regency != standard.getRegency().getId()) {
-//			throw new IllegalStateException("The regency of propose from node[" + standard.getSender()
-//					+ "] is not the expected regency[" + regency + "]!");
-//		}
-//		validProposeList.add(standard);
 
 		for (int i = 0; i < proposes.length; i++) {
 			if (regency != proposes[i].getRegency().getId()) {

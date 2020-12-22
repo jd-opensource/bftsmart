@@ -44,7 +44,7 @@ public class LeaderConfirmationTask {
 
 	private ScheduledExecutorService executor;
 
-	private Map<Integer, LeaderRegency> responsedRegencies;
+	private Map<Integer, LeaderRegencyPropose> responsedRegencies;
 
 	private View currentView;
 
@@ -71,7 +71,7 @@ public class LeaderConfirmationTask {
 			return;
 		}
 
-		LOGGER.debug("Start the timeout task ...[CurrentId={}][ExecLeaderId={}][StartTime={}]",
+		LOGGER.debug("Start the leader confirm task ...[CurrentId={}][ExecLeaderId={}][StartTime={}]",
 				tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), startTimestamp);
 
 		// 如果当前节点是 Leader 节点，先停止心跳；
@@ -156,17 +156,37 @@ public class LeaderConfirmationTask {
 		}
 
 		// 是当前节点发送的请求，则将其加入到Map中
-		responsedRegencies.put(leaderRegencyResponse.getSender(),
-				new LeaderRegency(leaderRegencyResponse.getLeader(), leaderRegencyResponse.getLastRegency()));
+		LeaderRegencyPropose respPropose = LeaderRegencyPropose.copy(leaderRegencyResponse.getLeader(),
+				leaderRegencyResponse.getLastRegency(), leaderRegencyResponse.getViewId(),
+				leaderRegencyResponse.getViewProcessIds(), leaderRegencyResponse.getSender());
+		responsedRegencies.put(leaderRegencyResponse.getSender(), respPropose);
 
 		// 计算最高执政期的列表；
-		List<LeaderRegency> greatestRegencies = countGreatestRegencies();
+		ElectionResult electionResult = ElectionResult.generateHighestRegnecy(responsedRegencies.values());
+
 		int quorum = tomLayer.controller.getStaticConf().isBFT() ? currentView.computeBFT_QUORUM()
 				: currentView.computeCFT_QUORUM();
-		if (greatestRegencies.size() >= quorum) {
-			// 符合法定数量；
-			// 尝试跃迁到新的执政期；
-			LeaderRegency newRegency = greatestRegencies.get(0);
+
+		// 如果符合法定数量；
+		// 尝试跃迁到新的执政期；
+		// 符合法定数量的情形包括两种可能：
+		// 1. 已存在的节点回复已经满足法定数量；
+		// 2. 已存在的节点回复的数量比法定数量少 1 个，如果加入当前节点则刚好维护法定数量的网络活性；
+
+		LeaderRegency newRegency = null;
+		if (electionResult.getValidCount() >= quorum) {
+			// 1. 已存在的节点回复已经满足法定数量；
+			newRegency = electionResult.getRegency();
+		} else if (electionResult.getValidCount() + 1 == quorum) {
+			// 2. 已存在的节点回复的数量比法定数量少 1 个;
+			// 如果新的领导者属于已存在的节点或者当前节点，则加入当前节点；
+			int newLeader = electionResult.getRegency().getLeaderId();
+			if (electionResult.containsProposer(newLeader)) {
+				newRegency = electionResult.getRegency();
+			}
+		}
+
+		if (newRegency != null) {
 			LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
 			if (tomLayer.getSynchronizer().getLCManager().tryJumpToRegency(newRegency)) {
 				tomLayer.execManager.setNewLeader(newRegency.getLeaderId());
@@ -192,8 +212,8 @@ public class LeaderConfirmationTask {
 	 */
 	public synchronized LeaderRegencyPropose generateRegencyPropose() {
 		int maxRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
-		for (Map.Entry<Integer, LeaderRegency> entry : responsedRegencies.entrySet()) {
-			int regency = entry.getValue().getId();
+		for (Map.Entry<Integer, LeaderRegencyPropose> entry : responsedRegencies.entrySet()) {
+			int regency = entry.getValue().getRegency().getId();
 			if (regency > maxRegency) {
 				maxRegency = regency;
 			}
@@ -237,27 +257,27 @@ public class LeaderConfirmationTask {
 	protected void onCompleted() {
 	}
 
-	/**
-	 * 返回最高的执政期列表；
-	 * 
-	 * @return
-	 */
-	private List<LeaderRegency> countGreatestRegencies() {
-		List<LeaderRegency> greatestRegencies = new ArrayList<>();
-		int regencyId = -1;
-		for (LeaderRegency reg : responsedRegencies.values()) {
-			if (reg.getId() > regencyId) {
-				greatestRegencies.clear();
-				greatestRegencies.add(reg);
-				regencyId = reg.getId();
-				continue;
-			}
-			if (reg.getId() == regencyId) {
-				greatestRegencies.add(reg);
-			}
-		}
-		return greatestRegencies;
-	}
+//	/**
+//	 * 返回最高的执政期列表；
+//	 * 
+//	 * @return
+//	 */
+//	private List<LeaderRegency> countGreatestRegencies() {
+//		List<LeaderRegency> greatestRegencies = new ArrayList<>();
+//		int regencyId = -1;
+//		for (LeaderRegency reg : responsedRegencies.values()) {
+//			if (reg.getId() > regencyId) {
+//				greatestRegencies.clear();
+//				greatestRegencies.add(reg);
+//				regencyId = reg.getId();
+//				continue;
+//			}
+//			if (reg.getId() == regencyId) {
+//				greatestRegencies.add(reg);
+//			}
+//		}
+//		return greatestRegencies;
+//	}
 
 	private boolean isTaskTimeout() {
 		return (System.currentTimeMillis() - startTimestamp) > taskTimeout;
@@ -293,8 +313,11 @@ public class LeaderConfirmationTask {
 
 				if (!selfVoted) {
 					// 加入自己当前的执政期；
-					responsedRegencies.put(getCurrentProcessId(),
-							tomLayer.getSynchronizer().getLCManager().getCurrentRegency());
+					LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
+					LeaderRegencyPropose selfPropose = LeaderRegencyPropose.copy(currentRegency.getLeaderId(),
+							currentRegency.getId(), tomLayer.controller.getCurrentViewId(),
+							tomLayer.controller.getCurrentViewProcesses(), getCurrentProcessId());
+					responsedRegencies.put(getCurrentProcessId(), selfPropose);
 					selfVoted = true;
 				}
 

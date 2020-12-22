@@ -143,7 +143,7 @@ public class ServersCommunicationLayer extends Thread {
 	}
 
 	// ******* EDUARDO BEGIN **************//
-	public void updateConnections() {
+	public synchronized void updateConnections() {
 		connectionsLock.lock();
 
 		if (this.controller.isInCurrentView()) {
@@ -176,8 +176,16 @@ public class ServersCommunicationLayer extends Thread {
 
 		connectionsLock.unlock();
 	}
+	
+	public synchronized ServerConnection updateConnection(int remoteId) {
+		ServerConnection conn =this.connections.remove(remoteId);
+		if (conn != null) {
+			conn.shutdown();
+		}
+		return conn;
+	}
 
-	private ServerConnection getConnection(int remoteId) {
+	public synchronized ServerConnection getConnection(int remoteId) {
 		connectionsLock.lock();
 		ServerConnection ret = this.connections.get(remoteId);
 		if (ret == null) {

@@ -64,6 +64,14 @@ public class LeaderResponseMessage extends SystemMessage {
     public void setLastRegency(int lastRegency) {
         this.lastRegency = lastRegency;
     }
+    
+    public int getViewId() {
+		return viewId;
+	}
+    
+    public int[] getViewProcessIds() {
+		return viewProcessIds;
+	}
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException{

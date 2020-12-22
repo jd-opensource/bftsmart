@@ -238,6 +238,8 @@ public class ServerConnection {
 
 		doWork = false;
 		closeSocket();
+		
+		outQueue.clear();
 	}
 
 	/**
