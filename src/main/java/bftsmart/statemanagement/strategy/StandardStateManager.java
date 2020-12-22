@@ -236,17 +236,20 @@ public class StandardStateManager extends BaseStateManager {
                     
                     LOGGER.debug("haveState: {}", haveState);
                                             
-                    if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
-                            //此行将导致currentProof==null时无法进行下面的处理；
-//                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
-                            currentLeader > -1 && currentView != null ) {
+//                    if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
+//                            //此行将导致currentProof==null时无法进行下面的处理；
+////                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
+//                            currentLeader > -1 && currentView != null ) {
+
+                    if (otherReplicaState != null && haveState == 1 && currentView != null ) {
 
                     	LOGGER.debug("Received state. Will install it");
-                    	
-                    	if (currentRegency > tomLayer.getSynchronizer().getLCManager().getLastReg()) {
-                    		tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
-                    		tomLayer.execManager.setNewLeader(currentLeader);
-						}
+
+                    	// 由leader confirm 任务去做更改leader, regency的事情
+//                    	if (currentRegency > tomLayer.getSynchronizer().getLCManager().getLastReg()) {
+//                    		tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
+//                    		tomLayer.execManager.setNewLeader(currentLeader);
+//						}
                         
                         if (currentProof != null && !appStateOnly) {
                             
@@ -295,7 +298,7 @@ public class StandardStateManager extends BaseStateManager {
                     
                         // I might have timed out before invoking the state transfer, so
                         // stop my re-transmission of STOP messages for all regencies up to the current one
-                        if (currentRegency > 0) tomLayer.getSynchronizer().removeSTOPretransmissions(currentRegency - 1);
+//                        if (currentRegency > 0) tomLayer.getSynchronizer().removeSTOPretransmissions(currentRegency - 1);
                         //if (currentRegency > 0)
                         //    tomLayer.requestsTimer.setTimeout(tomLayer.requestsTimer.getTimeout() * (currentRegency * 2));
                         
@@ -303,15 +306,15 @@ public class StandardStateManager extends BaseStateManager {
                         waitingCID = -1;
                         dt.update(state);
                         
-                        if (!appStateOnly && execManager.stopped()) {
-                            Queue<ConsensusMessage> stoppedMsgs = execManager.getStoppedMsgs();
-                            for (ConsensusMessage stopped : stoppedMsgs) {
-                                if (stopped.getNumber() > state.getLastCID() /*msg.getCID()*/)
-                                    execManager.addOutOfContextMessage(stopped);
-                            }
-                            execManager.clearStopped();
-                            execManager.restart();
-                        }
+//                        if (!appStateOnly && execManager.stopped()) {
+//                            Queue<ConsensusMessage> stoppedMsgs = execManager.getStoppedMsgs();
+//                            for (ConsensusMessage stopped : stoppedMsgs) {
+//                                if (stopped.getNumber() > state.getLastCID() /*msg.getCID()*/)
+//                                    execManager.addOutOfContextMessage(stopped);
+//                            }
+//                            execManager.clearStopped();
+//                            execManager.restart();
+//                        }
                         
                         tomLayer.processOutOfContext();
                         
