@@ -40,7 +40,7 @@ public class LeaderConfirmationTask {
 
 	private volatile boolean selfVoted = false;
 
-	private final long startTimestamp;
+	private long startTimestamp;
 
 	private ScheduledExecutorService executor;
 
@@ -161,6 +161,15 @@ public class LeaderConfirmationTask {
 				leaderRegencyResponse.getViewProcessIds(), leaderRegencyResponse.getSender());
 		responsedRegencies.put(leaderRegencyResponse.getSender(), respPropose);
 
+	}
+
+	/**
+	 * 处理回复；
+	 * <p>
+	 * 如果成功获得有效结果，已不需要继续执行任务，则返回 true；
+	 * @return
+	 */
+	private boolean processResponses() {
 		// 计算最高执政期的列表；
 		ElectionResult electionResult = ElectionResult.generateHighestRegnecy(responsedRegencies.values());
 
@@ -202,7 +211,10 @@ public class LeaderConfirmationTask {
 
 			// 恢复心跳定时器；
 			resumeHeartBeatTimer();
+			
+			return true;
 		}
+		return false;
 	}
 
 	/**
@@ -297,6 +309,14 @@ public class LeaderConfirmationTask {
 					cancelTask();
 					return;
 				}
+				
+				if (!tomLayer.isConnectRemotesOK()) {
+					// 状态传输可能还未结束，等待状态传输结束再继续处理；
+					// 并防止任务超时；
+					startTimestamp = System.currentTimeMillis();
+					return;
+				}
+				
 				if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 					cancelTask();
 					return;
@@ -319,6 +339,11 @@ public class LeaderConfirmationTask {
 							tomLayer.controller.getCurrentViewProcesses(), getCurrentProcessId());
 					responsedRegencies.put(getCurrentProcessId(), selfPropose);
 					selfVoted = true;
+				}
+				
+				boolean ok = processResponses();
+				if (ok) {
+					return;
 				}
 
 				// 向未回复的节点重复发请求；
