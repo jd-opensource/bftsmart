@@ -199,14 +199,16 @@ public class StandardStateManager extends BaseStateManager {
                 
                 if (!appStateOnly) {
                 	//TODO: 未正确更新 regency 和 leader；
-                	senderRegencies.put(msg.getSender(), msg.getRegency());
-                	senderLeaders.put(msg.getSender(), msg.getLeader());
+//                	senderRegencies.put(msg.getSender(), msg.getRegency());
+//                	senderLeaders.put(msg.getSender(), msg.getLeader());
                 	senderViews.put(msg.getSender(), msg.getView());
-                        senderProofs.put(msg.getSender(), msg.getState().getCertifiedDecision(SVController));
-                    if (enoughRegencies(msg.getRegency())) currentRegency = msg.getRegency();
-                    if (enoughLeaders(msg.getLeader())) currentLeader = msg.getLeader();
+                    senderProofs.put(msg.getSender(), msg.getState().getCertifiedDecision(SVController));
+                    senderStates.put(msg.getSender(), msg.getState());
+//                    if (enoughRegencies(msg.getRegency())) currentRegency = msg.getRegency();
+//                    if (enoughLeaders(msg.getLeader())) currentLeader = msg.getLeader();
                     if (enoughViews(msg.getView())) currentView = msg.getView();
                     if (enoughProofs(waitingCID, this.tomLayer.getSynchronizer().getLCManager())) currentProof = msg.getState().getCertifiedDecision(SVController);
+                    if (enoughState(msg.getState())) state = msg.getState();
                     
                 } else {
                     currentLeader = tomLayer.execManager.getCurrentLeader();
@@ -221,21 +223,13 @@ public class StandardStateManager extends BaseStateManager {
 //                    if (stateTimer != null) stateTimer.cancel();
 //                }
 
-                if (msg.getState().getSerializedState() != null) {
-                	LOGGER.info("Expected replica sent state. Setting it to state");
-                    state = msg.getState();
-                }
-
-                senderStates.put(msg.getSender(), msg.getState());
-
-                LOGGER.info("Verifying more than F replies");
-                if (enoughReplies()) {
-                    LOGGER.info("More than F confirmed");
-                    if (stateTimer != null) stateTimer.cancel();
+                LOGGER.info("Verifying more than Quorum consistent replies");
+                if (state != null) {
+                    LOGGER.info("More than Quorum consistent confirmed");
                     ApplicationState otherReplicaState = getOtherReplicaState();
                     LOGGER.info("State != null: {}, recvState != null: {}",(state != null), (otherReplicaState != null));
                     int haveState = 0;
-                        if(state != null) {
+//                        if(state != null) {
                             byte[] hash = null;
                             hash = tomLayer.computeHash(state.getSerializedState());
                             if (otherReplicaState != null) {
@@ -243,7 +237,7 @@ public class StandardStateManager extends BaseStateManager {
                                 else if (getNumEqualStates() > SVController.getCurrentViewF())
                                     haveState = -1;
                             }
-                        }
+//                        }
 
                     LOGGER.debug("haveState: {}", haveState);
                                             
@@ -292,7 +286,7 @@ public class StandardStateManager extends BaseStateManager {
                             
                             if (e != null) {
 
-                                byte[] hash = tomLayer.computeHash(currentProof.getDecision());
+                                hash = tomLayer.computeHash(currentProof.getDecision());
                                 e.propValueHash = hash;
                                 e.propValue = currentProof.getDecision();
                                 e.deserializedPropValue = tomLayer.checkProposedValue(currentProof.getDecision(), false);
