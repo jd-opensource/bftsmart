@@ -107,7 +107,8 @@ public class StandardStateManager extends BaseStateManager {
         if (tomLayer.requestsTimer != null)
         	tomLayer.requestsTimer.clearAll();
 
-        changeReplica(); // always ask the complete state to a different replica
+        // 优化时待处理
+//        changeReplica(); // always ask the complete state to a different replica
         
         SMMessage smsg = new StandardSMMessage(SVController.getStaticConf().getProcessId(),
                 waitingCID, TOMUtil.SM_REQUEST, replica, null, null, -1, -1);
@@ -158,7 +159,10 @@ public class StandardStateManager extends BaseStateManager {
         LOGGER.info("I will handle SMRequestDeliver !");
         if (SVController.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
         	StandardSMMessage stdMsg = (StandardSMMessage)msg;
-            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
+//            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
+
+            // 目前都发送状态，防止被请求的节点恰好是区块落后，或者是重新启动的节点而没有状态；
+            boolean sendState = true;
             
             LOGGER.info("-- Should I send the state? {}", sendState);
             
@@ -209,11 +213,17 @@ public class StandardStateManager extends BaseStateManager {
                     currentRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
                     currentView = SVController.getCurrentView();
                 }
-                
-                if (msg.getSender() == replica && msg.getState().getSerializedState() != null) {
+
+                // 待优化处理
+//                if (msg.getSender() == replica && msg.getState().getSerializedState() != null) {
+//                	LOGGER.info("Expected replica sent state. Setting it to state");
+//                    state = msg.getState();
+//                    if (stateTimer != null) stateTimer.cancel();
+//                }
+
+                if (msg.getState().getSerializedState() != null) {
                 	LOGGER.info("Expected replica sent state. Setting it to state");
                     state = msg.getState();
-                    if (stateTimer != null) stateTimer.cancel();
                 }
 
                 senderStates.put(msg.getSender(), msg.getState());
@@ -221,6 +231,7 @@ public class StandardStateManager extends BaseStateManager {
                 LOGGER.info("Verifying more than F replies");
                 if (enoughReplies()) {
                     LOGGER.info("More than F confirmed");
+                    if (stateTimer != null) stateTimer.cancel();
                     ApplicationState otherReplicaState = getOtherReplicaState();
                     LOGGER.info("State != null: {}, recvState != null: {}",(state != null), (otherReplicaState != null));
                     int haveState = 0;
@@ -233,7 +244,7 @@ public class StandardStateManager extends BaseStateManager {
                                     haveState = -1;
                             }
                         }
-                    
+
                     LOGGER.debug("haveState: {}", haveState);
                                             
 //                    if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
