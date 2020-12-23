@@ -152,7 +152,9 @@ public class Synchronizer {
 //
 //			// execManager.stop(); // stop consensus execution
 //		}
-
+		if (!tom.isConnectRemotesOK()) {
+			return;
+		}
 		lcManager.setCurrentRequestTimedOut(requestList);
 
 		lcManager.addStop(regencyPropose);
@@ -1076,6 +1078,9 @@ public class Synchronizer {
 	 * @param msg Message received from the other replica
 	 */
 	public synchronized void deliverTimeoutRequest(LCMessage msg) {
+		if (!tom.isConnectRemotesOK()) {
+			return;
+		}
 		switch (msg.getType()) {
 		case STOP:
 			process_LC_STOP(msg);
@@ -1434,6 +1439,9 @@ public class Synchronizer {
 			tempIAmLeader = iAmLeader;
 
 			execManager.getStoppedMsgs().add(acceptor.getFactory().createPropose(currentCID, 0, propose));
+			// 设置正在进行状态传输的标记
+			tom.waitConnectRemotesOK();
+			// 后续需要把isInitializing标记设置考虑进去
 			stateManager.requestAppState(lastHighestCID.getCID());
 
 			return;
