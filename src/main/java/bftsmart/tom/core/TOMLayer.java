@@ -419,6 +419,14 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	}
 
 	/**
+	 * 等待状态传输结束
+	 *
+	 */
+	public void waitConnectRemotesOK() {
+		this.isConnectRemotesOK = false;
+	}
+
+	/**
 	 * leader对应ID
 	 * 
 	 * @return

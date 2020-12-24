@@ -279,6 +279,9 @@ public class HeartBeatTimer {
 	 * @param requestMessage
 	 */
 	public synchronized void receiveLeaderStatusRequestMessage(LeaderStatusRequestMessage requestMessage) {
+		if (!tomLayer.isConnectRemotesOK()) {
+			return;
+		}
 		LOGGER.info("I am {}, receive leader status request for [{}:{}] !",
 				tomLayer.controller.getStaticConf().getProcessId(), requestMessage.getSender(),
 				requestMessage.getSequence());
