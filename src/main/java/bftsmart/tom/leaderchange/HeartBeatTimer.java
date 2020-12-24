@@ -188,12 +188,11 @@ public class HeartBeatTimer {
 			// 领导者心跳正常；
 			heartBeatting = new HeartBeating(beatingRegengy, heartBeatMessage.getSender(), System.currentTimeMillis());
 		} else {
-			// 收到的心跳执政期与当前节点所处的执政期不一致；
+			// 收到的心跳执政期与当前节点所处的执政期不一致：要么执政期Id不相等，要么领导者不相等，要么两者都不等；
 			// 1. 当心跳执政期大于当前节点所处的执政期，则向其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
 			// 2. 当心跳执政期等于当前节点所处的执政期：
 			// -- 2.1 如果当前节点是领导者，这意味着出现多个领导者，则停止本身的心跳，向其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
-			// -- 2.2
-			// 如果当前节点不是领导者，这意味着此时心跳执政期的领导者和本地节点定义的领导者不同，则其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
+			// -- 2.2 如果当前节点不是领导者，这意味着此时心跳执政期的领导者和本地节点定义的领导者不同，则其它节点查询确认领导者执政期，并尝试同步到多数一致的状态；
 			// 3. 当心跳执政期小于当前节点所处的执政期，则直接抛弃不必处理此心跳消息；
 			// -- 由于此时当前节点所处的执政期的领导者节点也会发送心跳至这一过期的领导者节点，并促使该节点同步到最新的执政期；
 			//
@@ -233,19 +232,6 @@ public class HeartBeatTimer {
 		};
 
 		leaderConfirmTask.start(startDelay);
-
-		// 假设收到的消息不是当前的Leader，则需要发送获取其他节点Leader
-//		lrLock.lock();
-//		try {
-		// 防止一段时间内重复发送多次请求
-//			if (!isSendLeaderRequest || (sequence - lastSendLeaderRequestTime) > LEADER_REQUEST_MILL_SECONDS) {
-//			if (!isSendLeaderRequest || (sequence - lastSendLeaderRequestTime) > getHearBeatPeriod()) {
-//				lastSendLeaderRequestTime = sequence;
-//				sendLeaderRequestMessage(sequence);
-//			}
-//		} finally {
-//			lrLock.unlock();
-//		}
 	}
 
 	/**

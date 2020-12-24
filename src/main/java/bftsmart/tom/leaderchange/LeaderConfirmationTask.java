@@ -92,12 +92,11 @@ public class LeaderConfirmationTask {
 	}
 
 	/**
-	 * 只发送当前视图中未回复的；
+	 * 返回尚未回复领导者查询请求的节点 Id 列表；
 	 * 
-	 * @param sequence
+	 * @return
 	 */
-	private void sendLeaderRequestMessage(long sequence) {
-		// 向未收到的节点重复发送请求；
+	private int[] getUnresponsedProcessIds() {
 		int[] processIds = currentView.getProcesses();
 		List<Integer> targetList = new ArrayList<>();
 		for (int i = 0; i < processIds.length; i++) {
@@ -111,6 +110,17 @@ public class LeaderConfirmationTask {
 		for (int i = 0; i < targetList.size(); i++) {
 			targets[i] = targetList.get(i);
 		}
+		return targets;
+	}
+
+	/**
+	 * 只发送当前视图中未回复的；
+	 * 
+	 * @param sequence
+	 */
+	private void sendLeaderRequestMessage(long sequence) {
+		// 向未收到的节点重复发送请求；
+		int[] targets = getUnresponsedProcessIds();
 
 		LeaderRequestMessage requestMessage = new LeaderRequestMessage(getCurrentProcessId(), sequence);
 
@@ -131,7 +141,7 @@ public class LeaderConfirmationTask {
 	}
 
 	/**
-	 * 收到领导者应答请求
+	 * 收到领导者应答;
 	 * 
 	 * @param leaderRegencyResponse
 	 */
@@ -164,12 +174,13 @@ public class LeaderConfirmationTask {
 	}
 
 	/**
-	 * 处理回复；
+	 * 处理回复，尝试完成领导者确认；
 	 * <p>
 	 * 如果成功获得有效结果，已不需要继续执行任务，则返回 true；
+	 * 
 	 * @return
 	 */
-	private boolean processResponses() {
+	private boolean tryComplete() {
 		// 计算最高执政期的列表；
 		ElectionResult electionResult = ElectionResult.generateHighestRegnecy(responsedRegencies.values());
 
@@ -211,7 +222,7 @@ public class LeaderConfirmationTask {
 
 			// 恢复心跳定时器；
 			resumeHeartBeatTimer();
-			
+
 			return true;
 		}
 		return false;
@@ -309,14 +320,14 @@ public class LeaderConfirmationTask {
 					cancelTask();
 					return;
 				}
-				
+
 				if (!tomLayer.isConnectRemotesOK()) {
 					// 状态传输可能还未结束，等待状态传输结束再继续处理；
 					// 并防止任务超时；
 					startTimestamp = System.currentTimeMillis();
 					return;
 				}
-				
+
 				if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 					cancelTask();
 					return;
@@ -340,14 +351,12 @@ public class LeaderConfirmationTask {
 					responsedRegencies.put(getCurrentProcessId(), selfPropose);
 					selfVoted = true;
 				}
-				
-				boolean ok = processResponses();
-				if (ok) {
-					return;
-				}
 
-				// 向未回复的节点重复发请求；
-				sendLeaderRequestMessage(startTimestamp);
+				boolean completed = tryComplete();
+				if (!completed) {
+					// 向未回复的节点重复发请求；
+					sendLeaderRequestMessage(startTimestamp);
+				}
 			} catch (Exception e) {
 				// 捕捉错误，避免终端定时任务；
 				LOGGER.error("Error occurred while waiting leader responses! --" + e.getMessage(), e);
