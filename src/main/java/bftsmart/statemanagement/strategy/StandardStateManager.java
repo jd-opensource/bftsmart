@@ -27,6 +27,7 @@ import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
+import bftsmart.tom.leaderchange.LeaderRegency;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +107,8 @@ public class StandardStateManager extends BaseStateManager {
         if (tomLayer.requestsTimer != null)
         	tomLayer.requestsTimer.clearAll();
 
-        changeReplica(); // always ask the complete state to a different replica
+        // 优化时待处理
+//        changeReplica(); // always ask the complete state to a different replica
         
         SMMessage smsg = new StandardSMMessage(SVController.getStaticConf().getProcessId(),
                 waitingCID, TOMUtil.SM_REQUEST, replica, null, null, -1, -1);
@@ -157,7 +159,10 @@ public class StandardStateManager extends BaseStateManager {
         LOGGER.info("I will handle SMRequestDeliver !");
         if (SVController.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
         	StandardSMMessage stdMsg = (StandardSMMessage)msg;
-            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
+//            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
+
+            // 目前都发送状态，防止被请求的节点恰好是区块落后，或者是重新启动的节点而没有状态；
+            boolean sendState = true;
             
             LOGGER.info("-- Should I send the state? {}", sendState);
             
@@ -193,36 +198,38 @@ public class StandardStateManager extends BaseStateManager {
                 CertifiedDecision currentProof = null;
                 
                 if (!appStateOnly) {
-                	senderRegencies.put(msg.getSender(), msg.getRegency());
-                	senderLeaders.put(msg.getSender(), msg.getLeader());
+                	//TODO: 未正确更新 regency 和 leader；
+//                	senderRegencies.put(msg.getSender(), msg.getRegency());
+//                	senderLeaders.put(msg.getSender(), msg.getLeader());
                 	senderViews.put(msg.getSender(), msg.getView());
-                        senderProofs.put(msg.getSender(), msg.getState().getCertifiedDecision(SVController));
-                    if (enoughRegencies(msg.getRegency())) currentRegency = msg.getRegency();
-                    if (enoughLeaders(msg.getLeader())) currentLeader = msg.getLeader();
+                    senderProofs.put(msg.getSender(), msg.getState().getCertifiedDecision(SVController));
+                    senderStates.put(msg.getSender(), msg.getState());
+//                    if (enoughRegencies(msg.getRegency())) currentRegency = msg.getRegency();
+//                    if (enoughLeaders(msg.getLeader())) currentLeader = msg.getLeader();
                     if (enoughViews(msg.getView())) currentView = msg.getView();
                     if (enoughProofs(waitingCID, this.tomLayer.getSynchronizer().getLCManager())) currentProof = msg.getState().getCertifiedDecision(SVController);
+                    if (enoughState(msg.getState())) state = msg.getState();
                     
                 } else {
                     currentLeader = tomLayer.execManager.getCurrentLeader();
                     currentRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
                     currentView = SVController.getCurrentView();
                 }
-                
-                if (msg.getSender() == replica && msg.getState().getSerializedState() != null) {
-                	LOGGER.info("Expected replica sent state. Setting it to state");
-                    state = msg.getState();
-                    if (stateTimer != null) stateTimer.cancel();
-                }
 
-                senderStates.put(msg.getSender(), msg.getState());
+                // 待优化处理
+//                if (msg.getSender() == replica && msg.getState().getSerializedState() != null) {
+//                	LOGGER.info("Expected replica sent state. Setting it to state");
+//                    state = msg.getState();
+//                    if (stateTimer != null) stateTimer.cancel();
+//                }
 
-                LOGGER.info("Verifying more than F replies");
-                if (enoughReplies()) {
-                    LOGGER.info("More than F confirmed");
+                LOGGER.info("Verifying more than Quorum consistent replies");
+                if (state != null) {
+                    LOGGER.info("More than Quorum consistent confirmed");
                     ApplicationState otherReplicaState = getOtherReplicaState();
                     LOGGER.info("State != null: {}, recvState != null: {}",(state != null), (otherReplicaState != null));
                     int haveState = 0;
-                        if(state != null) {
+//                        if(state != null) {
                             byte[] hash = null;
                             hash = tomLayer.computeHash(state.getSerializedState());
                             if (otherReplicaState != null) {
@@ -230,21 +237,24 @@ public class StandardStateManager extends BaseStateManager {
                                 else if (getNumEqualStates() > SVController.getCurrentViewF())
                                     haveState = -1;
                             }
-                        }
-                    
+//                        }
+
                     LOGGER.debug("haveState: {}", haveState);
                                             
-                    if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
-                            //此行将导致currentProof==null时无法进行下面的处理；
-//                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
-                            currentLeader > -1 && currentView != null ) {
+//                    if (otherReplicaState != null && haveState == 1 && currentRegency > -1 &&
+//                            //此行将导致currentProof==null时无法进行下面的处理；
+////                            currentLeader > -1 && currentView != null && (!isBFT || currentProof != null || appStateOnly)) {
+//                            currentLeader > -1 && currentView != null ) {
+
+                    if (otherReplicaState != null && haveState == 1 && currentView != null ) {
 
                     	LOGGER.debug("Received state. Will install it");
-                    	
-                        tomLayer.getSynchronizer().getLCManager().setLastReg(currentRegency);
-                        tomLayer.getSynchronizer().getLCManager().setNextReg(currentRegency);
-                        tomLayer.getSynchronizer().getLCManager().setNewLeader(currentLeader);
-                        tomLayer.execManager.setNewLeader(currentLeader);
+
+                    	// 由leader confirm 任务去做更改leader, regency的事情
+//                    	if (currentRegency > tomLayer.getSynchronizer().getLCManager().getLastReg()) {
+//                    		tomLayer.getSynchronizer().getLCManager().jumpToRegency(new LeaderRegency(currentLeader, currentRegency));
+//                    		tomLayer.execManager.setNewLeader(currentLeader);
+//						}
                         
                         if (currentProof != null && !appStateOnly) {
                             
@@ -276,7 +286,7 @@ public class StandardStateManager extends BaseStateManager {
                             
                             if (e != null) {
 
-                                byte[] hash = tomLayer.computeHash(currentProof.getDecision());
+                                hash = tomLayer.computeHash(currentProof.getDecision());
                                 e.propValueHash = hash;
                                 e.propValue = currentProof.getDecision();
                                 e.deserializedPropValue = tomLayer.checkProposedValue(currentProof.getDecision(), false);
@@ -293,7 +303,7 @@ public class StandardStateManager extends BaseStateManager {
                     
                         // I might have timed out before invoking the state transfer, so
                         // stop my re-transmission of STOP messages for all regencies up to the current one
-                        if (currentRegency > 0) tomLayer.getSynchronizer().removeSTOPretransmissions(currentRegency - 1);
+//                        if (currentRegency > 0) tomLayer.getSynchronizer().removeSTOPretransmissions(currentRegency - 1);
                         //if (currentRegency > 0)
                         //    tomLayer.requestsTimer.setTimeout(tomLayer.requestsTimer.getTimeout() * (currentRegency * 2));
                         
@@ -301,15 +311,15 @@ public class StandardStateManager extends BaseStateManager {
                         waitingCID = -1;
                         dt.update(state);
                         
-                        if (!appStateOnly && execManager.stopped()) {
-                            Queue<ConsensusMessage> stoppedMsgs = execManager.getStoppedMsgs();
-                            for (ConsensusMessage stopped : stoppedMsgs) {
-                                if (stopped.getNumber() > state.getLastCID() /*msg.getCID()*/)
-                                    execManager.addOutOfContextMessage(stopped);
-                            }
-                            execManager.clearStopped();
-                            execManager.restart();
-                        }
+//                        if (!appStateOnly && execManager.stopped()) {
+//                            Queue<ConsensusMessage> stoppedMsgs = execManager.getStoppedMsgs();
+//                            for (ConsensusMessage stopped : stoppedMsgs) {
+//                                if (stopped.getNumber() > state.getLastCID() /*msg.getCID()*/)
+//                                    execManager.addOutOfContextMessage(stopped);
+//                            }
+//                            execManager.clearStopped();
+//                            execManager.restart();
+//                        }
                         
                         tomLayer.processOutOfContext();
                         

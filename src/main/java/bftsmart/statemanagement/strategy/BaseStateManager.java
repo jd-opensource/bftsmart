@@ -29,9 +29,11 @@ import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -81,7 +83,8 @@ public abstract class BaseStateManager implements StateManager {
     }
 
     protected boolean enoughReplies() {
-        return senderStates.size() > SVController.getCurrentViewF();
+//        return senderStates.size() > SVController.getCurrentViewF();
+        return senderStates.size() >= SVController.getQuorum();
     }
 
     protected boolean enoughRegencies(int regency) {
@@ -103,7 +106,20 @@ public abstract class BaseStateManager implements StateManager {
         boolean result = counter >= SVController.getQuorum();
         return result;
     }
-    
+
+    protected boolean enoughState(ApplicationState state) {
+        Collection<ApplicationState> states = senderStates.values();
+        int counter = 0;
+        for (ApplicationState s: states) {
+            if (state.equals(s)) {
+                counter++;
+            }
+        }
+        boolean result = counter >= SVController.getQuorum();
+        return result;
+    }
+
+
     // check if the consensus messages are consistent without checking the mac/signatures
     // if it is consistent, it returns the respective consensus ID; otherwise, returns -1
     private int proofIsConsistent(Set<ConsensusMessage> proof) {
@@ -299,7 +315,7 @@ public abstract class BaseStateManager implements StateManager {
                         dt.canDeliver();
                         dt.deliverUnlock();
                         break;
-                    } else {
+                    } else if (lastCID < key){
                         //ask for state
                         LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
 //                        this.lastLogCid = lastCID;

@@ -15,19 +15,23 @@ limitations under the License.
 */
 package bftsmart.tom.leaderchange;
 
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TreeSet;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import org.slf4j.LoggerFactory;
+
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.Consensus;
-import bftsmart.consensus.Epoch;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
-import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.Level;
 
 /**
  * This thread serves as a manager for all timers of pending requests.
@@ -37,49 +41,50 @@ public class RequestsTimer {
 
 //    private Timer timer = new Timer("request timer");
 //    private RequestTimerTask rtTask = null;
-    private TOMLayer tomLayer; // TOM layer
-    private long timeout;
-    private long shortTimeout;
-    private TreeSet<TOMMessage> watched = new TreeSet<TOMMessage>();
-    private ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
-    
-    private boolean enabled = true;
-    
-    private ServerCommunicationSystem communication; // Communication system between replicas
-    private ServerViewController controller; // Reconfiguration manager
-    
-    private Hashtable <Integer, Timer> stopTimers = new Hashtable<>();
+	private TOMLayer tomLayer; // TOM layer
+	private long timeout;
+	private long shortTimeout;
+	private TreeSet<TOMMessage> watched = new TreeSet<TOMMessage>();
+	private ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(RequestsTimer.class);
-    
-    //private Storage st1 = new Storage(100000);
-    //private Storage st2 = new Storage(10000);
-    /**
-     * Creates a new instance of RequestsTimer
-     * @param tomLayer TOM layer
-     */
-    public RequestsTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller) {
-        this.tomLayer = tomLayer;
-        
-        this.communication = communication;
-        this.controller = controller;
-        
-        this.timeout = this.controller.getStaticConf().getRequestTimeout();
-        this.shortTimeout = -1;
-    }
+	private boolean enabled = true;
 
-    public void setShortTimeout(long shortTimeout) {
-        this.shortTimeout = shortTimeout;
-    }
-    
-    public void setTimeout(long timeout) {
-        this.timeout = timeout;
-    }
-    
-    public long getTimeout() {
-        return timeout;
-    }
-    
+	private ServerCommunicationSystem communication; // Communication system between replicas
+	private ServerViewController controller; // Reconfiguration manager
+
+	private Hashtable<Integer, Timer> stopTimers = new Hashtable<>();
+
+	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(RequestsTimer.class);
+
+	// private Storage st1 = new Storage(100000);
+	// private Storage st2 = new Storage(10000);
+	/**
+	 * Creates a new instance of RequestsTimer
+	 * 
+	 * @param tomLayer TOM layer
+	 */
+	public RequestsTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller) {
+		this.tomLayer = tomLayer;
+
+		this.communication = communication;
+		this.controller = controller;
+
+		this.timeout = this.controller.getStaticConf().getRequestTimeout();
+		this.shortTimeout = -1;
+	}
+
+	public void setShortTimeout(long shortTimeout) {
+		this.shortTimeout = shortTimeout;
+	}
+
+	public void setTimeout(long timeout) {
+		this.timeout = timeout;
+	}
+
+	public long getTimeout() {
+		return timeout;
+	}
+
 //    public void startTimer() {
 //        if (rtTask == null) {
 //            long t = (shortTimeout > -1 ? shortTimeout : timeout);
@@ -88,14 +93,14 @@ public class RequestsTimer {
 //            if (controller.getCurrentViewN() > 1) timer.schedule(rtTask, t);
 //        }
 //    }
-    
+
 //    public void stopTimer() {
 //        if (rtTask != null) {
 //            rtTask.cancel();
 //            rtTask = null;
 //        }
 //    }
-    
+
 //    public void Enabled(boolean phase) {
 //
 //        enabled = phase;
@@ -104,41 +109,43 @@ public class RequestsTimer {
 //    public boolean isEnabled() {
 //    	return enabled;
 //    }
-    
-    /**
-     * Creates a timer for the given request
-     * @param request Request to which the timer is being createf for
-     */
-    public void watch(TOMMessage request) {
-        //long startInstant = System.nanoTime();
-        rwLock.writeLock().lock();
-        watched.add(request);
+
+	/**
+	 * Creates a timer for the given request
+	 * 
+	 * @param request Request to which the timer is being createf for
+	 */
+	public void watch(TOMMessage request) {
+		// long startInstant = System.nanoTime();
+		rwLock.writeLock().lock();
+		watched.add(request);
 //        System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ", watch at  " + System.currentTimeMillis() + "\r\n");
 //        if (watched.size() >= 1 && enabled) startTimer();
-        rwLock.writeLock().unlock();
-    }
+		rwLock.writeLock().unlock();
+	}
 
-    /**
-     * Cancels a timer for a given request
-     * @param request Request whose timer is to be canceled
-     */
-    public void unwatch(TOMMessage request) {
-        //long startInstant = System.nanoTime();
-        rwLock.writeLock().lock();
-        watched.remove(request);
+	/**
+	 * Cancels a timer for a given request
+	 * 
+	 * @param request Request whose timer is to be canceled
+	 */
+	public void unwatch(TOMMessage request) {
+		// long startInstant = System.nanoTime();
+		rwLock.writeLock().lock();
+		watched.remove(request);
 //        System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ", unwatch at  " + System.currentTimeMillis() + "\r\n");
 //        if (watched.remove(request) && watched.isEmpty()) stopTimer();
-        rwLock.writeLock().unlock();
-    }
+		rwLock.writeLock().unlock();
+	}
 
-    /**
-     * Cancels all timers for all messages
-     */
-    public void clearAll() {
+	/**
+	 * Cancels all timers for all messages
+	 */
+	public void clearAll() {
 //        TOMMessage[] requests = new TOMMessage[watched.size()];
-        rwLock.writeLock().lock();
+		rwLock.writeLock().lock();
 
-        watched.clear();
+		watched.clear();
 //
 //        watched.toArray(requests);
 //
@@ -149,47 +156,48 @@ public class RequestsTimer {
 //                rtTask = null;
 //            }
 //        }
-        rwLock.writeLock().unlock();
-    }
+		rwLock.writeLock().unlock();
+	}
 
-    public DefaultRecoverable getDefaultExecutor() {
-        return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
-    }
+	public DefaultRecoverable getDefaultExecutor() {
+		return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
+	}
 
-    public Consensus getCurrConsensus() {
-        if (tomLayer.getInExec() == -1) {
-            return tomLayer.getExecManager().getConsensus(tomLayer.getLastExec());
-        } else {
-            return tomLayer.getExecManager().getConsensus(tomLayer.getInExec());
-        }
-    }
+	public Consensus getCurrConsensus() {
+		if (tomLayer.getInExec() == -1) {
+			return tomLayer.getExecManager().getConsensus(tomLayer.getLastExec());
+		} else {
+			return tomLayer.getExecManager().getConsensus(tomLayer.getInExec());
+		}
+	}
 
-    public void run_lc_protocol() {
-        
-        long t = (shortTimeout > -1 ? shortTimeout : timeout);
+	public void run_lc_protocol(LeaderRegencyPropose regencyPropose) {
 
-        //System.out.println("(RequestTimerTask.run) I SOULD NEVER RUN WHEN THERE IS NO TIMEOUT");
+		long t = (shortTimeout > -1 ? shortTimeout : timeout);
 
-        LinkedList<TOMMessage> pendingRequests = new LinkedList<TOMMessage>();
+		// System.out.println("(RequestTimerTask.run) I SOULD NEVER RUN WHEN THERE IS NO
+		// TIMEOUT");
 
-        rwLock.readLock().lock();
-        
-        for (Iterator<TOMMessage> i = watched.iterator(); i.hasNext();) {
-            TOMMessage request = i.next();
+		LinkedList<TOMMessage> pendingRequests = new LinkedList<TOMMessage>();
+
+		rwLock.readLock().lock();
+
+		for (Iterator<TOMMessage> iter = watched.iterator(); iter.hasNext();) {
+			TOMMessage request = iter.next();
+			if ((System.currentTimeMillis() - request.receptionTime) > t) {
 //            if ((request.receptionTime + System.currentTimeMillis()) > t) {
-              if ((System.currentTimeMillis() - request.receptionTime) > t) {
 //                System.out.println("real consensus message timeout!!!!!!!!\r\n");
 //                System.out.println("request client  " + request.getSender() + ", req seq  " + request.getSequence() + ",  consensus message timeout at  " + System.currentTimeMillis() + "\r\n");
-                pendingRequests.add(request);
-            } else {
-                break;
-            }
-        }
+				pendingRequests.add(request);
+			} else {
+				break;
+			}
+		}
 
-        rwLock.readLock().unlock();
+		rwLock.readLock().unlock();
 
-        tomLayer.getSynchronizer().triggerTimeout(pendingRequests);
-                
+		tomLayer.getSynchronizer().triggerTimeout(regencyPropose, pendingRequests);
+
 //        if (!pendingRequests.isEmpty()) {
 //            //when the first timeout occurs, no need to roll back, has one opportunity, waiting for the arrival of a timeout message
 //            for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
@@ -233,49 +241,50 @@ public class RequestsTimer {
 //            rtTask = null;
 //            timer.purge();
 //        }
-        
-    }
-    
-    public void setSTOP(int regency, LCMessage stop) {
-        
-        stopSTOP(regency);
-        
-        SendStopTask stopTask = new SendStopTask(stop);
-        Timer stopTimer = new Timer("Stop message");
-        
-        stopTimer.schedule(stopTask, timeout);
-        
-        stopTimers.put(regency, stopTimer);
 
-    }   
-    
-    public void stopAllSTOPs() {
-        Iterator stops = getTimers().iterator();
-        while (stops.hasNext()) {
-            stopSTOP((Integer) stops.next());
-        }
-    }
-    
-    public void stopSTOP(int regency){
-        
-        Timer stopTimer = stopTimers.remove(regency);
-        if (stopTimer != null) stopTimer.cancel();
+	}
 
-    }
-    
-    public Set<Integer> getTimers() {
-        
-        return ((Hashtable <Integer,Timer>) stopTimers.clone()).keySet();
-        
-    }
-    
-    public void shutdown() {
+	public void setSTOP(int regency, LCMessage stop) {
+
+		stopSTOP(regency);
+
+		SendStopTask stopTask = new SendStopTask(stop);
+		Timer stopTimer = new Timer("Stop message");
+
+		stopTimer.schedule(stopTask, timeout);
+
+		stopTimers.put(regency, stopTimer);
+
+	}
+
+	public void stopAllSTOPs() {
+		Iterator stops = getTimers().iterator();
+		while (stops.hasNext()) {
+			stopSTOP((Integer) stops.next());
+		}
+	}
+
+	public void stopSTOP(int regency) {
+
+		Timer stopTimer = stopTimers.remove(regency);
+		if (stopTimer != null)
+			stopTimer.cancel();
+
+	}
+
+	public Set<Integer> getTimers() {
+
+		return ((Hashtable<Integer, Timer>) stopTimers.clone()).keySet();
+
+	}
+
+	public void shutdown() {
 //        timer.cancel();
-        stopAllSTOPs();
-        java.util.logging.Logger.getLogger(RequestsTimer.class.getName()).log(Level.INFO, "RequestsTimer stopped.");
+		stopAllSTOPs();
+		LOGGER.info("RequestsTimer stopped.");
 
-    }
-    
+	}
+
 //    class RequestTimerTask extends TimerTask {
 //
 //        @Override
@@ -292,28 +301,28 @@ public class RequestsTimer {
 //
 //        }
 //    }
-    
-    class SendStopTask extends TimerTask {
-        
-        private LCMessage stop;
-        
-        public SendStopTask(LCMessage stop) {
-            this.stop = stop;
-        }
 
-        @Override
-        /**
-         * This is the code for the TimerTask. It sends a STOP
-         * message to the other replicas
-         */
-        public void run() {
+	class SendStopTask extends TimerTask {
 
-                LOGGER.info("(SendStopTask.run) {} Re-transmitting STOP message to install regency {}",
-                        controller.getStaticConf().getProcessId(), stop.getReg());
-                communication.send(controller.getCurrentViewOtherAcceptors(),this.stop);
+		private LCMessage stop;
 
-                setSTOP(stop.getReg(), stop); //repeat
-        }
-        
-    }
+		public SendStopTask(LCMessage stop) {
+			this.stop = stop;
+		}
+
+		/**
+		 * This is the code for the TimerTask. It sends a STOP message to the other
+		 * replicas
+		 */
+		@Override
+		public void run() {
+
+			LOGGER.info("(SendStopTask.run) {} Re-transmitting STOP message to install regency {}",
+					controller.getStaticConf().getProcessId(), stop.getReg());
+			communication.send(controller.getCurrentViewOtherAcceptors(), this.stop);
+
+			setSTOP(stop.getReg(), stop); // repeat
+		}
+
+	}
 }
