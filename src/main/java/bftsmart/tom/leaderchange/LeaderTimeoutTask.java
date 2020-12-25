@@ -113,6 +113,10 @@ class LeaderTimeoutTask {
 	 */
 	private void waitStatusResposne() {
 		try {
+//			if (!tomLayer.isConnectRemotesOK()) {
+//				resetTaskTimeout();
+//				return;
+//			}
 			if (tomLayer.getSynchronizer().getLCManager().isInProgress()) {
 				// 已经在选举中了，先终止当前任务；
 				cancelTask();

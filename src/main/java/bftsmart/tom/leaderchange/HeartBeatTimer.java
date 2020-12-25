@@ -359,7 +359,7 @@ public class HeartBeatTimer {
 		// 防止重复
 		Set<Integer> nodeSet = new HashSet<>();
 		for (LeaderResponseMessage lrm : leaderResponseMessages) {
-			int currentLeader = lrm.getLeader();
+			int currentLeader = lrm.getLeaderId();
 			int currentRegency = lrm.getLastRegency();
 			int currentNode = lrm.getSender();
 			if (!nodeSet.contains(currentNode)) {

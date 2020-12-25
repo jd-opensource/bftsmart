@@ -15,13 +15,13 @@ public class ElectionResult {
 
 	private LeaderRegency regency;
 
-	private LeaderRegencyPropose[] validProposes;
+	private LeaderRegencyView[] validProposes;
 
-	private LeaderRegencyPropose[] totalProposes;
+	private LeaderRegencyView[] totalProposes;
 
-	private ElectionResult(LeaderRegency regency, LeaderRegencyPropose[] validProposes,
-			LeaderRegencyPropose[] totalProposes) {
-		this.regency = regency;
+	private ElectionResult(LeaderRegency newRegency, LeaderRegencyView[] validProposes,
+			LeaderRegencyView[] totalProposes) {
+		this.regency = newRegency;
 		this.validProposes = validProposes;
 		this.totalProposes = totalProposes;
 		if (validProposes == null || validProposes.length == 0) {
@@ -58,17 +58,17 @@ public class ElectionResult {
 		return regency;
 	}
 
-	public LeaderRegencyPropose[] getValidProposes() {
+	public LeaderRegencyView[] getValidProposes() {
 		return validProposes;
 	}
 
-	public LeaderRegencyPropose[] getTotalProposes() {
+	public LeaderRegencyView[] getTotalProposes() {
 		return totalProposes;
 	}
-	
+
 	public boolean containsProposer(int proposerId) {
 		for (int i = 0; i < totalProposes.length; i++) {
-			if (totalProposes[i].getSender() == proposerId) {
+			if (totalProposes[i].getNodeId() == proposerId) {
 				return true;
 			}
 		}
@@ -81,11 +81,11 @@ public class ElectionResult {
 	 * @param proposes
 	 * @return
 	 */
-	public static ElectionResult generateHighestRegnecy(LeaderRegencyPropose... proposes) {
+	public static ElectionResult generateHighestRegnecy(LeaderRegencyView... proposes) {
 		int highestRegency = -1;
 		for (int i = 0; i < proposes.length; i++) {
-			if (proposes[i].getRegency().getId() > highestRegency) {
-				highestRegency = proposes[i].getRegency().getId();
+			if (proposes[i].getRegencyId() > highestRegency) {
+				highestRegency = proposes[i].getRegencyId();
 			}
 		}
 		return generateResult(highestRegency, proposes);
@@ -97,8 +97,8 @@ public class ElectionResult {
 	 * @param proposes
 	 * @return
 	 */
-	public static ElectionResult generateHighestRegnecy(Collection<LeaderRegencyPropose> proposes) {
-		LeaderRegencyPropose[] proposeArray = proposes.toArray(new LeaderRegencyPropose[proposes.size()]);
+	public static ElectionResult generateHighestRegnecy(Collection<LeaderRegencyView> proposes) {
+		LeaderRegencyView[] proposeArray = proposes.toArray(new LeaderRegencyView[proposes.size()]);
 		return generateHighestRegnecy(proposeArray);
 	}
 
@@ -119,15 +119,15 @@ public class ElectionResult {
 	 * @param proposes
 	 * @return
 	 */
-	public static ElectionResult generateResult(int regency, LeaderRegencyPropose[] proposes) {
+	public static ElectionResult generateResult(int regency, LeaderRegencyView... proposes) {
 		assert proposes != null && proposes.length > 0;
 
-		List<LeaderRegencyPropose> validProposeList = new ArrayList<LeaderRegencyPropose>();
+		List<LeaderRegencyView> validProposeList = new ArrayList<LeaderRegencyView>();
 
-		LeaderRegencyPropose standard = null;
+		LeaderRegencyView standard = null;
 
 		for (int i = 0; i < proposes.length; i++) {
-			if (regency != proposes[i].getRegency().getId()) {
+			if (regency != proposes[i].getRegencyId()) {
 //				throw new IllegalStateException("The regency of propose from node[" + proposes[i].getSender()
 //						+ "] is not the expected regency[" + regency + "]!");
 				continue;
@@ -158,9 +158,9 @@ public class ElectionResult {
 				// 如果来自不同节点的提议具有相同的视图 Id，却有不同的 process id 列表，则抛出异常；
 				String errorMessage = String.format("The leader regency proposes from node[%s] and node[%s] "
 						+ "have the same view id[%s] but diferent process id list! \r\n--View processes of node[%s]=%s\r\nView processes of node[%s]=%s",
-						standard.getSender(), proposes[i].getSender(), standard.getViewId(), //
-						standard.getSender(), Arrays.toString(standard.getViewProcessIds()), //
-						proposes[i].getSender(), Arrays.toString(proposes[i].getViewProcessIds()));
+						standard.getNodeId(), proposes[i].getNodeId(), standard.getViewId(), //
+						standard.getNodeId(), Arrays.toString(standard.getViewProcessIds()), //
+						proposes[i].getNodeId(), Arrays.toString(proposes[i].getViewProcessIds()));
 				throw new IllegalStateException(errorMessage);
 			}
 
@@ -170,8 +170,8 @@ public class ElectionResult {
 			validProposeList.add(proposes[i]);
 		}
 
-		LeaderRegencyPropose[] validProposes = validProposeList
-				.toArray(new LeaderRegencyPropose[validProposeList.size()]);
+		LeaderRegencyView[] validProposes = validProposeList
+				.toArray(new LeaderRegencyView[validProposeList.size()]);
 		return new ElectionResult(standard.getRegency(), validProposes, proposes);
 	}
 

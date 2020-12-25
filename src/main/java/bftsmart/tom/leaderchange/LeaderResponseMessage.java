@@ -10,90 +10,102 @@ import java.util.Arrays;
 
 /**
  * Message used during leader change and synchronization
+ * 
  * @author shaozhuguang
  */
-public class LeaderResponseMessage extends SystemMessage {
+public class LeaderResponseMessage extends SystemMessage implements LeaderRegencyView {
 
-    private long sequence;
+	private long sequence;
 
-    private int leader;
+	private int leader;
 
-    private int lastRegency;
-    
-    private int viewId;
-    
-    private int[] viewProcessIds;
+	private int lastRegency;
 
-    public LeaderResponseMessage() {
-    }
+	private int viewId;
 
-    /**
-     * Constructor
-     * @param from replica that creates this message
-     * @param leader type of the message (STOP, SYNC, CATCH-UP)
-     */
-    public LeaderResponseMessage(int from, LeaderRegency regency, View view, long sequence) {
-        super(from);
-        this.lastRegency = regency.getId();
-        this.leader = regency.getLeaderId();
-        this.viewId = view.getId();
-        this.viewProcessIds = view.getProcesses();
-        this.sequence = sequence;
-    }
+	private int[] viewProcessIds;
 
-    public int getLeader() {
-        return leader;
-    }
+	public LeaderResponseMessage() {
+	}
 
-    public void setLeader(int leader) {
-        this.leader = leader;
-    }
+	/**
+	 * Constructor
+	 * 
+	 * @param from   replica that creates this message
+	 * @param leader type of the message (STOP, SYNC, CATCH-UP)
+	 */
+	public LeaderResponseMessage(int from, LeaderRegency regency, View view, long sequence) {
+		super(from);
+		this.lastRegency = regency.getId();
+		this.leader = regency.getLeaderId();
+		this.viewId = view.getId();
+		this.viewProcessIds = view.getProcesses();
+		this.sequence = sequence;
+	}
 
-    public long getSequence() {
-        return sequence;
-    }
+	public int getLeaderId() {
+		return leader;
+	}
 
-    public void setSequence(long sequence) {
-        this.sequence = sequence;
-    }
+	public void setLeaderId(int leader) {
+		this.leader = leader;
+	}
 
-    public int getLastRegency() {
-        return lastRegency;
-    }
+	public long getSequence() {
+		return sequence;
+	}
 
-    public void setLastRegency(int lastRegency) {
-        this.lastRegency = lastRegency;
-    }
-    
-    public int getViewId() {
+	public void setSequence(long sequence) {
+		this.sequence = sequence;
+	}
+
+	public int getLastRegency() {
+		return lastRegency;
+	}
+
+	public void setLastRegency(int lastRegency) {
+		this.lastRegency = lastRegency;
+	}
+
+	public int getViewId() {
 		return viewId;
 	}
-    
-    public int[] getViewProcessIds() {
+
+	public int[] getViewProcessIds() {
 		return viewProcessIds;
 	}
 
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException{
-        super.writeExternal(out);
+	@Override
+	public int getRegencyId() {
+		return lastRegency;
+	}
 
-        out.writeInt(leader);
-        out.writeInt(lastRegency);
-        out.writeInt(viewId);
-        out.writeObject(viewProcessIds);
-        out.writeLong(sequence);
-    }
+	@Override
+	public int getNodeId() {
+		return sender;
+	}
 
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException{
-        super.readExternal(in);
+	@Override
+	public void writeExternal(ObjectOutput out) throws IOException {
+		super.writeExternal(out);
 
-        leader = in.readInt();
-        lastRegency = in.readInt();
-        viewId = in.readInt();
-        viewProcessIds = (int[]) in.readObject();
-        Arrays.sort(viewProcessIds);
-        sequence = in.readLong();
+		out.writeInt(leader);
+		out.writeInt(lastRegency);
+		out.writeInt(viewId);
+		out.writeObject(viewProcessIds);
+		out.writeLong(sequence);
+	}
 
-    }
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		super.readExternal(in);
+
+		leader = in.readInt();
+		lastRegency = in.readInt();
+		viewId = in.readInt();
+		viewProcessIds = (int[]) in.readObject();
+		Arrays.sort(viewProcessIds);
+		sequence = in.readLong();
+
+	}
 }

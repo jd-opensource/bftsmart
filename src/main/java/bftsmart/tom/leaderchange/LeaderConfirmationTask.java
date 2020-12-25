@@ -44,7 +44,7 @@ public class LeaderConfirmationTask {
 
 	private ScheduledExecutorService executor;
 
-	private Map<Integer, LeaderRegencyPropose> responsedRegencies;
+	private Map<Integer, LeaderRegencyView> responsedRegencies;
 
 	private View currentView;
 
@@ -166,10 +166,10 @@ public class LeaderConfirmationTask {
 		}
 
 		// 是当前节点发送的请求，则将其加入到Map中
-		LeaderRegencyPropose respPropose = LeaderRegencyPropose.copy(leaderRegencyResponse.getLeader(),
-				leaderRegencyResponse.getLastRegency(), leaderRegencyResponse.getViewId(),
-				leaderRegencyResponse.getViewProcessIds(), leaderRegencyResponse.getSender());
-		responsedRegencies.put(leaderRegencyResponse.getSender(), respPropose);
+//		LeaderRegencyPropose respPropose = LeaderRegencyPropose.copy(leaderRegencyResponse.getLeaderId(),
+//				leaderRegencyResponse.getLastRegency(), leaderRegencyResponse.getViewId(),
+//				leaderRegencyResponse.getViewProcessIds(), leaderRegencyResponse.getSender());
+		responsedRegencies.put(leaderRegencyResponse.getSender(), leaderRegencyResponse);
 
 	}
 
@@ -235,7 +235,7 @@ public class LeaderConfirmationTask {
 	 */
 	public synchronized LeaderRegencyPropose generateRegencyPropose() {
 		int maxRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
-		for (Map.Entry<Integer, LeaderRegencyPropose> entry : responsedRegencies.entrySet()) {
+		for (Map.Entry<Integer, LeaderRegencyView> entry : responsedRegencies.entrySet()) {
 			int regency = entry.getValue().getRegency().getId();
 			if (regency > maxRegency) {
 				maxRegency = regency;
@@ -279,28 +279,6 @@ public class LeaderConfirmationTask {
 
 	protected void onCompleted() {
 	}
-
-//	/**
-//	 * 返回最高的执政期列表；
-//	 * 
-//	 * @return
-//	 */
-//	private List<LeaderRegency> countGreatestRegencies() {
-//		List<LeaderRegency> greatestRegencies = new ArrayList<>();
-//		int regencyId = -1;
-//		for (LeaderRegency reg : responsedRegencies.values()) {
-//			if (reg.getId() > regencyId) {
-//				greatestRegencies.clear();
-//				greatestRegencies.add(reg);
-//				regencyId = reg.getId();
-//				continue;
-//			}
-//			if (reg.getId() == regencyId) {
-//				greatestRegencies.add(reg);
-//			}
-//		}
-//		return greatestRegencies;
-//	}
 
 	private boolean isTaskTimeout() {
 		return (System.currentTimeMillis() - startTimestamp) > taskTimeout;

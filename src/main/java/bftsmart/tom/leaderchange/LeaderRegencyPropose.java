@@ -10,7 +10,7 @@ import bftsmart.reconfiguration.views.View;
  * @author huanghaiquan
  *
  */
-public class LeaderRegencyPropose {
+public class LeaderRegencyPropose implements LeaderRegencyView{
 
 	private LeaderRegency regency;
 
@@ -91,6 +91,21 @@ public class LeaderRegencyPropose {
 	public LeaderRegency getRegency() {
 		return regency;
 	}
+	
+	@Override
+	public int getLeaderId() {
+		return regency.getLeaderId();
+	}
+	
+	@Override
+	public int getRegencyId() {
+		return regency.getId();
+	}
+	
+	@Override
+	public int getNodeId() {
+		return sender;
+	}
 
 	public int getSender() {
 		return sender;
@@ -111,4 +126,5 @@ public class LeaderRegencyPropose {
 	public boolean isViewEquals(LeaderRegencyPropose propose2) {
 		return this.viewId == propose2.viewId && Arrays.equals(this.viewProcessIds, propose2.viewProcessIds);
 	}
+	
 }
