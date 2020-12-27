@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jd.blockchain.utils.concurrent.AsyncFuture;
@@ -32,6 +31,7 @@ import bftsmart.communication.client.RequestReceiver;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.communication.server.ServersCommunicationLayer;
+import bftsmart.communication.server.ServersCommunicationLayerImpl;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
@@ -60,7 +60,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	private ServerViewController controller;
 	private final List<MessageHandlerRunner> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
-	
+
 	/**
 	 * Creates a new instance of ServerCommunicationSystem
 	 */
@@ -86,7 +86,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 		// serversConf.increasePortNumber();
 
-		serversConn = new ServersCommunicationLayer(controller, messageInQueue, replica);
+		serversConn = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
 
 		// ******* EDUARDO BEGIN **************//
 		// if (manager.isInCurrentView() || manager.isInInitView()) {
@@ -94,7 +94,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		// }
 		// ******* EDUARDO END **************//
 		// start();
-		
+
 	}
 
 	// ******* EDUARDO BEGIN **************//
@@ -142,7 +142,9 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		if (doWork) {
 			// 启动对应的消息队列处理器
 			for (MessageHandlerRunner runner : messageHandlerRunners) {
-				new Thread(runner, "MsgHandler-" + runner.msgType.name()).start();
+				Thread thrd = new Thread(runner, "MsgHandler-" + runner.msgType.name());
+				thrd.setDaemon(true);
+				thrd.start();
 			}
 		}
 
@@ -237,46 +239,33 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	public String toString() {
 		return serversConn.toString();
 	}
-	
-//	@Override
-//	public void waitStopped() {
-//		this.join();
-//	}
 
 	public void shutdown() {
+		if (!doWork) {
+			return;
+		}
+		LOGGER.info("Shutting down server communication layer");
 
-		LOGGER.info("Shutting down communication layer");
+		doWork = false;
 
-		this.doWork = false;
-		
 		try {
 			clientsConn.shutdown();
 		} catch (Exception e) {
-			LOGGER.warn(e.getMessage(), e);
+			LOGGER.warn("Client Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
+					+ e.getMessage(), e);
 		}
-		
 		try {
 			serversConn.shutdown();
 		} catch (Exception e) {
-			LOGGER.warn(e.getMessage(), e);
-		}
-
-		// 关闭所有队列线程
-		for (MessageHandlerRunner runner : messageHandlerRunners) {
-			try {
-				runner.shutdown();
-			} catch (Exception e) {
-				LOGGER.warn(e.getMessage(), e);
-			}
+			LOGGER.warn("Server Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
+					+ e.getMessage(), e);
 		}
 	}
 
 	/**
 	 * 消息处理线程
 	 */
-	private static class MessageHandlerRunner implements Runnable {
-
-		public static final Logger LOGGER = LoggerFactory.getLogger(MessageHandlerRunner.class);
+	private class MessageHandlerRunner implements Runnable {
 
 		/**
 		 * 当前线程可处理的消息类型
@@ -289,8 +278,6 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		MessageQueue messageQueue;
 
 		MessageHandler messageHandler;
-
-		boolean doWork = true;
 
 		public MessageHandlerRunner(MessageQueue.MSG_TYPE msgType, MessageQueue messageQueue,
 				MessageHandler messageHandler) {
@@ -314,26 +301,23 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 				} catch (Throwable e) {
 					if (sm == null) {
 						String errMsg = String
-								.format("Error occurred while process a null message! -- [HandlerType=%s]", msgType);
+								.format("Error occurred while handling a null message! -- [HandlerType=%s]", msgType);
 						LOGGER.error(errMsg, e);
 					} else {
 						String errMsg = String.format(
-								"Error occurred while process message! -- %s [HandlerType=%s][MessageType=%s][MessageFrom=%s]",
+								"Error occurred while handling message! -- %s [HandlerType=%s][MessageType=%s][MessageFrom=%s]",
 								e.getMessage(), msgType, sm.getClass().getName(), sm.getSender());
 						LOGGER.error(errMsg, e);
 					}
 				}
 			}
 		}
-
-		public void shutdown() {
-			this.doWork = false;
-		}
 	}
 
 	@Override
 	public AsyncFuture<Void> start() {
 		startMessageHandle();
+		serversConn.startListening();
 		return CompletableAsyncFuture.completeFuture(null);
 	}
 }

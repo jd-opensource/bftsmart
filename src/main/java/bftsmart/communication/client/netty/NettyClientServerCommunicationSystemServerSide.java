@@ -134,6 +134,9 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 
 	@Override
 	public void shutdown() {
+		if (closed) {
+			return;
+		}
 		LOGGER.debug("Shutting down Netty system");
 
 		this.closed = true;

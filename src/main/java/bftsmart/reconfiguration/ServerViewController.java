@@ -15,6 +15,15 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+
+import org.slf4j.LoggerFactory;
+
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
@@ -23,16 +32,6 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.BytesUtils;
 import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
 
 /**
  *
@@ -83,7 +82,7 @@ public class ServerViewController extends ViewController {
 		super(config, viewSotrage);
 		init();
 	}
-
+	
 	private void init() {
 		View cv = getViewStore().readView();
 		if (cv == null) {
@@ -112,7 +111,7 @@ public class ServerViewController extends ViewController {
 	}
 
 	public boolean isInCurrentView() {
-		return this.currentView.isMember(getStaticConf().getProcessId());
+		return this.currentView.isMember(getCurrentProcessId());
 	}
 
 	public int[] getCurrentViewOtherAcceptors() {

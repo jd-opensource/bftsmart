@@ -113,7 +113,7 @@ public class ServerConnection {
 			try {
 				this.socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
 						this.controller.getStaticConf().getServerToServerPort(remoteId));
-				ServersCommunicationLayer.setSocketOptions(this.socket);
+				SocketUtils.setSocketOptions(this.socket);
 				new DataOutputStream(this.socket.getOutputStream())
 						.writeInt(this.controller.getStaticConf().getProcessId());
 
@@ -438,7 +438,7 @@ public class ServerConnection {
 
 					socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
 							this.controller.getStaticConf().getServerToServerPort(remoteId));
-					ServersCommunicationLayer.setSocketOptions(socket);
+					SocketUtils.setSocketOptions(socket);
 					new DataOutputStream(socket.getOutputStream())
 							.writeInt(this.controller.getStaticConf().getProcessId());
 

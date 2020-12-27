@@ -53,6 +53,9 @@ public class ViewController {
     	this.viewStore = viewSotrage;
     }
 
+	public int getCurrentProcessId() {
+		return this.getStaticConf().getProcessId();
+	}
     
     public final ViewStorage getViewStore() {
         if (this.viewStore == null) {

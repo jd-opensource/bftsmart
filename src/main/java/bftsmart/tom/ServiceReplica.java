@@ -503,9 +503,8 @@ public class ServiceReplica {
 			public void run() {
 				if (tomLayer != null && cs != null) {
 					tomLayer.shutdown();
-
+					cs.shutdown();
 					try {
-						cs.getServersConn().join();
 						tomLayer.join();
 						tomLayer.getDeliveryThread().join();
 
