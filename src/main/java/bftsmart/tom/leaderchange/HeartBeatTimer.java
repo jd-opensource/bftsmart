@@ -76,7 +76,7 @@ public class HeartBeatTimer {
 	 */
 	private boolean initialized;
 
-	private volatile boolean actived;
+	private volatile boolean actived = false;
 
 	public HeartBeatTimer(TOMLayer tomLayer) {
 		this.tomLayer = tomLayer;

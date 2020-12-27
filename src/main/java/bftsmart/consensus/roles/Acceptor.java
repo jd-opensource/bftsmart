@@ -75,7 +75,7 @@ public final class Acceptor {
 
 	private LinkedBlockingQueue<ConsensusMessage> consensusMessageQueue = new LinkedBlockingQueue<>();
 	private volatile boolean doWork = false;
-	private volatile Thread thrdWork;
+//	private volatile Thread thrdWork;
 
 	/**
 	 * Creates a new instance of Acceptor.
@@ -193,44 +193,7 @@ public final class Acceptor {
 	 * @param msg The message to be processed
 	 */
 	public final void processMessage(ConsensusMessage msg) {
-		consensusMessageQueue.offer(msg);
-	}
-
-	private void startProcessConsensus() {
-		while (doWork) {
-			if (!tomLayer.getStateManager().isRetrievingState()) {
-				try {
-					Thread.sleep(2000);
-				} catch (InterruptedException e) {
-				}
-				continue;
-			}
-			
-			if (!tomLayer.heartBeatTimer.isActived()) {
-				try {
-					Thread.sleep(2000);
-				} catch (InterruptedException e) {
-				}
-				continue;
-			}
-			
-			try {
-				ConsensusMessage msg = consensusMessageQueue.take();
-				processConsensus(msg);
-			} catch (Exception e) {
-				LOGGER.error("Error occurred while process consensus message! --[CurrentProcessId="
-						+ controller.getCurrentProcessId() + "] " + e.getMessage(), e);
-			}
-
-			tomLayer.processOutOfContext();
-			tomLayer.processOutOfContextWriteAndAccept();
-		}
-	}
-
-	private void processConsensus(ConsensusMessage msg) {
 		Consensus consensus = executionManager.getConsensus(msg.getNumber());
-//      System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", msg type is " + msg.getType() + ", msg cid is " + msg.getNumber() + ",msg from " + msg.getSender() + ", epoch is " + msg.getEpoch());
-
 		consensus.lock.lock();
 
 		// 检查消息的epoch
@@ -245,6 +208,7 @@ public final class Acceptor {
 		switch (msg.getType()) {
 		case MessageFactory.PROPOSE: {
 			proposeReceived(poch, msg);
+//			consensusMessageQueue.offer(msg);
 		}
 			break;
 		case MessageFactory.WRITE: {
@@ -257,6 +221,7 @@ public final class Acceptor {
 		}
 		consensus.lock.unlock();
 	}
+
 
 	/**
 	 * Called when a PROPOSE message is received or when processing a formerly out
@@ -272,13 +237,32 @@ public final class Acceptor {
 
 		LOGGER.debug("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ",
 				controller.getStaticConf().getProcessId(), cid);
+
+		while (doWork && !isReady()) {
+			LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+			}
+		}
+
 		if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
 				&& epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
 			executePropose(epoch, msg.getValue());
 		} else {
-//    		LOGGER.debug("Propose received is not from the expected leader");
 			LOGGER.error("Propose received is not from the expected leader");
 		}
+	}
+
+	private boolean isReady() {
+		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
+			return false;
+		}
+
+		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -790,39 +774,43 @@ public final class Acceptor {
 	}
 
 	public synchronized void shutdown() {
-		if (!doWork) {
-			return;
-		}
 		doWork = false;
-		thrdWork.interrupt();
-		try {
-			thrdWork.join();
-		} catch (InterruptedException e) {
-		}
-		thrdWork = null;
+
+//		if (!doWork) {
+//			return;
+//		}
+//		doWork = false;
+//		thrdWork.interrupt();
+//		try {
+//			thrdWork.join();
+//		} catch (InterruptedException e) {
+//		}
+//		thrdWork = null;
 	}
 
 	public synchronized void start() {
-		if (doWork) {
-			return;
-		}
-		thrdWork = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				LOGGER.info("Start processing consensus message ... [CurrentProcessId={}]",
-						controller.getCurrentProcessId());
-
-				startProcessConsensus();
-
-				LOGGER.info("Exit processing consensus message!! --[CurrentProcessId={}]",
-						controller.getCurrentProcessId());
-			}
-		}, "Acceptor");
-		thrdWork.setDaemon(true);
-
 		doWork = true;
 
-		thrdWork.start();
+//		if (doWork) {
+//			return;
+//		}
+//		thrdWork = new Thread(new Runnable() {
+//			@Override
+//			public void run() {
+//				LOGGER.info("Start processing consensus message ... [CurrentProcessId={}]",
+//						controller.getCurrentProcessId());
+//
+//				startProcessPropose();
+//
+//				LOGGER.info("Exit processing consensus message!! --[CurrentProcessId={}]",
+//						controller.getCurrentProcessId());
+//			}
+//		}, "Acceptor");
+//		thrdWork.setDaemon(true);
+//
+//		doWork = true;
+//
+//		thrdWork.start();
 	}
 
 }

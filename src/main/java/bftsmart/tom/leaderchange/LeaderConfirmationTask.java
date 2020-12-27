@@ -208,7 +208,11 @@ public class LeaderConfirmationTask {
 
 		if (newRegency != null) {
 			LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
-			if (tomLayer.getSynchronizer().getLCManager().tryJumpToRegency(newRegency)) {
+			if (currentRegency.getId() == newRegency.getId()
+					&& currentRegency.getLeaderId() == newRegency.getLeaderId()) {
+				// 与本地的领导者执政期完全相等；
+				hearbeatTimer.setLeaderActived();
+			} else if (tomLayer.getSynchronizer().getLCManager().tryJumpToRegency(newRegency)) {
 				tomLayer.execManager.setNewLeader(newRegency.getLeaderId());
 				tomLayer.getSynchronizer().removeSTOPretransmissions(newRegency.getId());
 			} else {

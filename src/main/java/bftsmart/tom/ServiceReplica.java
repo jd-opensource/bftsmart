@@ -394,6 +394,7 @@ public class ServiceReplica {
 
 		}
 		initReplica();
+		
 	}
 
 	public void joinMsgReceived(VMMessage msg) {
@@ -414,6 +415,8 @@ public class ServiceReplica {
 	private void initReplica() {
 		cs.start();
 		repMan = new ReplyManager(SVController.getStaticConf().getNumRepliers(), cs);
+		
+		acceptor.start();
 	}
 
 	/**
@@ -818,6 +821,7 @@ public class ServiceReplica {
 		MessageFactory messageFactory = new MessageFactory(id);
 
 		acceptor = new Acceptor(cs, messageFactory, SVController);
+		
 		cs.setAcceptor(acceptor);
 
 		Proposer proposer = new Proposer(cs, messageFactory, SVController);

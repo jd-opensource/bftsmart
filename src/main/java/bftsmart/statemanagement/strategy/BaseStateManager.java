@@ -55,7 +55,7 @@ public abstract class BaseStateManager implements StateManager {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BaseStateManager.class);
 
     protected boolean appStateOnly;
-    protected int waitingCID = -1;
+    protected volatile int waitingCID = -1;
     protected int lastCID;
     protected int lastLogCid;
     protected ApplicationState state;
