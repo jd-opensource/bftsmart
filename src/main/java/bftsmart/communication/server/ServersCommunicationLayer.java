@@ -107,37 +107,6 @@ public class ServersCommunicationLayer extends Thread {
 		serverSocket.setReuseAddress(true);
 	}
 
-//    public ServersCommunicationLayer(ServerViewController controller,
-//                                     LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) throws Exception {
-//
-//        this.controller = controller;
-//        this.inQueue = inQueue;
-//        this.me = controller.getStaticConf().getProcessId();
-//        this.replica = replica;
-//
-//        //Try connecting if a member of the current view. Otherwise, wait until the Join has been processed!
-//        if (controller.isInCurrentView()) {
-//            int[] initialV = controller.getCurrentViewAcceptors();
-//            for (int i = 0; i < initialV.length; i++) {
-//                if (initialV[i] != me) {
-//                    getConnection(initialV[i]);
-//                }
-//            }
-//        }
-//
-//        serverSocket = new ServerSocket(controller.getStaticConf().getServerToServerPort(
-//                controller.getStaticConf().getProcessId()));
-//
-//        SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
-//        PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-//        selfPwd = fac.generateSecret(spec);
-//
-//        serverSocket.setSoTimeout(10000);
-//        serverSocket.setReuseAddress(true);
-//
-//        start();
-//    }
-
 	public SecretKey getSecretKey(int id) {
 		if (id == controller.getStaticConf().getProcessId())
 			return selfPwd;

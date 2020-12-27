@@ -16,7 +16,17 @@
  */
 package bftsmart.tom;
 
+import java.io.File;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
+import org.slf4j.LoggerFactory;
+
 import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.communication.ServerCommunicationSystemImpl;
 import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -25,30 +35,26 @@ import bftsmart.reconfiguration.ReconfigureReply;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.reconfiguration.util.TOMConfiguration;
-import bftsmart.reconfiguration.views.*;
+import bftsmart.reconfiguration.views.FileSystemViewStorage;
+import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
+import bftsmart.reconfiguration.views.NodeNetwork;
+import bftsmart.reconfiguration.views.View;
+import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.ReplyManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.CertifiedDecision;
-import bftsmart.tom.leaderchange.HeartBeatTimer;
-import bftsmart.tom.server.*;
+import bftsmart.tom.server.Executable;
+import bftsmart.tom.server.FIFOExecutable;
+import bftsmart.tom.server.Recoverable;
+import bftsmart.tom.server.Replier;
+import bftsmart.tom.server.RequestVerifier;
+import bftsmart.tom.server.SingleExecutable;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.net.InetSocketAddress;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * This class receives messages from DeliveryThread and manages the execution
@@ -361,7 +367,7 @@ public class ServiceReplica {
 	// this method initializes the object
 	private void init() {
 		try {
-			cs = new ServerCommunicationSystem(this.SVController, this);
+			cs = new ServerCommunicationSystemImpl(this.SVController, this);
 		} catch (Exception ex) {
 //			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
 			throw new RuntimeException("Unable to build a communication system.", ex);
@@ -499,7 +505,6 @@ public class ServiceReplica {
 					tomLayer.shutdown();
 
 					try {
-						cs.join();
 						cs.getServersConn().join();
 						tomLayer.join();
 						tomLayer.getDeliveryThread().join();
