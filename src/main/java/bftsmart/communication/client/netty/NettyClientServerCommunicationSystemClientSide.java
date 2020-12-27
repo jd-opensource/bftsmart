@@ -209,7 +209,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         LOGGER.debug("Connecting to replica {} at {}", currV[i], controller.getRemoteAddress(currV[i]));
                         //******* EDUARDO END **************//
 
-                        future.awaitUninterruptibly();
+                        future.awaitUninterruptibly(30*1000);
 
                         if (!future.isSuccess()) {
                              LOGGER.warn("Impossible to connect to {}", currV[i]);
