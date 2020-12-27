@@ -23,10 +23,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -54,14 +57,14 @@ public class ServersCommunicationLayer extends Thread {
 
 	private ServerViewController controller;
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
-	private Hashtable<Integer, ServerConnection> connections = new Hashtable<Integer, ServerConnection>();
-	private ServerSocket serverSocket;
+	private Map<Integer, ServerConnection> connections = new ConcurrentHashMap<Integer, ServerConnection>();
+	private volatile ServerSocket serverSocket;
 	private int me;
 	private boolean doWork = true;
 	private Lock connectionsLock = new ReentrantLock();
 	private ReentrantLock waitViewLock = new ReentrantLock();
 	// private Condition canConnect = waitViewLock.newCondition();
-	private List<PendingConnection> pendingConn = new LinkedList<PendingConnection>();
+	private List<PendingConnection> pendingConn = Collections.synchronizedList(new LinkedList<PendingConnection>());
 	private ServiceReplica replica;
 	private SecretKey selfPwd;
 	private MessageQueue messageInQueue;
@@ -88,17 +91,20 @@ public class ServersCommunicationLayer extends Thread {
 			}
 		}
 
-		serverSocket = new ServerSocket(
-				controller.getStaticConf().getServerToServerPort(controller.getStaticConf().getProcessId()));
-
 		SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
 		PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
 		selfPwd = fac.generateSecret(spec);
 
-		serverSocket.setSoTimeout(10000);
-		serverSocket.setReuseAddress(true);
+		createServerSocket(controller);
 
 		start();
+	}
+
+	private void createServerSocket(ServerViewController controller) throws IOException, SocketException {
+		serverSocket = new ServerSocket(
+				controller.getStaticConf().getServerToServerPort(controller.getStaticConf().getProcessId()));
+		serverSocket.setSoTimeout(10000);
+		serverSocket.setReuseAddress(true);
 	}
 
 //    public ServersCommunicationLayer(ServerViewController controller,
@@ -176,9 +182,9 @@ public class ServersCommunicationLayer extends Thread {
 
 		connectionsLock.unlock();
 	}
-	
+
 	public synchronized ServerConnection updateConnection(int remoteId) {
-		ServerConnection conn =this.connections.remove(remoteId);
+		ServerConnection conn = this.connections.remove(remoteId);
 		if (conn != null) {
 			conn.shutdown();
 		}
@@ -321,10 +327,33 @@ public class ServersCommunicationLayer extends Thread {
 
 			} catch (SocketTimeoutException ex) {
 				// timeout on the accept... do nothing
+			} catch (SocketException ex) {
+				if (doWork) {
+					LOGGER.error("Socket error occurred while accepting incoming connection! --[CurrentProcessId="
+							+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+					try {
+						serverSocket.close();
+					} catch (Exception e) {
+					}
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException e1) {
+					}
+					try {
+						createServerSocket(controller);
+					} catch (Exception e) {
+						LOGGER.error("Retry to create server socket fail! --[CurrentProcessId="
+								+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+					}
+				}
 			} catch (Exception ex) {
 				if (doWork) {
-					LOGGER.error("Error occurred while accepting incoming connection! --[CurrentProcessId="
+					LOGGER.error("Unexpected error occurred while accepting incoming connection! --[CurrentProcessId="
 							+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException e1) {
+					}
 				}
 			}
 		}
