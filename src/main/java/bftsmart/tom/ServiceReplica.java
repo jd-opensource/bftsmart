@@ -95,6 +95,9 @@ public class ServiceReplica {
 	private RequestVerifier verifier = null;
 	private String realName = "";
 	private int lastCid;
+	
+	private Acceptor acceptor;
+	
 //	private HeartBeatTimer heartBeatTimer = null;
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
@@ -487,6 +490,9 @@ public class ServiceReplica {
 				if (tomLayer != null) {
 					tomLayer.shutdown();
 				}
+				if (acceptor != null) {
+					acceptor.shutdown();
+				}
 			}
 		};
 		t.start();
@@ -516,11 +522,13 @@ public class ServiceReplica {
 					tomStackCreated = false;
 					tomLayer = null;
 					cs = null;
+					acceptor = null;
 
 					init();
 					recoverer.setReplicaContext(replicaCtx);
 					replier.setReplicaContext(replicaCtx);
 
+					acceptor.start();
 				}
 			}
 		};
@@ -809,7 +817,7 @@ public class ServiceReplica {
 		// Assemble the total order messaging layer
 		MessageFactory messageFactory = new MessageFactory(id);
 
-		Acceptor acceptor = new Acceptor(cs, messageFactory, SVController);
+		acceptor = new Acceptor(cs, messageFactory, SVController);
 		cs.setAcceptor(acceptor);
 
 		Proposer proposer = new Proposer(cs, messageFactory, SVController);

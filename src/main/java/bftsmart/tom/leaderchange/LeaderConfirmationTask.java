@@ -313,7 +313,7 @@ public class LeaderConfirmationTask {
 
 				// 如果已经超时，且尚未完成任务，则终止任务，发起超时；
 				if (isTaskTimeout()) {
-					hearbeatTimer.setLeaderInactived(true);
+					hearbeatTimer.setLeaderInactived();
 					LeaderRegencyPropose propose = generateRegencyPropose();
 					tomLayer.getRequestsTimer().run_lc_protocol(propose);
 					cancelTask();

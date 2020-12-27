@@ -76,7 +76,7 @@ public class HeartBeatTimer {
 	 */
 	private boolean initialized;
 
-	private boolean inactived;
+	private volatile boolean actived;
 
 	public HeartBeatTimer(TOMLayer tomLayer) {
 		this.tomLayer = tomLayer;
@@ -259,9 +259,22 @@ public class HeartBeatTimer {
 		}
 	}
 
-	public void setLeaderInactived(boolean inactived) {
-		this.inactived = inactived;
+//	public void setLeaderInactived(boolean inactived) {
+//		this.inactived = inactived;
+//	}
+	
+	public void setLeaderActived() {
+		actived = true;
 	}
+	
+	public void setLeaderInactived() {
+		actived = false;
+	}
+	
+	public boolean isActived() {
+		return actived;
+	}
+	
 
 	/**
 	 * 心跳是否超时；
@@ -326,7 +339,7 @@ public class HeartBeatTimer {
 	 * @return
 	 */
 	public LeaderStatus getLeaderStatus() {
-		if (inactived) {
+		if (!actived) {
 			return LeaderStatus.TIMEOUT;
 		}
 		if (tomLayer.leader() == tomLayer.controller.getStaticConf().getProcessId()) {
