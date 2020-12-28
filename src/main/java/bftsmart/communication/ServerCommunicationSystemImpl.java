@@ -111,8 +111,14 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	}
 
 	// ******* EDUARDO END **************//
+	@Override
 	public void setAcceptor(Acceptor acceptor) {
 		messageHandler.setAcceptor(acceptor);
+	}
+	
+	@Override
+	public Acceptor getAcceptor() {
+		return messageHandler.getAcceptor();
 	}
 
 	public void setTOMLayer(TOMLayer tomLayer) {
@@ -260,6 +266,12 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			LOGGER.warn("Server Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
 					+ e.getMessage(), e);
 		}
+		try {
+			messageHandler.getAcceptor().shutdown();
+		} catch (Exception e) {
+			LOGGER.warn("Acceptor shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
+					+ e.getMessage(), e);
+		}
 	}
 
 	/**
@@ -292,7 +304,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 				SystemMessage sm = null;
 				try {
 					sm = messageQueue.poll(msgType, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
-
+					
 					if (sm != null) {
 						messageHandler.processData(sm);
 					} else {

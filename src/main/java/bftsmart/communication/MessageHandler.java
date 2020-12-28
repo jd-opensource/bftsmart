@@ -205,4 +205,8 @@ public class MessageHandler {
 			tomLayer.processOutOfContextWriteAndAccept();
 		}
 	}
+
+	public Acceptor getAcceptor() {
+		return acceptor;
+	}
 }

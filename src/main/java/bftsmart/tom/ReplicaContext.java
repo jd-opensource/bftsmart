@@ -15,10 +15,14 @@ limitations under the License.
 */
 package bftsmart.tom;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
+import bftsmart.tom.core.TOMLayer;
 
 /**
  * This class contains information related to the replica.
@@ -26,50 +30,67 @@ import bftsmart.reconfiguration.views.View;
  * @author Alysson Bessani
  */
 public class ReplicaContext {
-    
-    private ServerCommunicationSystem cs; // Server side comunication system
-    private ServerViewController SVController;
 
-    public ReplicaContext(ServerCommunicationSystem cs, 
-                                 ServerViewController SVController) {
-        this.cs = cs;
-        this.SVController = SVController;
-    }
+	private static Logger LOGGER = LoggerFactory.getLogger(ReplicaContext.class);
 
-    /**
-     * Returns the controller of the replica's view
-     * @return The controller of the replica's view
-     */
-    public ServerViewController getSVController() {
-        return SVController;
-    }
-    
-    //TODO: implement a method that allow the replica to send a message with
-    //total order to all other replicas
-       
-    /**
-     * Returns the static configuration of this replica.
-     * 
-     * @return the static configuration of this replica
-     */
-    public TOMConfiguration getStaticConfiguration() {
-        return SVController.getStaticConf();
-    }
-    
-    /**
-     * Returns the current view of the replica group.
-     * 
-     * @return the current view of the replica group.
-     */
-    public View getCurrentView() {
-        return SVController.getCurrentView();
-    }
+	private ServerViewController SVController;
+	private TOMLayer tomLayer;
 
-	public ServerCommunicationSystem getServerCommunicationSystem() {
-		return cs;
+	public ReplicaContext(TOMLayer tomLayer, ServerViewController SVController) {
+		this.tomLayer = tomLayer;
+		this.SVController = SVController;
 	}
 
-	public void setServerCommunicationSystem(ServerCommunicationSystem cs) {
-		this.cs = cs;
+	/**
+	 * Returns the controller of the replica's view
+	 * 
+	 * @return The controller of the replica's view
+	 */
+	public ServerViewController getSVController() {
+		return SVController;
+	}
+
+	// TODO: implement a method that allow the replica to send a message with
+	// total order to all other replicas
+
+	/**
+	 * Returns the static configuration of this replica.
+	 * 
+	 * @return the static configuration of this replica
+	 */
+	public TOMConfiguration getStaticConfiguration() {
+		return SVController.getStaticConf();
+	}
+
+	/**
+	 * Returns the current view of the replica group.
+	 * 
+	 * @return the current view of the replica group.
+	 */
+	public View getCurrentView() {
+		return SVController.getCurrentView();
+	}
+
+	public ServerCommunicationSystem getServerCommunicationSystem() {
+		return tomLayer.getCommunication();
+	}
+
+	public void shutdown() {
+		try {
+			tomLayer.shutdown();
+			tomLayer.join();
+			tomLayer.getDeliveryThread().join();
+		} catch (Exception e) {
+			LOGGER.warn("Error occurred while shuting down the replica! --[RepliaId="
+					+ SVController.getCurrentProcessId() + "] " + e.getMessage(), e);
+		}
+	}
+
+	public void start() {
+		tomLayer.getCommunication().getAcceptor().start();
+	}
+
+	public TOMLayer getTOMLayer() {
+		return tomLayer;
 	}
 }

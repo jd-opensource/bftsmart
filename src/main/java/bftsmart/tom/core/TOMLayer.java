@@ -115,7 +115,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	private PrivateKey prk;
 	public ServerViewController controller;
 
-	private ServiceReplica receiver;
+//	private ServiceReplica receiver;
 
 	private RequestVerifier verifier;
 
@@ -136,11 +136,10 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	 */
 	public TOMLayer(ExecutionManager manager, ServiceReplica receiver, Recoverable recoverer, Acceptor a,
 			ServerCommunicationSystem cs, ServerViewController controller, RequestVerifier verifier) {
-
 		super("TOM Layer");
 
 		this.execManager = manager;
-		this.receiver = receiver;
+//		this.receiver = receiver;
 		this.acceptor = a;
 		this.communication = cs;
 		this.controller = controller;
@@ -344,6 +343,9 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		return (DefaultRecoverable) getDeliveryThread().getReceiver().getExecutor();
 	}
 
+	/**
+	 * 注释掉无调用的逻辑；2020-12-28 by huanghaiquan;
+	 * 
 	private void reply(TOMMessage message) {
 		if (controller.getStaticConf().getNumRepliers() > 0) {
 			LOGGER.debug(
@@ -357,6 +359,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 			receiver.getReplier().manageReply(message, null);
 		}
 	}
+	*/
 
 	/**
 	 * Creates a value to be proposed to the acceptors. Invoked if this replica is

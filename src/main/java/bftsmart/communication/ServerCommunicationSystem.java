@@ -36,6 +36,8 @@ public interface ServerCommunicationSystem {
 
 	// ******* EDUARDO END **************//
 	void setAcceptor(Acceptor acceptor);
+	
+	Acceptor getAcceptor();
 
 	void setTOMLayer(TOMLayer tomLayer);
 

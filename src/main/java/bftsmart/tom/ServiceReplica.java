@@ -19,6 +19,7 @@ package bftsmart.tom;
 import java.io.File;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -79,25 +80,25 @@ public class ServiceReplica {
 	}
 
 	// replica ID
-	private int id;
+	private final int id;
 	// Server side comunication system
 	private ServerCommunicationSystem cs = null;
 	private ReplyManager repMan = null;
-	private ServerViewController SVController;
+	private ServerViewController serverViewController;
 	private ReentrantLock waitTTPJoinMsgLock = new ReentrantLock();
 	private Condition canProceed = waitTTPJoinMsgLock.newCondition();
 	private final Executable executor;
 	private Recoverable recoverer = null;
-	private TOMLayer tomLayer = null;
-	private boolean tomStackCreated = false;
+//	private TOMLayer tomLayer = null;
+	private volatile boolean tomStackCreated = false;
 	private ReplicaContext replicaCtx = null;
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
-	private String realName = "";
+	private final String realmName;
 	private int lastCid;
-	
-	private Acceptor acceptor;
-	
+
+//	private Acceptor acceptor;
+
 //	private HeartBeatTimer heartBeatTimer = null;
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
@@ -105,12 +106,9 @@ public class ServiceReplica {
 	/**
 	 * Constructor
 	 *
-	 * @param id
-	 *            Replica ID
-	 * @param executor
-	 *            Executor
-	 * @param recoverer
-	 *            Recoverer
+	 * @param id        Replica ID
+	 * @param executor  Executor
+	 * @param recoverer Recoverer
 	 */
 	public ServiceReplica(int id, Executable executor, Recoverable recoverer) {
 		this(id, "", executor, recoverer, null, new DefaultReplier());
@@ -119,14 +117,10 @@ public class ServiceReplica {
 	/**
 	 * Constructor
 	 *
-	 * @param id
-	 *            Replica ID
-	 * @param executor
-	 *            Executor
-	 * @param recoverer
-	 *            Recoverer
-	 * @param verifier
-	 *            Requests verifier
+	 * @param id        Replica ID
+	 * @param executor  Executor
+	 * @param recoverer Recoverer
+	 * @param verifier  Requests verifier
 	 */
 	public ServiceReplica(int id, Executable executor, Recoverable recoverer, RequestVerifier verifier) {
 		this(id, "", executor, recoverer, verifier, new DefaultReplier());
@@ -135,100 +129,80 @@ public class ServiceReplica {
 	/**
 	 * Constructor
 	 * 
-	 * @param id
-	 *            Replica ID
-	 * @param executor
-	 *            Executor
-	 * @param recoverer
-	 *            Recoverer
-	 * @param verifier
-	 *            Requests verifier
-	 * @param replier
-	 *            Replier
+	 * @param id        Replica ID
+	 * @param executor  Executor
+	 * @param recoverer Recoverer
+	 * @param verifier  Requests verifier
+	 * @param replier   Replier
 	 */
 	public ServiceReplica(int id, Executable executor, Recoverable recoverer, RequestVerifier verifier,
-                          Replier replier) {
+			Replier replier) {
 		this(id, "", executor, recoverer, verifier, replier);
 	}
 
 	/**
 	 * Constructor
 	 *
-	 * @param id
-	 *            Process ID
-	 * @param configHome
-	 *            Configuration directory for JBP
-	 * @param executor
-	 *            Executor
-	 * @param recoverer
-	 *            Recoverer
-	 * @param verifier
-	 *            Requests verifier
-	 * @param replier
-	 *            Replier
+	 * @param id         Process ID
+	 * @param configHome Configuration directory for JBP
+	 * @param executor   Executor
+	 * @param recoverer  Recoverer
+	 * @param verifier   Requests verifier
+	 * @param replier    Replier
 	 */
 	public ServiceReplica(int id, String configHome, Executable executor, Recoverable recoverer,
-                          RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(id, configHome), executor, recoverer, verifier, replier);
-		// this.id = id;
-		// this.SVController = new ServerViewController(id, configHome);
-		// this.executor = executor;
-		// this.recoverer = recoverer;
-		// this.replier = (replier != null ? replier : new DefaultReplier());
-		// this.verifier = verifier;
-		// this.init();
-		// this.recoverer.setReplicaContext(replicaCtx);
-		// this.replier.setReplicaContext(replicaCtx);
+			RequestVerifier verifier, Replier replier) {
+		this(new ServerViewController(id, configHome), executor, recoverer, verifier, replier, -1, "Default-Realm");
 	}
 
 	public ServiceReplica(int id, String systemConfig, String hostsConfig, String keystoreHome, String runtimeDir,
-                          View initView, Executable executor, Recoverable recoverer) {
+			View initView, Executable executor, Recoverable recoverer) {
 		this(new ServerViewController(new TOMConfiguration(id, systemConfig, hostsConfig, keystoreHome),
 				new FileSystemViewStorage(initView, new File(runtimeDir, "view"))), executor, recoverer, null,
-				new DefaultReplier());
+				new DefaultReplier(), -1, "Default-Realm");
 	}
 
-	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer ) {
-		this(new ServerViewController(config, new MemoryBasedViewStorage()),
-				executor, recoverer, null, new DefaultReplier());
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer) {
+		this(new ServerViewController(config, new MemoryBasedViewStorage()), executor, recoverer, null,
+				new DefaultReplier(), -1, "Default-Realm");
 	}
 
-	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor,
-                          Recoverable recoverer ) {
-		this(new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))),
-				executor, recoverer, null, new DefaultReplier());
+	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor, Recoverable recoverer) {
+		this(new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))), executor,
+				recoverer, null, new DefaultReplier(), -1, "Default-Realm");
 	}
+
 	public ServiceReplica(TOMConfiguration config, View initView, String runtimeDir, Executable executor,
-                          Recoverable recoverer, RequestVerifier verifier, Replier replier) {
+			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
 		this(new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),
-				executor, recoverer, verifier, replier);
+				executor, recoverer, verifier, replier, -1, "Default-Realm");
 	}
 
 	public ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor, Recoverable recoverer,
-                          RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier);
+			RequestVerifier verifier, Replier replier) {
+		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier, -1, "Default-Realm");
 	}
 
-	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid) {
-		this(new ServerViewController(config, new MemoryBasedViewStorage()),
-				executor, recoverer, null, new DefaultReplier(), lastCid);
-	}
+//	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid) {
+//		this(new ServerViewController(config, new MemoryBasedViewStorage()), executor, recoverer, null,
+//				new DefaultReplier(), lastCid);
+//	}
 
-	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid, View lastView, String realName) {
-		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)),
-				executor, recoverer, null, new DefaultReplier(), lastCid, realName);
+	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
+			View lastView, String realName) {
+		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
+				new DefaultReplier(), lastCid, realName);
 	}
 
 	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-							 RequestVerifier verifier, Replier replier, int lastCid, String realName) {
+			RequestVerifier verifier, Replier replier, int lastCid, String realName) {
 		this.id = viewController.getStaticConf().getProcessId();
-		this.realName = realName;
-		this.SVController = viewController;
+		this.realmName = realName;
+		this.serverViewController = viewController;
 		this.executor = executor;
 		this.recoverer = recoverer;
 		this.replier = (replier != null ? replier : new DefaultReplier());
 		this.verifier = verifier;
-//		this.lastCid = lastCid;
 		this.recoverer.setRealName(realName);
 		this.recoverer.setStateLog(viewController);
 		if (viewController.getStaticConf().logToDisk()) {
@@ -237,118 +211,65 @@ public class ServiceReplica {
 			this.lastCid = lastCid;
 		}
 		this.init();
-		this.tomLayer.setRealName(realName);
 		this.recoverer.setReplicaContext(replicaCtx);
 		this.replier.setReplicaContext(replicaCtx);
 	}
 
-	/**
-	 * Constructor
-	 *
-	 * @param id
-	 *            Process ID
-	 * @param configHome
-	 *            Configuration directory for JBP
-	 * @param executor
-	 *            Executor
-	 * @param recoverer
-	 *            Recoverer
-	 * @param verifier
-	 *            Requests verifier
-	 * @param replier
-	 *            Replier
-	 *
-	 * @param lastCid
-	 */
-	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-							 RequestVerifier verifier, Replier replier, int lastCid) {
-		this.id = viewController.getStaticConf().getProcessId();
-		this.SVController = viewController;
-		this.executor = executor;
-		this.recoverer = recoverer;
-		this.replier = (replier != null ? replier : new DefaultReplier());
-		this.verifier = verifier;
-		this.init();
-		this.tomLayer.getStateManager().setLastCID(lastCid);
-		this.tomLayer.setLastExec(lastCid);
-		this.recoverer.setReplicaContext(replicaCtx);
-		this.replier.setReplicaContext(replicaCtx);
-	}
-
-
-//	public ServiceReplica(int id, String configHome, Executable executor, Recoverable recoverer,
-//						  RequestVerifier verifier, Replier replier, HeartBeatTimer heartBeatTimer) {
-//
-//		this(new ServerViewController(id, configHome), executor, recoverer, verifier, replier, heartBeatTimer);
+//	/**
+//	 * Constructor
+//	 *
+//	 * @param id         Process ID
+//	 * @param configHome Configuration directory for JBP
+//	 * @param executor   Executor
+//	 * @param recoverer  Recoverer
+//	 * @param verifier   Requests verifier
+//	 * @param replier    Replier
+//	 *
+//	 * @param lastCid
+//	 */
+//	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
+//			RequestVerifier verifier, Replier replier, int lastCid) {
+//		this.id = viewController.getStaticConf().getProcessId();
+//		this.serverViewController = viewController;
+//		this.executor = executor;
+//		this.recoverer = recoverer;
+//		this.replier = (replier != null ? replier : new DefaultReplier());
+//		this.verifier = verifier;
+//		this.init();
+//		this.recoverer.setReplicaContext(replicaCtx);
+//		this.replier.setReplicaContext(replicaCtx);
 //	}
 
-//    /**
-//     * Constructor
-//     *
-//     * @param id
-//     *            Process ID
-//     * @param configHome
-//     *            Configuration directory for JBP
-//     * @param executor
-//     *            Executor
-//     * @param recoverer
-//     *            Recoverer
-//     * @param verifier
-//     *            Requests verifier
-//     * @param replier
-//     *            Replier
-//     * @param heartBeatTimer
-//     *            HeartBeatTimer
-//     */
-//    protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-//                             RequestVerifier verifier, Replier replier, HeartBeatTimer heartBeatTimer) {
-//        this.id = viewController.getStaticConf().getProcessId();
-//        this.SVController = viewController;
-//        this.executor = executor;
-//        this.recoverer = recoverer;
-//        this.replier = (replier != null ? replier : new DefaultReplier());
-//        this.verifier = verifier;
-//        this.heartBeatTimer = heartBeatTimer;
-//        this.init();
-//        this.recoverer.setReplicaContext(replicaCtx);
-//        this.replier.setReplicaContext(replicaCtx);
-//    }
 
-    /**
-	 * Constructor
-	 *
-	 * @param id
-	 *            Process ID
-	 * @param configHome
-	 *            Configuration directory for JBP
-	 * @param executor
-	 *            Executor
-	 * @param recoverer
-	 *            Recoverer
-	 * @param verifier
-	 *            Requests verifier
-	 * @param replier
-	 *            Replier
-	 */
-	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-                             RequestVerifier verifier, Replier replier) {
-		this.id = viewController.getStaticConf().getProcessId();
-		this.SVController = viewController;
-		this.executor = executor;
-		this.recoverer = recoverer;
-		this.replier = (replier != null ? replier : new DefaultReplier());
-		this.verifier = verifier;
-		this.init();
-		this.recoverer.setReplicaContext(replicaCtx);
-		this.replier.setReplicaContext(replicaCtx);
-	}
+//	/**
+//	 * Constructor
+//	 *
+//	 * @param id         Process ID
+//	 * @param configHome Configuration directory for JBP
+//	 * @param executor   Executor
+//	 * @param recoverer  Recoverer
+//	 * @param verifier   Requests verifier
+//	 * @param replier    Replier
+//	 */
+//	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
+//			RequestVerifier verifier, Replier replier) {
+//		this.id = viewController.getStaticConf().getProcessId();
+//		this.serverViewController = viewController;
+//		this.executor = executor;
+//		this.recoverer = recoverer;
+//		this.replier = (replier != null ? replier : new DefaultReplier());
+//		this.verifier = verifier;
+//		this.init();
+//		this.recoverer.setReplicaContext(replicaCtx);
+//		this.replier.setReplicaContext(replicaCtx);
+//	}
 
 	public void setReplyController(Replier replier) {
 		this.replier = replier;
 	}
-	
+
 	public ServerViewController getViewController() {
-		return SVController;
+		return serverViewController;
 	}
 
 	public Executable getExecutor() {
@@ -370,21 +291,24 @@ public class ServiceReplica {
 	// this method initializes the object
 	private void init() {
 		try {
-			cs = new ServerCommunicationSystemImpl(this.SVController, this);
+			cs = new ServerCommunicationSystemImpl(this.serverViewController, this);
 		} catch (Exception ex) {
 //			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
 			throw new RuntimeException("Unable to build a communication system.", ex);
 		}
 
-		if (this.SVController.isInCurrentView()) {
-			LOGGER.info("-- In current view: {}", this.SVController.getCurrentView());
-			initTOMLayer(); // initiaze the TOM layer
+		if (this.serverViewController.isInCurrentView()) {
+			LOGGER.info("-- In current view: {}", this.serverViewController.getCurrentView());
+			if (!tomStackCreated) { // if this object was already initialized, don't do it again
+				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier); // initiaze the TOM layer
+				tomStackCreated = true;
+			}
 		} else {
-			LOGGER.error("-- Not in current view: {}", this.SVController.getCurrentView());
+			LOGGER.error("-- Not in current view: {}", this.serverViewController.getCurrentView());
 
 			// Not in the initial view, just waiting for the view where the join has been
 			// executed
-			LOGGER.error("-- Waiting for the TTP: {}", this.SVController.getCurrentView());
+			LOGGER.error("-- Waiting for the TTP: {}", this.serverViewController.getCurrentView());
 			waitTTPJoinMsgLock.lock();
 			try {
 				canProceed.awaitUninterruptibly();
@@ -393,17 +317,19 @@ public class ServiceReplica {
 			}
 
 		}
-		initReplica();
-		
+		startReplica();
 	}
 
 	public void joinMsgReceived(VMMessage msg) {
 		ReconfigureReply r = msg.getReply();
 
 		if (r.getView().isMember(id)) {
-			this.SVController.processJoinResult(r);
+			this.serverViewController.processJoinResult(r);
 
-			initTOMLayer(); // initiaze the TOM layer
+			if (!tomStackCreated) { // if this object was already initialized, don't do it again
+				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier); // initiaze the TOM layer
+				tomStackCreated = true;
+			}
 			cs.updateServersConnections();
 			this.cs.joinViewReceived();
 			waitTTPJoinMsgLock.lock();
@@ -412,19 +338,18 @@ public class ServiceReplica {
 		}
 	}
 
-	private void initReplica() {
+	private void startReplica() {
 		cs.start();
-		repMan = new ReplyManager(SVController.getStaticConf().getNumRepliers(), cs);
-		
-		acceptor.start();
+		repMan = new ReplyManager(serverViewController.getStaticConf().getNumRepliers(), cs);
+
+		replicaCtx.start();
 	}
 
 	/**
 	 * This message delivers a readonly message, i.e., a message that was not
 	 * ordered to the replica and gather the reply to forward to the client
 	 *
-	 * @param message
-	 *            the request received from the delivery thread
+	 * @param message the request received from the delivery thread
 	 */
 	public final void receiveReadonlyMessage(TOMMessage message, MessageContext msgCtx) {
 		byte[] response = null;
@@ -440,27 +365,31 @@ public class ServiceReplica {
 			response = ((FIFOExecutable) executor).executeUnorderedFIFO(message.getContent(), msgCtx,
 					message.getSender(), message.getOperationId());
 		} else {
-			if (message.getViewID() == SVController.getCurrentViewId()) {
+			if (message.getViewID() == serverViewController.getCurrentViewId()) {
 				response = executor.executeUnordered(message.getContent(), msgCtx);
-			} else if (message.getViewID() < SVController.getCurrentViewId()) {
-				View view = SVController.getCurrentView();
+			} else if (message.getViewID() < serverViewController.getCurrentViewId()) {
+				View view = serverViewController.getCurrentView();
 				List<NodeNetwork> addressesTemp = new ArrayList<>();
-				for(int i = 0; i < view.getProcesses().length;i++) {
+				for (int i = 0; i < view.getProcesses().length; i++) {
 					int cpuId = view.getProcesses()[i];
 					NodeNetwork inetSocketAddress = view.getAddress(cpuId);
 					if (inetSocketAddress.getHost().equals("0.0.0.0")) {
 						// proc docker env
-						String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
-						NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), inetSocketAddress.getMonitorPort());
-						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), host);
+						String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+						NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
+								inetSocketAddress.getMonitorPort());
+						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+								serverViewController.getStaticConf().getProcessId(), host);
 						addressesTemp.add(tempSocketAddress);
 					} else {
-						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+								serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
 						addressesTemp.add(inetSocketAddress);
 					}
 				}
 
-				View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+				View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
+						addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
 				response = TOMUtil.getBytes(replyView);
 			}
 		}
@@ -475,14 +404,15 @@ public class ServiceReplica {
 
 		// Generate the messages to send back to the clients
 		message.reply = new TOMMessage(id, message.getSession(), message.getSequence(), message.getOperationId(),
-				response, SVController.getCurrentViewId(), message.getReqType());
+				response, serverViewController.getCurrentViewId(), message.getReqType());
 
-		if (SVController.getStaticConf().getNumRepliers() > 0) {
+		if (serverViewController.getStaticConf().getNumRepliers() > 0) {
 			repMan.send(message);
 		} else {
 			cs.send(new int[] { message.getSender() }, message.reply);
 		}
 	}
+	
 
 	public void kill() {
 
@@ -490,11 +420,13 @@ public class ServiceReplica {
 
 			@Override
 			public void run() {
-				if (tomLayer != null) {
-					tomLayer.shutdown();
-				}
-				if (acceptor != null) {
-					acceptor.shutdown();
+//				if (tomLayer != null) {
+//					tomLayer.shutdown();
+//				}
+				if (replicaCtx != null) {
+					replicaCtx.shutdown();
+					replicaCtx = null;
+					tomStackCreated = false;
 				}
 			}
 		};
@@ -510,28 +442,19 @@ public class ServiceReplica {
 
 			@Override
 			public void run() {
-				if (tomLayer != null && cs != null) {
-					tomLayer.shutdown();
-					cs.shutdown();
-					try {
-						tomLayer.join();
-						tomLayer.getDeliveryThread().join();
-
-					} catch (InterruptedException ex) {
-//						Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
-						LOGGER.error("restart exception!");
-					}
+				if (replicaCtx != null) {
+					replicaCtx.shutdown();
 
 					tomStackCreated = false;
-					tomLayer = null;
+					replicaCtx = null;
 					cs = null;
-					acceptor = null;
 
 					init();
+					
 					recoverer.setReplicaContext(replicaCtx);
 					replier.setReplicaContext(replicaCtx);
 
-					acceptor.start();
+					replicaCtx.start();
 				}
 			}
 		};
@@ -547,19 +470,23 @@ public class ServiceReplica {
 		boolean noop = true;
 
 		for (TOMMessage[] requestsFromConsensus : requests) {
-			
+
 			TOMMessage firstRequest = requestsFromConsensus[0];
 			int requestCount = 0;
 			noop = true;
 			for (TOMMessage request : requestsFromConsensus) {
 
-				LOGGER.debug("(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}"
-						, request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
+				LOGGER.debug(
+						"(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}",
+						request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
 
-				LOGGER.info("(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}", request.getViewID(), SVController.getCurrentViewId(), request.getReqType());
+				LOGGER.info(
+						"(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}",
+						request.getViewID(), serverViewController.getCurrentViewId(), request.getReqType());
 
 				// 暂时没有节点间的视图ID同步过程，在处理RECONFIG这类更新视图的操作时先不考虑视图ID落后的情况
-				if (request.getViewID() == SVController.getCurrentViewId() || request.getReqType() == TOMMessageType.RECONFIG) {
+				if (request.getViewID() == serverViewController.getCurrentViewId()
+						|| request.getReqType() == TOMMessageType.RECONFIG) {
 
 					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST) {
 
@@ -580,7 +507,8 @@ public class ServiceReplica {
 						request.deliveryTime = System.nanoTime();
 						if (executor instanceof PreComputeBatchExecutable) {
 
-							LOGGER.debug("(ServiceReplica.receiveMessages) Batching request from {}", request.getSender());
+							LOGGER.debug("(ServiceReplica.receiveMessages) Batching request from {}",
+									request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
 							// to
@@ -596,7 +524,9 @@ public class ServiceReplica {
 							toBatch.add(request);
 						} else if (executor instanceof FIFOExecutable) {
 
-							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from {} via FifoExecutable", request.getSender());
+							LOGGER.debug(
+									"(ServiceReplica.receiveMessages) Delivering request from {} via FifoExecutable",
+									request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
 							// to
@@ -616,13 +546,15 @@ public class ServiceReplica {
 
 							// Generate the messages to send back to the clients
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-									request.getOperationId(), response, SVController.getCurrentViewId(),
+									request.getOperationId(), response, serverViewController.getCurrentViewId(),
 									request.getReqType());
 							LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {}", request.getSender());
 							replier.manageReply(request, msgCtx);
 						} else if (executor instanceof SingleExecutable) {
 
-							LOGGER.debug("(ServiceReplica.receiveMessages) Delivering request from {} via SingleExecutable", request.getSender());
+							LOGGER.debug(
+									"(ServiceReplica.receiveMessages) Delivering request from {} via SingleExecutable",
+									request.getSender());
 
 							// This is used to deliver the content decided by a consensus instance directly
 							// to
@@ -642,7 +574,7 @@ public class ServiceReplica {
 
 							// Generate the messages to send back to the clients
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-									request.getOperationId(), response, SVController.getCurrentViewId(),
+									request.getOperationId(), response, serverViewController.getCurrentViewId(),
 									request.getReqType());
 							LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {}", request.getSender());
 							replier.manageReply(request, msgCtx);
@@ -650,46 +582,51 @@ public class ServiceReplica {
 							throw new UnsupportedOperationException("Non-existent interface");
 						}
 					} else if (request.getReqType() == TOMMessageType.RECONFIG) {
-						SVController.enqueueUpdate(request);
+						serverViewController.enqueueUpdate(request);
 					} else {
 						throw new RuntimeException("Should never reach here!");
 					}
-				} else if (request.getViewID() < SVController.getCurrentViewId()) { // message sender had an old view,
+				} else if (request.getViewID() < serverViewController.getCurrentViewId()) { // message sender had an old view,
 																					// resend the message to
 																					// him (but only if it came from
 																					// consensus an not state transfer)
-					View view = SVController.getCurrentView();
+					View view = serverViewController.getCurrentView();
 
 					List<NodeNetwork> addressesTemp = new ArrayList<>();
 
-					for(int i = 0; i < view.getProcesses().length;i++) {
+					for (int i = 0; i < view.getProcesses().length; i++) {
 						int cpuId = view.getProcesses()[i];
 						NodeNetwork inetSocketAddress = view.getAddress(cpuId);
 
 						if (inetSocketAddress.getHost().equals("0.0.0.0")) {
 							// proc docker env
-							String host = SVController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 
-							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(), -1);
-							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), host);
+							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
+									-1);
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+									serverViewController.getStaticConf().getProcessId(), host);
 							addressesTemp.add(tempSocketAddress);
 						} else {
-							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", SVController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
-							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(), inetSocketAddress.getConsensusPort(), -1));
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+									serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
+									inetSocketAddress.getConsensusPort(), -1));
 						}
 					}
 
-					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
-					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}", this.SVController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
+					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
+							addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}",
+							this.serverViewController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
 
-					tomLayer.getCommunication().send(new int[] { request.getSender() },
-							new TOMMessage(SVController.getStaticConf().getProcessId(), request.getSession(),
-									request.getSequence(), request.getOperationId(),
-									TOMUtil.getBytes(replyView), SVController.getCurrentViewId(),
-									request.getReqType()));
+					getTomLayer().getCommunication().send(new int[] { request.getSender() },
+							new TOMMessage(serverViewController.getStaticConf().getProcessId(), request.getSession(),
+									request.getSequence(), request.getOperationId(), TOMUtil.getBytes(replyView),
+									serverViewController.getCurrentViewId(), request.getReqType()));
 				}
 				requestCount++;
-			}// End of : for (TOMMessage request : requestsFromConsensus);
+			} // End of : for (TOMMessage request : requestsFromConsensus);
 
 			// This happens when a consensus finishes but there are no requests to deliver
 			// to the application. This can happen if a reconfiguration is issued and is the
@@ -698,13 +635,27 @@ public class ServiceReplica {
 			// hence the invocation of "noop"
 			if (noop && this.recoverer != null) {
 
-				LOGGER.debug("(ServiceReplica.receiveMessages) I am proc {}, host = {}, port = {}. Delivering a no-op to the recoverer", this.SVController.getStaticConf().getProcessId()
-				, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHost(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getConsensusPort());
+				LOGGER.debug(
+						"(ServiceReplica.receiveMessages) I am proc {}, host = {}, port = {}. Delivering a no-op to the recoverer",
+						this.serverViewController.getStaticConf().getProcessId(),
+						this.serverViewController.getStaticConf()
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getHost(),
+						this.serverViewController.getStaticConf()
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getConsensusPort());
 
-				LOGGER.debug("I am proc {} , host = {}, port = {}.--- A consensus instance finished, but there were no commands to deliver to the application.", this.SVController.getStaticConf().getProcessId()
-						, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHost(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getConsensusPort());
-				LOGGER.debug("I am proc {} , host = {}, port = {}.--- Notifying recoverable about a blank consensus.", this.SVController.getStaticConf().getProcessId()
-						, this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getHost(), this.SVController.getStaticConf().getRemoteAddress(this.SVController.getStaticConf().getProcessId()).getConsensusPort());
+				LOGGER.debug(
+						"I am proc {} , host = {}, port = {}.--- A consensus instance finished, but there were no commands to deliver to the application.",
+						this.serverViewController.getStaticConf().getProcessId(),
+						this.serverViewController.getStaticConf()
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getHost(),
+						this.serverViewController.getStaticConf()
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getConsensusPort());
+				LOGGER.debug("I am proc {} , host = {}, port = {}.--- Notifying recoverable about a blank consensus.",
+						this.serverViewController.getStaticConf().getProcessId(),
+						this.serverViewController.getStaticConf()
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getHost(),
+						this.serverViewController.getStaticConf()
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getConsensusPort());
 
 				byte[][] batch = null;
 				MessageContext[] msgCtx = null;
@@ -745,17 +696,15 @@ public class ServiceReplica {
 			}
 
 			consensusCount++;
-		}// End of: for (TOMMessage[] requestsFromConsensus : requests) 
+		} // End of: for (TOMMessage[] requestsFromConsensus : requests)
 
 		if (executor instanceof PreComputeBatchExecutable && numRequests > 0) {
 			// Make new batch to deliver
 			byte[][] batch = new byte[numRequests][];
 
-			ReplyContext replyContext = new ReplyContext()
-					.buildId(id)
-					.buildCurrentViewId(SVController.getCurrentViewId())
-					.buildNumRepliers(SVController.getStaticConf().getNumRepliers())
-					.buildRepMan(repMan)
+			ReplyContext replyContext = new ReplyContext().buildId(id)
+					.buildCurrentViewId(serverViewController.getCurrentViewId())
+					.buildNumRepliers(serverViewController.getStaticConf().getNumRepliers()).buildRepMan(repMan)
 					.buildReplier(replier);
 
 			List<ReplyContextMessage> replyContextMessages = new ArrayList<>();
@@ -763,7 +712,7 @@ public class ServiceReplica {
 			// Put messages in the batch
 			int line = 0;
 			for (TOMMessage m : toBatch) {
-                replyContextMessages.add(new ReplyContextMessage(replyContext, m));
+				replyContextMessages.add(new ReplyContextMessage(replyContext, m));
 				batch[line] = m.getContent();
 				line++;
 			}
@@ -771,23 +720,26 @@ public class ServiceReplica {
 			MessageContext[] msgContexts = new MessageContext[msgCtxts.size()];
 			msgContexts = msgCtxts.toArray(msgContexts);
 
-			//Deliver the batch and wait for replies
-			byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts, replyContextMessages);
+			// Deliver the batch and wait for replies
+			byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts,
+					replyContextMessages);
 
-			//Send the replies back to the client
+			// Send the replies back to the client
 			for (int index = 0; index < toBatch.size(); index++) {
 				TOMMessage request = toBatch.get(index);
 				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-						request.getOperationId(), asyncResponseLinkedList.get(index), SVController.getCurrentViewId(),
+						request.getOperationId(), asyncResponseLinkedList.get(index), serverViewController.getCurrentViewId(),
 						request.getReqType());
 
-				if (SVController.getStaticConf().getNumRepliers() > 0) {
-					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {} via ReplyManager"
-							, request.getSender(), request.getSequence(), request.getOperationId());
+				if (serverViewController.getStaticConf().getNumRepliers() > 0) {
+					LOGGER.debug(
+							"(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {} via ReplyManager",
+							request.getSender(), request.getSequence(), request.getOperationId());
 					repMan.send(request);
 				} else {
-					LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}"
-							, request.getSender(), request.getSequence(), request.getOperationId());
+					LOGGER.debug(
+							"(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}",
+							request.getSender(), request.getSequence(), request.getOperationId());
 					replier.manageReply(request, msgContexts[index]);
 					// cs.send(new int[]{request.getSender()}, request.reply);
 				}
@@ -795,64 +747,61 @@ public class ServiceReplica {
 
 			// DEBUG
 			LOGGER.debug("BATCHEXECUTOR END");
-		}//End of: if (executor instanceof PreComputeBatchExecutable && numRequests > 0)
+		} // End of: if (executor instanceof PreComputeBatchExecutable && numRequests > 0)
 	}
 
 	/**
 	 * This method initializes the object
 	 *
-	 * @param cs
-	 *            Server side communication System
-	 * @param conf
-	 *            Total order messaging configuration
+	 * @param cs   Server side communication System
+	 * @param conf Total order messaging configuration
 	 */
-	private void initTOMLayer() {
+	private static ReplicaContext initTOMLayer(int currentProcessId, String realName, ServiceReplica replica, ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc, int lastCid, RequestVerifier verifier) {
 
-		LOGGER.info("I am proc {}, init Tomlayer, tomStackCreated = {}", this.SVController.getStaticConf().getProcessId(), tomStackCreated);
-		if (tomStackCreated) { // if this object was already initialized, don't do it again
-			return;
-		}
-		if (!SVController.isInCurrentView()) {
-			LOGGER.error("I am proc {}, init Tomlayer, I am not in current view!");
-			throw new RuntimeException("I'm not an acceptor!");
+		LOGGER.info("I am proc {}, init Tomlayer.", svc.getStaticConf().getProcessId());
+		if (!svc.isInCurrentView()) {
+			LOGGER.error(
+					"I am proc {}, init Tomlayer, I am not in the specified view! --[ViewId={}][ViewProcessIds={}]",
+					svc.getCurrentViewId(), Arrays.toString(svc.getCurrentViewProcesses()));
+			throw new RuntimeException("I'm not an acceptor of the specified view!");
 		}
 
 		// Assemble the total order messaging layer
-		MessageFactory messageFactory = new MessageFactory(id);
+		MessageFactory messageFactory = new MessageFactory(currentProcessId);
 
-		acceptor = new Acceptor(cs, messageFactory, SVController);
-		
+		Acceptor acceptor = new Acceptor(cs, messageFactory, svc);
+
 		cs.setAcceptor(acceptor);
 
-		Proposer proposer = new Proposer(cs, messageFactory, SVController);
+		Proposer proposer = new Proposer(cs, messageFactory, svc);
 
-		ExecutionManager executionManager = new ExecutionManager(SVController, acceptor, proposer, id);
+		ExecutionManager executionManager = new ExecutionManager(svc, acceptor, proposer, currentProcessId);
 
 		acceptor.setExecutionManager(executionManager);
 
-		tomLayer = new TOMLayer(executionManager, this, recoverer, acceptor, cs, SVController, verifier);
-
+		TOMLayer tomLayer = new TOMLayer(executionManager, replica, recoverer, acceptor, cs, svc, verifier);
+		tomLayer.setRealName(realName);
 		tomLayer.setLastExec(lastCid);
-
 		tomLayer.getStateManager().setLastCID(lastCid);
 
 		executionManager.setTOMLayer(tomLayer);
 
-		SVController.setTomLayer(tomLayer);
+		svc.setTomLayer(tomLayer);
 
 		cs.setTOMLayer(tomLayer);
 		cs.setRequestReceiver(tomLayer);
 
 		acceptor.setTOMLayer(tomLayer);
 
-		if (SVController.getStaticConf().isShutdownHookEnabled()) {
+		if (svc.getStaticConf().isShutdownHookEnabled()) {
 			Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(tomLayer));
 		}
-		LOGGER.info("I am proc {}, start Tomlayer!", this.SVController.getStaticConf().getProcessId());
+		LOGGER.info("I am proc {}, start Tomlayer!", currentProcessId);
+		
+		//TODO:
 		tomLayer.start(); // start the layer execution
-		tomStackCreated = true;
 
-		replicaCtx = new ReplicaContext(cs, SVController);
+		return new ReplicaContext(tomLayer, svc);
 	}
 
 	/**
@@ -879,10 +828,10 @@ public class ServiceReplica {
 	}
 
 	public TOMLayer getTomLayer() {
-		return tomLayer;
+		return replicaCtx.getTOMLayer();
 	}
 
 	public String getRealName() {
-		return realName;
+		return realmName;
 	}
 }
