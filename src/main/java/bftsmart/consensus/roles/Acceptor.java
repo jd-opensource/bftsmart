@@ -148,7 +148,7 @@ public final class Acceptor {
 //            LOGGER.debug("out of context msg with id " + msg.getNumber());
 			LOGGER.debug("out of context msg with id {}", msg.getNumber());
 			// if without this condition, lastExec maybe inconsistent
-			if (!tomLayer.getStateManager().isRetrievingState()) {
+			if (!tomLayer.getStateManager().isRetrievingState() && tomLayer.isReady()) {
 				tomLayer.processOutOfContext();
 				tomLayer.processOutOfContextWriteAndAccept();
 			}
@@ -238,13 +238,13 @@ public final class Acceptor {
 		LOGGER.debug("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ",
 				controller.getStaticConf().getProcessId(), cid);
 
-		while (doWork && !isReady()) {
-			LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
-			try {
-				Thread.sleep(200);
-			} catch (InterruptedException e) {
-			}
-		}
+//		while (doWork && !isReady()) {
+//			LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
+//			try {
+//				Thread.sleep(200);
+//			} catch (InterruptedException e) {
+//			}
+//		}
 
 		if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
 				&& epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
@@ -254,16 +254,16 @@ public final class Acceptor {
 		}
 	}
 
-	private boolean isReady() {
-		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
-			return false;
-		}
-
-		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
-			return false;
-		}
-		return true;
-	}
+//	private boolean isReady() {
+//		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
+//			return false;
+//		}
+//
+//		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
+//			return false;
+//		}
+//		return true;
+//	}
 
 	/**
 	 * Executes actions related to a proposed value.
