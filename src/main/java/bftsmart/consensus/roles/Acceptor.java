@@ -148,7 +148,7 @@ public final class Acceptor {
 //            LOGGER.debug("out of context msg with id " + msg.getNumber());
 			LOGGER.debug("out of context msg with id {}", msg.getNumber());
 			// if without this condition, lastExec maybe inconsistent
-			if (!tomLayer.getStateManager().isRetrievingState() && tomLayer.isReady()) {
+			if (!tomLayer.getStateManager().isRetrievingState()) {
 				tomLayer.processOutOfContext();
 				tomLayer.processOutOfContextWriteAndAccept();
 			}
@@ -178,7 +178,12 @@ public final class Acceptor {
 			// 本过程就是让没有参与到领导者切换过程的节点
 			if (consensus.getPrecomputed() && !consensus.getPrecomputeCommited()) {
 				Epoch epoch = consensus.getEpoch(latestEpoch, controller);
-				getDefaultExecutor().preComputeRollback(consensus.getId(), epoch.getBatchId());
+				consensus.lock.lock();
+				try {
+					getDefaultExecutor().preComputeRollback(consensus.getId(), epoch.getBatchId());
+				} finally {
+					consensus.lock.unlock();
+				}
 			}
 			return false;
 		}
@@ -194,11 +199,8 @@ public final class Acceptor {
 	 */
 	public final void processMessage(ConsensusMessage msg) {
 		Consensus consensus = executionManager.getConsensus(msg.getNumber());
-		consensus.lock.lock();
-
 		// 检查消息的epoch
 		if (!checkSucc(consensus, msg.getEpoch())) {
-			consensus.lock.unlock();
 			return;
 		}
 
@@ -207,21 +209,41 @@ public final class Acceptor {
 
 		switch (msg.getType()) {
 		case MessageFactory.PROPOSE: {
-			proposeReceived(poch, msg);
-//			consensusMessageQueue.offer(msg);
+			while (doWork && !isReady()) {
+				LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+				}
+			}
+
+			consensus.lock.lock();
+			try {
+				proposeReceived(poch, msg);
+			} finally {
+				consensus.lock.unlock();
+			}
 		}
 			break;
 		case MessageFactory.WRITE: {
-			writeReceived(poch, msg.getSender(), msg.getValue());
+			consensus.lock.lock();
+			try {
+				writeReceived(poch, msg.getSender(), msg.getValue());
+			} finally {
+				consensus.lock.unlock();
+			}
 		}
 			break;
 		case MessageFactory.ACCEPT: {
-			acceptReceived(poch, msg);
+			consensus.lock.lock();
+			try {
+				acceptReceived(poch, msg);
+			} finally {
+				consensus.lock.unlock();
+			}
 		}
-		}
-		consensus.lock.unlock();
+		}// End of : switch (msg.getType());
 	}
-
 
 	/**
 	 * Called when a PROPOSE message is received or when processing a formerly out
@@ -238,14 +260,6 @@ public final class Acceptor {
 		LOGGER.debug("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ",
 				controller.getStaticConf().getProcessId(), cid);
 
-//		while (doWork && !isReady()) {
-//			LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
-//			try {
-//				Thread.sleep(200);
-//			} catch (InterruptedException e) {
-//			}
-//		}
-
 		if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
 				&& epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
 			executePropose(epoch, msg.getValue());
@@ -254,16 +268,16 @@ public final class Acceptor {
 		}
 	}
 
-//	private boolean isReady() {
-//		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
-//			return false;
-//		}
-//
-//		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
-//			return false;
-//		}
-//		return true;
-//	}
+	private boolean isReady() {
+		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
+			return false;
+		}
+
+		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
+			return false;
+		}
+		return true;
+	}
 
 	/**
 	 * Executes actions related to a proposed value.

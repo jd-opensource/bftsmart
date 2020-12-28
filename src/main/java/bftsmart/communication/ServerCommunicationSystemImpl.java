@@ -30,6 +30,7 @@ import bftsmart.communication.client.CommunicationSystemServerSideFactory;
 import bftsmart.communication.client.RequestReceiver;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
+import bftsmart.communication.queue.MessageQueue.MSG_TYPE;
 import bftsmart.communication.server.ServersCommunicationLayer;
 import bftsmart.communication.server.ServersCommunicationLayerImpl;
 import bftsmart.consensus.roles.Acceptor;
@@ -58,7 +59,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	private ServersCommunicationLayer serversConn;
 	private volatile CommunicationSystemServerSide clientsConn;
 	private ServerViewController controller;
-	private final List<MessageHandlerRunner> messageHandlerRunners = new ArrayList<>();
+	private final List<MessageHandlerBase> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
 
 	/**
@@ -75,7 +76,22 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		// 创建消息处理器
 		// 遍历枚举类
 		for (MessageQueue.MSG_TYPE msgType : MessageQueue.MSG_TYPE.values()) {
-			this.messageHandlerRunners.add(new MessageHandlerRunner(msgType, messageInQueue, messageHandler));
+			MessageHandlerBase handler;
+			switch (msgType) {
+			case CONSENSUS:
+				handler = new ConsensusMessageHandler(messageInQueue, messageHandler);
+				break;
+			case HEART:
+				handler = new HeartbeatMessageHandler(messageInQueue, messageHandler);
+				break;
+			case LC:
+				handler = new LCMessageHandler(messageInQueue, messageHandler);
+				break;
+
+			default:
+				throw new IllegalStateException("Unsupport Message Type[" + msgType + "]!");
+			}
+			this.messageHandlerRunners.add(handler);
 		}
 
 //        inQueue = new LinkedBlockingQueue<SystemMessage>(controller.getStaticConf().getInQueueSize());
@@ -111,8 +127,14 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	}
 
 	// ******* EDUARDO END **************//
+	@Override
 	public void setAcceptor(Acceptor acceptor) {
 		messageHandler.setAcceptor(acceptor);
+	}
+
+	@Override
+	public Acceptor getAcceptor() {
+		return messageHandler.getAcceptor();
 	}
 
 	public void setTOMLayer(TOMLayer tomLayer) {
@@ -141,8 +163,8 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 		if (doWork) {
 			// 启动对应的消息队列处理器
-			for (MessageHandlerRunner runner : messageHandlerRunners) {
-				Thread thrd = new Thread(runner, "MsgHandler-" + runner.msgType.name());
+			for (MessageHandlerBase runner : messageHandlerRunners) {
+				Thread thrd = new Thread(runner, "MsgHandler-" + runner.MSG_TYPE.name());
 				thrd.setDaemon(true);
 				thrd.start();
 			}
@@ -260,56 +282,118 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			LOGGER.warn("Server Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
 					+ e.getMessage(), e);
 		}
+		try {
+			messageHandler.getAcceptor().shutdown();
+		} catch (Exception e) {
+			LOGGER.warn(
+					"Acceptor shutdown error of node[" + controller.getCurrentProcessId() + "]! --" + e.getMessage(),
+					e);
+		}
 	}
 
 	/**
 	 * 消息处理线程
 	 */
-	private class MessageHandlerRunner implements Runnable {
+	private abstract class MessageHandlerBase implements Runnable {
 
 		/**
 		 * 当前线程可处理的消息类型
 		 */
-		MessageQueue.MSG_TYPE msgType;
+		private final MessageQueue.MSG_TYPE MSG_TYPE;
 
 		/**
 		 * 消息队列
 		 */
-		MessageQueue messageQueue;
+		private MessageQueue messageQueue;
 
-		MessageHandler messageHandler;
-
-		public MessageHandlerRunner(MessageQueue.MSG_TYPE msgType, MessageQueue messageQueue,
-				MessageHandler messageHandler) {
-			this.msgType = msgType;
+		public MessageHandlerBase(MessageQueue.MSG_TYPE msgType, MessageQueue messageQueue) {
+			this.MSG_TYPE = msgType;
 			this.messageQueue = messageQueue;
-			this.messageHandler = messageHandler;
 		}
+
+		protected abstract void processMessage(SystemMessage sm);
 
 		@Override
 		public void run() {
 			while (doWork) {
 				SystemMessage sm = null;
 				try {
-					sm = messageQueue.poll(msgType, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
-
-					if (sm != null) {
-						messageHandler.processData(sm);
-					} else {
-						messageHandler.verifyPending();
-					}
+					sm = messageQueue.poll(MSG_TYPE, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
+					processMessage(sm);
 				} catch (Throwable e) {
 					if (sm == null) {
 						String errMsg = String
-								.format("Error occurred while handling a null message! -- [HandlerType=%s]", msgType);
+								.format("Error occurred while handling a null message! -- [HandlerType=%s]", MSG_TYPE);
 						LOGGER.error(errMsg, e);
 					} else {
 						String errMsg = String.format(
 								"Error occurred while handling message! -- %s [HandlerType=%s][MessageType=%s][MessageFrom=%s]",
-								e.getMessage(), msgType, sm.getClass().getName(), sm.getSender());
+								e.getMessage(), MSG_TYPE, sm.getClass().getName(), sm.getSender());
 						LOGGER.error(errMsg, e);
 					}
 				}
+			}
+		}
+	}
+
+	/**
+	 * 消息处理线程
+	 */
+	private class ConsensusMessageHandler extends MessageHandlerBase {
+
+		private MessageHandler messageHandler;
+
+		public ConsensusMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
+			super(MessageQueue.MSG_TYPE.CONSENSUS, messageQueue);
+			this.messageHandler = messageHandler;
+		}
+
+		@Override
+		protected void processMessage(SystemMessage sm) {
+			if (sm != null) {
+				messageHandler.processData(sm);
+			} else {
+				messageHandler.verifyPending();
+			}
+		}
+	}
+
+	/**
+	 * 消息处理线程
+	 */
+	private class HeartbeatMessageHandler extends MessageHandlerBase {
+
+		private MessageHandler messageHandler;
+
+		public HeartbeatMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
+			super(MessageQueue.MSG_TYPE.HEART, messageQueue);
+			this.messageHandler = messageHandler;
+		}
+
+		@Override
+		protected void processMessage(SystemMessage sm) {
+			if (sm != null) {
+				messageHandler.processData(sm);
+			}
+		}
+	}
+
+	/**
+	 * 消息处理线程
+	 */
+	private class LCMessageHandler extends MessageHandlerBase {
+
+		private MessageHandler messageHandler;
+
+		public LCMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
+			super(MessageQueue.MSG_TYPE.LC, messageQueue);
+			this.messageHandler = messageHandler;
+		}
+
+		@Override
+		protected void processMessage(SystemMessage sm) {
+			if (sm != null) {
+				messageHandler.processData(sm);
 			}
 		}
 	}

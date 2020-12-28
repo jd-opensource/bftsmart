@@ -5,6 +5,8 @@ import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
 import bftsmart.tom.leaderchange.LeaderRequestMessage;
 import bftsmart.tom.leaderchange.LeaderResponseMessage;
+import bftsmart.tom.leaderchange.LeaderStatusRequestMessage;
+import bftsmart.tom.leaderchange.LeaderStatusResponseMessage;
 
 public class MessageQueueFactory {
 
@@ -52,7 +54,11 @@ public class MessageQueueFactory {
     public static MessageQueue.MSG_TYPE msgType(SystemMessage sm) {
         if (sm instanceof ConsensusMessage) {
             return MessageQueue.MSG_TYPE.CONSENSUS;
-        } else if (sm instanceof HeartBeatMessage || sm instanceof LeaderRequestMessage || sm instanceof LeaderResponseMessage) {
+        } else if (sm instanceof HeartBeatMessage 
+        		|| sm instanceof LeaderRequestMessage 
+        		|| sm instanceof LeaderResponseMessage
+        		|| sm instanceof LeaderStatusRequestMessage
+        		|| sm instanceof LeaderStatusResponseMessage) {
             return MessageQueue.MSG_TYPE.HEART;
         } else {
             return MessageQueue.MSG_TYPE.LC;
