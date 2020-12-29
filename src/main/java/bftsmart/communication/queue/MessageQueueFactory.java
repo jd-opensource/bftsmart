@@ -17,7 +17,7 @@ public class MessageQueueFactory {
      *         消息队列类型
      * @return
      */
-    public static MessageQueue newMessageQueue(MessageQueue.QUEUE_TYPE type) {
+    public static MessageQueue newMessageQueue(MessageQueue.QueueDirection type) {
         return newMessageQueue(type, Integer.MAX_VALUE);
     }
 
@@ -31,37 +31,15 @@ public class MessageQueueFactory {
      *         队列容量
      * @return
      */
-    public static MessageQueue newMessageQueue(MessageQueue.QUEUE_TYPE type, int capacity) {
+    public static MessageQueue newMessageQueue(MessageQueue.QueueDirection type, int capacity) {
         /**
          * 暂时只支持接收Socket消息队列
          */
-        if (type == MessageQueue.QUEUE_TYPE.IN) {
+        if (type == MessageQueue.QueueDirection.IN) {
             return new MessageInQueue(capacity);
         } else {
             throw new IllegalArgumentException("Factory can create in queue only !!!");
         }
     }
-
-
-    /**
-     * 返回消息类型枚举
-     *
-     * @param sm
-     *         消息
-     * @return
-     *         枚举类型
-     */
-    public static MessageQueue.MSG_TYPE msgType(SystemMessage sm) {
-        if (sm instanceof ConsensusMessage) {
-            return MessageQueue.MSG_TYPE.CONSENSUS;
-        } else if (sm instanceof HeartBeatMessage 
-        		|| sm instanceof LeaderRequestMessage 
-        		|| sm instanceof LeaderResponseMessage
-        		|| sm instanceof LeaderStatusRequestMessage
-        		|| sm instanceof LeaderStatusResponseMessage) {
-            return MessageQueue.MSG_TYPE.HEART;
-        } else {
-            return MessageQueue.MSG_TYPE.LC;
-        }
-    }
+    
 }

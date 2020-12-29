@@ -20,35 +20,35 @@ public class MessageInQueue implements MessageQueue {
     }
 
     @Override
-    public boolean offer(MSG_TYPE type, SystemMessage sm) {
-        if (type == MSG_TYPE.CONSENSUS) {
+    public boolean offer(SystemMessageType type, SystemMessage sm) {
+        if (type == SystemMessageType.CONSENSUS) {
             return consMsgQueue.offer(sm);
-        } else if (type == MSG_TYPE.HEART) {
+        } else if (type == SystemMessageType.HEART) {
             return heartMsgQueue.offer(sm);
-        } else if (type == MSG_TYPE.LC) {
+        } else if (type == SystemMessageType.LC) {
             return lcMsgQueue.offer(sm);
         }
         return false;
     }
 
     @Override
-    public void put(MSG_TYPE type, SystemMessage sm) throws InterruptedException {
-        if (type == MSG_TYPE.CONSENSUS) {
+    public void put(SystemMessageType type, SystemMessage sm) throws InterruptedException {
+        if (type == SystemMessageType.CONSENSUS) {
             consMsgQueue.put(sm);
-        } else if (type == MSG_TYPE.HEART) {
+        } else if (type == SystemMessageType.HEART) {
             heartMsgQueue.put(sm);
-        } else if (type == MSG_TYPE.LC) {
+        } else if (type == SystemMessageType.LC) {
             lcMsgQueue.put(sm);
         }
     }
 
     @Override
-    public SystemMessage poll(MSG_TYPE type, long timeout, TimeUnit unit) throws InterruptedException {
-        if (type == MSG_TYPE.CONSENSUS) {
+    public SystemMessage poll(SystemMessageType type, long timeout, TimeUnit unit) throws InterruptedException {
+        if (type == SystemMessageType.CONSENSUS) {
             return consMsgQueue.poll(timeout, unit);
-        } else if (type == MSG_TYPE.HEART) {
+        } else if (type == SystemMessageType.HEART) {
             return heartMsgQueue.poll(timeout, unit);
-        } else if (type == MSG_TYPE.LC) {
+        } else if (type == SystemMessageType.LC) {
             return lcMsgQueue.poll(timeout, unit);
         }
         return null;

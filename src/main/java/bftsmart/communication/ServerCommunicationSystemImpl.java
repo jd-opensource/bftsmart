@@ -30,7 +30,7 @@ import bftsmart.communication.client.CommunicationSystemServerSideFactory;
 import bftsmart.communication.client.RequestReceiver;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
-import bftsmart.communication.queue.MessageQueue.MSG_TYPE;
+import bftsmart.communication.queue.MessageQueue.SystemMessageType;
 import bftsmart.communication.server.ServersCommunicationLayer;
 import bftsmart.communication.server.ServersCommunicationLayerImpl;
 import bftsmart.consensus.roles.Acceptor;
@@ -71,11 +71,11 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		this.controller = controller;
 
 		// 创建消息队列
-		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QUEUE_TYPE.IN,
+		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
 				controller.getStaticConf().getInQueueSize());
 		// 创建消息处理器
 		// 遍历枚举类
-		for (MessageQueue.MSG_TYPE msgType : MessageQueue.MSG_TYPE.values()) {
+		for (MessageQueue.SystemMessageType msgType : MessageQueue.SystemMessageType.values()) {
 			MessageHandlerBase handler;
 			switch (msgType) {
 			case CONSENSUS:
@@ -299,14 +299,14 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		/**
 		 * 当前线程可处理的消息类型
 		 */
-		private final MessageQueue.MSG_TYPE MSG_TYPE;
+		private final MessageQueue.SystemMessageType MSG_TYPE;
 
 		/**
 		 * 消息队列
 		 */
 		private MessageQueue messageQueue;
 
-		public MessageHandlerBase(MessageQueue.MSG_TYPE msgType, MessageQueue messageQueue) {
+		public MessageHandlerBase(MessageQueue.SystemMessageType msgType, MessageQueue messageQueue) {
 			this.MSG_TYPE = msgType;
 			this.messageQueue = messageQueue;
 		}
@@ -344,7 +344,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		private MessageHandler messageHandler;
 
 		public ConsensusMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
-			super(MessageQueue.MSG_TYPE.CONSENSUS, messageQueue);
+			super(MessageQueue.SystemMessageType.CONSENSUS, messageQueue);
 			this.messageHandler = messageHandler;
 		}
 
@@ -366,7 +366,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		private MessageHandler messageHandler;
 
 		public HeartbeatMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
-			super(MessageQueue.MSG_TYPE.HEART, messageQueue);
+			super(MessageQueue.SystemMessageType.HEART, messageQueue);
 			this.messageHandler = messageHandler;
 		}
 
@@ -386,7 +386,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		private MessageHandler messageHandler;
 
 		public LCMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
-			super(MessageQueue.MSG_TYPE.LC, messageQueue);
+			super(MessageQueue.SystemMessageType.LC, messageQueue);
 			this.messageHandler = messageHandler;
 		}
 

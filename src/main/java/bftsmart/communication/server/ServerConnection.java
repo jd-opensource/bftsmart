@@ -717,7 +717,7 @@ public class ServerConnection {
 
 							if (sm.getSender() == remoteId) {
 
-								MessageQueue.MSG_TYPE msgType = MessageQueueFactory.msgType(sm);
+								MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
 
 								if (!messageInQueue.offer(msgType, sm)) {
 									LOGGER.error("(ReceiverThread.run) in queue full (message from {} discarded).",

@@ -193,7 +193,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			try {
 				if (pid == me) {
 					sm.authenticated = true;
-					MessageQueue.MSG_TYPE msgType = MessageQueueFactory.msgType(sm);
+					MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
 					messageInQueue.put(msgType, sm);
 				} else {
 					// System.out.println("Going to send message to: "+i);
