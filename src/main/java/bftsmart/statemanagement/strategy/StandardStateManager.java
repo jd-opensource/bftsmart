@@ -321,7 +321,7 @@ public class StandardStateManager extends BaseStateManager {
 //                            execManager.restart();
 //                        }
                         
-                        tomLayer.processOutOfContext();
+//                        tomLayer.processOutOfContext();
                         
                         if (SVController.getCurrentViewId() <= currentView.getId()) {
                             LOGGER.info("Installing current view!");
@@ -333,7 +333,9 @@ public class StandardStateManager extends BaseStateManager {
 						isInitializing = false;
 
                         // trigger out of context propose msg process
-                        tomLayer.processOutOfContext();
+                        if (!tomLayer.getStateManager().isRetrievingState() && tomLayer.isReady()) {
+                            tomLayer.processOutOfContext();
+                        }
 						
                         dt.canDeliver();
                         dt.deliverUnlock();

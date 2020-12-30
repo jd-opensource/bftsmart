@@ -645,6 +645,10 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		}
 	}
 
+	public boolean isReady() {
+		return !stateManager.isRetrievingState() && heartBeatTimer.isActived();
+	}
+
 	public boolean isRetrievingState() {
 		// lockTimer.lock();
 		boolean result = stateManager != null && stateManager.isRetrievingState();

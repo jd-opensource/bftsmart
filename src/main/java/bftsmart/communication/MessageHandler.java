@@ -200,7 +200,7 @@ public class MessageHandler {
 	}
 
 	protected void verifyPending() {
-		if (!tomLayer.getStateManager().isRetrievingState()) {
+		if (!tomLayer.getStateManager().isRetrievingState() && tomLayer.isReady()) {
 			tomLayer.processOutOfContext();
 			tomLayer.processOutOfContextWriteAndAccept();
 		}
