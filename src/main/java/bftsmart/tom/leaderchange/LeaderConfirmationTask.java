@@ -201,10 +201,10 @@ public class LeaderConfirmationTask {
 			// 2. 已存在的节点回复的数量比法定数量少 1 个;
 			// 如果新的领导者属于已存在的节点或者当前节点，则加入当前节点；
 			int newLeader = electionResult.getRegency().getLeaderId();
-			// 此处不需要判断领导者，Proposer发送者认为的领导者不一定在所有Prooposer发送者中间，有可能领导者此时处于宕机状态
-//			if (electionResult.containsProposer(newLeader)) {
+			// Proposer发送者认为的领导者不一定在所有Prooposer发送者中间，有可能领导者此时处于宕机状态
+			if (electionResult.containsProposer(newLeader)) {
 				newRegency = electionResult.getRegency();
-//			}
+			}
 		}
 
 		if (newRegency != null) {

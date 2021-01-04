@@ -646,7 +646,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	}
 
 	public boolean isReady() {
-		return !stateManager.isRetrievingState() && heartBeatTimer.isActived();
+		return (!stateManager.isRetrievingState()) && (heartBeatTimer.isActived());
 	}
 
 	public boolean isRetrievingState() {
@@ -668,6 +668,11 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	}
 
 	public void processOutOfContext() {
+		// 状态传输以及LC未完成，不进行超预期消息的处理
+		if (!this.isReady()) {
+			return;
+		}
+
 		for (int nextConsensus = getLastExec() + 1; execManager
 				.receivedOutOfContextPropose(nextConsensus); nextConsensus = getLastExec() + 1) {
 			execManager.processOutOfContextPropose(execManager.getConsensus(nextConsensus));
@@ -675,6 +680,11 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	}
 
 	public void processOutOfContextWriteAndAccept() {
+		// 状态传输以及LC未完成，不进行超预期消息的处理
+		if (!this.isReady()) {
+			return;
+		}
+
 		for (int nextConsensus = getLastExec() + 1; execManager.receivedOutOfContextWriteAndAccept(nextConsensus);) {
 			execManager.processOutOfContextWriteAndAccept(execManager.getConsensus(nextConsensus));
 		}

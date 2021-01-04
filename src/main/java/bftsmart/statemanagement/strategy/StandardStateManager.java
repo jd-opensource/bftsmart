@@ -333,10 +333,8 @@ public class StandardStateManager extends BaseStateManager {
 						isInitializing = false;
 
                         // trigger out of context propose msg process
-                        if (!tomLayer.getStateManager().isRetrievingState() && tomLayer.isReady()) {
-                            tomLayer.processOutOfContext();
-                        }
-						
+                        tomLayer.processOutOfContext();
+
                         dt.canDeliver();
                         dt.deliverUnlock();
 
