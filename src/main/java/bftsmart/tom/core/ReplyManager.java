@@ -70,7 +70,7 @@ class ReplyThread extends Thread {
 
                     continue; //go back to the start of the loop
                 }
-                cs.getClientsConn().send(new int[] {msg.getSender()}, msg.reply, false);
+                cs.getClientCommunication().send(new int[] {msg.getSender()}, msg.reply, false);
             } catch (InterruptedException ex) {
                 ex.printStackTrace();
             }

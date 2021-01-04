@@ -26,17 +26,12 @@ import com.jd.blockchain.utils.concurrent.AsyncFuture;
 import com.jd.blockchain.utils.concurrent.CompletableAsyncFuture;
 
 import bftsmart.communication.client.CommunicationSystemServerSide;
-import bftsmart.communication.client.CommunicationSystemServerSideFactory;
-import bftsmart.communication.client.RequestReceiver;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
-import bftsmart.communication.queue.MessageQueue.SystemMessageType;
 import bftsmart.communication.server.ServersCommunicationLayer;
 import bftsmart.communication.server.ServersCommunicationLayerImpl;
-import bftsmart.consensus.roles.Acceptor;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.ViewMessage;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
@@ -55,9 +50,9 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	public static final long MESSAGE_WAIT_TIME = 100;
 	private LinkedBlockingQueue<SystemMessage> inQueue = null;// new LinkedBlockingQueue<SystemMessage>(IN_QUEUE_SIZE);
 	private MessageQueue messageInQueue;
-	private MessageHandler messageHandler = new MessageHandler();
+	private MessageHandler messageHandler ;//= new MessageHandler();
 	private ServersCommunicationLayer serversConn;
-	private volatile CommunicationSystemServerSide clientsConn;
+	private final CommunicationSystemServerSide clientCommunication;
 	private ServerViewController controller;
 	private final List<MessageHandlerBase> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
@@ -65,9 +60,9 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	/**
 	 * Creates a new instance of ServerCommunicationSystem
 	 */
-	public ServerCommunicationSystemImpl(ServerViewController controller, ServiceReplica replica) throws Exception {
-//		super("Server CS");
-
+	public ServerCommunicationSystemImpl(CommunicationSystemServerSide clientCommunication, MessageHandler messageHandler, ServerViewController controller, ServiceReplica replica) throws Exception {
+		this.clientCommunication = clientCommunication;
+		this.messageHandler = messageHandler;
 		this.controller = controller;
 
 		// 创建消息队列
@@ -96,21 +91,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 //        inQueue = new LinkedBlockingQueue<SystemMessage>(controller.getStaticConf().getInQueueSize());
 
-		// create a new conf, with updated port number for servers
-		// TOMConfiguration serversConf = new TOMConfiguration(conf.getProcessId(),
-		// Configuration.getHomeDir(), "hosts.config");
-
-		// serversConf.increasePortNumber();
-
 		serversConn = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
-
-		// ******* EDUARDO BEGIN **************//
-		// if (manager.isInCurrentView() || manager.isInInitView()) {
-		clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-		// }
-		// ******* EDUARDO END **************//
-		// start();
-
 	}
 
 	// ******* EDUARDO BEGIN **************//
@@ -120,33 +101,33 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 	public synchronized void updateServersConnections() {
 		this.serversConn.updateConnections();
-		if (clientsConn == null) {
-			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-		}
+//		if (clientsConn == null) {
+//			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
+//		}
 
 	}
 
 	// ******* EDUARDO END **************//
-	@Override
-	public void setAcceptor(Acceptor acceptor) {
-		messageHandler.setAcceptor(acceptor);
-	}
+//	@Override
+//	public void setAcceptor(Acceptor acceptor) {
+//		messageHandler.setAcceptor(acceptor);
+//	}
+//
+//	@Override
+//	public Acceptor getAcceptor() {
+//		return messageHandler.getAcceptor();
+//	}
+//
+//	public void setTOMLayer(TOMLayer tomLayer) {
+//		messageHandler.setTOMLayer(tomLayer);
+//	}
 
-	@Override
-	public Acceptor getAcceptor() {
-		return messageHandler.getAcceptor();
-	}
-
-	public void setTOMLayer(TOMLayer tomLayer) {
-		messageHandler.setTOMLayer(tomLayer);
-	}
-
-	public synchronized void setRequestReceiver(RequestReceiver requestReceiver) {
-		if (clientsConn == null) {
-			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-		}
-		clientsConn.setRequestReceiver(requestReceiver);
-	}
+//	public synchronized void setRequestReceiver(RequestReceiver requestReceiver) {
+//		if (clientsConn == null) {
+//			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
+//		}
+//		clientsConn.setRequestReceiver(requestReceiver);
+//	}
 
 	public void setMessageHandler(MessageHandler messageHandler) {
 		this.messageHandler = messageHandler;
@@ -161,14 +142,17 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	 */
 	private void startMessageHandle() {
 
-		if (doWork) {
-			// 启动对应的消息队列处理器
-			for (MessageHandlerBase runner : messageHandlerRunners) {
-				Thread thrd = new Thread(runner, "MsgHandler-" + runner.MSG_TYPE.name());
-				thrd.setDaemon(true);
-				thrd.start();
-			}
+		if (!doWork) {
+			return;
 		}
+		// 启动对应的消息队列处理器
+		for (MessageHandlerBase runner : messageHandlerRunners) {
+			Thread thrd = new Thread(runner, "MsgHandler-" + runner.MSG_TYPE.name());
+			thrd.setDaemon(true);
+			thrd.start();
+		}
+		
+		messageHandler.getAcceptor().start();
 
 //        long count = 0;
 //        while (doWork) {
@@ -218,7 +202,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	 */
 	public void send(int[] targets, SystemMessage sm) {
 		if (sm instanceof TOMMessage) {
-			clientsConn.send(targets, (TOMMessage) sm, false);
+			clientCommunication.send(targets, (TOMMessage) sm, false);
 		} else if (sm instanceof HeartBeatMessage) {
 			// 心跳相关请求消息不做重发处理；
 			LOGGER.debug("--------sending heart beat message with no retrying----------> {}", sm);
@@ -253,8 +237,8 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		return serversConn;
 	}
 
-	public CommunicationSystemServerSide getClientsConn() {
-		return clientsConn;
+	public CommunicationSystemServerSide getClientCommunication() {
+		return clientCommunication;
 	}
 
 	@Override
@@ -271,7 +255,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		doWork = false;
 
 		try {
-			clientsConn.shutdown();
+			clientCommunication.shutdown();
 		} catch (Exception e) {
 			LOGGER.warn("Client Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
 					+ e.getMessage(), e);

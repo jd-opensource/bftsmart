@@ -1,23 +1,27 @@
 package test.bftsmart.leaderchange;
 
-import bftsmart.communication.MessageHandler;
-import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.leaderchange.HeartBeatMessage;
-import bftsmart.tom.leaderchange.LCMessage;
-import bftsmart.tom.leaderchange.LeaderResponseMessage;
-import org.apache.commons.io.FileUtils;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 
 import java.io.File;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import org.apache.commons.io.FileUtils;
+import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import bftsmart.communication.MessageHandler;
+import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.communication.ServerCommunicationSystemImpl;
+import bftsmart.tom.ServiceReplica;
+import bftsmart.tom.leaderchange.HeartBeatMessage;
+import bftsmart.tom.leaderchange.LCMessage;
+import bftsmart.tom.leaderchange.LeaderResponseMessage;
 
 /**
  * @Author: zhangshuang
@@ -34,7 +38,7 @@ public class HeartBeatForOtherSizeTest_ {
 
 //    private HeartBeatTimer[] mockHbTimers;
 
-    private ServerCommunicationSystem[] serverCommunicationSystems;
+    private ServerCommunicationSystemImpl[] serverCommunicationSystems;
 
     /**
      * leader超时重启，然后下一个被选中的leader也如此，检查是否可正常
@@ -763,7 +767,7 @@ public class HeartBeatForOtherSizeTest_ {
 
 //        mockHbTimers = new HeartBeatTimer[nodeSize];
 
-        serverCommunicationSystems = new ServerCommunicationSystem[nodeSize];
+        serverCommunicationSystems = new ServerCommunicationSystemImpl[nodeSize];
 
         //start nodeSize node servers
         for (int i = 0; i < nodeSize ; i++) {
@@ -785,7 +789,7 @@ public class HeartBeatForOtherSizeTest_ {
         for (int i = 0; i < nodeSize; i++) {
             serviceReplicas[i] = serverNodes[i].getReplica();
 //            mockHbTimers[i] = serviceReplicas[i].getHeartBeatTimer();
-            serverCommunicationSystems[i] = serviceReplicas[i].getServerCommunicationSystem();
+            serverCommunicationSystems[i] = (ServerCommunicationSystemImpl) serviceReplicas[i].getServerCommunicationSystem();
         }
     }
 

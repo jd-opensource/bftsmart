@@ -26,8 +26,11 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.ServerCommunicationSystemImpl;
+import bftsmart.communication.client.ClientCommunicationFactory;
+import bftsmart.communication.client.CommunicationSystemServerSide;
 import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -96,6 +99,8 @@ public class ServiceReplica {
 	private RequestVerifier verifier = null;
 	private final String realmName;
 	private int lastCid;
+	private CommunicationSystemServerSide clientCommunication;
+	private MessageHandler messageHandler;
 
 //	private Acceptor acceptor;
 
@@ -180,7 +185,8 @@ public class ServiceReplica {
 
 	public ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor, Recoverable recoverer,
 			RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier, -1, "Default-Realm");
+		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier, -1,
+				"Default-Realm");
 	}
 
 //	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid) {
@@ -240,7 +246,6 @@ public class ServiceReplica {
 //		this.replier.setReplicaContext(replicaCtx);
 //	}
 
-
 //	/**
 //	 * Constructor
 //	 *
@@ -291,7 +296,10 @@ public class ServiceReplica {
 	// this method initializes the object
 	private void init() {
 		try {
-			cs = new ServerCommunicationSystemImpl(this.serverViewController, this);
+			messageHandler = new MessageHandler();
+			clientCommunication = ClientCommunicationFactory.createServerSide(serverViewController);
+			cs = new ServerCommunicationSystemImpl(clientCommunication, messageHandler, this.serverViewController,
+					this);
 		} catch (Exception ex) {
 //			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
 			throw new RuntimeException("Unable to build a communication system.", ex);
@@ -300,7 +308,8 @@ public class ServiceReplica {
 		if (this.serverViewController.isInCurrentView()) {
 			LOGGER.info("-- In current view: {}", this.serverViewController.getCurrentView());
 			if (!tomStackCreated) { // if this object was already initialized, don't do it again
-				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier); // initiaze the TOM layer
+				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
+						messageHandler, clientCommunication); // initiaze the TOM layer
 				tomStackCreated = true;
 			}
 		} else {
@@ -327,7 +336,11 @@ public class ServiceReplica {
 			this.serverViewController.processJoinResult(r);
 
 			if (!tomStackCreated) { // if this object was already initialized, don't do it again
-				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier); // initiaze the TOM layer
+				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
+						messageHandler, clientCommunication); // initiaze
+				// the
+				// TOM
+				// layer
 				tomStackCreated = true;
 			}
 			cs.updateServersConnections();
@@ -412,7 +425,6 @@ public class ServiceReplica {
 			cs.send(new int[] { message.getSender() }, message.reply);
 		}
 	}
-	
 
 	public void kill() {
 
@@ -450,7 +462,7 @@ public class ServiceReplica {
 					cs = null;
 
 					init();
-					
+
 					recoverer.setReplicaContext(replicaCtx);
 					replier.setReplicaContext(replicaCtx);
 
@@ -586,10 +598,11 @@ public class ServiceReplica {
 					} else {
 						throw new RuntimeException("Should never reach here!");
 					}
-				} else if (request.getViewID() < serverViewController.getCurrentViewId()) { // message sender had an old view,
-																					// resend the message to
-																					// him (but only if it came from
-																					// consensus an not state transfer)
+				} else if (request.getViewID() < serverViewController.getCurrentViewId()) { // message sender had an old
+																							// view,
+					// resend the message to
+					// him (but only if it came from
+					// consensus an not state transfer)
 					View view = serverViewController.getCurrentView();
 
 					List<NodeNetwork> addressesTemp = new ArrayList<>();
@@ -641,7 +654,8 @@ public class ServiceReplica {
 						this.serverViewController.getStaticConf()
 								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getHost(),
 						this.serverViewController.getStaticConf()
-								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getConsensusPort());
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId())
+								.getConsensusPort());
 
 				LOGGER.debug(
 						"I am proc {} , host = {}, port = {}.--- A consensus instance finished, but there were no commands to deliver to the application.",
@@ -649,13 +663,15 @@ public class ServiceReplica {
 						this.serverViewController.getStaticConf()
 								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getHost(),
 						this.serverViewController.getStaticConf()
-								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getConsensusPort());
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId())
+								.getConsensusPort());
 				LOGGER.debug("I am proc {} , host = {}, port = {}.--- Notifying recoverable about a blank consensus.",
 						this.serverViewController.getStaticConf().getProcessId(),
 						this.serverViewController.getStaticConf()
 								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getHost(),
 						this.serverViewController.getStaticConf()
-								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId()).getConsensusPort());
+								.getRemoteAddress(this.serverViewController.getStaticConf().getProcessId())
+								.getConsensusPort());
 
 				byte[][] batch = null;
 				MessageContext[] msgCtx = null;
@@ -728,8 +744,8 @@ public class ServiceReplica {
 			for (int index = 0; index < toBatch.size(); index++) {
 				TOMMessage request = toBatch.get(index);
 				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-						request.getOperationId(), asyncResponseLinkedList.get(index), serverViewController.getCurrentViewId(),
-						request.getReqType());
+						request.getOperationId(), asyncResponseLinkedList.get(index),
+						serverViewController.getCurrentViewId(), request.getReqType());
 
 				if (serverViewController.getStaticConf().getNumRepliers() > 0) {
 					LOGGER.debug(
@@ -756,7 +772,10 @@ public class ServiceReplica {
 	 * @param cs   Server side communication System
 	 * @param conf Total order messaging configuration
 	 */
-	private static ReplicaContext initTOMLayer(int currentProcessId, String realName, ServiceReplica replica, ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc, int lastCid, RequestVerifier verifier) {
+	private static ReplicaContext initTOMLayer(int currentProcessId, String realName, ServiceReplica replica,
+			ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc, int lastCid,
+			RequestVerifier verifier, MessageHandler messageHandler,
+			CommunicationSystemServerSide clientCommunication) {
 
 		LOGGER.info("I am proc {}, init Tomlayer.", svc.getStaticConf().getProcessId());
 		if (!svc.isInCurrentView()) {
@@ -771,7 +790,8 @@ public class ServiceReplica {
 
 		Acceptor acceptor = new Acceptor(cs, messageFactory, svc);
 
-		cs.setAcceptor(acceptor);
+//		cs.setAcceptor(acceptor);
+		messageHandler.setAcceptor(acceptor);
 
 		Proposer proposer = new Proposer(cs, messageFactory, svc);
 
@@ -788,8 +808,11 @@ public class ServiceReplica {
 
 		svc.setTomLayer(tomLayer);
 
-		cs.setTOMLayer(tomLayer);
-		cs.setRequestReceiver(tomLayer);
+//		cs.setTOMLayer(tomLayer);
+//		cs.setRequestReceiver(tomLayer);
+
+		messageHandler.setTOMLayer(tomLayer);
+		clientCommunication.setRequestReceiver(tomLayer);
 
 		acceptor.setTOMLayer(tomLayer);
 
@@ -797,8 +820,8 @@ public class ServiceReplica {
 			Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(tomLayer));
 		}
 		LOGGER.info("I am proc {}, start Tomlayer!", currentProcessId);
-		
-		//TODO:
+
+		// TODO:
 		tomLayer.start(); // start the layer execution
 
 		return new ReplicaContext(tomLayer, svc);
@@ -815,7 +838,6 @@ public class ServiceReplica {
 	}
 
 	public ServerCommunicationSystem getServerCommunicationSystem() {
-
 		return cs;
 	}
 

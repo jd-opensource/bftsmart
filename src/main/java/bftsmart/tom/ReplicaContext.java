@@ -87,7 +87,8 @@ public class ReplicaContext {
 	}
 
 	public void start() {
-		tomLayer.getCommunication().getAcceptor().start();
+		tomLayer.getCommunication().start();
+//		tomLayer.getCommunication().getAcceptor().start();
 	}
 
 	public TOMLayer getTOMLayer() {

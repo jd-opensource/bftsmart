@@ -18,10 +18,7 @@ package bftsmart.communication;
 import com.jd.blockchain.utils.concurrent.AsyncFuture;
 
 import bftsmart.communication.client.CommunicationSystemServerSide;
-import bftsmart.communication.client.RequestReceiver;
 import bftsmart.communication.server.ServersCommunicationLayer;
-import bftsmart.consensus.roles.Acceptor;
-import bftsmart.tom.core.TOMLayer;
 
 /**
  *
@@ -35,17 +32,17 @@ public interface ServerCommunicationSystem {
 	void updateServersConnections();
 
 	// ******* EDUARDO END **************//
-	void setAcceptor(Acceptor acceptor);
-	
-	Acceptor getAcceptor();
-
-	void setTOMLayer(TOMLayer tomLayer);
-
-	void setRequestReceiver(RequestReceiver requestReceiver);
-
-	void setMessageHandler(MessageHandler messageHandler);
-
-	MessageHandler getMessageHandler();
+//	void setAcceptor(Acceptor acceptor);
+//	
+//	Acceptor getAcceptor();
+//
+//	void setTOMLayer(TOMLayer tomLayer);
+//
+//	void setRequestReceiver(RequestReceiver requestReceiver);
+//
+//	void setMessageHandler(MessageHandler messageHandler);
+//
+//	MessageHandler getMessageHandler();
 
 	/**
 	 * Send a message to target processes. If the message is an instance of
@@ -71,7 +68,7 @@ public interface ServerCommunicationSystem {
 
 	ServersCommunicationLayer getServersConn();
 
-	CommunicationSystemServerSide getClientsConn();
+	CommunicationSystemServerSide getClientCommunication();
 
 	@Override
 	String toString();
