@@ -147,11 +147,9 @@ public final class Acceptor {
 		} else {
 //            LOGGER.debug("out of context msg with id " + msg.getNumber());
 			LOGGER.debug("out of context msg with id {}", msg.getNumber());
-			// if without this condition, lastExec maybe inconsistent
-			if (!tomLayer.getStateManager().isRetrievingState()) {
-				tomLayer.processOutOfContext();
-				tomLayer.processOutOfContextWriteAndAccept();
-			}
+
+			tomLayer.processOutOfContext();
+			tomLayer.processOutOfContextWriteAndAccept();
 		}
 	}
 
@@ -209,7 +207,7 @@ public final class Acceptor {
 
 		switch (msg.getType()) {
 		case MessageFactory.PROPOSE: {
-			while (doWork && !isReady()) {
+			while (doWork && (!tomLayer.isReady())) {
 				LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
 				try {
 					Thread.sleep(200);
@@ -268,16 +266,16 @@ public final class Acceptor {
 		}
 	}
 
-	private boolean isReady() {
-		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
-			return false;
-		}
-
-		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
-			return false;
-		}
-		return true;
-	}
+//	private boolean isReady() {
+//		if (tomLayer == null || tomLayer.getStateManager().isRetrievingState()) {
+//			return false;
+//		}
+//
+//		if (tomLayer == null || (!tomLayer.heartBeatTimer.isActived())) {
+//			return false;
+//		}
+//		return true;
+//	}
 
 	/**
 	 * Executes actions related to a proposed value.

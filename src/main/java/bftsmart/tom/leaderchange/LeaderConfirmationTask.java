@@ -201,6 +201,7 @@ public class LeaderConfirmationTask {
 			// 2. 已存在的节点回复的数量比法定数量少 1 个;
 			// 如果新的领导者属于已存在的节点或者当前节点，则加入当前节点；
 			int newLeader = electionResult.getRegency().getLeaderId();
+			// Proposer发送者认为的领导者不一定在所有Prooposer发送者中间，有可能领导者此时处于宕机状态
 			if (electionResult.containsProposer(newLeader)) {
 				newRegency = electionResult.getRegency();
 			}
@@ -317,9 +318,12 @@ public class LeaderConfirmationTask {
 
 				// 如果已经超时，且尚未完成任务，则终止任务，发起超时；
 				if (isTaskTimeout()) {
-					hearbeatTimer.setLeaderInactived();
-					LeaderRegencyPropose propose = generateRegencyPropose();
-					tomLayer.getRequestsTimer().run_lc_protocol(propose);
+					// 有可能该任务运行的时候，由于收到足够数量的stop而附议，完成一轮领导者切换并启动了定时器，此时不必再次发起lc流程
+					if (!hearbeatTimer.isActived()) {
+						hearbeatTimer.setLeaderInactived();
+						LeaderRegencyPropose propose = generateRegencyPropose();
+						tomLayer.getRequestsTimer().run_lc_protocol(propose);
+					}
 					cancelTask();
 					return;
 				}

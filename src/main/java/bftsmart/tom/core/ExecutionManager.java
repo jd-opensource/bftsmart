@@ -225,6 +225,8 @@ public final class ExecutionManager {
         
         boolean isRetrievingState = tomLayer.isRetrievingState();
 
+        boolean isReady = tomLayer.isReady();
+
         if (isRetrievingState) {
             LOGGER.debug("(ExecutionManager.checkLimits) I'm waiting for a state");
         }
@@ -235,6 +237,7 @@ public final class ExecutionManager {
         // This serves to re-direct the messages to the out of context
         // while a replica is receiving the state of the others and updating itself
         if (isRetrievingState || // Is this replica retrieving a state?
+                !isReady ||
                 (!(lastConsId == -1 && msg.getNumber() >= (lastConsId + revivalHighMark)) && //not a recovered replica
                 (msg.getNumber() > lastConsId && (msg.getNumber() < (lastConsId + paxosHighMark))) && // not an ahead of time message
                 !(stopped && msg.getNumber() >= (lastConsId + timeoutHighMark)))) { // not a timed-out replica which needs to fetch the state
@@ -250,7 +253,7 @@ public final class ExecutionManager {
                 }
                 stoppedMsgsLock.unlock();
             } else {
-                if (isRetrievingState || 
+                if (isRetrievingState || !isReady ||
                         msg.getNumber() > (lastConsId + 1) || 
                         (inExec != -1 && inExec < msg.getNumber()) || 
                         (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus

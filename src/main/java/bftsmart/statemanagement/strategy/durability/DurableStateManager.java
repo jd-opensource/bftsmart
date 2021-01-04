@@ -371,6 +371,7 @@ public class DurableStateManager extends BaseStateManager {
 						}
 
 						LOGGER.info("Processing out of context messages");
+
 						tomLayer.processOutOfContext();
 
 						if (SVController.getCurrentViewId() != currentView.getId()) {
