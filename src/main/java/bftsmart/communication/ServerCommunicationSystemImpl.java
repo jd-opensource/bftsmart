@@ -145,6 +145,9 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		if (!doWork) {
 			return;
 		}
+
+		messageHandler.getAcceptor().start();
+		
 		// 启动对应的消息队列处理器
 		for (MessageHandlerBase runner : messageHandlerRunners) {
 			Thread thrd = new Thread(runner, "MsgHandler-" + runner.MSG_TYPE.name());
@@ -152,7 +155,6 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			thrd.start();
 		}
 		
-		messageHandler.getAcceptor().start();
 
 //        long count = 0;
 //        while (doWork) {
