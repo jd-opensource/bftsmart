@@ -56,16 +56,8 @@ public class MessageHandler {
 
 	private Acceptor acceptor;
 	private TOMLayer tomLayer;
-	// private Cipher cipher;
-	private Mac mac;
 
 	public MessageHandler() {
-		try {
-			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-			this.mac = Mac.getInstance(ServerConnection.MAC_ALGORITHM);
-		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
-			ex.printStackTrace();
-		}
 	}
 
 	public void setAcceptor(Acceptor acceptor) {
@@ -84,9 +76,6 @@ public class MessageHandler {
 
 			ConsensusMessage consMsg = (ConsensusMessage) sm;
 
-//            System.out.printf("(MessageHandler) node %s receive consensus msg from %s , type is = %s, time = %s \r\n",
-//                    tomLayer.controller.getStaticConf().getProcessId(), sm.getSender(), consMsg.getType(), System.currentTimeMillis());
-
 			if (tomLayer.controller.getStaticConf().getUseMACs() == 0 || consMsg.authenticated
 					|| consMsg.getSender() == myId)
 				acceptor.deliver(consMsg);
@@ -104,7 +93,8 @@ public class MessageHandler {
 				try {
 					new ObjectOutputStream(bOut).writeObject(cm);
 				} catch (IOException ex) {
-					ex.printStackTrace();
+					throw new IllegalStateException("Error occurred while serializing ConsensusMessage[" + cm.toString()
+							+ "]! --" + ex.getMessage(), ex);
 				}
 
 				byte[] data = bOut.toByteArray();
@@ -112,19 +102,12 @@ public class MessageHandler {
 				// byte[] hash = tomLayer.computeHash(data);
 
 				byte[] myMAC = null;
-
-				/*
-				 * byte[] k =
-				 * tomLayer.getCommunication().getServersConn().getSecretKey(paxosMsg.getSender(
-				 * )).getEncoded(); SecretKeySpec key = new SecretKeySpec(new
-				 * String(k).substring(0, 8).getBytes(), "DES");
-				 */
-
 				SecretKey key = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
 				try {
-					this.mac.init(key);
-					myMAC = this.mac.doFinal(data);
-				} catch (/* IllegalBlockSizeException | BadPaddingException | */ InvalidKeyException ex) {
+					Mac mac = Mac.getInstance(ServerConnection.MAC_ALGORITHM);
+					mac.init(key);
+					myMAC = mac.doFinal(data);
+				} catch (/* IllegalBlockSizeException | BadPaddingException | */ InvalidKeyException | NoSuchAlgorithmException ex) {
 					LOGGER.error("Error occurred in node[" + tomLayer.getCurrentProcessId()
 							+ "] while initializing the MAC with sender[" + consMsg.getSender() + "]!", ex);
 				}
@@ -176,11 +159,8 @@ public class MessageHandler {
 					/** This is Joao's code, to handle state transfer */
 				} else if (sm instanceof SMMessage) {
 					SMMessage smsg = (SMMessage) sm;
-					LOGGER.info("I am {}, receive SMMessage[{}], type = {} !",
+					LOGGER.debug("I am {}, receive SMMessage[{}], type = {} !",
 							tomLayer.controller.getStaticConf().getProcessId(), smsg.getSender(), smsg.getType());
-					// LOGGER.debug("(MessageHandler.processData) SM_MSG received: type " +
-					// smsg.getType() + ", regency " + smsg.getRegency() + ", (replica " +
-					// smsg.getSender() + ")");
 					switch (smsg.getType()) {
 					case TOMUtil.SM_REQUEST:
 						tomLayer.getStateManager().SMRequestDeliver(smsg, tomLayer.controller.getStaticConf().isBFT());
