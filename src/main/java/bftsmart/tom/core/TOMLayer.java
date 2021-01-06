@@ -16,13 +16,18 @@
  */
 package bftsmart.tom.core;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Signature;
+import java.security.SignatureException;
 import java.security.SignedObject;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.clientsmanagement.ClientsManager;
@@ -60,9 +65,9 @@ import bftsmart.tom.util.BatchReader;
  */
 public class TOMLayer extends Thread implements RequestReceiver {
 
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(TOMLayer.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(TOMLayer.class);
 
-	private boolean doWork = true;
+	private volatile boolean doWork = true;
 	// other components used by the TOMLayer (they are never changed)
 	public ExecutionManager execManager; // Execution manager
 	public Acceptor acceptor; // Acceptor role of the PaW algorithm
@@ -161,8 +166,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
 		try {
 			this.engine = Signature.getInstance("SHA1withRSA");
-		} catch (Exception e) {
-			e.printStackTrace(System.err);
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e.getMessage(), e);
 		}
 
 		this.prk = this.controller.getStaticConf().getRSAPrivateKey();
@@ -215,9 +220,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	public SignedObject sign(Serializable obj) {
 		try {
 			return new SignedObject(obj, prk, engine);
-		} catch (Exception e) {
-			e.printStackTrace(System.err);
-			return null;
+		} catch (InvalidKeyException | SignatureException | IOException e) {
+			throw new IllegalStateException(e.getMessage(), e);
 		}
 	}
 
@@ -231,8 +235,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	public boolean verifySignature(SignedObject so, int sender) {
 		try {
 			return so.verify(controller.getStaticConf().getRSAPublicKey(sender), engine);
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (InvalidKeyException | SignatureException e) {
+			LOGGER.warn("Invalid key or signature! --" + e.getMessage(), e);
 		}
 		return false;
 	}
@@ -346,20 +350,17 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	/**
 	 * 注释掉无调用的逻辑；2020-12-28 by huanghaiquan;
 	 * 
-	private void reply(TOMMessage message) {
-		if (controller.getStaticConf().getNumRepliers() > 0) {
-			LOGGER.debug(
-					"(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {} via ReplyManager",
-					message.getSender(), message.getSequence(), message.getOperationId());
-			receiver.getRepMan().send(message);
-		} else {
-			LOGGER.debug(
-					"(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}",
-					message.getSender(), message.getSequence(), message.getOperationId());
-			receiver.getReplier().manageReply(message, null);
-		}
-	}
-	*/
+	 * private void reply(TOMMessage message) { if
+	 * (controller.getStaticConf().getNumRepliers() > 0) { LOGGER.debug(
+	 * "(ServiceReplica.receiveMessages) sending reply to {} with sequence number {}
+	 * and operation ID {} via ReplyManager", message.getSender(),
+	 * message.getSequence(), message.getOperationId());
+	 * receiver.getRepMan().send(message); } else { LOGGER.debug(
+	 * "(ServiceReplica.receiveMessages) sending reply to {} with sequence number {}
+	 * and operation ID {}", message.getSender(), message.getSequence(),
+	 * message.getOperationId()); receiver.getReplier().manageReply(message, null);
+	 * } }
+	 */
 
 	/**
 	 * Creates a value to be proposed to the acceptors. Invoked if this replica is
@@ -446,7 +447,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	public void run() {
 
 		try {
-			LOGGER.debug("Running."); // TODO: can't this be outside of the loop?
+			LOGGER.debug("TomLayer start running."); // TODO: can't this be outside of the loop?
 			this.heartBeatTimer.start();
 			this.viewSyncTimer.start();
 			while (doWork) {
@@ -514,8 +515,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		LOGGER.info("(TOMLayer.run) I am proc {}, I can try to propose.",
 				this.controller.getStaticConf().getProcessId());
 
-		if ((execManager.getCurrentLeader() == this.controller.getStaticConf().getProcessId()) && // I'm the
-																									// leader
+		if ((execManager.getCurrentLeader() == controller.getCurrentProcessId()) && // I'm the leader
 				(clientsManager.havePendingRequests()) && // there are messages to be ordered
 				(getInExec() == -1)) { // there is no consensus in execution
 
@@ -527,7 +527,6 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
 			// Bypass protocol if service is not replicated
 			if (controller.getCurrentViewN() == 1) {
-
 				LOGGER.debug("(TOMLayer.run) Only one replica, bypassing consensus.");
 
 				byte[] value = createPropose(dec);
@@ -543,21 +542,17 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
 				// System.out.println("ESTOU AQUI!");
 				dt.delivery(dec);
-				return;
-
-			}
-			{
-//                    execManager.getProposer().startConsensus(execId,
-//                            createPropose(dec));
-
+			} else {
 				byte[] value = createPropose(dec);
 
 				Consensus consensus = execManager.getConsensus(dec.getConsensusId());
+				// create epoch;
 				Epoch epoch = consensus.getEpoch(0, controller);
 //                    epoch.propValue = value;
 //                    epoch.propValueHash = computeHash(value);
-//                   LOGGER.debug("I am proc " + controller.getStaticConf().getProcessId() + " I will propose , consensus msg id is  " +execId);
-				execManager.getProposer().startConsensus(execId, value);
+				LOGGER.debug("Propose new consensus by leader! --[Leader={}][ConsensusId={}]",
+						controller.getCurrentProcessId(), consensus.getId());
+				execManager.getProposer().startConsensus(consensus.getId(), value);
 			}
 
 			try {
