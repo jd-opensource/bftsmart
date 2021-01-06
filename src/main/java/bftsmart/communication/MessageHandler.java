@@ -112,7 +112,7 @@ public class MessageHandler {
 				 * String(k).substring(0, 8).getBytes(), "DES");
 				 */
 
-				SecretKey key = tomLayer.getCommunication().getServersConn().getSecretKey(consMsg.getSender());
+				SecretKey key = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
 				try {
 					this.mac.init(key);
 					myMAC = this.mac.doFinal(data);

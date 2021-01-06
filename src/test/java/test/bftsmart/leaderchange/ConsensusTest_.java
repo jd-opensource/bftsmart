@@ -718,7 +718,7 @@ public class ConsensusTest_ {
 
 		serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
 
-		ServersCommunicationLayer serversCommunicationLayer = spy(serverCommunicationSystems[index].getServersConn());
+		ServersCommunicationLayer serversCommunicationLayer = spy(serverCommunicationSystems[index].getServersCommunication());
 
 		doAnswer(new Answer() {
 			@Override
@@ -745,7 +745,7 @@ public class ConsensusTest_ {
 			}
 		}).when(serversCommunicationLayer).send(any(), any(), anyBoolean());
 
-		serverCommunicationSystems[index].setServersConn(serversCommunicationLayer);
+		serverCommunicationSystems[index].setServersCommunication(serversCommunicationLayer);
 
 		// 领导者心跳停止
 		stopLeaderHeartBeat(serviceReplicas);

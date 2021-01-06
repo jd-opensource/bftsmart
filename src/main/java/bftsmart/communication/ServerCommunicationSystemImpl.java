@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 import com.jd.blockchain.utils.concurrent.AsyncFuture;
 import com.jd.blockchain.utils.concurrent.CompletableAsyncFuture;
 
-import bftsmart.communication.client.CommunicationSystemServerSide;
+import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.communication.server.ServersCommunicationLayer;
@@ -51,8 +51,8 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	private LinkedBlockingQueue<SystemMessage> inQueue = null;// new LinkedBlockingQueue<SystemMessage>(IN_QUEUE_SIZE);
 	private MessageQueue messageInQueue;
 	private MessageHandler messageHandler ;//= new MessageHandler();
-	private ServersCommunicationLayer serversConn;
-	private final CommunicationSystemServerSide clientCommunication;
+	private ServersCommunicationLayer serversCommunication;
+	private final ClientCommunicationServerSide clientCommunication;
 	private ServerViewController controller;
 	private final List<MessageHandlerBase> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
@@ -60,7 +60,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	/**
 	 * Creates a new instance of ServerCommunicationSystem
 	 */
-	public ServerCommunicationSystemImpl(CommunicationSystemServerSide clientCommunication, MessageHandler messageHandler, ServerViewController controller, ServiceReplica replica) throws Exception {
+	public ServerCommunicationSystemImpl(ClientCommunicationServerSide clientCommunication, MessageHandler messageHandler, ServerViewController controller, ServiceReplica replica) throws Exception {
 		this.clientCommunication = clientCommunication;
 		this.messageHandler = messageHandler;
 		this.controller = controller;
@@ -91,16 +91,16 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 //        inQueue = new LinkedBlockingQueue<SystemMessage>(controller.getStaticConf().getInQueueSize());
 
-		serversConn = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
+		serversCommunication = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
 	}
 
 	// ******* EDUARDO BEGIN **************//
 	public void joinViewReceived() {
-		serversConn.joinViewReceived();
+		serversCommunication.joinViewReceived();
 	}
 
 	public synchronized void updateServersConnections() {
-		this.serversConn.updateConnections();
+		this.serversCommunication.updateConnections();
 //		if (clientsConn == null) {
 //			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
 //		}
@@ -208,44 +208,47 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		} else if (sm instanceof HeartBeatMessage) {
 			// 心跳相关请求消息不做重发处理；
 			LOGGER.debug("--------sending heart beat message with no retrying----------> {}", sm);
-			serversConn.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, true, false);
 		} else if (sm instanceof LeaderRequestMessage || sm instanceof LeaderResponseMessage) {
 			// 从其他节点获取Leader信息的请求消息
 			LOGGER.debug("--------sending leader res&resp message with no retrying----------> {}", sm);
-			serversConn.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, true, false);
 		} else if (sm instanceof LeaderStatusRequestMessage) {
 			// 获取其他节点Leader状态的请求消息
 			LOGGER.debug("--------sending leader status message with no retrying----------> {}", sm);
-			serversConn.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, true, false);
 		} else if (sm instanceof ViewMessage) {
 			// 视图消息
 			LOGGER.debug("--------sending view message with no retrying----------> {}", sm);
-			serversConn.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, true, false);
 		} else if (sm instanceof LCMessage) {
 			// 领导者切换相关消息
 			LOGGER.debug("--------sending leader change message with no retrying----------> {}", sm);
-			serversConn.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, true, false);
 		} else {
 			LOGGER.debug("--------sending with retrying----------> {}", sm);
-			serversConn.send(targets, sm, true);
+			serversCommunication.send(targets, sm, true);
 		}
 	}
 
-	public void setServersConn(ServersCommunicationLayer serversConn) {
-		this.serversConn = serversConn;
+	@Override
+	public void setServersCommunication(ServersCommunicationLayer serversCommunication) {
+		this.serversCommunication = serversCommunication;
 	}
 
-	public ServersCommunicationLayer getServersConn() {
-		return serversConn;
+	@Override
+	public ServersCommunicationLayer getServersCommunication() {
+		return serversCommunication;
 	}
 
-	public CommunicationSystemServerSide getClientCommunication() {
+	@Override
+	public ClientCommunicationServerSide getClientCommunication() {
 		return clientCommunication;
 	}
 
 	@Override
 	public String toString() {
-		return serversConn.toString();
+		return serversCommunication.toString();
 	}
 
 	public void shutdown() {
@@ -263,7 +266,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 					+ e.getMessage(), e);
 		}
 		try {
-			serversConn.shutdown();
+			serversCommunication.shutdown();
 		} catch (Exception e) {
 			LOGGER.warn("Server Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
 					+ e.getMessage(), e);
@@ -387,7 +390,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	@Override
 	public AsyncFuture<Void> start() {
 		startMessageHandle();
-		serversConn.startListening();
+		serversCommunication.startListening();
 		return CompletableAsyncFuture.completeFuture(null);
 	}
 }

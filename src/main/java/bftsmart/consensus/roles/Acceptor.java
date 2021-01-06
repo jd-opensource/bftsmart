@@ -496,7 +496,7 @@ public final class Acceptor {
 						insertProof(cm, epoch);
 
 						int[] targets = this.controller.getCurrentViewOtherAcceptors();
-						communication.getServersConn().send(targets, cm, true);
+						communication.getServersCommunication().send(targets, cm, true);
 
 						// communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
 						// factory.createStrong(cid, epoch.getNumber(), value));
@@ -562,7 +562,7 @@ public final class Acceptor {
 				try {
 					SecretKey key = null;
 					while (retrySize < MAX_RETRY_SIZE) {
-						key = communication.getServersConn().getSecretKey(id);
+						key = communication.getServersCommunication().getSecretKey(id);
 						if (key == null) {
 							LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with {} . Retrying.",
 									id);

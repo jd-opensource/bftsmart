@@ -34,7 +34,7 @@ import javax.crypto.Mac;
 
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.client.CommunicationSystemServerSide;
+import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.client.RequestReceiver;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
@@ -58,7 +58,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
  */
 @Sharable
 public class NettyClientServerCommunicationSystemServerSide extends SimpleChannelInboundHandler<TOMMessage>
-		implements CommunicationSystemServerSide {
+		implements ClientCommunicationServerSide {
 
 	private RequestReceiver requestReceiver;
 	private Map<Integer, NettyClientServerSession> sessionTable;

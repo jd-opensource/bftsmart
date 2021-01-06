@@ -1377,7 +1377,7 @@ public class LCManager {
 
 				byte[] myMAC = null;
 
-				secretKey = tomLayer.getCommunication().getServersConn().getSecretKey(consMsg.getSender());
+				secretKey = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
 
 				if (secretKey != null) {
 					try {

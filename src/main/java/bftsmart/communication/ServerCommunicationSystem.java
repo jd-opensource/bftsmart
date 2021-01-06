@@ -17,7 +17,7 @@ package bftsmart.communication;
 
 import com.jd.blockchain.utils.concurrent.AsyncFuture;
 
-import bftsmart.communication.client.CommunicationSystemServerSide;
+import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.server.ServersCommunicationLayer;
 
 /**
@@ -64,11 +64,11 @@ public interface ServerCommunicationSystem {
 	 */
 	void send(int[] targets, SystemMessage sm);
 
-	void setServersConn(ServersCommunicationLayer serversConn);
+	void setServersCommunication(ServersCommunicationLayer serversConn);
 
-	ServersCommunicationLayer getServersConn();
+	ServersCommunicationLayer getServersCommunication();
 
-	CommunicationSystemServerSide getClientCommunication();
+	ClientCommunicationServerSide getClientCommunication();
 
 	@Override
 	String toString();

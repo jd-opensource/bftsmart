@@ -30,7 +30,7 @@ import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.ServerCommunicationSystemImpl;
 import bftsmart.communication.client.ClientCommunicationFactory;
-import bftsmart.communication.client.CommunicationSystemServerSide;
+import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -99,7 +99,7 @@ public class ServiceReplica {
 	private RequestVerifier verifier = null;
 	private final String realmName;
 	private int lastCid;
-	private CommunicationSystemServerSide clientCommunication;
+	private ClientCommunicationServerSide clientCommunication;
 	private MessageHandler messageHandler;
 
 //	private Acceptor acceptor;
@@ -775,7 +775,7 @@ public class ServiceReplica {
 	private static ReplicaContext initTOMLayer(int currentProcessId, String realName, ServiceReplica replica,
 			ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc, int lastCid,
 			RequestVerifier verifier, MessageHandler messageHandler,
-			CommunicationSystemServerSide clientCommunication) {
+			ClientCommunicationServerSide clientCommunication) {
 
 		LOGGER.info("I am proc {}, init Tomlayer.", svc.getStaticConf().getProcessId());
 		if (!svc.isInCurrentView()) {

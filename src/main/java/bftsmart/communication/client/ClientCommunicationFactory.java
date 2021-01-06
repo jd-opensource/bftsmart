@@ -9,7 +9,7 @@ import bftsmart.reconfiguration.ServerViewController;
  */
 public class ClientCommunicationFactory {
 
-    public static CommunicationSystemServerSide createServerSide(ServerViewController controller) {
+    public static ClientCommunicationServerSide createServerSide(ServerViewController controller) {
         return new NettyClientServerCommunicationSystemServerSide(controller);
     }
 }
