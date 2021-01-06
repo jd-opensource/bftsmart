@@ -15,6 +15,20 @@
  */
 package bftsmart.communication;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.HashMap;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
@@ -25,31 +39,25 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.ForwardedMessage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.ViewMessage;
-import bftsmart.tom.leaderchange.*;
+import bftsmart.tom.leaderchange.HeartBeatMessage;
+import bftsmart.tom.leaderchange.LCMessage;
+import bftsmart.tom.leaderchange.LeaderRequestMessage;
+import bftsmart.tom.leaderchange.LeaderResponseMessage;
+import bftsmart.tom.leaderchange.LeaderStatusRequestMessage;
+import bftsmart.tom.leaderchange.LeaderStatusResponseMessage;
 import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.HashMap;
 
 /**
  *
  * @author edualchieri
  */
 public class MessageHandler {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
 	private Acceptor acceptor;
 	private TOMLayer tomLayer;
 	// private Cipher cipher;
 	private Mac mac;
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(MessageHandler.class);
 
 	public MessageHandler() {
 		try {
@@ -117,7 +125,8 @@ public class MessageHandler {
 					this.mac.init(key);
 					myMAC = this.mac.doFinal(data);
 				} catch (/* IllegalBlockSizeException | BadPaddingException | */ InvalidKeyException ex) {
-					ex.printStackTrace();
+					LOGGER.error("Error occurred in node[" + tomLayer.getCurrentProcessId()
+							+ "] while initializing the MAC with sender[" + consMsg.getSender() + "]!", ex);
 				}
 
 				if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC))
