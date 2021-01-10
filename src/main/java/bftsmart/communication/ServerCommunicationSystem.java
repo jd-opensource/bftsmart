@@ -15,13 +15,12 @@ limitations under the License.
 */
 package bftsmart.communication;
 
-import com.jd.blockchain.utils.concurrent.AsyncFuture;
-
 import bftsmart.communication.client.CommunicationSystemServerSide;
 import bftsmart.communication.client.RequestReceiver;
 import bftsmart.communication.server.ServersCommunicationLayer;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.tom.core.TOMLayer;
+import utils.concurrent.AsyncFuture;
 
 /**
  *
