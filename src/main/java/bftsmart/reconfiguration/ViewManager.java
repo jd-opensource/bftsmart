@@ -17,7 +17,7 @@ package bftsmart.reconfiguration;
 
 import bftsmart.communication.server.CompletedCallback;
 import bftsmart.communication.server.MessageConnection;
-import bftsmart.communication.server.ServerConnection;
+import bftsmart.communication.server.ServerSockectConnection;
 import bftsmart.reconfiguration.views.View;
 import org.slf4j.LoggerFactory;
 
@@ -122,7 +122,7 @@ public class ViewManager {
     }
 
     private MessageConnection getConnection(int remoteId) {
-         return new ServerConnection(controller, null, remoteId, null, null);
+         return new ServerSockectConnection(controller, null, remoteId, null, null);
     }
 
     public void sendResponse(Integer[] targets, VMMessage sm) {
@@ -131,7 +131,7 @@ public class ViewManager {
         try {
             new ObjectOutputStream(bOut).writeObject(sm);
         } catch (IOException ex) {
-            Logger.getLogger(ServerConnection.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ServerSockectConnection.class.getName()).log(Level.SEVERE, null, ex);
         }
 
         byte[] data = bOut.toByteArray();

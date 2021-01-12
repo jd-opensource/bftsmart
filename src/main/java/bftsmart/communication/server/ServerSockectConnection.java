@@ -56,9 +56,9 @@ import bftsmart.tom.util.TOMUtil;
  *
  * @author alysson
  */
-public class ServerConnection implements MessageConnection {
+public class ServerSockectConnection implements MessageConnection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerSockectConnection.class);
 
 	// 重连周期
 	private static final long RECONNECT_MILL_SECONDS = 5000L;
@@ -89,7 +89,7 @@ public class ServerConnection implements MessageConnection {
 	private CountDownLatch latch = new CountDownLatch(1);
 	private ServiceReplica replica;
 
-	public ServerConnection(ServerViewController controller, Socket socket, int remoteId, MessageQueue messageInQueue,
+	public ServerSockectConnection(ServerViewController controller, Socket socket, int remoteId, MessageQueue messageInQueue,
 			ServiceReplica replica) {
 
 		this.controller = controller;

@@ -54,7 +54,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	private ServerViewController controller;
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
 	private Object connectionsLock = new Object();
-	private Map<Integer, ServerConnection> connections = new ConcurrentHashMap<Integer, ServerConnection>();
+	private Map<Integer, ServerSockectConnection> connections = new ConcurrentHashMap<Integer, ServerSockectConnection>();
 	private volatile ServerSocket serverSocket;
 	private int me;
 	private volatile boolean doWork = true;
@@ -115,7 +115,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	public synchronized void updateConnections() {
 		synchronized (connectionsLock) {
 			if (this.controller.isInCurrentView()) {
-				
+
 				Integer[] remoteIds = this.connections.keySet().toArray(new Integer[this.connections.size()]);
 				for (Integer remoteId : remoteIds) {
 					if (!this.controller.isCurrentViewMember(remoteId)) {
@@ -123,7 +123,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 						conn.shutdown();
 					}
 				}
-				
+
 				int[] newV = controller.getCurrentViewAcceptors();
 				for (int i = 0; i < newV.length; i++) {
 					if (newV[i] != me) {
@@ -131,7 +131,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 					}
 				}
 			} else {
-				
+
 				Iterator<Integer> it = this.connections.keySet().iterator();
 				while (it.hasNext()) {
 					this.connections.get(it.next()).shutdown();
@@ -158,19 +158,23 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	}
 
 	private MessageConnection ensureConnection(int remoteId) {
-		ServerConnection ret = null;
-		ret = this.connections.get(remoteId);
-		if (ret == null) {
+		MessageConnection connection = null;
+		connection = this.connections.get(remoteId);
+		if (connection == null) {
 			synchronized (connectionsLock) {
-				ret = this.connections.get(remoteId);
-				if (ret == null) {
-					LOGGER.info("I am {}, remote = {} !", controller.getStaticConf().getProcessId(), remoteId);
-					ret = new ServerConnection(controller, null, remoteId, this.messageInQueue, this.replica);
-					this.connections.put(remoteId, ret);
+				connection = this.connections.get(remoteId);
+				if (connection == null) {
+					ServerSockectConnection sc = new ServerSockectConnection(controller, null, remoteId, this.messageInQueue,
+							this.replica);
+					this.connections.put(remoteId, sc);
+					connection = sc;
+					
+					LOGGER.debug("Ensure connection!  --[Current={}][Remote={}]", controller.getCurrentProcessId(),
+							remoteId);
 				}
 			}
 		}
-		return ret;
+		return connection;
 	}
 	// ******* EDUARDO END **************//
 
@@ -239,7 +243,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 
 		// ******* EDUARDO BEGIN **************//
 		MessageConnection[] connections = this.connections.values()
-				.toArray(new ServerConnection[this.connections.size()]);
+				.toArray(new ServerSockectConnection[this.connections.size()]);
 		this.connections.clear();
 		for (MessageConnection serverConnection : connections) {
 			serverConnection.shutdown();
@@ -359,7 +363,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 					// first time that this connection is being established
 					// System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
 					this.connections.put(remoteId,
-							new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica));
+							new ServerSockectConnection(controller, newSocket, remoteId, messageInQueue, replica));
 				} else {
 					// reconnection
 					this.connections.get(remoteId).reconnect(newSocket);
