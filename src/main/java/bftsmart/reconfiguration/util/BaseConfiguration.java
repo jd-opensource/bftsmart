@@ -15,19 +15,18 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
-import bftsmart.reconfiguration.views.NodeNetwork;
-import bftsmart.reconfiguration.views.NullNodeNetwork;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.InetSocketAddress;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-public class Configuration implements Serializable{
+import bftsmart.reconfiguration.views.NodeNetwork;
+import bftsmart.reconfiguration.views.NullNodeNetwork;
+
+class BaseConfiguration implements Serializable{
 
 	private static final long serialVersionUID = -719578198150380571L;
 	
@@ -42,31 +41,18 @@ public class Configuration implements Serializable{
 	private String hmacAlgorithm = "HmacSha1";
 	private int hmacSize = 160;
 
-	// protected static String configHome = "";
-	//
-	// protected static String hostsFileName = "";
-
 	protected boolean defaultKeys = false;
 
-	public Configuration(int procId) {
-		this(procId, "config/system.config", "config/hosts.config");
-//		processId = procId;
-//		init();
-	}
-
-//	public Configuration(int processId, String configHomeParam) {
-//		this(processId, configHomeParam, "");
+//	public BaseConfiguration(int procId) {
+//		this(procId, "config/system.config", "config/hosts.config");
 //	}
 
-	public Configuration(int processId, String configHomeParam, String hostsFileNameParam) {
+	public BaseConfiguration(int processId, String configHomeParam, String hostsFileNameParam) {
 		this.processId = processId;
 		init(configHomeParam, hostsFileNameParam);
-//		configHome = configHomeParam;
-//		hostsFileName = hostsFileNameParam;
-//		init();
 	}
 
-	public Configuration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
+	public BaseConfiguration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
 		this.processId = processId;
 		this.systemConfig = systemConfigs;
 		this.hostsConfig = hostsConfig;

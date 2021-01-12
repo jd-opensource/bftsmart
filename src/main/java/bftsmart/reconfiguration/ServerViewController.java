@@ -52,31 +52,22 @@ public class ServerViewController extends ViewController {
 	// protected View initialView;
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerViewController.class);
 
-	public ServerViewController(int procId) {
-		this(new TOMConfiguration(procId, "config/system.config", "config/hosts.config", "config"), null);
-		/*
-		 * super(procId); initialView = new View(0, getStaticConf().getInitialView(),
-		 * getStaticConf().getF(), getInitAdddresses());
-		 * getViewStore().storeView(initialView); reconfigureTo(initialView);
-		 */
-	}
-
-	public ServerViewController(int procId, String configHome) {
-		this(new TOMConfiguration(procId, configHome + "/system.config", configHome + "/hosts.config", configHome),
-				null);
-		// View cv = getViewStore().readView();
-		// if(cv == null){
-		//
-		// LOGGER.debug("-- Creating current view from configuration file");
-		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
-		// getStaticConf().getF(), getInitAdddresses()));
-		// }else{
-		// LOGGER.debug("-- Using view stored on disk");
-		// reconfigureTo(cv);
-		// }
-
-		init();
-	}
+//	public ServerViewController(int procId, String configHome) {
+//		this(new TOMConfiguration(procId, configHome + "/system.config", configHome + "/hosts.config", configHome),
+//				null);
+//		// View cv = getViewStore().readView();
+//		// if(cv == null){
+//		//
+//		// LOGGER.debug("-- Creating current view from configuration file");
+//		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
+//		// getStaticConf().getF(), getInitAdddresses()));
+//		// }else{
+//		// LOGGER.debug("-- Using view stored on disk");
+//		// reconfigureTo(cv);
+//		// }
+//
+//		init();
+//	}
 
 	public ServerViewController(TOMConfiguration config, ViewStorage viewSotrage) {
 		super(config, viewSotrage);

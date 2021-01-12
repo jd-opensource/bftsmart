@@ -108,58 +108,6 @@ public class ServiceReplica {
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
 
-	/**
-	 * Constructor
-	 *
-	 * @param id        Replica ID
-	 * @param executor  Executor
-	 * @param recoverer Recoverer
-	 */
-	public ServiceReplica(int id, Executable executor, Recoverable recoverer) {
-		this(id, "", executor, recoverer, null, new DefaultReplier());
-	}
-
-	/**
-	 * Constructor
-	 *
-	 * @param id        Replica ID
-	 * @param executor  Executor
-	 * @param recoverer Recoverer
-	 * @param verifier  Requests verifier
-	 */
-	public ServiceReplica(int id, Executable executor, Recoverable recoverer, RequestVerifier verifier) {
-		this(id, "", executor, recoverer, verifier, new DefaultReplier());
-	}
-
-	/**
-	 * Constructor
-	 * 
-	 * @param id        Replica ID
-	 * @param executor  Executor
-	 * @param recoverer Recoverer
-	 * @param verifier  Requests verifier
-	 * @param replier   Replier
-	 */
-	public ServiceReplica(int id, Executable executor, Recoverable recoverer, RequestVerifier verifier,
-			Replier replier) {
-		this(id, "", executor, recoverer, verifier, replier);
-	}
-
-	/**
-	 * Constructor
-	 *
-	 * @param id         Process ID
-	 * @param configHome Configuration directory for JBP
-	 * @param executor   Executor
-	 * @param recoverer  Recoverer
-	 * @param verifier   Requests verifier
-	 * @param replier    Replier
-	 */
-	public ServiceReplica(int id, String configHome, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(id, configHome), executor, recoverer, verifier, replier, -1, "Default-Realm");
-	}
-
 	public ServiceReplica(int id, String systemConfig, String hostsConfig, String keystoreHome, String runtimeDir,
 			View initView, Executable executor, Recoverable recoverer) {
 		this(new ServerViewController(new TOMConfiguration(id, systemConfig, hostsConfig, keystoreHome),

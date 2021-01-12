@@ -28,32 +28,6 @@ import java.net.InetSocketAddress;
  */
 public class ClientViewController extends ViewController {
 
-	public ClientViewController(int procId) {
-		this(new TOMConfiguration(procId, "config/system.config", "config/hosts.config", "config"));
-		init();
-
-		// View cv = getViewStore().readView();
-		// if(cv == null){
-		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
-		// getStaticConf().getF(), getInitAdddresses()));
-		// }else{
-		// reconfigureTo(cv);
-		// }
-	}
-
-	public ClientViewController(int procId, String configHome) {
-		this(new TOMConfiguration(procId, configHome + "/system.config", configHome + "/hosts.config", configHome));
-		init();
-
-		// View cv = getViewStore().readView();
-		// if(cv == null){
-		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
-		// getStaticConf().getF(), getInitAdddresses()));
-		// }else{
-		// reconfigureTo(cv);
-		// }
-	}
-
 	public ClientViewController(TOMConfiguration config) {
 		super(config);
 		init();

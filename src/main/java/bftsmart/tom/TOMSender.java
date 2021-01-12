@@ -69,22 +69,6 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 		return this.viewController;
 	}
 
-	/**
-	 * This method initializes the object
-	 * TODO: Ask if this method cannot be protected (compiles, but....)
-	 *
-	 * @param processId ID of the process
-	 */
-	public void init(int processId) {
-		this.viewController = new ClientViewController(processId);
-		startsCS(processId);
-	}
-
-	public void init(int processId, String configHome) {
-		this.viewController = new ClientViewController(processId,configHome);
-		startsCS(processId);
-	}
-	
 	public void init(TOMConfiguration config, ViewStorage viewStorage) {
 		this.viewController = new ClientViewController(config, viewStorage);
 		startsCS(viewController.getStaticConf().getProcessId());

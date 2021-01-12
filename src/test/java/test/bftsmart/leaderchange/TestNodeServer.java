@@ -1,19 +1,26 @@
 package test.bftsmart.leaderchange;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+
 import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.reconfiguration.util.TOMConfiguration;
+import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
-import bftsmart.tom.leaderchange.HeartBeatTimer;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.BytesUtils;
-import org.mockito.Mockito;
-
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @Author: zhangshuang
@@ -33,11 +40,14 @@ public class TestNodeServer extends DefaultRecoverable {
     public TestNodeServer(int id) {
         this.proId = id;
     }
+    
+    private TOMConfiguration initConfig() {
+    	throw new IllegalStateException("Not implemented!");
+    }
 
     public ServiceReplica startNode() {
-
-        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier());
-//        replica = new ServiceReplica(proId, "config", this, this, null, new DefaultReplier(), Mockito.spy(new HeartBeatTimer()));
+    	TOMConfiguration config  = initConfig();
+        replica = new ServiceReplica(config, new MemoryBasedViewStorage(), this, this, null, new DefaultReplier());
         return replica;
     }
 

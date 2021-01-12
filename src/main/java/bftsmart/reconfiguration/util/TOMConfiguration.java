@@ -20,7 +20,7 @@ import java.security.PublicKey;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-public class TOMConfiguration extends Configuration {
+public class TOMConfiguration extends BaseConfiguration {
 
 	private static final long serialVersionUID = 5498353004407888963L;
 
@@ -67,34 +67,18 @@ public class TOMConfiguration extends Configuration {
 	private int numNettyWorkers;
 	private HostsConfig outerHostConfig;
 
-//	/** Creates a new instance of TOMConfiguration */
-//	public TOMConfiguration(int processId) {
-//		this(processId, "", "");
-//	}
-//
-//	/** Creates a new instance of TOMConfiguration */
-//	public TOMConfiguration(int processId, String configHome) {
-//		this(processId, configHome, "");
-//	}
-
-	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile) {
-		super(processId, systemConfigFile, hostsConfigFile);
-		rsaLoader = new DefaultRSAKeyLoader();
-	}
-
 	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome) {
 		super(processId, systemConfigFile, hostsConfigFile);
 		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
 	}
 
-	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, String keystoreHome, Properties systemConfigs, HostsConfig hostConfig) {
-		super(processId, systemConfigs, hostConfig);
-		// init the rsaloader after another initialization was completed;
-		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
-	}
+//	/** Creates a new instance of TOMConfiguration */
+//	public TOMConfiguration(int processId, String keystoreHome, Properties systemConfigs, HostsConfig hostConfig) {
+//		super(processId, systemConfigs, hostConfig);
+//		// init the rsaloader after another initialization was completed;
+//		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
+//	}
 
 	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig) {
