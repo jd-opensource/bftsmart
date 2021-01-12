@@ -63,23 +63,23 @@ public class ServiceProxy extends TOMSender {
 	private boolean viewObsolete = false;
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceProxy.class);
 
-	/**
-	 * Constructor
-	 *
-	 * @see bellow
-	 */
-	public ServiceProxy(int processId) {
-		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
-	}
-
-	/**
-	 * Constructor
-	 *
-	 * @see bellow
-	 */
-	public ServiceProxy(int processId, String configHome) {
-		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
-	}
+//	/**
+//	 * Constructor
+//	 *
+//	 * @see bellow
+//	 */
+//	public ServiceProxy(int processId) {
+//		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
+//	}
+//
+//	/**
+//	 * Constructor
+//	 *
+//	 * @see bellow
+//	 */
+//	public ServiceProxy(int processId, String configHome) {
+//		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
+//	}
 
 	/**
 	 * Constructor
@@ -95,33 +95,33 @@ public class ServiceProxy extends TOMSender {
 	 *            used for extracting the response from the matching quorum of
 	 *            replies
 	 */
-	public ServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
-			Extractor replyExtractor) {
-		this(new TOMConfiguration(processId,systemConfigFile, hostsConfigFile, keystoreHome), replyComparator, replyExtractor);
-		
-//		if (configHome == null) {
-//			init(processId);
-//		} else {
-//			init(processId, configHome);
-//		}
-//
-//		replies = new TOMMessage[getViewManager().getCurrentViewN()];
-//
-//		comparator = (replyComparator != null) ? replyComparator : new Comparator<byte[]>() {
-//			@Override
-//			public int compare(byte[] o1, byte[] o2) {
-//				return Arrays.equals(o1, o2) ? 0 : -1;
-//			}
-//		};
-//
-//		extractor = (replyExtractor != null) ? replyExtractor : new Extractor() {
-//
-//			@Override
-//			public TOMMessage extractResponse(TOMMessage[] replies, int sameContent, int lastReceived) {
-//				return replies[lastReceived];
-//			}
-//		};
-	}
+//	public ServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
+//			Extractor replyExtractor) {
+//		this(new TOMConfiguration(processId,systemConfigFile, hostsConfigFile, keystoreHome), replyComparator, replyExtractor);
+//		
+////		if (configHome == null) {
+////			init(processId);
+////		} else {
+////			init(processId, configHome);
+////		}
+////
+////		replies = new TOMMessage[getViewManager().getCurrentViewN()];
+////
+////		comparator = (replyComparator != null) ? replyComparator : new Comparator<byte[]>() {
+////			@Override
+////			public int compare(byte[] o1, byte[] o2) {
+////				return Arrays.equals(o1, o2) ? 0 : -1;
+////			}
+////		};
+////
+////		extractor = (replyExtractor != null) ? replyExtractor : new Extractor() {
+////
+////			@Override
+////			public TOMMessage extractResponse(TOMMessage[] replies, int sameContent, int lastReceived) {
+////				return replies[lastReceived];
+////			}
+////		};
+//	}
 	
 	public ServiceProxy(TOMConfiguration config, Comparator<byte[]> replyComparator, Extractor replyExtractor) {
 		this(config, null, replyComparator, replyExtractor);

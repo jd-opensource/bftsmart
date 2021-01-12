@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.TOMLayer;
 
@@ -58,7 +57,7 @@ public class ReplicaContext {
 	 * 
 	 * @return the static configuration of this replica
 	 */
-	public TOMConfiguration getStaticConfiguration() {
+	public ReplicaConfiguration getStaticConfiguration() {
 		return SVController.getStaticConf();
 	}
 

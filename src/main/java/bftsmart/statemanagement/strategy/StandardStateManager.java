@@ -393,8 +393,7 @@ public class StandardStateManager extends BaseStateManager {
         for (int procId : currentView.getProcesses()) {
             NodeNetwork nodeNetwork = currentView.getAddress(procId);
             if (nodeNetwork != null) {
-                this.SVController.getStaticConf().addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
-                this.SVController.getStaticConf().getOuterHostConfig().add(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
+            	this.SVController.addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
             } else {
                 LOGGER.info("updateHostConfig, find node network is null!");
             }

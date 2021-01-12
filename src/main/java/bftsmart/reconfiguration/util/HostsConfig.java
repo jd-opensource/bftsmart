@@ -15,17 +15,16 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
-import bftsmart.reconfiguration.views.NodeNetwork;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Serializable;
-import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+
+import bftsmart.reconfiguration.views.NodeNetwork;
 
 public class HostsConfig implements Serializable {
 

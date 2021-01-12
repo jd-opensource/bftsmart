@@ -73,7 +73,7 @@ public class ServerViewController extends ViewController {
 		super(config, viewSotrage);
 		init();
 	}
-	
+
 	private void init() {
 		View cv = getViewStore().readView();
 		if (cv == null) {
@@ -119,8 +119,8 @@ public class ServerViewController extends ViewController {
 
 	public void enqueueUpdate(TOMMessage up) {
 		ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(up.getContent());
-		if (TOMUtil.verifySignature(getStaticConf().getRSAPublicKey(request.getSender()), BytesUtils.getBytes(request.toString()),
-				request.getSignature())) {
+		if (TOMUtil.verifySignature(getStaticConf().getRSAPublicKey(request.getSender()),
+				BytesUtils.getBytes(request.toString()), request.getSignature())) {
 			if (request.getSender() == getStaticConf().getTTPId()) {
 				this.updates.add(up);
 			} else {
@@ -257,23 +257,25 @@ public class ServerViewController extends ViewController {
 			if (nodeNetwork != null) {
 				addresses[i].setMonitorPort(nodeNetwork.getMonitorPort());
 			}
-			LOGGER.info("I am {}, network[{}] -> {} !", this.getStaticConf().getProcessId(), processId, addresses[i].toUrl());
+			LOGGER.info("I am {}, network[{}] -> {} !", this.getStaticConf().getProcessId(), processId,
+					addresses[i].toUrl());
 		}
 
 //		View newV = new View(currentView.getId() + 1, nextV, f, addresses);
 
-        // f的值需要动态计算
-        View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
+		// f的值需要动态计算
+		View newV = new View(currentView.getId() + 1, nextV, (nextV.length - 1) / 3, addresses);
 
-        LOGGER.info("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
-        LOGGER.info("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
-        LOGGER.info("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
+		LOGGER.info("I am proc {}, new view: {}", this.getStaticConf().getProcessId(), newV);
+		LOGGER.info("I am proc {}, installed on CID: {}", this.getStaticConf().getProcessId(), cid);
+		LOGGER.info("I am proc {}, lastJoinSet: {}", this.getStaticConf().getProcessId(), jSet);
 
-        // TODO:Remove all information stored about each process in rSet
-        // processes execute the leave!!!
-        reconfigureTo(newV);
+		// TODO:Remove all information stored about each process in rSet
+		// processes execute the leave!!!
+		reconfigureTo(newV);
 
-        LOGGER.info("I am proc {}, after reconfigure ,currview = {}", this.getStaticConf().getProcessId(), this.currentView);
+		LOGGER.info("I am proc {}, after reconfigure ,currview = {}", this.getStaticConf().getProcessId(),
+				this.currentView);
 
 		if (forceLC) {
 
@@ -290,7 +292,7 @@ public class ServerViewController extends ViewController {
 
 		List<NodeNetwork> addressesTemp = new ArrayList<>();
 
-		for(int i = 0; i < newV.getProcesses().length;i++) {
+		for (int i = 0; i < newV.getProcesses().length; i++) {
 			int cpuId = newV.getProcesses()[i];
 
 			NodeNetwork nodeNetwork = newV.getAddress(cpuId);
@@ -298,21 +300,24 @@ public class ServerViewController extends ViewController {
 
 			if (nodeNetwork.getHost().equals("0.0.0.0")) {
 				// proc docker env
-                String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
+				String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
 				NodeNetwork nodeNetworkNew = new NodeNetwork(host, nodeNetwork.getConsensusPort(), -1);
-                LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}", this.getStaticConf().getProcessId(), host);
-                addressesTemp.add(nodeNetworkNew);
+				LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+						this.getStaticConf().getProcessId(), host);
+				addressesTemp.add(nodeNetworkNew);
 			} else {
 				addressesTemp.add(new NodeNetwork(nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), -1));
 			}
 		}
 
-		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+		View replyView = new View(newV.getId(), newV.getProcesses(), newV.getF(),
+				addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
 
-		LOGGER.info("I am proc {}, I adjust reply view, reply view = {}", this.getStaticConf().getProcessId(), replyView);
+		LOGGER.info("I am proc {}, I adjust reply view, reply view = {}", this.getStaticConf().getProcessId(),
+				replyView);
 
 		// 更新 TOMConfiguration
-		getStaticConf().updateConfiguration(replyView.getProcesses(), replyView.getN(), replyView.getF());
+		staticConf.updateConfiguration(replyView.getProcesses(), replyView.getN(), replyView.getF());
 
 		return TOMUtil.getBytes(new ReconfigureReply(replyView, jSetInfo.toArray(new String[0]), cid,
 				tomLayer.execManager.getCurrentLeader()));
@@ -366,7 +371,7 @@ public class ServerViewController extends ViewController {
 
 		// 防止reconfig过程中其他线程比如view sync 更改视图
 		if (newView.getId() < this.getCurrentView().getId()) {
-		    LOGGER.info("reconfigureTo error, new view id little than loacal view id!");
+			LOGGER.info("reconfigureTo error, new view id little than loacal view id!");
 			return;
 		}
 
@@ -377,7 +382,7 @@ public class ServerViewController extends ViewController {
 		getViewStore().storeView(this.currentView);
 		if (newView.isMember(getStaticConf().getProcessId())) {
 			this.currentView.setAddresses(processId, localNodeNetwork);
-			
+
 			// membro da view atual
 			otherProcesses = new int[currentView.getProcesses().length - 1];
 			int c = 0;
@@ -405,5 +410,10 @@ public class ServerViewController extends ViewController {
 
 	public int getQuorum() {
 		return getStaticConf().isBFT() ? quorumBFT : quorumCFT;
+	}
+
+	public void addHostInfo(int procId, String host, int consensusPort, int monitorPort) {
+		staticConf.addHostInfo(procId, host, consensusPort, monitorPort);
+		staticConf.getOuterHostConfig().add(procId, host, consensusPort, monitorPort);
 	}
 }

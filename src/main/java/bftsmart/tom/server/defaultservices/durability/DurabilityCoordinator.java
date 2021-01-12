@@ -18,13 +18,13 @@ package bftsmart.tom.server.defaultservices.durability;
 import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.app.SHA256Utils;
-import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.durability.CSTRequest;
 import bftsmart.statemanagement.strategy.durability.CSTState;
 import bftsmart.statemanagement.strategy.durability.DurableStateManager;
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplicaConfiguration;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.defaultservices.CommandsInfo;
@@ -56,7 +56,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	private ReentrantLock hashLock = new ReentrantLock();
 	private ReentrantLock stateLock = new ReentrantLock();
 
-	private TOMConfiguration config;
+	private ReplicaConfiguration config;
 
 	private SHA256Utils md = new SHA256Utils();
 
@@ -373,7 +373,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	}
 
 	@Override
-	public void setReplicaContext(ReplicaContext replicaContext) {
+	public void initContext(ReplicaContext replicaContext) {
 		this.config = replicaContext.getStaticConfiguration();
 		if(log == null) {
 			globalCheckpointPeriod = config.getGlobalCheckpointPeriod();

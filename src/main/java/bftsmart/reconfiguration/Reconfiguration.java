@@ -30,22 +30,11 @@ public class Reconfiguration {
     private ServiceProxy proxy;
     private int id;
     
-    public Reconfiguration(int id) {
-        this.id = id;
-         //proxy = new ServiceProxy(id);
-        //request = new ReconfigureRequest(id);
-    }
-
     public Reconfiguration(int id, ServiceProxy serviceProxy) {
         this.id = id;
         this.proxy = serviceProxy;
     }
     
-    public void connect(){
-        if(proxy == null){
-            proxy = new ServiceProxy(id);
-        }
-    }
     
     public void addServer(int id, String ip, int port){
         this.setReconfiguration(ServerViewController.ADD_SERVER, id + ":" + ip + ":" + port);

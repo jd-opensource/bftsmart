@@ -15,14 +15,14 @@ limitations under the License.
 */
 package bftsmart.reconfiguration;
 
+import java.net.InetSocketAddress;
+
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.DefaultViewStorage;
 import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.reconfiguration.views.ViewStorage;
-
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import bftsmart.tom.ReplicaConfiguration;
 
 /**
  *
@@ -32,7 +32,7 @@ public class ViewController {
 
     protected View lastView = null;
     protected View currentView = null;
-    private TOMConfiguration staticConf;
+    protected final TOMConfiguration staticConf;
     private ViewStorage viewStore;
 
 //    public ViewController(int procId) {
@@ -95,7 +95,7 @@ public class ViewController {
         this.currentView = newView;
     }
 
-    public TOMConfiguration getStaticConf() {
+    public ReplicaConfiguration getStaticConf() {
         return staticConf;
     }
 

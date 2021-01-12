@@ -31,27 +31,28 @@ public class AsynchServiceProxy extends ServiceProxy {
 	private Map<Integer, TOMMessage[]> requestsReplies;
 	private Map<Integer, Integer> requestsAlias;
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(AsynchServiceProxy.class);
-	/**
-	 *
-	 * @param processId
-	 *            Replica id
-	 */
-	public AsynchServiceProxy(int processId) {
-		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
-		// init();
-	}
-
-	/**
-	 *
-	 * @param processId
-	 *            Replica id
-	 * @param configHome
-	 *            Configuration folder
-	 */
-	public AsynchServiceProxy(int processId, String configHome) {
-		this(processId, configHome + "/system.config", configHome + "/hosts.config", configHome, null, null);
-		init();
-	}
+	
+//	/**
+//	 *
+//	 * @param processId
+//	 *            Replica id
+//	 */
+//	public AsynchServiceProxy(int processId) {
+//		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
+//		// init();
+//	}
+//
+//	/**
+//	 *
+//	 * @param processId
+//	 *            Replica id
+//	 * @param configHome
+//	 *            Configuration folder
+//	 */
+//	public AsynchServiceProxy(int processId, String configHome) {
+//		this(processId, configHome + "/system.config", configHome + "/hosts.config", configHome, null, null);
+//		init();
+//	}
 
 	/**
 	 *
@@ -65,11 +66,11 @@ public class AsynchServiceProxy extends ServiceProxy {
 		init();
 	}
 
-	public AsynchServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
-			Extractor replyExtractor) {
-		super(processId, systemConfigFile, hostsConfigFile,  keystoreHome, replyComparator, replyExtractor);
-		init();
-	}
+//	public AsynchServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
+//			Extractor replyExtractor) {
+//		super(processId, systemConfigFile, hostsConfigFile,  keystoreHome, replyComparator, replyExtractor);
+//		init();
+//	}
 
 	private void init() {
 		requestsContext = new ConcurrentHashMap<>();

@@ -27,7 +27,7 @@ import bftsmart.tom.core.messages.TOMMessage;
  */
 public interface Replier {
     
-    public void setReplicaContext(ReplicaContext rc);
+    public void initContext(ReplicaContext rc);
 
     public void manageReply(TOMMessage request, MessageContext msgCtx);
 

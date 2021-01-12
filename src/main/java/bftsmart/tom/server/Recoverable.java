@@ -15,12 +15,11 @@ limitations under the License.
 */
 package bftsmart.tom.server;
 
-import bftsmart.reconfiguration.ViewController;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplicaConfiguration;
 import bftsmart.tom.ReplicaContext;
-import bftsmart.tom.server.defaultservices.StateLog;
 
 /**
  * Classes that implement this interface should implement a state transfer protocol.
@@ -31,13 +30,10 @@ import bftsmart.tom.server.defaultservices.StateLog;
  */
 public interface Recoverable {
 	
-	public void setReplicaContext(ReplicaContext replicaContext);
-
+	public void initContext(ReplicaContext replicaContext);
 
 	public void setRealName(String realName);
 
-	public void setStateLog(ViewController viewController);
-	
     /**
      * 
      * This  method should return a representation of the application state

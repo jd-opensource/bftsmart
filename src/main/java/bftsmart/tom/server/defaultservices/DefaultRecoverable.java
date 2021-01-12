@@ -22,12 +22,12 @@ import bftsmart.consensus.app.*;
 import bftsmart.consensus.app.BatchAppResultImpl;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewController;
-import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.StandardStateManager;
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplicaConfiguration;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.server.Recoverable;
@@ -54,7 +54,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	private ReentrantLock logLock = new ReentrantLock();
 	private ReentrantLock hashLock = new ReentrantLock();
 	private ReentrantLock stateLock = new ReentrantLock();
-	private TOMConfiguration config;
+	private ReplicaConfiguration config;
 	private ServerViewController controller;
 	private SHA256Utils md = new SHA256Utils();
 	private StateLog log;
@@ -465,7 +465,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		if (log == null) {
 			checkpointPeriod = config.getCheckpointPeriod();
 			byte[] state = getSnapshot();
-			if (config.isToLog() && config.logToDisk()) {
+			if (config.isToLog() && config.isLoggingToDisk()) {
 				int replicaId = config.getProcessId();
 				boolean isToLog = config.isToLog();
 				boolean syncLog = config.isToWriteSyncLog();
@@ -483,10 +483,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	}
 
 	@Override
-	public void setReplicaContext(ReplicaContext replicaContext) {
-//        this.config = replicaContext.getStaticConfiguration();
+	public void initContext(ReplicaContext replicaContext) {
 		this.controller = replicaContext.getSVController();
-//        initLog();
+		this.config = replicaContext.getStaticConfiguration();
+		initLog();
+		
 		getStateManager().askCurrentConsensusId();
 	}
 
@@ -498,11 +499,6 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		return stateManager;
 	}
 
-	@Override
-	public void setStateLog(ViewController viewController) {
-		this.config = viewController.getStaticConf();
-		initLog();
-	}
 
 	@Override
 	public byte[] executeUnordered(byte[] command, MessageContext msgCtx) {

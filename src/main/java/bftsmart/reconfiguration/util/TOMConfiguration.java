@@ -15,14 +15,34 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
+import java.io.Serializable;
+import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-public class TOMConfiguration extends BaseConfiguration {
+import bftsmart.reconfiguration.views.NodeNetwork;
+import bftsmart.reconfiguration.views.NullNodeNetwork;
+import bftsmart.tom.ReplicaConfiguration;
 
-	private static final long serialVersionUID = 5498353004407888963L;
+public class TOMConfiguration implements Serializable, ReplicaConfiguration {
+
+	private static final long serialVersionUID = -8770247165391836152L;
+	
+	protected int processId;
+	
+	protected boolean channelsBlocking;
+	protected BigInteger DH_P;
+	protected BigInteger DH_G;
+	protected int autoConnectLimit;
+	protected Properties systemConfig;
+	protected HostsConfig hostsConfig;
+
+	private String hmacAlgorithm = "HmacSha1";
+	private int hmacSize = 160;
+
+	protected boolean defaultKeys = false;
 
 	private volatile int n;
 	private volatile int f;
@@ -67,45 +87,71 @@ public class TOMConfiguration extends BaseConfiguration {
 	private int numNettyWorkers;
 	private HostsConfig outerHostConfig;
 
-	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome) {
-		super(processId, systemConfigFile, hostsConfigFile);
-		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
-	}
+	private TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
+		this.processId = processId;
+		this.systemConfig = systemConfigs;
+		this.hostsConfig = hostsConfig;
+		initSystemConfig(hostsConfig, systemConfigs);
+		initTomConfig(hostsConfig, systemConfigs);
 
-//	/** Creates a new instance of TOMConfiguration */
-//	public TOMConfiguration(int processId, String keystoreHome, Properties systemConfigs, HostsConfig hostConfig) {
-//		super(processId, systemConfigs, hostConfig);
-//		// init the rsaloader after another initialization was completed;
-//		rsaLoader = new FileSystemBasedRSAKeyLoader(keystoreHome, defaultKeys);
-//	}
-
-	/** Creates a new instance of TOMConfiguration */
-	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig) {
-		super(processId, systemConfigs, hostConfig);
 		this.rsaLoader = new DefaultRSAKeyLoader();
 	}
 
 	/** Creates a new instance of TOMConfiguration */
 	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostConfig,
 			HostsConfig outerHostConfig) {
-		super(processId, systemConfigs, hostConfig);
+		this(processId, systemConfigs, hostConfig);
 		this.outerHostConfig = outerHostConfig;
 		this.rsaLoader = new DefaultRSAKeyLoader();
 	}
 
-	public void setRsaLoader(RsaKeyLoader rsaLoader) {
-		this.rsaLoader = rsaLoader;
+	private void initSystemConfig(HostsConfig hosts, Properties configs) {
+		try {
+			String s = (String) configs.remove("system.autoconnect");
+			if (s == null) {
+				autoConnectLimit = -1;
+			} else {
+				autoConnectLimit = Integer.parseInt(s);
+			}
+
+			s = (String) configs.remove("system.channels.blocking");
+			if (s == null) {
+				channelsBlocking = false;
+			} else {
+				channelsBlocking = (s.equalsIgnoreCase("true")) ? true : false;
+			}
+
+			s = (String) configs.remove("system.communication.defaultkeys");
+			if (s == null) {
+				defaultKeys = false;
+			} else {
+				defaultKeys = (s.equalsIgnoreCase("true")) ? true : false;
+			}
+
+			s = (String) configs.remove("system.diffie-hellman.p");
+			if (s == null) {
+				String pHexString = "FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1"
+						+ "29024E08 8A67CC74 020BBEA6 3B139B22 514A0879 8E3404DD"
+						+ "EF9519B3 CD3A431B 302B0A6D F25F1437 4FE1356D 6D51C245"
+						+ "E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED"
+						+ "EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE65381" + "FFFFFFFF FFFFFFFF";
+				DH_P = new BigInteger(pHexString.replaceAll(" ", ""), 16);
+			} else {
+				DH_P = new BigInteger(s, 16);
+			}
+			s = (String) configs.remove("system.diffie-hellman.g");
+			if (s == null) {
+				DH_G = new BigInteger("2");
+			} else {
+				DH_G = new BigInteger(s);
+			}
+
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Wrong system.config file format! --" + e.getMessage(), e);
+		}
 	}
 
-	// @Override
-	// protected void init() {
-	// super.init();
-	// }
-
-	@Override
-	protected void init(HostsConfig hosts, Properties configs) {
-		super.init(hosts, configs);
+	private void initTomConfig(HostsConfig hosts, Properties configs) {
 		try {
 			n = Integer.parseInt(configs.remove("system.servers.num").toString());
 			String s = (String) configs.remove("system.servers.f");
@@ -426,6 +472,111 @@ public class TOMConfiguration extends BaseConfiguration {
 
 	}
 
+	@Override
+	public Properties getConfigProperties() {
+		Properties configs = new Properties();
+
+		configs.setProperty("system.autoconnect", autoConnectLimit + "");
+
+		configs.setProperty("system.channels.blocking", Boolean.toString(channelsBlocking));
+
+		configs.setProperty("system.communication.defaultkeys", Boolean.toString(defaultKeys));
+
+		configs.setProperty("system.diffie-hellman.p", DH_P.toString(16));
+
+		configs.setProperty("system.diffie-hellman.g", DH_G.toString());
+
+		return configs;
+	}
+
+	@Override
+	public boolean isUseDefaultKeys() {
+		return defaultKeys;
+	}
+
+	@Override
+	public boolean isHostSetted(int id) {
+		if (hostsConfig.getHost(id) == null) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public boolean isUseBlockingChannels() {
+		return this.channelsBlocking;
+	}
+
+	@Override
+	public int getAutoConnectLimit() {
+		return this.autoConnectLimit;
+	}
+
+	@Override
+	public BigInteger getDHP() {
+		return DH_P;
+	}
+
+	@Override
+	public BigInteger getDHG() {
+		return DH_G;
+	}
+
+	@Override
+	public String getHmacAlgorithm() {
+		return hmacAlgorithm;
+	}
+
+	@Override
+	public int getHmacSize() {
+		return hmacSize;
+	}
+
+	@Override
+	public NodeNetwork getRemoteAddress(int id) {
+		if (hostsConfig.getRemoteAddress(id) != null) {
+			return hostsConfig.getRemoteAddress(id);
+		} else {
+			return new NullNodeNetwork();
+		}
+	}
+
+	@Override
+	public NodeNetwork getServerToServerRemoteAddress(int id) {
+		return hostsConfig.getServerToServerRemoteAddress(id);
+	}
+
+	@Override
+	public NodeNetwork getLocalAddress(int id) {
+		return hostsConfig.getLocalAddress(id);
+	}
+
+	@Override
+	public String getHost(int id) {
+		return hostsConfig.getHost(id);
+	}
+
+	@Override
+	public int getPort(int id) {
+		return hostsConfig.getPort(id);
+	}
+
+	@Override
+	public int getMonitorPort(int id) {
+		return hostsConfig.getMonitorPort(id);
+	}
+
+	@Override
+	public int getServerToServerPort(int id) {
+		return hostsConfig.getServerToServerPort(id);
+	}
+
+	@Override
+	public int getProcessId() {
+		return processId;
+	}
+
+	@Override
 	public String getViewStoreClass() {
 		String s = (String) systemConfig.remove("view.storage.handler");
 		if (s == null) {
@@ -436,82 +587,102 @@ public class TOMConfiguration extends BaseConfiguration {
 
 	}
 
+	@Override
 	public boolean isTheTTP() {
 		return (this.getTTPId() == this.getProcessId());
 	}
 
+	@Override
 	public final int[] getInitialView() {
 		return this.initialView;
 	}
 
+	@Override
 	public int getTTPId() {
 		return ttpId;
 	}
 
+	@Override
 	public int getRequestTimeout() {
 		return requestTimeout;
 	}
 
+	@Override
 	public int getClientDatasMonitorTimeout() {
 		return clientDatasMonitorTimeout;
 	}
 
+	@Override
 	public int getClientDatasMaxCount() {
 		return clientDatasMaxCount;
 	}
 
+	@Override
 	public long getHeartBeatTimeout() {
 		return heartBeatTimeout;
 	}
 
+	@Override
 	public long getHeartBeatPeriod() {
 		return heartBeatPeriod;
 	}
 
+	@Override
 	public long getTimeTolerance() {
 		return timeTolerance;
 	}
 
+	@Override
 	public int getReplyVerificationTime() {
 		return replyVerificationTime;
 	}
 
+	@Override
 	public int getN() {
 		return n;
 	}
 
+	@Override
 	public int getF() {
 		return f;
 	}
 
+	@Override
 	public int getPaxosHighMark() {
 		return paxosHighMark;
 	}
 
+	@Override
 	public int getRevivalHighMark() {
 		return revivalHighMark;
 	}
 
+	@Override
 	public int getTimeoutHighMark() {
 		return timeoutHighMark;
 	}
 
+	@Override
 	public int getMaxBatchSize() {
 		return maxBatchSize;
 	}
 
+	@Override
 	public boolean isShutdownHookEnabled() {
 		return shutdownHookEnabled;
 	}
 
+	@Override
 	public boolean isStateTransferEnabled() {
 		return stateTransferEnabled;
 	}
 
+	@Override
 	public int getInQueueSize() {
 		return inQueueSize;
 	}
 
+	@Override
 	public int getOutQueueSize() {
 		return outQueueSize;
 	}
@@ -525,6 +696,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * 
 	 * @return
 	 */
+	@Override
 	public long getSendRetryInterval() {
 		return sendRetryInterval;
 	}
@@ -534,6 +706,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * 
 	 * @return
 	 */
+	@Override
 	public int getSendRetryCount() {
 		return sendRetryCount;
 	}
@@ -541,11 +714,13 @@ public class TOMConfiguration extends BaseConfiguration {
 	/**
 	 * *
 	 */
+	@Override
 	public int getNumberOfNIOThreads() {
 		return numNIOThreads;
 	}
 
 	/** * @return the numberOfNonces */
+	@Override
 	public int getNumberOfNonces() {
 		return numberOfNonces;
 	}
@@ -554,6 +729,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * Indicates if signatures should be used (1) or not (0) to authenticate client
 	 * requests
 	 */
+	@Override
 	public int getUseSignatures() {
 		return useSignatures;
 	}
@@ -562,6 +738,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * Indicates if MACs should be used (1) or not (0) to authenticate client-server
 	 * and server-server messages
 	 */
+	@Override
 	public int getUseMACs() {
 		return useMACs;
 	}
@@ -570,30 +747,37 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * Indicates the checkpoint period used when fetching the state from the
 	 * application
 	 */
+	@Override
 	public int getCheckpointPeriod() {
 		return checkpointPeriod;
 	}
 
+	@Override
 	public boolean isToWriteCkpsToDisk() {
 		return isToWriteCkpsToDisk;
 	}
 
+	@Override
 	public boolean isToWriteSyncCkp() {
 		return syncCkp;
 	}
 
+	@Override
 	public boolean isToLog() {
 		return isToLog;
 	}
 
+	@Override
 	public boolean isToWriteSyncLog() {
 		return syncLog;
 	}
 
-	public boolean logToDisk() {
+	@Override
+	public boolean isLoggingToDisk() {
 		return logToDisk;
 	}
 
+	@Override
 	public boolean isToLogParallel() {
 		// TODO Auto-generated method stub
 		return parallelLog;
@@ -603,6 +787,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * Indicates the checkpoint period used when fetching the state from the
 	 * application
 	 */
+	@Override
 	public int getGlobalCheckpointPeriod() {
 		return globalCheckpointPeriod;
 	}
@@ -611,6 +796,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * Indicates if a simple control flow mechanism should be used to avoid an
 	 * overflow of client requests
 	 */
+	@Override
 	public int getUseControlFlow() {
 		return useControlFlow;
 	}
@@ -631,6 +817,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * @param id the id of process;
 	 * @return
 	 */
+	@Override
 	public PublicKey getRSAPublicKey(int id) {
 		try {
 			return rsaLoader.loadPublicKey(id);
@@ -646,6 +833,7 @@ public class TOMConfiguration extends BaseConfiguration {
 	 * 
 	 * @return
 	 */
+	@Override
 	public PrivateKey getRSAPrivateKey() {
 		try {
 			return rsaLoader.loadPrivateKey(this.processId);
@@ -655,19 +843,23 @@ public class TOMConfiguration extends BaseConfiguration {
 		}
 	}
 
+	@Override
 	public boolean isBFT() {
 
 		return this.isBFT;
 	}
 
+	@Override
 	public int getNumRepliers() {
 		return numRepliers;
 	}
 
+	@Override
 	public int getNumNettyWorkers() {
 		return numNettyWorkers;
 	}
 
+	@Override
 	public HostsConfig getOuterHostConfig() {
 		return outerHostConfig;
 	}
@@ -677,4 +869,14 @@ public class TOMConfiguration extends BaseConfiguration {
 		this.n = n;
 		this.f = f;
 	}
+
+	public void setProcessId(int processId) {
+		this.processId = processId;
+	}
+
+	@Override
+	public void addHostInfo(int id, String host, int port, int monitorPort) {
+		this.hostsConfig.add(id, host, port, monitorPort);
+	}
+
 }

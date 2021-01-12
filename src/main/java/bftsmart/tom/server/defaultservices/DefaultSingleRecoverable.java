@@ -17,11 +17,11 @@ package bftsmart.tom.server.defaultservices;
 
 import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.StandardStateManager;
 import bftsmart.tom.MessageContext;
+import bftsmart.tom.ReplicaConfiguration;
 import bftsmart.tom.ReplicaContext;
 import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.SingleExecutable;
@@ -43,7 +43,7 @@ import java.util.logging.Level;
 public abstract class DefaultSingleRecoverable implements Recoverable, SingleExecutable {
     
     protected ReplicaContext replicaContext;
-    private TOMConfiguration config;
+    private ReplicaConfiguration config;
     private ServerViewController controller;
     private int checkpointPeriod;
 
@@ -244,7 +244,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     }
 
     @Override
-    public void setReplicaContext(ReplicaContext replicaContext) {
+    public void initContext(ReplicaContext replicaContext) {
         this.replicaContext = replicaContext;
         this.config = replicaContext.getStaticConfiguration();
         this.controller = replicaContext.getSVController();
@@ -252,7 +252,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
         if (log == null) {
             checkpointPeriod = config.getCheckpointPeriod();
             byte[] state = getSnapshot();
-            if (config.isToLog() && config.logToDisk()) {
+            if (config.isToLog() && config.isLoggingToDisk()) {
                 int replicaId = config.getProcessId();
                 boolean isToLog = config.isToLog();
                 boolean syncLog = config.isToWriteSyncLog();
@@ -287,7 +287,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     	if(log == null) {
     		checkpointPeriod = config.getCheckpointPeriod();
             byte[] state = getSnapshot();
-            if(config.isToLog() && config.logToDisk()) {
+            if(config.isToLog() && config.isLoggingToDisk()) {
             	int replicaId = config.getProcessId();
             	boolean isToLog = config.isToLog();
             	boolean syncLog = config.isToWriteSyncLog();

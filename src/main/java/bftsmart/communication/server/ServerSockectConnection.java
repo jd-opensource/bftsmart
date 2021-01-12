@@ -46,6 +46,7 @@ import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
+import bftsmart.tom.ReplicaConfiguration;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.util.TOMUtil;
 
@@ -66,6 +67,8 @@ public class ServerSockectConnection implements MessageConnection {
 	private final long RETRY_INTERVAL;
 	private final int RETRY_COUNT;
 	// private static final int SEND_QUEUE_SIZE = 50;
+	
+	private ReplicaConfiguration replicaConf;
 	private ServerViewController controller;
 	private volatile Socket socket;
 	private volatile DataOutputStream socketOutStream = null;
@@ -93,7 +96,7 @@ public class ServerSockectConnection implements MessageConnection {
 			ServiceReplica replica) {
 
 		this.controller = controller;
-
+		this.replicaConf = controller.getStaticConf();
 		this.socket = socket;
 
 		this.remoteId = remoteId;
@@ -102,18 +105,18 @@ public class ServerSockectConnection implements MessageConnection {
 
 		this.messageInQueue = messageInQueue;
 
-		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(this.controller.getStaticConf().getOutQueueSize());
+		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(replicaConf.getOutQueueSize());
 
 		this.noMACs = new HashSet<Integer>();
 		// Connect to the remote process or just wait for the connection?
 		if (isToConnect()) {
 			// I have to connect to the remote server
 			try {
-				this.socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
-						this.controller.getStaticConf().getServerToServerPort(remoteId));
+				this.socket = new Socket(replicaConf.getHost(remoteId),
+						replicaConf.getServerToServerPort(remoteId));
 				SocketUtils.setSocketOptions(this.socket);
 				new DataOutputStream(this.socket.getOutputStream())
-						.writeInt(this.controller.getStaticConf().getProcessId());
+						.writeInt(replicaConf.getProcessId());
 
 			} catch (UnknownHostException ex) {
 				LOGGER.warn(
@@ -137,22 +140,22 @@ public class ServerSockectConnection implements MessageConnection {
 		}
 
 		// ******* EDUARDO BEGIN **************//
-//		this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
-		this.RETRY_INTERVAL = this.controller.getStaticConf().getSendRetryInterval();
-		this.RETRY_COUNT = this.controller.getStaticConf().getSendRetryCount();
+//		this.useSenderThread = replicaConf.isUseSenderThread();
+		this.RETRY_INTERVAL = replicaConf.getSendRetryInterval();
+		this.RETRY_COUNT = replicaConf.getSendRetryCount();
 
-		LOGGER.info("I am proc {}, useSenderThread = {}", this.controller.getStaticConf().getProcessId(),
+		LOGGER.info("I am proc {}, useSenderThread = {}", replicaConf.getProcessId(),
 				this.useSenderThread);
 
-		if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
+		if (useSenderThread && (replicaConf.getTTPId() != remoteId)) {
 			new SenderThread(latch).start();
 		} else {
 			sendLock = new ReentrantLock();
 		}
 		authenticateAndEstablishAuthKey();
 
-		if (!this.controller.getStaticConf().isTheTTP()) {
-			if (this.controller.getStaticConf().getTTPId() == remoteId) {
+		if (!replicaConf.isTheTTP()) {
+			if (replicaConf.getTTPId() == remoteId) {
 				// Uma thread "diferente" para as msgs recebidas da TTP
 				new TTPReceiverThread(replica).start();
 			} else {
@@ -173,17 +176,17 @@ public class ServerSockectConnection implements MessageConnection {
 //
 //        this.inQueue = inQueue;
 //
-//        this.outQueue = new LinkedBlockingQueue<byte[]>(this.controller.getStaticConf().getOutQueueSize());
+//        this.outQueue = new LinkedBlockingQueue<byte[]>(replicaConf.getOutQueueSize());
 //
 //        this.noMACs = new HashSet<Integer>();
 //        // Connect to the remote process or just wait for the connection?
 //        if (isToConnect()) {
 //            //I have to connect to the remote server
 //            try {
-//                this.socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
-//                        this.controller.getStaticConf().getServerToServerPort(remoteId));
+//                this.socket = new Socket(replicaConf.getHost(remoteId),
+//                        replicaConf.getServerToServerPort(remoteId));
 //                ServersCommunicationLayer.setSocketOptions(this.socket);
-//                new DataOutputStream(this.socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
+//                new DataOutputStream(this.socket.getOutputStream()).writeInt(replicaConf.getProcessId());
 //
 //            } catch (UnknownHostException ex) {
 //                ex.printStackTrace();
@@ -204,17 +207,17 @@ public class ServerSockectConnection implements MessageConnection {
 //        }
 //
 //        //******* EDUARDO BEGIN **************//
-//        this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
+//        this.useSenderThread = replicaConf.isUseSenderThread();
 //
-//        if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
+//        if (useSenderThread && (replicaConf.getTTPId() != remoteId)) {
 //            new SenderThread(latch).start();
 //        } else {
 //            sendLock = new ReentrantLock();
 //        }
 //        authenticateAndEstablishAuthKey();
 //
-//        if (!this.controller.getStaticConf().isTheTTP()) {
-//            if (this.controller.getStaticConf().getTTPId() == remoteId) {
+//        if (!replicaConf.isTheTTP()) {
+//            if (replicaConf.getTTPId() == remoteId) {
 //                //Uma thread "diferente" para as msgs recebidas da TTP
 //                new TTPReceiverThread(replica).start();
 //            } else {
@@ -315,7 +318,7 @@ public class ServerSockectConnection implements MessageConnection {
 				if (socket != null && socketOutStream != null) {
 					try {
 						// do an extra copy of the data to be sent, but on a single out stream write
-						byte[] mac = (useMAC && this.controller.getStaticConf().getUseMACs() == 1)
+						byte[] mac = (useMAC && replicaConf.getUseMACs() == 1)
 								? macSend.doFinal(messageData)
 								: null;
 						byte[] data = new byte[5 + messageData.length + ((mac != null) ? mac.length : 0)];
@@ -349,16 +352,16 @@ public class ServerSockectConnection implements MessageConnection {
 
 				LOGGER.error(
 						"[ServerConnection.sendBytes] current proc id: {}. Close socket and waitAndConnect connect with {}",
-						this.controller.getStaticConf().getProcessId(), remoteId);
+						replicaConf.getProcessId(), remoteId);
 				closeSocket();
 
 				LOGGER.error("[ServerConnection.sendBytes] current proc id: {}, Wait and reonnect with {}",
-						this.controller.getStaticConf().getProcessId(), remoteId);
+						replicaConf.getProcessId(), remoteId);
 				waitAndConnect();
 
 				if (messageTask.isRetry() && counter++ >= RETRY_COUNT) {
 					LOGGER.error("[ServerConnection.sendBytes] fails, and the fail times is out of the max retry count["
-							+ RETRY_COUNT + "]!", this.controller.getStaticConf().getProcessId(), remoteId);
+							+ RETRY_COUNT + "]!", replicaConf.getProcessId(), remoteId);
 
 					messageTask.error(error);
 					return;
@@ -375,11 +378,11 @@ public class ServerSockectConnection implements MessageConnection {
 	// ******* EDUARDO BEGIN **************//
 	// return true of a process shall connect to the remote process, false otherwise
 	private boolean isToConnect() {
-		if (this.controller.getStaticConf().getTTPId() == remoteId) {
+		if (replicaConf.getTTPId() == remoteId) {
 			// Need to wait for the connection request from the TTP, do not tray to connect
 			// to it
 			return false;
-		} else if (this.controller.getStaticConf().getTTPId() == this.controller.getStaticConf().getProcessId()) {
+		} else if (replicaConf.getTTPId() == replicaConf.getProcessId()) {
 			// If this is a TTP, one must connect to the remote process
 			return true;
 		}
@@ -387,7 +390,7 @@ public class ServerSockectConnection implements MessageConnection {
 		if (this.controller.isInCurrentView()) {
 
 			// in this case, the node with higher ID starts the connection
-			if (this.controller.getStaticConf().getProcessId() > remoteId) {
+			if (replicaConf.getProcessId() > remoteId) {
 				ret = true;
 			}
 
@@ -401,13 +404,13 @@ public class ServerSockectConnection implements MessageConnection {
 			/**
 			 * 
 			 * boolean me =
-			 * this.controller.isInLastJoinSet(this.controller.getStaticConf().getProcessId());
+			 * this.controller.isInLastJoinSet(replicaConf.getProcessId());
 			 * boolean remote = this.controller.isInLastJoinSet(remoteId);
 			 * 
 			 * //either both endpoints are old in the system (entered the system in a
 			 * previous view), //or both entered during the last reconfiguration if ((me &&
 			 * remote) || (!me && !remote)) { //in this case, the node with higher ID starts
-			 * the connection if (this.controller.getStaticConf().getProcessId() > remoteId)
+			 * the connection if (replicaConf.getProcessId() > remoteId)
 			 * { ret = true; } //this process is the older one, and the other one entered in
 			 * the last reconfiguration } else if (!me && remote) { ret = true;
 			 * 
@@ -438,11 +441,11 @@ public class ServerSockectConnection implements MessageConnection {
 				// ******* EDUARDO BEGIN **************//
 				if (isToConnect()) {
 
-					socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
-							this.controller.getStaticConf().getServerToServerPort(remoteId));
+					socket = new Socket(replicaConf.getHost(remoteId),
+							replicaConf.getServerToServerPort(remoteId));
 					SocketUtils.setSocketOptions(socket);
 					new DataOutputStream(socket.getOutputStream())
-							.writeInt(this.controller.getStaticConf().getProcessId());
+							.writeInt(replicaConf.getProcessId());
 
 					// ******* EDUARDO END **************//
 				} else {
@@ -492,12 +495,12 @@ public class ServerSockectConnection implements MessageConnection {
 
 			// Derive DH private key from replica's own RSA private key
 
-			PrivateKey RSAprivKey = controller.getStaticConf().getRSAPrivateKey();
+			PrivateKey RSAprivKey = replicaConf.getRSAPrivateKey();
 			BigInteger DHPrivKey = new BigInteger(RSAprivKey.getEncoded());
 
 			// Create DH public key
-			BigInteger myDHPubKey = controller.getStaticConf().getDHG().modPow(DHPrivKey,
-					controller.getStaticConf().getDHP());
+			BigInteger myDHPubKey = replicaConf.getDHG().modPow(DHPrivKey,
+					replicaConf.getDHP());
 
 			// turn it into a byte array
 			byte[] bytes = myDHPubKey.toByteArray();
@@ -534,7 +537,7 @@ public class ServerSockectConnection implements MessageConnection {
 				byte[] remote_Signature = bytes;
 
 				// verify signature
-				PublicKey remoteRSAPubkey = controller.getStaticConf().getRSAPublicKey(remoteId);
+				PublicKey remoteRSAPubkey = replicaConf.getRSAPublicKey(remoteId);
 
 				if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
 
@@ -546,11 +549,11 @@ public class ServerSockectConnection implements MessageConnection {
 				BigInteger remoteDHPubKey = new BigInteger(remote_Bytes);
 
 				// Create secret key
-				BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, controller.getStaticConf().getDHP());
+				BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, replicaConf.getDHP());
 
 				LOGGER.info("[{}] ->  I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}",
-						this.replica.getRealName(), this.controller.getStaticConf().getProcessId(), remoteId,
-						controller.getStaticConf().getServerToServerPort(remoteId));
+						this.replica.getRealName(), replicaConf.getProcessId(), remoteId,
+						replicaConf.getServerToServerPort(remoteId));
 
 				SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
 				PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
@@ -703,7 +706,7 @@ public class ServerSockectConnection implements MessageConnection {
 						boolean result = true;
 
 						byte hasMAC = socketInStream.readByte();
-						if (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
+						if (replicaConf.getUseMACs() == 1 && hasMAC == 1) {
 							read = 0;
 							do {
 								read += socketInStream.read(receivedMac, read, macSize - read);
@@ -715,7 +718,7 @@ public class ServerSockectConnection implements MessageConnection {
 						if (result) {
 							SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
 									.readObject());
-							sm.authenticated = (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1);
+							sm.authenticated = (replicaConf.getUseMACs() == 1 && hasMAC == 1);
 
 							if (sm.getSender() == remoteId) {
 
@@ -793,7 +796,7 @@ public class ServerSockectConnection implements MessageConnection {
 						boolean result = true;
 
 						byte hasMAC = socketInStream.readByte();
-						if (controller.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
+						if (replicaConf.getUseMACs() == 1 && hasMAC == 1) {
 
 							LOGGER.debug("TTP CON USEMAC");
 							read = 0;

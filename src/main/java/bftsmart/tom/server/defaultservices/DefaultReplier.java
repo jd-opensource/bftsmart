@@ -56,7 +56,7 @@ public class DefaultReplier implements Replier{
     }
 
     @Override
-    public void setReplicaContext(ReplicaContext rc) {
+    public void initContext(ReplicaContext rc) {
         
         this.replyLock.lock();
         

@@ -108,13 +108,6 @@ public class ServiceReplica {
 
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
 
-	public ServiceReplica(int id, String systemConfig, String hostsConfig, String keystoreHome, String runtimeDir,
-			View initView, Executable executor, Recoverable recoverer) {
-		this(new ServerViewController(new TOMConfiguration(id, systemConfig, hostsConfig, keystoreHome),
-				new FileSystemViewStorage(initView, new File(runtimeDir, "view"))), executor, recoverer, null,
-				new DefaultReplier(), -1, "Default-Realm");
-	}
-
 	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer) {
 		this(new ServerViewController(config, new MemoryBasedViewStorage()), executor, recoverer, null,
 				new DefaultReplier(), -1, "Default-Realm");
@@ -137,11 +130,6 @@ public class ServiceReplica {
 				"Default-Realm");
 	}
 
-//	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid) {
-//		this(new ServerViewController(config, new MemoryBasedViewStorage()), executor, recoverer, null,
-//				new DefaultReplier(), lastCid);
-//	}
-
 	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
 			View lastView, String realName) {
 		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
@@ -158,64 +146,19 @@ public class ServiceReplica {
 		this.replier = (replier != null ? replier : new DefaultReplier());
 		this.verifier = verifier;
 		this.recoverer.setRealName(realName);
-		this.recoverer.setStateLog(viewController);
-		if (viewController.getStaticConf().logToDisk()) {
+
+		if (viewController.getStaticConf().isLoggingToDisk()) {
 			this.lastCid = this.recoverer.getStateManager().getLastCID();
 		} else {
 			this.lastCid = lastCid;
 		}
-		this.init();
-		this.recoverer.setReplicaContext(replicaCtx);
-		this.replier.setReplicaContext(replicaCtx);
+		
+		this.replicaCtx = this.init();
+		this.replier.initContext(replicaCtx);
+		this.recoverer.initContext(replicaCtx);
+		
+		startReplica(replicaCtx);
 	}
-
-//	/**
-//	 * Constructor
-//	 *
-//	 * @param id         Process ID
-//	 * @param configHome Configuration directory for JBP
-//	 * @param executor   Executor
-//	 * @param recoverer  Recoverer
-//	 * @param verifier   Requests verifier
-//	 * @param replier    Replier
-//	 *
-//	 * @param lastCid
-//	 */
-//	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-//			RequestVerifier verifier, Replier replier, int lastCid) {
-//		this.id = viewController.getStaticConf().getProcessId();
-//		this.serverViewController = viewController;
-//		this.executor = executor;
-//		this.recoverer = recoverer;
-//		this.replier = (replier != null ? replier : new DefaultReplier());
-//		this.verifier = verifier;
-//		this.init();
-//		this.recoverer.setReplicaContext(replicaCtx);
-//		this.replier.setReplicaContext(replicaCtx);
-//	}
-
-//	/**
-//	 * Constructor
-//	 *
-//	 * @param id         Process ID
-//	 * @param configHome Configuration directory for JBP
-//	 * @param executor   Executor
-//	 * @param recoverer  Recoverer
-//	 * @param verifier   Requests verifier
-//	 * @param replier    Replier
-//	 */
-//	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
-//			RequestVerifier verifier, Replier replier) {
-//		this.id = viewController.getStaticConf().getProcessId();
-//		this.serverViewController = viewController;
-//		this.executor = executor;
-//		this.recoverer = recoverer;
-//		this.replier = (replier != null ? replier : new DefaultReplier());
-//		this.verifier = verifier;
-//		this.init();
-//		this.recoverer.setReplicaContext(replicaCtx);
-//		this.replier.setReplicaContext(replicaCtx);
-//	}
 
 	public void setReplyController(Replier replier) {
 		this.replier = replier;
@@ -237,44 +180,39 @@ public class ServiceReplica {
 		return repMan;
 	}
 
-//	public HeartBeatTimer getHeartBeatTimer() {
-//	    return heartBeatTimer;
-//    }
-
 	// this method initializes the object
-	private void init() {
+	private ReplicaContext init() {
 		try {
 			messageHandler = new MessageHandler();
 			clientCommunication = ClientCommunicationFactory.createServerSide(serverViewController);
 			cs = new ServerCommunicationSystemImpl(clientCommunication, messageHandler, this.serverViewController,
 					this);
 		} catch (Exception ex) {
-//			Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
 			throw new RuntimeException("Unable to build a communication system.", ex);
 		}
 
-		if (this.serverViewController.isInCurrentView()) {
-			LOGGER.info("-- In current view: {}", this.serverViewController.getCurrentView());
-			if (!tomStackCreated) { // if this object was already initialized, don't do it again
-				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
-						messageHandler, clientCommunication); // initiaze the TOM layer
-				tomStackCreated = true;
-			}
-		} else {
-			LOGGER.error("-- Not in current view: {}", this.serverViewController.getCurrentView());
+		if (!this.serverViewController.isInCurrentView()) {
+//			LOGGER.error("Current replica is not in current view! --[ReplicaId={}][View={}]",
+//					serverViewController.getCurrentProcessId(), this.serverViewController.getCurrentView());
+//			// Not in the initial view, just waiting for the view where the join has been
+//			// executed
+//			LOGGER.error("-- Waiting for the TTP: {}", this.serverViewController.getCurrentView());
+//			waitTTPJoinMsgLock.lock();
+//			try {
+//				canProceed.awaitUninterruptibly();
+//			} finally {
+//				waitTTPJoinMsgLock.unlock();
+//			}
 
-			// Not in the initial view, just waiting for the view where the join has been
-			// executed
-			LOGGER.error("-- Waiting for the TTP: {}", this.serverViewController.getCurrentView());
-			waitTTPJoinMsgLock.lock();
-			try {
-				canProceed.awaitUninterruptibly();
-			} finally {
-				waitTTPJoinMsgLock.unlock();
-			}
-
+			throw new IllegalStateException(
+					String.format("Current replica is not in current view! --[ReplicaId=%s][View=%s]",
+							serverViewController.getCurrentProcessId(), serverViewController.getCurrentView()));
 		}
-		startReplica();
+		
+		ReplicaContext context = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
+				messageHandler, clientCommunication); // initiaze the TOM layer
+		return context;
+		
 	}
 
 	public void joinMsgReceived(VMMessage msg) {
@@ -299,11 +237,11 @@ public class ServiceReplica {
 		}
 	}
 
-	private void startReplica() {
+	private void startReplica(ReplicaContext context) {
 		cs.start();
 		repMan = new ReplyManager(serverViewController.getStaticConf().getNumRepliers(), cs);
 
-		replicaCtx.start();
+		context.start();
 	}
 
 	/**
@@ -411,8 +349,8 @@ public class ServiceReplica {
 
 					init();
 
-					recoverer.setReplicaContext(replicaCtx);
-					replier.setReplicaContext(replicaCtx);
+					recoverer.initContext(replicaCtx);
+					replier.initContext(replicaCtx);
 
 					replicaCtx.start();
 				}
@@ -738,7 +676,6 @@ public class ServiceReplica {
 
 		Acceptor acceptor = new Acceptor(cs, messageFactory, svc);
 
-//		cs.setAcceptor(acceptor);
 		messageHandler.setAcceptor(acceptor);
 
 		Proposer proposer = new Proposer(cs, messageFactory, svc);
@@ -755,9 +692,6 @@ public class ServiceReplica {
 		executionManager.setTOMLayer(tomLayer);
 
 		svc.setTomLayer(tomLayer);
-
-//		cs.setTOMLayer(tomLayer);
-//		cs.setRequestReceiver(tomLayer);
 
 		messageHandler.setTOMLayer(tomLayer);
 		clientCommunication.setRequestReceiver(tomLayer);

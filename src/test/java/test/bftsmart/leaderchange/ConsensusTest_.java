@@ -24,6 +24,9 @@ import bftsmart.communication.ServerCommunicationSystemImpl;
 import bftsmart.communication.server.ServersCommunicationLayer;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
+import bftsmart.reconfiguration.util.TOMConfiguration;
+import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
+import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.AsynchServiceProxy;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.TOMLayer;
@@ -56,11 +59,18 @@ public class ConsensusTest_ {
 
 	@Before
 	public void createClient() {
-		clientProxy = new AsynchServiceProxy(clientProcId);
+		TOMConfiguration config = loadConfig();
+		ViewStorage viewStorage = new MemoryBasedViewStorage();
+		clientProxy = new AsynchServiceProxy(config, viewStorage);
 		Random random = new Random();
 		bytes = new byte[4];
 		random.nextBytes(bytes);
 
+	}
+
+	private TOMConfiguration loadConfig() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	/**
@@ -718,7 +728,8 @@ public class ConsensusTest_ {
 
 		serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
 
-		ServersCommunicationLayer serversCommunicationLayer = spy(serverCommunicationSystems[index].getServersCommunication());
+		ServersCommunicationLayer serversCommunicationLayer = spy(
+				serverCommunicationSystems[index].getServersCommunication());
 
 		doAnswer(new Answer() {
 			@Override
