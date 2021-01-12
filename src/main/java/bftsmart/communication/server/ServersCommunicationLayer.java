@@ -29,9 +29,7 @@ public interface ServersCommunicationLayer  {
 	
 	void updateConnections();
 
-	ServerConnection updateConnection(int remoteId);
-
-	ServerConnection getConnection(int remoteId);
+	void resetConnection(int remoteId);
 
 	default void send(int[] targets, SystemMessage sm, boolean useMAC) {
 		send(targets, sm, useMAC, true);
