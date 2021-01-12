@@ -37,7 +37,7 @@ import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.server.ServerConnection;
+import bftsmart.communication.server.MessageConnection;
 import bftsmart.consensus.TimestampValuePair;
 import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -109,7 +109,7 @@ public class LCManager {
 		try {
 			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
 			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
-			this.mac = Mac.getInstance(ServerConnection.MAC_ALGORITHM);
+			this.mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
 		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
 			ex.printStackTrace();
 		}

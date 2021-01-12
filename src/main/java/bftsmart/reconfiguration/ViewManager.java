@@ -16,6 +16,7 @@ limitations under the License.
 package bftsmart.reconfiguration;
 
 import bftsmart.communication.server.CompletedCallback;
+import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.ServerConnection;
 import bftsmart.reconfiguration.views.View;
 import org.slf4j.LoggerFactory;
@@ -120,7 +121,7 @@ public class ViewManager {
 
     }
 
-    private ServerConnection getConnection(int remoteId) {
+    private MessageConnection getConnection(int remoteId) {
          return new ServerConnection(controller, null, remoteId, null, null);
     }
 

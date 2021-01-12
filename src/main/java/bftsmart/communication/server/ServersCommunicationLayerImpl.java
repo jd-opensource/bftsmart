@@ -119,7 +119,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 				Integer[] remoteIds = this.connections.keySet().toArray(new Integer[this.connections.size()]);
 				for (Integer remoteId : remoteIds) {
 					if (!this.controller.isCurrentViewMember(remoteId)) {
-						ServerConnection conn = this.connections.remove(remoteId);
+						MessageConnection conn = this.connections.remove(remoteId);
 						conn.shutdown();
 					}
 				}
@@ -141,14 +141,14 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	}
 
 	public void resetConnection(int remoteId) {
-		ServerConnection conn = this.connections.remove(remoteId);
+		MessageConnection conn = this.connections.remove(remoteId);
 		if (conn != null) {
 			conn.shutdown();
 		}
 	}
 
-	private ServerConnection getConnection(int remoteId) {
-		ServerConnection ret = this.connections.get(remoteId);
+	private MessageConnection getConnection(int remoteId) {
+		MessageConnection ret = this.connections.get(remoteId);
 		if (ret == null) {
 			throw new IllegalStateException(
 					String.format("Connection has not been established! --[Current=%s][Remote=%s]",
@@ -157,7 +157,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		return ret;
 	}
 
-	private ServerConnection ensureConnection(int remoteId) {
+	private MessageConnection ensureConnection(int remoteId) {
 		ServerConnection ret = null;
 		ret = this.connections.get(remoteId);
 		if (ret == null) {
@@ -238,10 +238,10 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		doWork = false;
 
 		// ******* EDUARDO BEGIN **************//
-		ServerConnection[] connections = this.connections.values()
+		MessageConnection[] connections = this.connections.values()
 				.toArray(new ServerConnection[this.connections.size()]);
 		this.connections.clear();
-		for (ServerConnection serverConnection : connections) {
+		for (MessageConnection serverConnection : connections) {
 			serverConnection.shutdown();
 		}
 		try {

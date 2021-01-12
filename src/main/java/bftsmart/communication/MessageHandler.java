@@ -29,7 +29,7 @@ import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.server.ServerConnection;
+import bftsmart.communication.server.MessageConnection;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -104,7 +104,7 @@ public class MessageHandler {
 				byte[] myMAC = null;
 				SecretKey key = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
 				try {
-					Mac mac = Mac.getInstance(ServerConnection.MAC_ALGORITHM);
+					Mac mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
 					mac.init(key);
 					myMAC = mac.doFinal(data);
 				} catch (/* IllegalBlockSizeException | BadPaddingException | */ InvalidKeyException | NoSuchAlgorithmException ex) {

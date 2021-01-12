@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
 import bftsmart.tom.ServiceReplica;
@@ -57,13 +56,12 @@ import bftsmart.tom.util.TOMUtil;
  *
  * @author alysson
  */
-public class ServerConnection {
+public class ServerConnection implements MessageConnection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerConnection.class);
 
 	// 重连周期
 	private static final long RECONNECT_MILL_SECONDS = 5000L;
-	public static final String MAC_ALGORITHM = "HmacMD5";
 	private static final long POOL_INTERVAL = 5000;
 	private final long RETRY_INTERVAL;
 	private final int RETRY_COUNT;
@@ -226,6 +224,7 @@ public class ServerConnection {
 //        //******* EDUARDO END **************//
 //    }
 
+	@Override
 	public SecretKey getSecretKey() {
 		return authKey;
 	}
@@ -233,6 +232,7 @@ public class ServerConnection {
 	/**
 	 * Stop message sending and reception.
 	 */
+	@Override
 	public void shutdown() {
 		LOGGER.info("SHUTDOWN for {}", remoteId);
 
@@ -245,6 +245,7 @@ public class ServerConnection {
 	/**
 	 * Used to send packets to the remote server.
 	 */
+	@Override
 	public final AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, CompletedCallback<byte[], Void> callback) {
 		return send(data, useMAC, true, callback);
 	}
@@ -260,6 +261,7 @@ public class ServerConnection {
 	 * @return
 	 * @throws InterruptedException
 	 */
+	@Override
 	public final AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, boolean retrySending,
 			CompletedCallback<byte[], Void> callback) {
 		// 禁用使用内部线程，而是采用独立线程，并返回;
@@ -474,7 +476,7 @@ public class ServerConnection {
 	}
 
 	// TODO!
-	public void authenticateAndEstablishAuthKey() {
+	private void authenticateAndEstablishAuthKey() {
 		if (authKey != null || socketOutStream == null || socketInStream == null) {
 			return;
 		}
