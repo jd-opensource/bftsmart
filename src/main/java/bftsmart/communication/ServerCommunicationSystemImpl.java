@@ -22,9 +22,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.LoggerFactory;
 
-import com.jd.blockchain.utils.concurrent.AsyncFuture;
-import com.jd.blockchain.utils.concurrent.CompletableAsyncFuture;
-
 import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
@@ -39,6 +36,8 @@ import bftsmart.tom.leaderchange.LCMessage;
 import bftsmart.tom.leaderchange.LeaderRequestMessage;
 import bftsmart.tom.leaderchange.LeaderResponseMessage;
 import bftsmart.tom.leaderchange.LeaderStatusRequestMessage;
+import utils.concurrent.AsyncFuture;
+import utils.concurrent.CompletableAsyncFuture;
 
 /**
  *

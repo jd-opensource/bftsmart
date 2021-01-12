@@ -95,8 +95,6 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 
 		createServerSocket(controller);
 	}
-	
-	
 
 	private void createServerSocket(ServerViewController controller) throws IOException, SocketException {
 		serverSocket = new ServerSocket(
@@ -264,7 +262,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			try {
 				establishConnection(pc.s, pc.remoteId);
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOGGER.warn("Error occurred while establishing connection! --" + e.getMessage(), e);
 			}
 		}
 
@@ -272,8 +270,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 
 		waitViewLock.unlock();
 	}
-	
-	
+
 	@Override
 	public void startListening() {
 		Thread thrd = new Thread(new Runnable() {
@@ -285,7 +282,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		thrd.setDaemon(true);
 		thrd.start();
 	}
-	
+
 	private void acceptConnection() {
 		while (doWork) {
 			try {
@@ -356,18 +353,20 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		LOGGER.info("I am {}, remoteId = {} !", this.controller.getStaticConf().getProcessId(), remoteId);
 		if ((this.controller.getStaticConf().getTTPId() == remoteId) || this.controller.isCurrentViewMember(remoteId)) {
 			connectionsLock.lock();
-			// System.out.println("Vai se conectar com: "+remoteId);
-			if (this.connections.get(remoteId) == null) { // This must never happen!!!
-				// first time that this connection is being established
-				// System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
-				this.connections.put(remoteId,
-						new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica));
-			} else {
-				// reconnection
-				this.connections.get(remoteId).reconnect(newSocket);
+			try {
+				// System.out.println("Vai se conectar com: "+remoteId);
+				if (this.connections.get(remoteId) == null) { // This must never happen!!!
+					// first time that this connection is being established
+					// System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
+					this.connections.put(remoteId,
+							new ServerConnection(controller, newSocket, remoteId, messageInQueue, replica));
+				} else {
+					// reconnection
+					this.connections.get(remoteId).reconnect(newSocket);
+				}
+			} finally {
+				connectionsLock.unlock();
 			}
-			connectionsLock.unlock();
-
 		} else {
 			// System.out.println("Closing connection of: "+remoteId);
 			newSocket.close();

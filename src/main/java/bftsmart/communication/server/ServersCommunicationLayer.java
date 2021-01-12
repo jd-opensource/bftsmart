@@ -32,8 +32,6 @@ public interface ServersCommunicationLayer  {
 	ServerConnection updateConnection(int remoteId);
 
 	ServerConnection getConnection(int remoteId);
-	
-	void startListening();
 
 	default void send(int[] targets, SystemMessage sm, boolean useMAC) {
 		send(targets, sm, useMAC, true);
@@ -41,6 +39,9 @@ public interface ServersCommunicationLayer  {
 
 	void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending);
 
+	
+	void startListening();
+	
 	void shutdown();
 
 	void joinViewReceived();
