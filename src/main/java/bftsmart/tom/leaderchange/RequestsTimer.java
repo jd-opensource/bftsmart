@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.Consensus;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
@@ -50,7 +50,7 @@ public class RequestsTimer {
 	private boolean enabled = true;
 
 	private ServerCommunicationSystem communication; // Communication system between replicas
-	private ServerViewController controller; // Reconfiguration manager
+	private ReplicaTopology controller; // Reconfiguration manager
 
 	private Hashtable<Integer, Timer> stopTimers = new Hashtable<>();
 
@@ -63,7 +63,7 @@ public class RequestsTimer {
 	 * 
 	 * @param tomLayer TOM layer
 	 */
-	public RequestsTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ServerViewController controller) {
+	public RequestsTimer(TOMLayer tomLayer, ServerCommunicationSystem communication, ReplicaTopology controller) {
 		this.tomLayer = tomLayer;
 
 		this.communication = communication;
