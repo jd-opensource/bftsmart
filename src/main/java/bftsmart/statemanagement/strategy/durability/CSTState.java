@@ -16,7 +16,7 @@ limitations under the License.
 package bftsmart.statemanagement.strategy.durability;
 
 import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.CertifiedDecision;
@@ -105,7 +105,7 @@ public class CSTState implements ApplicationState {
      * @return The certified decision for the last consensus present in this object
      */
     @Override
-    public CertifiedDecision getCertifiedDecision(ServerViewController controller) {
+    public CertifiedDecision getCertifiedDecision(ViewTopology controller) {
         CommandsInfo ci = getMessageBatch(getLastCID());
         if (ci != null && ci.msgCtx[0].getProof() != null) { // do I have a proof for the consensus?
             

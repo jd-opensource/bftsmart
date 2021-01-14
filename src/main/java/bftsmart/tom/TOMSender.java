@@ -117,9 +117,10 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 
 
 	public void sendMessageToTargets(byte[] m, int reqId, int operationId, int[] targets, TOMMessageType type) {
-		if(this.getViewManager().getStaticConf().isTheTTP()) {
-			type = TOMMessageType.ASK_STATUS;
-		}
+		// remove TTP;
+//		if(this.getViewManager().getStaticConf().isTheTTP()) {
+//			type = TOMMessageType.ASK_STATUS;
+//		}
 		cs.send(useSignatures, targets,
 				new TOMMessage(me, session, reqId, operationId, m, viewController.getCurrentViewId(), type));
 	}

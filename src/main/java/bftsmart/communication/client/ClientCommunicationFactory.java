@@ -1,7 +1,7 @@
 package bftsmart.communication.client;
 
 import bftsmart.communication.client.netty.NettyClientServerCommunicationSystemServerSide;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 
 /**
  * @author huanghaiquan
@@ -9,7 +9,7 @@ import bftsmart.reconfiguration.ServerViewController;
  */
 public class ClientCommunicationFactory {
 
-    public static ClientCommunicationServerSide createServerSide(ServerViewController controller) {
+    public static ClientCommunicationServerSide createServerSide(ViewTopology controller) {
         return new NettyClientServerCommunicationSystemServerSide(controller);
     }
 }

@@ -15,7 +15,7 @@ limitations under the License.
 */
 package bftsmart.consensus;
 
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.ExecutionManager;
 import org.slf4j.LoggerFactory;
 
@@ -174,7 +174,7 @@ public class Consensus {
      * @param controller The view controller for the replicas
      * @return The epoch
      */
-    public Epoch getEpoch(int timestamp, ServerViewController controller) {
+    public Epoch getEpoch(int timestamp, ViewTopology controller) {
         return getEpoch(timestamp,true, controller);
     }
 
@@ -185,7 +185,7 @@ public class Consensus {
      * @param controller The view controller for the replicas
      * @return The epoch
      */
-    public Epoch getEpoch(int timestamp, boolean create, ServerViewController controller) {
+    public Epoch getEpoch(int timestamp, boolean create, ViewTopology controller) {
         epochsLock.lock();
 
         Epoch epoch = epochs.get(timestamp);
@@ -285,7 +285,7 @@ public class Consensus {
      * @param recManager The replica's ServerViewController
      * @return The epoch
      */
-    public Epoch createEpoch(int timestamp, ServerViewController recManager) {
+    public Epoch createEpoch(int timestamp, ViewTopology recManager) {
         epochsLock.lock();
 
         Epoch epoch = new Epoch(recManager, this, timestamp);
@@ -303,7 +303,7 @@ public class Consensus {
      * @param recManager The replica's ServerViewController
      * @return The epoch
      */
-    public Epoch createEpoch(ServerViewController recManager) {
+    public Epoch createEpoch(ViewTopology recManager) {
         epochsLock.lock();
 
         Set<Integer> keys = epochs.keySet();

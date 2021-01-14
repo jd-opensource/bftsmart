@@ -1,14 +1,14 @@
 package bftsmart.tom.leaderchange;
 
 import bftsmart.clientsmanagement.ClientsManager;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class ClientDatasMonitorTimer {
 
-    private ServerViewController controller;
+    private ViewTopology controller;
     private RequestsTimer requestsTimer;
     private ClientsManager clientsManager;
 
@@ -21,7 +21,7 @@ public class ClientDatasMonitorTimer {
     private ClientDataMonitorTimerTask clientDataMonitorTimerTask = null;
 
 
-    public ClientDatasMonitorTimer(ServerViewController controller, RequestsTimer requestsTimer, ClientsManager clientsManager) {
+    public ClientDatasMonitorTimer(ViewTopology controller, RequestsTimer requestsTimer, ClientsManager clientsManager) {
         this.controller = controller;
         this.requestsTimer = requestsTimer;
         this.clientsManager = clientsManager;
@@ -53,10 +53,10 @@ public class ClientDatasMonitorTimer {
     class ClientDataMonitorTimerTask extends TimerTask {
 
        private ClientsManager clientsManager;
-       private ServerViewController controller;
+       private ViewTopology controller;
 
 
-        public ClientDataMonitorTimerTask(ClientsManager clientsManager, ServerViewController controller) {
+        public ClientDataMonitorTimerTask(ClientsManager clientsManager, ViewTopology controller) {
             this.clientsManager = clientsManager;
             this.controller = controller;
         }

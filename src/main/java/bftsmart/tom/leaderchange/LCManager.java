@@ -41,7 +41,7 @@ import bftsmart.communication.server.MessageConnection;
 import bftsmart.consensus.TimestampValuePair;
 import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
@@ -79,7 +79,7 @@ public class LCManager {
 	private Map<Integer, HashSet<SignedObject>> collects;
 
 	// stuff from the TOM layer that this object needss
-	private ServerViewController SVController;
+	private ViewTopology SVController;
 	private SHA256Utils md = new SHA256Utils();
 	private TOMLayer tomLayer;
 
@@ -92,7 +92,7 @@ public class LCManager {
 	 * @param reconfManager The reconfiguration manager from TOM layer
 	 * @param md            The message digest engine from TOM layer
 	 */
-	public LCManager(TOMLayer tomLayer, ServerViewController SVController, SHA256Utils md) {
+	public LCManager(TOMLayer tomLayer, ViewTopology SVController, SHA256Utils md) {
 		this.tomLayer = tomLayer;
 //		this.lastreg = 0;
 //		this.currentLeader = 0;

@@ -20,8 +20,8 @@ package bftsmart.tom.server.defaultservices;
 
 import bftsmart.consensus.app.*;
 import bftsmart.consensus.app.BatchAppResultImpl;
-import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
@@ -55,7 +55,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	private ReentrantLock hashLock = new ReentrantLock();
 	private ReentrantLock stateLock = new ReentrantLock();
 	private ReplicaConfiguration config;
-	private ServerViewController controller;
+	private ViewTopology controller;
 	private SHA256Utils md = new SHA256Utils();
 	private StateLog log;
 	private String realName;

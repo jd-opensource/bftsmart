@@ -16,7 +16,7 @@ limitations under the License.
 package bftsmart.tom.util;
 
 import bftsmart.consensus.app.SHA256Utils;
-import bftsmart.reconfiguration.ViewController;
+import bftsmart.reconfiguration.ViewTopology;
 
 import java.io.*;
 import java.security.*;
@@ -46,7 +46,7 @@ public class TOMUtil {
 
 	private static int signatureSize = -1;
 
-	public static int getSignatureSize(ViewController controller) {
+	public static int getSignatureSize(ViewTopology controller) {
 		if (signatureSize > 0) {
 			return signatureSize;
 		}

@@ -15,7 +15,7 @@ limitations under the License.
 */
 package bftsmart.communication.client.netty;
 
-import bftsmart.reconfiguration.ViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.messages.TOMMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -48,7 +48,7 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
     //private Storage st;
     private int macSize;
     private int signatureSize;
-    private ViewController controller;
+    private ViewTopology controller;
     private boolean firstTime;
     private ReentrantReadWriteLock rl;
     //******* EDUARDO BEGIN: commented out some unused variables **************//
@@ -68,7 +68,7 @@ public class NettyTOMMessageDecoder extends ByteToMessageDecoder {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(NettyTOMMessageDecoder.class);
 
     
-    public NettyTOMMessageDecoder(boolean isClient, Map<Integer, NettyClientServerSession> sessionTable, int macLength, ViewController controller, ReentrantReadWriteLock rl, int signatureLength, boolean useMAC) {
+    public NettyTOMMessageDecoder(boolean isClient, Map<Integer, NettyClientServerSession> sessionTable, int macLength, ViewTopology controller, ReentrantReadWriteLock rl, int signatureLength, boolean useMAC) {
         this.isClient = isClient;
         this.sessionTable = sessionTable;
         this.macSize = macLength;

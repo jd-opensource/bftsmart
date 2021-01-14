@@ -38,6 +38,7 @@ import bftsmart.consensus.roles.Proposer;
 import bftsmart.reconfiguration.ReconfigureReply;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.FileSystemViewStorage;
 import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
@@ -164,7 +165,7 @@ public class ServiceReplica {
 		this.replier = replier;
 	}
 
-	public ServerViewController getViewController() {
+	public ViewTopology getViewController() {
 		return serverViewController;
 	}
 

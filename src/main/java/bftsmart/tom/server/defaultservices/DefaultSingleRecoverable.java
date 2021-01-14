@@ -16,7 +16,7 @@ limitations under the License.
 package bftsmart.tom.server.defaultservices;
 
 import bftsmart.consensus.app.SHA256Utils;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.StandardStateManager;
@@ -44,7 +44,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     
     protected ReplicaContext replicaContext;
     private ReplicaConfiguration config;
-    private ServerViewController controller;
+    private ViewTopology controller;
     private int checkpointPeriod;
 
     private ReentrantLock logLock = new ReentrantLock();

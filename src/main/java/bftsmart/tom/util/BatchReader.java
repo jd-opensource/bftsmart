@@ -15,7 +15,7 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.messages.TOMMessage;
 
 import java.io.ByteArrayInputStream;
@@ -39,7 +39,7 @@ public final class BatchReader {
         this.useSignatures = useSignatures;
     }
 
-    public TOMMessage[] deserialiseRequests(ServerViewController controller) {
+    public TOMMessage[] deserialiseRequests(ViewTopology controller) {
 
         //obtain the timestamps to be delivered to the application
         long timestamp = proposalBuffer.getLong();

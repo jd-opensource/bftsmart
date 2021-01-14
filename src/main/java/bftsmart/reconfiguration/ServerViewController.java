@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.reconfiguration.util.TOMConfiguration;
@@ -37,7 +38,9 @@ import bftsmart.tom.util.TOMUtil;
  *
  * @author eduardo
  */
-public class ServerViewController extends ViewController {
+public class ServerViewController extends ViewController implements ReplicaTopology {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerViewController.class);
 
 	public static final int ADD_SERVER = 0;
 	public static final int REMOVE_SERVER = 1;
@@ -50,65 +53,21 @@ public class ServerViewController extends ViewController {
 	private List<TOMMessage> updates = new LinkedList<TOMMessage>();
 	private TOMLayer tomLayer;
 	// protected View initialView;
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerViewController.class);
-
-//	public ServerViewController(int procId, String configHome) {
-//		this(new TOMConfiguration(procId, configHome + "/system.config", configHome + "/hosts.config", configHome),
-//				null);
-//		// View cv = getViewStore().readView();
-//		// if(cv == null){
-//		//
-//		// LOGGER.debug("-- Creating current view from configuration file");
-//		// reconfigureTo(new View(0, getStaticConf().getInitialView(),
-//		// getStaticConf().getF(), getInitAdddresses()));
-//		// }else{
-//		// LOGGER.debug("-- Using view stored on disk");
-//		// reconfigureTo(cv);
-//		// }
-//
-//		init();
-//	}
 
 	public ServerViewController(TOMConfiguration config, ViewStorage viewSotrage) {
 		super(config, viewSotrage);
-		init();
-	}
-
-	private void init() {
-		View cv = getViewStore().readView();
-		if (cv == null) {
-
-			LOGGER.debug("-- Creating current view from configuration file");
-			reconfigureTo(new View(0, getStaticConf().getInitialView(), getStaticConf().getF(), getInitAdddresses()));
-		} else {
-			LOGGER.debug("-- Using view stored on disk");
-			reconfigureTo(cv);
-		}
-	}
-
-	private NodeNetwork[] getInitAdddresses() {
-
-		int nextV[] = getStaticConf().getInitialView();
-		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
-		for (int i = 0; i < nextV.length; i++) {
-			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
-		}
-
-		return addresses;
 	}
 
 	public void setTomLayer(TOMLayer tomLayer) {
 		this.tomLayer = tomLayer;
 	}
 
-	public boolean isInCurrentView() {
-		return this.currentView.isMember(getCurrentProcessId());
-	}
-
+	@Override
 	public int[] getCurrentViewOtherAcceptors() {
 		return this.otherProcesses;
 	}
 
+	@Override
 	public int[] getCurrentViewAcceptors() {
 		return this.currentView.getProcesses();
 	}
@@ -121,40 +80,40 @@ public class ServerViewController extends ViewController {
 		ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(up.getContent());
 		if (TOMUtil.verifySignature(getStaticConf().getRSAPublicKey(request.getSender()),
 				BytesUtils.getBytes(request.toString()), request.getSignature())) {
-			if (request.getSender() == getStaticConf().getTTPId()) {
-				this.updates.add(up);
-			} else {
-				boolean add = true;
-				Iterator<Integer> it = request.getProperties().keySet().iterator();
-				while (it.hasNext()) {
-					int key = it.next();
-					String value = request.getProperties().get(key);
-					if (key == ADD_SERVER) {
-						StringTokenizer str = new StringTokenizer(value, ":");
-						if (str.countTokens() > 2) {
-							int id = Integer.parseInt(str.nextToken());
-							if (id != request.getSender()) {
+//			if (request.getSender() == getStaticConf().getTTPId()) {
+//				this.updates.add(up);
+//			} else {
+			boolean add = true;
+			Iterator<Integer> it = request.getProperties().keySet().iterator();
+			while (it.hasNext()) {
+				int key = it.next();
+				String value = request.getProperties().get(key);
+				if (key == ADD_SERVER) {
+					StringTokenizer str = new StringTokenizer(value, ":");
+					if (str.countTokens() > 2) {
+						int id = Integer.parseInt(str.nextToken());
+						if (id != request.getSender()) {
 //								add = false;
-							}
-						} else {
-							add = false;
 						}
-					} else if (key == REMOVE_SERVER) {
-						if (isCurrentViewMember(Integer.parseInt(value))) {
-							if (Integer.parseInt(value) != request.getSender()) {
-//								add = false;
-							}
-						} else {
-							add = false;
-						}
-					} else if (key == CHANGE_F) {
+					} else {
 						add = false;
 					}
-				}
-				if (add) {
-					this.updates.add(up);
+				} else if (key == REMOVE_SERVER) {
+					if (isCurrentViewMember(Integer.parseInt(value))) {
+						if (Integer.parseInt(value) != request.getSender()) {
+//								add = false;
+						}
+					} else {
+						add = false;
+					}
+				} else if (key == CHANGE_F) {
+					add = false;
 				}
 			}
+			if (add) {
+				this.updates.add(up);
+			}
+//			}//End of: if (request.getSender() == getStaticConf().getTTPId()) {}else{
 		}
 	}
 
@@ -332,6 +291,7 @@ public class ServerViewController extends ViewController {
 		return ret;
 	}
 
+	@Override
 	public boolean isInLastJoinSet(int id) {
 		if (lastJoinStet != null) {
 			for (int i = 0; i < lastJoinStet.length; i++) {
@@ -408,6 +368,7 @@ public class ServerViewController extends ViewController {
 	 * public int getQuorum2F() { return quorum2F; }
 	 */
 
+	@Override
 	public int getQuorum() {
 		return getStaticConf().isBFT() ? quorumBFT : quorumCFT;
 	}

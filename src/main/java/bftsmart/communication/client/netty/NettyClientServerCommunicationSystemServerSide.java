@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.client.RequestReceiver;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.TOMUtil;
 import io.netty.bootstrap.ServerBootstrap;
@@ -63,7 +63,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 	private RequestReceiver requestReceiver;
 	private Map<Integer, NettyClientServerSession> sessionTable;
 	private ReentrantReadWriteLock rl;
-	private ServerViewController controller;
+	private ViewTopology controller;
 	private boolean closed = false;
 	private Channel mainChannel;
 
@@ -74,7 +74,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 	private static final org.slf4j.Logger LOGGER = LoggerFactory
 			.getLogger(NettyClientServerCommunicationSystemServerSide.class);
 
-	public NettyClientServerCommunicationSystemServerSide(ServerViewController controller) {
+	public NettyClientServerCommunicationSystemServerSide(ViewTopology controller) {
 		try {
 			this.controller = controller;
 			sessionTable = new ConcurrentHashMap<>();

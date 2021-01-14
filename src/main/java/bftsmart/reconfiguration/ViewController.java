@@ -17,6 +17,9 @@ package bftsmart.reconfiguration;
 
 import java.net.InetSocketAddress;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.DefaultViewStorage;
 import bftsmart.reconfiguration.views.NodeNetwork;
@@ -28,31 +31,47 @@ import bftsmart.tom.ReplicaConfiguration;
  *
  * @author eduardo
  */
-public class ViewController {
+public class ViewController implements ViewTopology {
 
-    protected View lastView = null;
-    protected View currentView = null;
+	private static final Logger LOGGER = LoggerFactory.getLogger(ViewController.class);
+	
+    protected volatile View lastView = null;
+    protected volatile View currentView = null;
     protected final TOMConfiguration staticConf;
     private ViewStorage viewStore;
 
-//    public ViewController(int procId) {
-//        this(new TOMConfiguration(procId));
-//    }
-
-    
-//    public ViewController(int procId, String configHome) {
-//        this(new TOMConfiguration(procId, configHome));
-//    }
-    
-    public ViewController(TOMConfiguration config) {
-    	this.staticConf = config;
-    }
     
     public ViewController(TOMConfiguration config, ViewStorage viewSotrage) {
     	this.staticConf = config;
     	this.viewStore = viewSotrage;
+    	init();
     }
 
+
+	private void init() {
+		View cv = getViewStore().readView();
+		if (cv == null) {
+
+			LOGGER.debug("-- Creating current view from configuration file");
+			reconfigureTo(new View(0, getStaticConf().getInitialView(), getStaticConf().getF(), getInitAdddresses()));
+		} else {
+			LOGGER.debug("-- Using view stored on disk");
+			reconfigureTo(cv);
+		}
+	}
+	
+	private NodeNetwork[] getInitAdddresses() {
+
+		int nextV[] = getStaticConf().getInitialView();
+		NodeNetwork[] addresses = new NodeNetwork[nextV.length];
+		for (int i = 0; i < nextV.length; i++) {
+			addresses[i] = getStaticConf().getRemoteAddress(nextV[i]);
+		}
+
+		return addresses;
+	}
+    
+	@Override
 	public int getCurrentProcessId() {
 		return this.getStaticConf().getProcessId();
 	}
@@ -70,56 +89,74 @@ public class ViewController {
         return this.viewStore;
     }
 
-    public View getCurrentView(){
+    @Override
+	public View getCurrentView(){
         if(this.currentView == null){
              this.currentView = getViewStore().readView();
         }
         return this.currentView;
     }
     
-    public View getLastView(){
+    @Override
+	public View getLastView(){
         return this.lastView;
     }
     
-    public NodeNetwork getRemoteAddress(int id) {
+    @Override
+	public NodeNetwork getRemoteAddress(int id) {
         return getCurrentView().getAddress(id);
     }
 
-    public InetSocketAddress getRemoteSocketAddress(int id) {
+    @Override
+	public InetSocketAddress getRemoteSocketAddress(int id) {
         NodeNetwork nodeNetwork = getRemoteAddress(id);
         return new InetSocketAddress(nodeNetwork.getHost(), nodeNetwork.getConsensusPort());
     }
     
-    public void reconfigureTo(View newView) {
+    public synchronized void reconfigureTo(View newView) {
         this.lastView = this.currentView;
         this.currentView = newView;
     }
 
-    public ReplicaConfiguration getStaticConf() {
+    @Override
+	public ReplicaConfiguration getStaticConf() {
         return staticConf;
     }
 
-    public boolean isCurrentViewMember(int id) {
+    @Override
+	public boolean isCurrentViewMember(int id) {
         return getCurrentView().isMember(id);
     }
 
-    public int getCurrentViewId() {
+    @Override
+	public int getCurrentViewId() {
         return getCurrentView().getId();
     }
 
-    public int getCurrentViewF() {
+    @Override
+	public int getCurrentViewF() {
         return getCurrentView().getF();
     }
 
-    public int getCurrentViewN() {
+    @Override
+	public int getCurrentViewN() {
         return getCurrentView().getN();
     }
 
-    public int getCurrentViewPos(int id) {
+    @Override
+	public int getCurrentViewPos(int id) {
         return getCurrentView().getPos(id);
     }
 
-    public int[] getCurrentViewProcesses() {
+    @Override
+	public int[] getCurrentViewProcesses() {
         return getCurrentView().getProcesses();
     }
+
+
+	@Override
+	public boolean isInCurrentView() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }

@@ -28,6 +28,7 @@ import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.communication.server.ServersCommunicationLayer;
 import bftsmart.communication.server.ServersCommunicationLayerImpl;
 import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.ViewMessage;
@@ -52,7 +53,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	private MessageHandler messageHandler ;//= new MessageHandler();
 	private ServersCommunicationLayer serversCommunication;
 	private final ClientCommunicationServerSide clientCommunication;
-	private ServerViewController controller;
+	private ViewTopology controller;
 	private final List<MessageHandlerBase> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
 

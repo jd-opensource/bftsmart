@@ -87,7 +87,7 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	private int numNettyWorkers;
 	private HostsConfig outerHostConfig;
 
-	private TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
+	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
 		this.processId = processId;
 		this.systemConfig = systemConfigs;
 		this.hostsConfig = hostsConfig;
@@ -587,20 +587,20 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 
 	}
 
-	@Override
-	public boolean isTheTTP() {
-		return (this.getTTPId() == this.getProcessId());
-	}
+//	@Override
+//	public boolean isTheTTP() {
+//		return (this.getTTPId() == this.getProcessId());
+//	}
 
 	@Override
 	public final int[] getInitialView() {
 		return this.initialView;
 	}
 
-	@Override
-	public int getTTPId() {
-		return ttpId;
-	}
+//	@Override
+//	public int getTTPId() {
+//		return ttpId;
+//	}
 
 	@Override
 	public int getRequestTimeout() {

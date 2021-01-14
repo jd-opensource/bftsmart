@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.TOMLayer;
 
@@ -32,12 +32,12 @@ public class ReplicaContext {
 
 	private static Logger LOGGER = LoggerFactory.getLogger(ReplicaContext.class);
 
-	private ServerViewController SVController;
+	private ViewTopology topology;
 	private TOMLayer tomLayer;
 
-	public ReplicaContext(TOMLayer tomLayer, ServerViewController SVController) {
+	public ReplicaContext(TOMLayer tomLayer, ViewTopology topology) {
 		this.tomLayer = tomLayer;
-		this.SVController = SVController;
+		this.topology = topology;
 	}
 
 	/**
@@ -45,8 +45,8 @@ public class ReplicaContext {
 	 * 
 	 * @return The controller of the replica's view
 	 */
-	public ServerViewController getSVController() {
-		return SVController;
+	public ViewTopology getSVController() {
+		return topology;
 	}
 
 	// TODO: implement a method that allow the replica to send a message with
@@ -58,7 +58,7 @@ public class ReplicaContext {
 	 * @return the static configuration of this replica
 	 */
 	public ReplicaConfiguration getStaticConfiguration() {
-		return SVController.getStaticConf();
+		return topology.getStaticConf();
 	}
 
 	/**
@@ -67,7 +67,7 @@ public class ReplicaContext {
 	 * @return the current view of the replica group.
 	 */
 	public View getCurrentView() {
-		return SVController.getCurrentView();
+		return topology.getCurrentView();
 	}
 
 	public ServerCommunicationSystem getServerCommunicationSystem() {
@@ -81,7 +81,7 @@ public class ReplicaContext {
 			tomLayer.getDeliveryThread().join();
 		} catch (Exception e) {
 			LOGGER.warn("Error occurred while shuting down the replica! --[RepliaId="
-					+ SVController.getCurrentProcessId() + "] " + e.getMessage(), e);
+					+ topology.getCurrentProcessId() + "] " + e.getMessage(), e);
 		}
 	}
 

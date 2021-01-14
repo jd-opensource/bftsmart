@@ -16,7 +16,7 @@ limitations under the License.
 package bftsmart.clientsmanagement;
 
 import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.RequestsTimer;
 import bftsmart.tom.server.RequestVerifier;
@@ -38,7 +38,7 @@ import java.util.logging.Level;
  */
 public class ClientsManager {
 
-    private ServerViewController controller;
+    private ViewTopology controller;
     private RequestsTimer timer;
     private HashMap<Integer, ClientData> clientsData = new HashMap<Integer, ClientData>();
     private RequestVerifier verifier;
@@ -48,7 +48,7 @@ public class ClientsManager {
     private ReentrantLock clientsLock = new ReentrantLock();
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ClientsManager.class);
 
-    public ClientsManager(ServerViewController controller, RequestsTimer timer, RequestVerifier verifier) {
+    public ClientsManager(ViewTopology controller, RequestsTimer timer, RequestVerifier verifier) {
         this.controller = controller;
         this.timer = timer;
         this.verifier = verifier;

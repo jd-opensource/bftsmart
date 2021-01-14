@@ -44,9 +44,8 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
-import bftsmart.tom.ReplicaConfiguration;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.util.TOMUtil;
 
@@ -67,9 +66,10 @@ public class ServerSockectConnection implements MessageConnection {
 	private final long RETRY_INTERVAL;
 	private final int RETRY_COUNT;
 	// private static final int SEND_QUEUE_SIZE = 50;
-	
-	private ReplicaConfiguration replicaConf;
-	private ServerViewController controller;
+
+	private final String REALM_NAME;
+
+	private ViewTopology viewTopology;
 	private volatile Socket socket;
 	private volatile DataOutputStream socketOutStream = null;
 	private DataInputStream socketInStream = null;
@@ -85,38 +85,34 @@ public class ServerSockectConnection implements MessageConnection {
 	private Mac macSend;
 	private Mac macReceive;
 	private int macSize;
-	private Lock connectLock = new ReentrantLock();
+	private Object connectLock = new Object();
 	/** Only used when there is no sender Thread */
 	private Lock sendLock;
 	private boolean doWork = true;
 	private CountDownLatch latch = new CountDownLatch(1);
-	private ServiceReplica replica;
 
-	public ServerSockectConnection(ServerViewController controller, Socket socket, int remoteId, MessageQueue messageInQueue,
-			ServiceReplica replica) {
-
-		this.controller = controller;
-		this.replicaConf = controller.getStaticConf();
+	public ServerSockectConnection(String realmName, ViewTopology viewTopology, Socket socket, int remoteId,
+			MessageQueue messageInQueue) {
+		this.REALM_NAME = realmName;
+		this.viewTopology = viewTopology;
 		this.socket = socket;
 
 		this.remoteId = remoteId;
 
-		this.replica = replica;
-
 		this.messageInQueue = messageInQueue;
 
-		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(replicaConf.getOutQueueSize());
+		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(viewTopology.getStaticConf().getOutQueueSize());
 
 		this.noMACs = new HashSet<Integer>();
 		// Connect to the remote process or just wait for the connection?
 		if (isToConnect()) {
 			// I have to connect to the remote server
 			try {
-				this.socket = new Socket(replicaConf.getHost(remoteId),
-						replicaConf.getServerToServerPort(remoteId));
+				this.socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
+						viewTopology.getStaticConf().getServerToServerPort(remoteId));
 				SocketUtils.setSocketOptions(this.socket);
 				new DataOutputStream(this.socket.getOutputStream())
-						.writeInt(replicaConf.getProcessId());
+						.writeInt(viewTopology.getStaticConf().getProcessId());
 
 			} catch (UnknownHostException ex) {
 				LOGGER.warn(
@@ -140,28 +136,32 @@ public class ServerSockectConnection implements MessageConnection {
 		}
 
 		// ******* EDUARDO BEGIN **************//
-//		this.useSenderThread = replicaConf.isUseSenderThread();
-		this.RETRY_INTERVAL = replicaConf.getSendRetryInterval();
-		this.RETRY_COUNT = replicaConf.getSendRetryCount();
+//		this.useSenderThread = controller.getStaticConf().isUseSenderThread();
+		this.RETRY_INTERVAL = viewTopology.getStaticConf().getSendRetryInterval();
+		this.RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
 
-		LOGGER.info("I am proc {}, useSenderThread = {}", replicaConf.getProcessId(),
+		LOGGER.info("I am proc {}, useSenderThread = {}", viewTopology.getStaticConf().getProcessId(),
 				this.useSenderThread);
 
-		if (useSenderThread && (replicaConf.getTTPId() != remoteId)) {
+//		if (useSenderThread && (viewTopology.getStaticConf().getTTPId() != remoteId)) {
+		if (useSenderThread) {
 			new SenderThread(latch).start();
 		} else {
 			sendLock = new ReentrantLock();
 		}
 		authenticateAndEstablishAuthKey();
 
-		if (!replicaConf.isTheTTP()) {
-			if (replicaConf.getTTPId() == remoteId) {
-				// Uma thread "diferente" para as msgs recebidas da TTP
-				new TTPReceiverThread(replica).start();
-			} else {
-				new ReceiverThread().start();
-			}
-		}
+//		if (!viewTopology.getStaticConf().isTheTTP()) {
+//			// disable TTP
+//			if (viewTopology.getStaticConf().getTTPId() == remoteId) {
+//				// Uma thread "diferente" para as msgs recebidas da TTP
+//				new TTPReceiverThread(replica).start();
+//			} else {
+//				new ReceiverThread().start();
+//			}
+//		}
+		
+		new ReceiverThread().start();
 		// ******* EDUARDO END **************//
 	}
 
@@ -176,17 +176,17 @@ public class ServerSockectConnection implements MessageConnection {
 //
 //        this.inQueue = inQueue;
 //
-//        this.outQueue = new LinkedBlockingQueue<byte[]>(replicaConf.getOutQueueSize());
+//        this.outQueue = new LinkedBlockingQueue<byte[]>(controller.getStaticConf().getOutQueueSize());
 //
 //        this.noMACs = new HashSet<Integer>();
 //        // Connect to the remote process or just wait for the connection?
 //        if (isToConnect()) {
 //            //I have to connect to the remote server
 //            try {
-//                this.socket = new Socket(replicaConf.getHost(remoteId),
-//                        replicaConf.getServerToServerPort(remoteId));
+//                this.socket = new Socket(controller.getStaticConf().getHost(remoteId),
+//                        controller.getStaticConf().getServerToServerPort(remoteId));
 //                ServersCommunicationLayer.setSocketOptions(this.socket);
-//                new DataOutputStream(this.socket.getOutputStream()).writeInt(replicaConf.getProcessId());
+//                new DataOutputStream(this.socket.getOutputStream()).writeInt(controller.getStaticConf().getProcessId());
 //
 //            } catch (UnknownHostException ex) {
 //                ex.printStackTrace();
@@ -207,17 +207,17 @@ public class ServerSockectConnection implements MessageConnection {
 //        }
 //
 //        //******* EDUARDO BEGIN **************//
-//        this.useSenderThread = replicaConf.isUseSenderThread();
+//        this.useSenderThread = controller.getStaticConf().isUseSenderThread();
 //
-//        if (useSenderThread && (replicaConf.getTTPId() != remoteId)) {
+//        if (useSenderThread && (controller.getStaticConf().getTTPId() != remoteId)) {
 //            new SenderThread(latch).start();
 //        } else {
 //            sendLock = new ReentrantLock();
 //        }
 //        authenticateAndEstablishAuthKey();
 //
-//        if (!replicaConf.isTheTTP()) {
-//            if (replicaConf.getTTPId() == remoteId) {
+//        if (!controller.getStaticConf().isTheTTP()) {
+//            if (controller.getStaticConf().getTTPId() == remoteId) {
 //                //Uma thread "diferente" para as msgs recebidas da TTP
 //                new TTPReceiverThread(replica).start();
 //            } else {
@@ -241,7 +241,7 @@ public class ServerSockectConnection implements MessageConnection {
 
 		doWork = false;
 		closeSocket();
-		
+
 		outQueue.clear();
 	}
 
@@ -318,7 +318,7 @@ public class ServerSockectConnection implements MessageConnection {
 				if (socket != null && socketOutStream != null) {
 					try {
 						// do an extra copy of the data to be sent, but on a single out stream write
-						byte[] mac = (useMAC && replicaConf.getUseMACs() == 1)
+						byte[] mac = (useMAC && viewTopology.getStaticConf().getUseMACs() == 1)
 								? macSend.doFinal(messageData)
 								: null;
 						byte[] data = new byte[5 + messageData.length + ((mac != null) ? mac.length : 0)];
@@ -352,16 +352,16 @@ public class ServerSockectConnection implements MessageConnection {
 
 				LOGGER.error(
 						"[ServerConnection.sendBytes] current proc id: {}. Close socket and waitAndConnect connect with {}",
-						replicaConf.getProcessId(), remoteId);
+						viewTopology.getStaticConf().getProcessId(), remoteId);
 				closeSocket();
 
 				LOGGER.error("[ServerConnection.sendBytes] current proc id: {}, Wait and reonnect with {}",
-						replicaConf.getProcessId(), remoteId);
+						viewTopology.getStaticConf().getProcessId(), remoteId);
 				waitAndConnect();
 
 				if (messageTask.isRetry() && counter++ >= RETRY_COUNT) {
 					LOGGER.error("[ServerConnection.sendBytes] fails, and the fail times is out of the max retry count["
-							+ RETRY_COUNT + "]!", replicaConf.getProcessId(), remoteId);
+							+ RETRY_COUNT + "]!", viewTopology.getStaticConf().getProcessId(), remoteId);
 
 					messageTask.error(error);
 					return;
@@ -378,19 +378,20 @@ public class ServerSockectConnection implements MessageConnection {
 	// ******* EDUARDO BEGIN **************//
 	// return true of a process shall connect to the remote process, false otherwise
 	private boolean isToConnect() {
-		if (replicaConf.getTTPId() == remoteId) {
-			// Need to wait for the connection request from the TTP, do not tray to connect
-			// to it
-			return false;
-		} else if (replicaConf.getTTPId() == replicaConf.getProcessId()) {
-			// If this is a TTP, one must connect to the remote process
-			return true;
-		}
+		// remove TTP；
+//		if (viewTopology.getStaticConf().getTTPId() == remoteId) {
+//			// Need to wait for the connection request from the TTP, do not tray to connect
+//			// to it
+//			return false;
+//		} else if (viewTopology.getStaticConf().getTTPId() == viewTopology.getStaticConf().getProcessId()) {
+//			// If this is a TTP, one must connect to the remote process
+//			return true;
+//		}
 		boolean ret = false;
-		if (this.controller.isInCurrentView()) {
+		if (this.viewTopology.isInCurrentView()) {
 
 			// in this case, the node with higher ID starts the connection
-			if (replicaConf.getProcessId() > remoteId) {
+			if (viewTopology.getStaticConf().getProcessId() > remoteId) {
 				ret = true;
 			}
 
@@ -404,14 +405,14 @@ public class ServerSockectConnection implements MessageConnection {
 			/**
 			 * 
 			 * boolean me =
-			 * this.controller.isInLastJoinSet(replicaConf.getProcessId());
+			 * this.controller.isInLastJoinSet(controller.getStaticConf().getProcessId());
 			 * boolean remote = this.controller.isInLastJoinSet(remoteId);
 			 * 
 			 * //either both endpoints are old in the system (entered the system in a
 			 * previous view), //or both entered during the last reconfiguration if ((me &&
 			 * remote) || (!me && !remote)) { //in this case, the node with higher ID starts
-			 * the connection if (replicaConf.getProcessId() > remoteId)
-			 * { ret = true; } //this process is the older one, and the other one entered in
+			 * the connection if (controller.getStaticConf().getProcessId() > remoteId) {
+			 * ret = true; } //this process is the older one, and the other one entered in
 			 * the last reconfiguration } else if (!me && remote) { ret = true;
 			 * 
 			 * } //else if (me && !remote) { //this process entered in the last reconfig and
@@ -431,21 +432,19 @@ public class ServerSockectConnection implements MessageConnection {
 	 *                  (only used if processId is less than remoteId)
 	 */
 	protected void reconnect(Socket newSocket) {
-
-		connectLock.lock();
-
-		if (socket == null || !socket.isConnected()) {
+		synchronized (connectLock) {
+			if (socket != null && socket.isConnected()) {
+				return;
+			}
 
 			try {
-
 				// ******* EDUARDO BEGIN **************//
 				if (isToConnect()) {
-
-					socket = new Socket(replicaConf.getHost(remoteId),
-							replicaConf.getServerToServerPort(remoteId));
+					socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
+							viewTopology.getStaticConf().getServerToServerPort(remoteId));
 					SocketUtils.setSocketOptions(socket);
 					new DataOutputStream(socket.getOutputStream())
-							.writeInt(replicaConf.getProcessId());
+							.writeInt(viewTopology.getStaticConf().getProcessId());
 
 					// ******* EDUARDO END **************//
 				} else {
@@ -474,8 +473,6 @@ public class ServerSockectConnection implements MessageConnection {
 				}
 			}
 		}
-
-		connectLock.unlock();
 	}
 
 	// TODO!
@@ -495,12 +492,12 @@ public class ServerSockectConnection implements MessageConnection {
 
 			// Derive DH private key from replica's own RSA private key
 
-			PrivateKey RSAprivKey = replicaConf.getRSAPrivateKey();
+			PrivateKey RSAprivKey = viewTopology.getStaticConf().getRSAPrivateKey();
 			BigInteger DHPrivKey = new BigInteger(RSAprivKey.getEncoded());
 
 			// Create DH public key
-			BigInteger myDHPubKey = replicaConf.getDHG().modPow(DHPrivKey,
-					replicaConf.getDHP());
+			BigInteger myDHPubKey = viewTopology.getStaticConf().getDHG().modPow(DHPrivKey,
+					viewTopology.getStaticConf().getDHP());
 
 			// turn it into a byte array
 			byte[] bytes = myDHPubKey.toByteArray();
@@ -537,7 +534,7 @@ public class ServerSockectConnection implements MessageConnection {
 				byte[] remote_Signature = bytes;
 
 				// verify signature
-				PublicKey remoteRSAPubkey = replicaConf.getRSAPublicKey(remoteId);
+				PublicKey remoteRSAPubkey = viewTopology.getStaticConf().getRSAPublicKey(remoteId);
 
 				if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
 
@@ -549,11 +546,11 @@ public class ServerSockectConnection implements MessageConnection {
 				BigInteger remoteDHPubKey = new BigInteger(remote_Bytes);
 
 				// Create secret key
-				BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, replicaConf.getDHP());
+				BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, viewTopology.getStaticConf().getDHP());
 
 				LOGGER.info("[{}] ->  I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}",
-						this.replica.getRealName(), replicaConf.getProcessId(), remoteId,
-						replicaConf.getServerToServerPort(remoteId));
+						REALM_NAME, viewTopology.getStaticConf().getProcessId(), remoteId,
+						viewTopology.getStaticConf().getServerToServerPort(remoteId));
 
 				SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
 				PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
@@ -706,7 +703,7 @@ public class ServerSockectConnection implements MessageConnection {
 						boolean result = true;
 
 						byte hasMAC = socketInStream.readByte();
-						if (replicaConf.getUseMACs() == 1 && hasMAC == 1) {
+						if (viewTopology.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
 							read = 0;
 							do {
 								read += socketInStream.read(receivedMac, read, macSize - read);
@@ -718,7 +715,7 @@ public class ServerSockectConnection implements MessageConnection {
 						if (result) {
 							SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
 									.readObject());
-							sm.authenticated = (replicaConf.getUseMACs() == 1 && hasMAC == 1);
+							sm.authenticated = (viewTopology.getStaticConf().getUseMACs() == 1 && hasMAC == 1);
 
 							if (sm.getSender() == remoteId) {
 
@@ -796,7 +793,7 @@ public class ServerSockectConnection implements MessageConnection {
 						boolean result = true;
 
 						byte hasMAC = socketInStream.readByte();
-						if (replicaConf.getUseMACs() == 1 && hasMAC == 1) {
+						if (viewTopology.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
 
 							LOGGER.debug("TTP CON USEMAC");
 							read = 0;

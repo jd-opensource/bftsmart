@@ -15,7 +15,7 @@ limitations under the License.
 */
 package bftsmart.tom.util;
 
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.core.messages.TOMMessage;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +44,7 @@ public final class BatchBuilder {
 
         /** build buffer */
 	private byte[] createBatch(long timestamp, int numberOfNonces, long seed, int numberOfMessages, int totalMessagesSize,
-			boolean useSignatures, byte[][] messages, byte[][] signatures, ServerViewController controller) {
+			boolean useSignatures, byte[][] messages, byte[][] signatures, ViewTopology controller) {
 		int size = 20 + //timestamp 8, nonces 4, nummessages 4
 				(numberOfNonces > 0 ? 8 : 0) + //seed if needed
 				(numberOfMessages*(4+(useSignatures?TOMUtil.getSignatureSize(controller):0)))+ // msglength + signature for each msg
@@ -78,7 +78,7 @@ public final class BatchBuilder {
 		}
 	}
 
-	public byte[] makeBatch(List<TOMMessage> msgs, int numNounces, long timestamp, ServerViewController controller) {
+	public byte[] makeBatch(List<TOMMessage> msgs, int numNounces, long timestamp, ViewTopology controller) {
 
 		int numMsgs = msgs.size();
 		int totalMessageSize = 0; //total size of the messages being batched
@@ -104,7 +104,7 @@ public final class BatchBuilder {
 				controller.getStaticConf().getUseSignatures() == 1, messages, signatures, controller);
 
 	}
-	public byte[] makeBatch(List<TOMMessage> msgs, int numNounces, long seed, long timestamp, ServerViewController controller) {
+	public byte[] makeBatch(List<TOMMessage> msgs, int numNounces, long seed, long timestamp, ViewTopology controller) {
 
 		int numMsgs = msgs.size();
 		int totalMessageSize = 0; //total size of the messages being batched

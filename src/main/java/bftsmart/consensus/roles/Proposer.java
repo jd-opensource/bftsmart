@@ -17,7 +17,7 @@ package bftsmart.consensus.roles;
 
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.messages.MessageFactory;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ReplicaTopology;
 
 /**
  * This class represents the proposer role in the consensus protocol.
@@ -26,7 +26,7 @@ public class Proposer {
 
     private MessageFactory factory; // Factory for PaW messages
     private ServerCommunicationSystem communication; // Replicas comunication system
-    private ServerViewController controller;
+    private ReplicaTopology controller;
 
     /**
      * Creates a new instance of Proposer
@@ -37,7 +37,7 @@ public class Proposer {
      * @param conf TOM configuration
      */
     public Proposer(ServerCommunicationSystem communication, MessageFactory factory,
-            ServerViewController controller) {
+            ReplicaTopology controller) {
         this.communication = communication;
         this.factory = factory;
         this.controller = controller;

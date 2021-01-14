@@ -40,7 +40,9 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
+import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;
 import utils.io.RuntimeIOException;
 
@@ -51,7 +53,7 @@ import utils.io.RuntimeIOException;
 public class ServersCommunicationLayerImpl implements ServersCommunicationLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayerImpl.class);
 
-	private ServerViewController controller;
+	private ReplicaTopology topology;
 //    private LinkedBlockingQueue<SystemMessage> inQueue;
 	private Object connectionsLock = new Object();
 	private Map<Integer, ServerSockectConnection> connections = new ConcurrentHashMap<Integer, ServerSockectConnection>();
@@ -66,20 +68,20 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	private MessageQueue messageInQueue;
 	private static final String PASSWORD = "commsyst";
 
-	public ServersCommunicationLayerImpl(ServerViewController controller, MessageQueue messageInQueue,
-			ServiceReplica replica) throws Exception {
+	public ServersCommunicationLayerImpl(ReplicaTopology topology, MessageQueue messageInQueue, ServiceReplica replica)
+			throws Exception {
 
-		this.controller = controller;
+		this.topology = topology;
 		this.messageInQueue = messageInQueue;
-		this.me = controller.getStaticConf().getProcessId();
+		this.me = topology.getStaticConf().getProcessId();
 		this.replica = replica;
 
 		// Try connecting if a member of the current view. Otherwise, wait until the
 		// Join has been processed!
-		if (controller.isInCurrentView()) {
+		if (topology.isInCurrentView()) {
 			LOGGER.info("Start connecting to the other nodes of current view[{}]...[CurrentProcessID={}]",
-					controller.getCurrentView().getId(), controller.getStaticConf().getProcessId());
-			int[] initialV = controller.getCurrentViewAcceptors();
+					topology.getCurrentView().getId(), topology.getStaticConf().getProcessId());
+			int[] initialV = topology.getCurrentViewAcceptors();
 			for (int i = 0; i < initialV.length; i++) {
 				if (initialV[i] != me) {
 					ensureConnection(initialV[i]);
@@ -91,10 +93,10 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
 		selfPwd = fac.generateSecret(spec);
 
-		createServerSocket(controller);
+		createServerSocket(topology);
 	}
 
-	private void createServerSocket(ServerViewController controller) throws IOException, SocketException {
+	private void createServerSocket(ViewTopology controller) throws IOException, SocketException {
 		serverSocket = new ServerSocket(
 				controller.getStaticConf().getServerToServerPort(controller.getStaticConf().getProcessId()));
 		serverSocket.setSoTimeout(10000);
@@ -102,7 +104,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	}
 
 	public SecretKey getSecretKey(int id) {
-		if (id == controller.getStaticConf().getProcessId())
+		if (id == topology.getStaticConf().getProcessId())
 			return selfPwd;
 		else if (connections.get(id) != null) {
 			return connections.get(id).getSecretKey();
@@ -114,17 +116,17 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	// ******* EDUARDO BEGIN **************//
 	public synchronized void updateConnections() {
 		synchronized (connectionsLock) {
-			if (this.controller.isInCurrentView()) {
+			if (this.topology.isInCurrentView()) {
 
 				Integer[] remoteIds = this.connections.keySet().toArray(new Integer[this.connections.size()]);
 				for (Integer remoteId : remoteIds) {
-					if (!this.controller.isCurrentViewMember(remoteId)) {
+					if (!this.topology.isCurrentViewMember(remoteId)) {
 						MessageConnection conn = this.connections.remove(remoteId);
 						conn.shutdown();
 					}
 				}
 
-				int[] newV = controller.getCurrentViewAcceptors();
+				int[] newV = topology.getCurrentViewAcceptors();
 				for (int i = 0; i < newV.length; i++) {
 					if (newV[i] != me) {
 						ensureConnection(newV[i]);
@@ -152,7 +154,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		if (ret == null) {
 			throw new IllegalStateException(
 					String.format("Connection has not been established! --[Current=%s][Remote=%s]",
-							controller.getCurrentProcessId(), remoteId));
+							topology.getCurrentProcessId(), remoteId));
 		}
 		return ret;
 	}
@@ -164,12 +166,12 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			synchronized (connectionsLock) {
 				connection = this.connections.get(remoteId);
 				if (connection == null) {
-					ServerSockectConnection sc = new ServerSockectConnection(controller, null, remoteId, this.messageInQueue,
-							this.replica);
+					ServerSockectConnection sc = new ServerSockectConnection(this.replica.getRealName(), topology, null,
+							remoteId, this.messageInQueue);
 					this.connections.put(remoteId, sc);
 					connection = sc;
-					
-					LOGGER.debug("Ensure connection!  --[Current={}][Remote={}]", controller.getCurrentProcessId(),
+
+					LOGGER.debug("Ensure connection!  --[Current={}][Remote={}]", topology.getCurrentProcessId(),
 							remoteId);
 				}
 			}
@@ -255,8 +257,8 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 				sc.close();
 			}
 		} catch (Exception e) {
-			LOGGER.warn("Error occurred while closing server socket! --["
-					+ this.controller.getStaticConf().getProcessId() + "] " + e.getMessage(), e);
+			LOGGER.warn("Error occurred while closing server socket! --[" + this.topology.getStaticConf().getProcessId()
+					+ "] " + e.getMessage(), e);
 		}
 	}
 
@@ -300,12 +302,13 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 				int remoteId = new DataInputStream(newSocket.getInputStream()).readInt();
 
 				// ******* EDUARDO BEGIN **************//
-				if (!this.controller.isInCurrentView() && (this.controller.getStaticConf().getTTPId() != remoteId)) {
+//				if (!this.topology.isInCurrentView() && (this.topology.getStaticConf().getTTPId() != remoteId)) {
+				if (!this.topology.isInCurrentView()) {
 					waitViewLock.lock();
 					pendingConn.add(new PendingConnection(newSocket, remoteId));
 					waitViewLock.unlock();
 				} else {
-					LOGGER.info("I am {} establishConnection run!", this.controller.getStaticConf().getProcessId());
+					LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
 					establishConnection(newSocket, remoteId);
 				}
 				// ******* EDUARDO END **************//
@@ -315,7 +318,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			} catch (SocketException ex) {
 				if (doWork) {
 					LOGGER.error("Socket error occurred while accepting incoming connection! --[CurrentProcessId="
-							+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+							+ this.topology.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
 					try {
 						serverSocket.close();
 					} catch (Exception e) {
@@ -325,16 +328,16 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 					} catch (InterruptedException e1) {
 					}
 					try {
-						createServerSocket(controller);
+						createServerSocket(topology);
 					} catch (Exception e) {
 						LOGGER.error("Retry to create server socket fail! --[CurrentProcessId="
-								+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+								+ this.topology.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
 					}
 				}
 			} catch (Exception ex) {
 				if (doWork) {
 					LOGGER.error("Unexpected error occurred while accepting incoming connection! --[CurrentProcessId="
-							+ this.controller.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
+							+ this.topology.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
 					try {
 						Thread.sleep(2000);
 					} catch (InterruptedException e1) {
@@ -350,20 +353,21 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			LOGGER.warn("Error occurred while closing the server socket of current node! --" + e.getMessage(), e);
 		}
 
-		LOGGER.info("ServerCommunicationLayer stopped! --[" + this.controller.getStaticConf().getProcessId() + "]");
+		LOGGER.info("ServerCommunicationLayer stopped! --[" + this.topology.getStaticConf().getProcessId() + "]");
 	}
 
 	// ******* EDUARDO BEGIN **************//
 	private void establishConnection(Socket newSocket, int remoteId) throws IOException {
-		LOGGER.info("I am {}, remoteId = {} !", this.controller.getStaticConf().getProcessId(), remoteId);
-		if ((this.controller.getStaticConf().getTTPId() == remoteId) || this.controller.isCurrentViewMember(remoteId)) {
+		LOGGER.info("I am {}, remoteId = {} !", this.topology.getStaticConf().getProcessId(), remoteId);
+//		if ((this.topology.getStaticConf().getTTPId() == remoteId) || this.topology.isCurrentViewMember(remoteId)) {
+		if (this.topology.isCurrentViewMember(remoteId)) {
 			synchronized (connectionsLock) {
 				// System.out.println("Vai se conectar com: "+remoteId);
 				if (this.connections.get(remoteId) == null) { // This must never happen!!!
 					// first time that this connection is being established
 					// System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
-					this.connections.put(remoteId,
-							new ServerSockectConnection(controller, newSocket, remoteId, messageInQueue, replica));
+					this.connections.put(remoteId, new ServerSockectConnection(replica.getRealName(), topology,
+							newSocket, remoteId, messageInQueue));
 				} else {
 					// reconnection
 					this.connections.get(remoteId).reconnect(newSocket);
@@ -380,7 +384,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	public String toString() {
 		String str = "inQueue=" + messageInQueue.toString();
 
-		int[] activeServers = controller.getCurrentViewAcceptors();
+		int[] activeServers = topology.getCurrentViewAcceptors();
 
 		for (int i = 0; i < activeServers.length; i++) {
 

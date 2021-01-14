@@ -10,6 +10,8 @@ import bftsmart.reconfiguration.views.NodeNetwork;
 
 public interface ReplicaConfiguration {
 
+	int getProcessId();
+
 	Properties getConfigProperties();
 
 	boolean isUseDefaultKeys();
@@ -42,15 +44,13 @@ public interface ReplicaConfiguration {
 
 	int getServerToServerPort(int id);
 
-	int getProcessId();
-
 	String getViewStoreClass();
 
-	boolean isTheTTP();
-
 	int[] getInitialView();
-
-	int getTTPId();
+	
+//	boolean isTheTTP();
+//
+//	int getTTPId();
 
 	int getRequestTimeout();
 

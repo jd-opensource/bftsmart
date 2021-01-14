@@ -16,7 +16,7 @@ limitations under the License.
 package bftsmart.consensus;
 
 import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.messages.TOMMessage;
 import org.apache.commons.codec.binary.Base64;
@@ -64,7 +64,7 @@ public class Epoch implements Serializable {
 
     private View lastView = null;
 
-    private ServerViewController controller;
+    private ViewTopology controller;
 
     /**
      * Creates a new instance of Epoch for acceptors
@@ -72,7 +72,7 @@ public class Epoch implements Serializable {
      * @param parent Consensus to which this epoch belongs
      * @param timestamp Timestamp of the epoch
      */
-    public Epoch(ServerViewController controller, Consensus parent, int timestamp) {
+    public Epoch(ViewTopology controller, Consensus parent, int timestamp) {
         this.consensus = parent;
         this.timestamp = timestamp;
         this.controller = controller;
