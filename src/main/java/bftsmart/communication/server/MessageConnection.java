@@ -2,6 +2,8 @@ package bftsmart.communication.server;
 
 import javax.crypto.SecretKey;
 
+import bftsmart.communication.SystemMessage;
+
 public interface MessageConnection {
 
 	String MAC_ALGORITHM = "HmacMD5";
@@ -13,16 +15,16 @@ public interface MessageConnection {
 	 */
 	void shutdown();
 
-	/**
-	 * Used to send packets to the remote server.
-	 */
-	/**
-	 * @param data
-	 * @param useMAC
-	 * @param callback
-	 * @return
-	 */
-	AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, CompletedCallback<byte[], Void> callback);
+//	/**
+//	 * Used to send packets to the remote server.
+//	 */
+//	/**
+//	 * @param data
+//	 * @param useMAC
+//	 * @param callback
+//	 * @return
+//	 */
+//	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean useMAC, CompletedCallback<SystemMessage, Void> callback);
 
 	/**
 	 * Used to send packets to the remote server.
@@ -35,7 +37,7 @@ public interface MessageConnection {
 	 * @return
 	 * @throws InterruptedException
 	 */
-	AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, boolean retrySending,
-			CompletedCallback<byte[], Void> callback);
+	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean useMAC, boolean retrySending,
+			CompletedCallback<SystemMessage, Void> callback);
 
 }

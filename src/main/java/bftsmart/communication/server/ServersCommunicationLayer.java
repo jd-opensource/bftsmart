@@ -42,6 +42,6 @@ public interface ServersCommunicationLayer  {
 	
 	void shutdown();
 
-	void joinViewReceived();
+//	void joinViewReceived();
 
 }

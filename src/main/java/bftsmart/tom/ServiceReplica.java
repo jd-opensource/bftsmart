@@ -216,27 +216,27 @@ public class ServiceReplica {
 		
 	}
 
-	public void joinMsgReceived(VMMessage msg) {
-		ReconfigureReply r = msg.getReply();
-
-		if (r.getView().isMember(id)) {
-			this.serverViewController.processJoinResult(r);
-
-			if (!tomStackCreated) { // if this object was already initialized, don't do it again
-				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
-						messageHandler, clientCommunication); // initiaze
-				// the
-				// TOM
-				// layer
-				tomStackCreated = true;
-			}
-			cs.updateServersConnections();
-			this.cs.joinViewReceived();
-			waitTTPJoinMsgLock.lock();
-			canProceed.signalAll();
-			waitTTPJoinMsgLock.unlock();
-		}
-	}
+//	public void joinMsgReceived(VMMessage msg) {
+//		ReconfigureReply r = msg.getReply();
+//
+//		if (r.getView().isMember(id)) {
+//			this.serverViewController.processJoinResult(r);
+//
+//			if (!tomStackCreated) { // if this object was already initialized, don't do it again
+//				replicaCtx = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
+//						messageHandler, clientCommunication); // initiaze
+//				// the
+//				// TOM
+//				// layer
+//				tomStackCreated = true;
+//			}
+//			cs.updateServersConnections();
+//			this.cs.joinViewReceived();
+//			waitTTPJoinMsgLock.lock();
+//			canProceed.signalAll();
+//			waitTTPJoinMsgLock.unlock();
+//		}
+//	}
 
 	private void startReplica(ReplicaContext context) {
 		cs.start();

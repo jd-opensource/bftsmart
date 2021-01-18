@@ -26,7 +26,7 @@ import utils.concurrent.AsyncFuture;
 public interface ServerCommunicationSystem {
 
 	// ******* EDUARDO BEGIN **************//
-	void joinViewReceived();
+//	void joinViewReceived();
 
 	void updateServersConnections();
 

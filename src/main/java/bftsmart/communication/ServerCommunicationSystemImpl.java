@@ -94,10 +94,10 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		serversCommunication = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
 	}
 
-	// ******* EDUARDO BEGIN **************//
-	public void joinViewReceived() {
-		serversCommunication.joinViewReceived();
-	}
+//	// ******* EDUARDO BEGIN **************//
+//	public void joinViewReceived() {
+//		serversCommunication.joinViewReceived();
+//	}
 
 	public synchronized void updateServersConnections() {
 		this.serversCommunication.updateConnections();

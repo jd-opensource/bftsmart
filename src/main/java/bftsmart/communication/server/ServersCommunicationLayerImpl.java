@@ -15,21 +15,15 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -41,41 +35,48 @@ import org.slf4j.LoggerFactory;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ReplicaTopology;
-import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;
-import utils.io.RuntimeIOException;
 
 /**
+ * @author huanghaiquan
  *
- * @author alysson
  */
 public class ServersCommunicationLayerImpl implements ServersCommunicationLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServersCommunicationLayerImpl.class);
 
 	private ReplicaTopology topology;
-//    private LinkedBlockingQueue<SystemMessage> inQueue;
+
 	private Object connectionsLock = new Object();
-	private Map<Integer, ServerSockectConnection> connections = new ConcurrentHashMap<Integer, ServerSockectConnection>();
+	
+	private Map<Integer, MessageConnection> connections = new ConcurrentHashMap<Integer, MessageConnection>();
 	private volatile ServerSocket serverSocket;
 	private int me;
 	private volatile boolean doWork = true;
-	private ReentrantLock waitViewLock = new ReentrantLock();
-	// private Condition canConnect = waitViewLock.newCondition();
-	private List<PendingConnection> pendingConn = Collections.synchronizedList(new LinkedList<PendingConnection>());
+	
 	private ServiceReplica replica;
+	
 	private SecretKey selfPwd;
 	private MessageQueue messageInQueue;
 	private static final String PASSWORD = "commsyst";
 
 	public ServersCommunicationLayerImpl(ReplicaTopology topology, MessageQueue messageInQueue, ServiceReplica replica)
 			throws Exception {
-
 		this.topology = topology;
 		this.messageInQueue = messageInQueue;
-		this.me = topology.getStaticConf().getProcessId();
+		this.me = topology.getCurrentProcessId();
 		this.replica = replica;
 
+		SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+		PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
+		selfPwd = fac.generateSecret(spec);
+
+		initConnections();
+
+		initServerSocket(topology);
+	}
+
+	private void initConnections() {
 		// Try connecting if a member of the current view. Otherwise, wait until the
 		// Join has been processed!
 		if (topology.isInCurrentView()) {
@@ -89,14 +90,10 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			}
 		}
 
-		SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
-		PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-		selfPwd = fac.generateSecret(spec);
-
-		createServerSocket(topology);
+		connections.put(me, new SelfConnection(replica.getRealName(), topology, messageInQueue));
 	}
 
-	private void createServerSocket(ViewTopology controller) throws IOException, SocketException {
+	private void initServerSocket(ViewTopology controller) throws IOException, SocketException {
 		serverSocket = new ServerSocket(
 				controller.getStaticConf().getServerToServerPort(controller.getStaticConf().getProcessId()));
 		serverSocket.setSoTimeout(10000);
@@ -166,11 +163,19 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 			synchronized (connectionsLock) {
 				connection = this.connections.get(remoteId);
 				if (connection == null) {
-					ServerSockectConnection sc = new ServerSockectConnection(this.replica.getRealName(), topology, null,
-							remoteId, this.messageInQueue);
-					this.connections.put(remoteId, sc);
-					connection = sc;
-
+					if (isOutgoingToRemote(remoteId)) {
+						OutgoingSockectConnection conn = new OutgoingSockectConnection(this.replica.getRealName(),
+								topology, remoteId, messageInQueue);
+						this.connections.put(remoteId, conn);
+						connection = conn;
+					} else {
+						IncomingSockectConnection conn = new IncomingSockectConnection(this.replica.getRealName(),
+								topology, remoteId, this.messageInQueue);
+						
+						
+						this.connections.put(remoteId, conn);
+						connection = conn;
+					}
 					LOGGER.debug("Ensure connection!  --[Current={}][Remote={}]", topology.getCurrentProcessId(),
 							remoteId);
 				}
@@ -178,6 +183,24 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		}
 		return connection;
 	}
+
+	/**
+	 * 到指定节点是否是应建立外向连接；
+	 * 
+	 * @param remoteId
+	 * @return
+	 */
+	private boolean isOutgoingToRemote(int remoteId) {
+		boolean ret = false;
+		if (this.topology.isInCurrentView()) {
+			// in this case, the node with higher ID starts the connection
+			if (me > remoteId) {
+				ret = true;
+			}
+		}
+		return ret;
+	}
+
 	// ******* EDUARDO END **************//
 
 	public void send(int[] targets, SystemMessage sm, boolean useMAC) {
@@ -185,42 +208,45 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	}
 
 	public void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending) {
-		// 首先判断消息类型
-		ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
-		try {
-			new ObjectOutputStream(bOut).writeObject(sm);
-		} catch (IOException ex) {
-			throw new RuntimeIOException(ex.getMessage(), ex);
-		}
-
-		byte[] data = bOut.toByteArray();
 		@SuppressWarnings("unchecked")
-		AsyncFuture<byte[], Void>[] futures = new AsyncFuture[targets.length];
+		AsyncFuture<SystemMessage, Void>[] futures = new AsyncFuture[targets.length];
 		int i = 0;
 		for (int pid : targets) {
 			try {
-				if (pid == me) {
-					sm.authenticated = true;
-					MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
-					messageInQueue.put(msgType, sm);
-				} else {
-					// System.out.println("Going to send message to: "+i);
-					// ******* EDUARDO BEGIN **************//
-					// connections[i].send(data);
-//                    LOGGER.info("I am {}, send data to {}, which is {} !", controller.getStaticConf().getProcessId(), i, sm.getClass());
-					futures[i] = ensureConnection(pid).send(data, useMAC, retrySending,
-							new CompletedCallback<byte[], Void>() {
-								@Override
-								public void onCompleted(byte[] source, Void result, Throwable error) {
-									if (error != null) {
-										LOGGER.error("Fail to send message[" + sm.getClass().getName()
-												+ "] to target proccess[" + pid + "]!");
-									}
+				// 对包括对当前节点的连接都统一抽象为 MessageConnection;
+				futures[i] = ensureConnection(pid).send(sm, useMAC, retrySending,
+						new CompletedCallback<SystemMessage, Void>() {
+							@Override
+							public void onCompleted(SystemMessage source, Void result, Throwable error) {
+								if (error != null) {
+									LOGGER.error("Fail to send message[" + sm.getClass().getName()
+											+ "] to target proccess[" + pid + "]!");
 								}
-							});
+							}
+						});
 
-					// ******* EDUARDO END **************//
-				}
+//				if (pid == me) {
+//					sm.authenticated = true;
+//					MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
+//					messageInQueue.put(msgType, sm);
+//				} else {
+//					// System.out.println("Going to send message to: "+i);
+//					// ******* EDUARDO BEGIN **************//
+//					// connections[i].send(data);
+////                    LOGGER.info("I am {}, send data to {}, which is {} !", controller.getStaticConf().getProcessId(), i, sm.getClass());
+//					futures[i] = ensureConnection(pid).send(sm, useMAC, retrySending,
+//							new CompletedCallback<SystemMessage, Void>() {
+//								@Override
+//								public void onCompleted(SystemMessage source, Void result, Throwable error) {
+//									if (error != null) {
+//										LOGGER.error("Fail to send message[" + sm.getClass().getName()
+//												+ "] to target proccess[" + pid + "]!");
+//									}
+//								}
+//							});
+//
+//					// ******* EDUARDO END **************//
+//				}
 			} catch (Exception ex) {
 				LOGGER.error("Failed to send messagea to target[" + pid + "]! --" + ex.getMessage(), ex);
 			}
@@ -262,21 +288,21 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		}
 	}
 
-	public void joinViewReceived() {
-		waitViewLock.lock();
-		for (int i = 0; i < pendingConn.size(); i++) {
-			PendingConnection pc = pendingConn.get(i);
-			try {
-				establishConnection(pc.s, pc.remoteId);
-			} catch (Exception e) {
-				LOGGER.warn("Error occurred while establishing connection! --" + e.getMessage(), e);
-			}
-		}
-
-		pendingConn.clear();
-
-		waitViewLock.unlock();
-	}
+//	public void joinViewReceived() {
+//		waitViewLock.lock();
+//		for (int i = 0; i < pendingConn.size(); i++) {
+//			PendingConnection pc = pendingConn.get(i);
+//			try {
+//				establishConnection(pc.s, pc.remoteId);
+//			} catch (Exception e) {
+//				LOGGER.warn("Error occurred while establishing connection! --" + e.getMessage(), e);
+//			}
+//		}
+//
+//		pendingConn.clear();
+//
+//		waitViewLock.unlock();
+//	}
 
 	@Override
 	public void startListening() {
@@ -301,16 +327,19 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 				SocketUtils.setSocketOptions(newSocket);
 				int remoteId = new DataInputStream(newSocket.getInputStream()).readInt();
 
+				LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
+				establishConnection(newSocket, remoteId);
+				
 				// ******* EDUARDO BEGIN **************//
-//				if (!this.topology.isInCurrentView() && (this.topology.getStaticConf().getTTPId() != remoteId)) {
-				if (!this.topology.isInCurrentView()) {
-					waitViewLock.lock();
-					pendingConn.add(new PendingConnection(newSocket, remoteId));
-					waitViewLock.unlock();
-				} else {
-					LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
-					establishConnection(newSocket, remoteId);
-				}
+////				if (!this.topology.isInCurrentView() && (this.topology.getStaticConf().getTTPId() != remoteId)) {
+//				if (!this.topology.isInCurrentView()) {
+//					waitViewLock.lock();
+//					pendingConn.add(new PendingConnection(newSocket, remoteId));
+//					waitViewLock.unlock();
+//				} else {
+//					LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
+//					establishConnection(newSocket, remoteId);
+//				}
 				// ******* EDUARDO END **************//
 
 			} catch (SocketTimeoutException ex) {
@@ -328,7 +357,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 					} catch (InterruptedException e1) {
 					}
 					try {
-						createServerSocket(topology);
+						initServerSocket(topology);
 					} catch (Exception e) {
 						LOGGER.error("Retry to create server socket fail! --[CurrentProcessId="
 								+ this.topology.getStaticConf().getProcessId() + "]" + ex.getMessage(), ex);
@@ -358,24 +387,43 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 
 	// ******* EDUARDO BEGIN **************//
 	private void establishConnection(Socket newSocket, int remoteId) throws IOException {
-		LOGGER.info("I am {}, remoteId = {} !", this.topology.getStaticConf().getProcessId(), remoteId);
-//		if ((this.topology.getStaticConf().getTTPId() == remoteId) || this.topology.isCurrentViewMember(remoteId)) {
-		if (this.topology.isCurrentViewMember(remoteId)) {
-			synchronized (connectionsLock) {
-				// System.out.println("Vai se conectar com: "+remoteId);
-				if (this.connections.get(remoteId) == null) { // This must never happen!!!
-					// first time that this connection is being established
-					// System.out.println("THIS DOES NOT HAPPEN....."+remoteId);
-					this.connections.put(remoteId, new ServerSockectConnection(replica.getRealName(), topology,
-							newSocket, remoteId, messageInQueue));
-				} else {
-					// reconnection
-					this.connections.get(remoteId).reconnect(newSocket);
-				}
-			}
-		} else {
-			// System.out.println("Closing connection of: "+remoteId);
+		if (!this.topology.isCurrentViewMember(remoteId)) {
+			LOGGER.warn(
+					"The incoming socket will be aborted because it is from a remote node beyond the current view! --[RemoteId={}][CurrentId={}]",
+					remoteId, me);
 			newSocket.close();
+			return;
+		}
+		synchronized (connectionsLock) {
+			MessageConnection conn = this.connections.get(remoteId);
+			if (conn == null) { // This must never happen!!!
+				// first time that this connection is being established
+				IncomingSockectConnection incomingConnection = new IncomingSockectConnection(replica.getRealName(),
+						topology, remoteId, messageInQueue);
+				incomingConnection.acceptSocket(newSocket);
+				this.connections.put(remoteId, incomingConnection);
+				conn = incomingConnection;
+			} else {
+				// reconnection
+				if (!(conn instanceof IncomingSockectConnection)) {
+					// illegal connection types;
+					LOGGER.error(
+							"Wrong connection type to accept new incoming socket! --[ExpectedConnectionType={}][RemoteId={}][CurrentId={}]",
+							conn.getClass().getName(), remoteId, me);
+					newSocket.close();
+					return;
+				}
+				IncomingSockectConnection incomingConnection = (IncomingSockectConnection) conn;
+				if (incomingConnection.isAlived()) {
+					// don't interrupt aliving connection;
+					LOGGER.warn(
+							"Abort the new incoming socket because an aliving connection from the same remote already exist! --[ExpectedConnectionType={}][RemoteId={}][CurrentId={}]",
+							conn.getClass().getName(), remoteId, me);
+					newSocket.close();
+					return;
+				}
+				incomingConnection.acceptSocket(newSocket);
+			}
 		}
 	}
 	// ******* EDUARDO END **************//

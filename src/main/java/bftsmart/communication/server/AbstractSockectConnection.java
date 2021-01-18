@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -32,8 +30,6 @@ import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -56,9 +52,9 @@ import utils.io.RuntimeIOException;
  *
  * @author alysson
  */
-public class ServerSockectConnection implements MessageConnection {
+public abstract class AbstractSockectConnection implements MessageConnection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ServerSockectConnection.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSockectConnection.class);
 
 	// 重连周期
 	private static final long RECONNECT_MILL_SECONDS = 5000L;
@@ -69,33 +65,24 @@ public class ServerSockectConnection implements MessageConnection {
 
 	private final String REALM_NAME;
 
-	private ViewTopology viewTopology;
-	private volatile Socket socket;
-	private volatile DataOutputStream socketOutStream = null;
-	private DataInputStream socketInStream = null;
-	private int remoteId;
-	private final boolean useSenderThread = true;
+	protected ViewTopology viewTopology;
+	protected final int remoteId;
 	private MessageQueue messageInQueue;
 	private LinkedBlockingQueue<MessageSendingTask> outQueue;// = new
 																// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
-//	private HashSet<Integer> noMACs = null; // this is used to keep track of data to be sent without a MAC.
-	// It uses the reference id for that same data
-//    private LinkedBlockingQueue<SystemMessage> inQueue;
 	private SecretKey authKey = null;
 	private Mac macSend;
 	private Mac macReceive;
 	private int macSize;
 	private Object connectLock = new Object();
 	/** Only used when there is no sender Thread */
-	private Lock sendLock;
 	private boolean doWork = true;
 	private CountDownLatch latch = new CountDownLatch(1);
 
-	public ServerSockectConnection(String realmName, ViewTopology viewTopology, Socket socket, int remoteId,
+	public AbstractSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		this.REALM_NAME = realmName;
 		this.viewTopology = viewTopology;
-		this.socket = socket;
 
 		this.remoteId = remoteId;
 
@@ -103,129 +90,18 @@ public class ServerSockectConnection implements MessageConnection {
 
 		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(viewTopology.getStaticConf().getOutQueueSize());
 
-//		this.noMACs = new HashSet<Integer>();
-		// Connect to the remote process or just wait for the connection?
-		if (isToConnect()) {
-			// I have to connect to the remote server
-			try {
-				this.socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
-						viewTopology.getStaticConf().getServerToServerPort(remoteId));
-				SocketUtils.setSocketOptions(this.socket);
-				new DataOutputStream(this.socket.getOutputStream())
-						.writeInt(viewTopology.getStaticConf().getProcessId());
-
-			} catch (UnknownHostException ex) {
-				LOGGER.warn(
-						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
-						ex);
-			} catch (IOException ex) {
-				LOGGER.warn(
-						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
-						ex);
-			}
-		}
-		// else I have to wait a connection from the remote server
-
-		if (this.socket != null) {
-			try {
-				socketOutStream = new DataOutputStream(this.socket.getOutputStream());
-				socketInStream = new DataInputStream(this.socket.getInputStream());
-			} catch (IOException ex) {
-				LOGGER.error("Error occurred while creating connection to {}", remoteId);
-			}
-		}
-
-		// ******* EDUARDO BEGIN **************//
-//		this.useSenderThread = controller.getStaticConf().isUseSenderThread();
 		this.RETRY_INTERVAL = viewTopology.getStaticConf().getSendRetryInterval();
 		this.RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
 
-		LOGGER.info("I am proc {}, useSenderThread = {}", viewTopology.getStaticConf().getProcessId(),
-				this.useSenderThread);
+		LOGGER.info("I am proc {}", viewTopology.getStaticConf().getProcessId());
+		
+//		waitAndConnect();
 
-//		if (useSenderThread && (viewTopology.getStaticConf().getTTPId() != remoteId)) {
-		if (useSenderThread) {
-			new SenderThread(latch).start();
-		} else {
-			sendLock = new ReentrantLock();
-		}
-		authenticateAndEstablishAuthKey();
-
-//		if (!viewTopology.getStaticConf().isTheTTP()) {
-//			// disable TTP
-//			if (viewTopology.getStaticConf().getTTPId() == remoteId) {
-//				// Uma thread "diferente" para as msgs recebidas da TTP
-//				new TTPReceiverThread(replica).start();
-//			} else {
-//				new ReceiverThread().start();
-//			}
-//		}
-
+		new SenderThread(latch).start();
 		new ReceiverThread().start();
 		// ******* EDUARDO END **************//
 	}
 
-//    public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
-//                            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
-//
-//        this.controller = controller;
-//
-//        this.socket = socket;
-//
-//        this.remoteId = remoteId;
-//
-//        this.inQueue = inQueue;
-//
-//        this.outQueue = new LinkedBlockingQueue<byte[]>(controller.getStaticConf().getOutQueueSize());
-//
-//        this.noMACs = new HashSet<Integer>();
-//        // Connect to the remote process or just wait for the connection?
-//        if (isToConnect()) {
-//            //I have to connect to the remote server
-//            try {
-//                this.socket = new Socket(controller.getStaticConf().getHost(remoteId),
-//                        controller.getStaticConf().getServerToServerPort(remoteId));
-//                ServersCommunicationLayer.setSocketOptions(this.socket);
-//                new DataOutputStream(this.socket.getOutputStream()).writeInt(controller.getStaticConf().getProcessId());
-//
-//            } catch (UnknownHostException ex) {
-//                ex.printStackTrace();
-//            } catch (IOException ex) {
-//                ex.printStackTrace();
-//            }
-//        }
-//        //else I have to wait a connection from the remote server
-//
-//        if (this.socket != null) {
-//            try {
-//                socketOutStream = new DataOutputStream(this.socket.getOutputStream());
-//                socketInStream = new DataInputStream(this.socket.getInputStream());
-//            } catch (IOException ex) {
-//                LOGGER.debug("Error creating connection to "+remoteId);
-//                ex.printStackTrace();
-//            }
-//        }
-//
-//        //******* EDUARDO BEGIN **************//
-//        this.useSenderThread = controller.getStaticConf().isUseSenderThread();
-//
-//        if (useSenderThread && (controller.getStaticConf().getTTPId() != remoteId)) {
-//            new SenderThread(latch).start();
-//        } else {
-//            sendLock = new ReentrantLock();
-//        }
-//        authenticateAndEstablishAuthKey();
-//
-//        if (!controller.getStaticConf().isTheTTP()) {
-//            if (controller.getStaticConf().getTTPId() == remoteId) {
-//                //Uma thread "diferente" para as msgs recebidas da TTP
-//                new TTPReceiverThread(replica).start();
-//            } else {
-//                new ReceiverThread().start();
-//            }
-//        }
-//        //******* EDUARDO END **************//
-//    }
 
 	@Override
 	public SecretKey getSecretKey() {
@@ -324,11 +200,12 @@ public class ServerSockectConnection implements MessageConnection {
 			LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", hashCodeOfMessage);
 		}
 		
-		Throwable error = null;
 		do {
 			try {
+				Throwable error = null;
 				// if there is a need to reconnect, abort this method
-				if (socket != null && socketOutStream != null) {
+				DataOutputStream socketOutStream =  getSocketOutputStream();
+				if (socketOutStream != null) {
 					try {
 						// do an extra copy of the data to be sent, but on a single out stream write
 						byte[] mac = (useMAC && viewTopology.getStaticConf().getUseMACs() == 1)
@@ -355,6 +232,12 @@ public class ServerSockectConnection implements MessageConnection {
 					} catch (IOException ex) {
 						error = ex;
 					}
+				}
+				
+				//TODO: 如果连接未完成时，应该等待连接；
+				if(socketOutStream == null) {
+					//连接未完成；
+					error = new IllegalStateException("The sockect connection is not ready!");
 				}
 
 				// 如果不重试发送失败的消息，则立即报告错误；
@@ -387,6 +270,8 @@ public class ServerSockectConnection implements MessageConnection {
 
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
 	}
+
+	protected abstract DataOutputStream getSocketOutputStream();
 
 	// ******* EDUARDO BEGIN **************//
 	// return true of a process shall connect to the remote process, false otherwise
@@ -444,52 +329,52 @@ public class ServerSockectConnection implements MessageConnection {
 	 * @param newSocket socket created when this server accepted the connection
 	 *                  (only used if processId is less than remoteId)
 	 */
-	protected void reconnect(Socket newSocket) {
+	private void reconnect() {
 		synchronized (connectLock) {
-			if (socket != null && socket.isConnected()) {
-				return;
-			}
-
-			try {
-				// ******* EDUARDO BEGIN **************//
-				if (isToConnect()) {
-					socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
-							viewTopology.getStaticConf().getServerToServerPort(remoteId));
-					SocketUtils.setSocketOptions(socket);
-					new DataOutputStream(socket.getOutputStream())
-							.writeInt(viewTopology.getStaticConf().getProcessId());
-
-					// ******* EDUARDO END **************//
-				} else {
-					socket = newSocket;
-				}
-			} catch (UnknownHostException ex) {
-				LOGGER.warn(
-						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
-						ex);
-			} catch (IOException ex) {
-				LOGGER.warn(
-						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
-						ex);
-			}
-
-			if (socket != null) {
-				try {
-					socketOutStream = new DataOutputStream(socket.getOutputStream());
-					socketInStream = new DataInputStream(socket.getInputStream());
-
-					authKey = null;
-					authenticateAndEstablishAuthKey();
-				} catch (IOException ex) {
-					LOGGER.error("Authentication fails while reconnect to remote replica[" + remoteId + "] ! --"
-							+ ex.getMessage(), ex);
-				}
+//			if (socket != null && socket.isConnected()) {
+//				return;
+//			}
+//
+//			try {
+//				// ******* EDUARDO BEGIN **************//
+//				if (isToConnect()) {
+//					socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
+//							viewTopology.getStaticConf().getServerToServerPort(remoteId));
+//					SocketUtils.setSocketOptions(socket);
+//					new DataOutputStream(socket.getOutputStream())
+//							.writeInt(viewTopology.getStaticConf().getProcessId());
+//
+//					// ******* EDUARDO END **************//
+//				} else {
+//					socket = newSocket;
+//				}
+//			} catch (UnknownHostException ex) {
+//				LOGGER.warn(
+//						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
+//						ex);
+//			} catch (IOException ex) {
+//				LOGGER.warn(
+//						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
+//						ex);
+//			}
+			
+			ensureConnection();
+			
+			DataOutputStream socketOutStream = getSocketOutputStream();
+			DataInputStream socketInStream = getSocketInputStream();
+			if (socketOutStream != null && socketInStream != null) {
+				authKey = null;
+				authenticateAndEstablishAuthKey(socketOutStream, socketInStream);
 			}
 		}
 	}
 
+	protected abstract void ensureConnection();
+
+	protected abstract DataInputStream getSocketInputStream();
+
 	// TODO!
-	private void authenticateAndEstablishAuthKey() {
+	private void authenticateAndEstablishAuthKey(DataOutputStream socketOutStream, DataInputStream socketInStream) {
 		if (authKey != null || socketOutStream == null || socketInStream == null) {
 			return;
 		}
@@ -587,34 +472,7 @@ public class ServerSockectConnection implements MessageConnection {
 	/**
 	 * 关闭连接；此方法不抛出任何异常；
 	 */
-	private void closeSocket() {
-		Socket sk = socket;
-		DataOutputStream os = socketOutStream;
-		DataInputStream is = socketInStream;
-
-		socket = null;
-		socketOutStream = null;
-		socketInStream = null;
-
-		if (os != null) {
-			try {
-				os.close();
-			} catch (Exception e) {
-			}
-		}
-		if (is != null) {
-			try {
-				is.close();
-			} catch (Exception e) {
-			}
-		}
-		if (sk != null) {
-			try {
-				sk.close();
-			} catch (Exception e) {
-			}
-		}
-	}
+	protected abstract void closeSocket();
 
 	private void waitAndConnect() {
 		waitAndConnect(RETRY_INTERVAL);
@@ -631,7 +489,7 @@ public class ServerSockectConnection implements MessageConnection {
 				Thread.sleep(timeout);
 			} catch (InterruptedException ie) {
 			}
-			reconnect(null);
+			reconnect();
 		}
 	}
 
@@ -700,7 +558,8 @@ public class ServerSockectConnection implements MessageConnection {
 			}
 
 			while (doWork) {
-				if (socket != null && socketInStream != null) {
+				DataInputStream socketInStream = getSocketInputStream();
+				if (socketInStream != null) {
 					try {
 						// read data length
 						int dataLength = socketInStream.readInt();
