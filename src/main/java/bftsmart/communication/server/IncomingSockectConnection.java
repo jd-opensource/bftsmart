@@ -35,7 +35,6 @@ import utils.io.RuntimeIOException;
  * @author alysson
  */
 public class IncomingSockectConnection extends AbstractSockectConnection {
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(IncomingSockectConnection.class);
 
 	private volatile Socket socket;
@@ -48,160 +47,7 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 	public IncomingSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		super(realmName, viewTopology, remoteId, messageInQueue);
-
-//
-////		this.noMACs = new HashSet<Integer>();
-//		// Connect to the remote process or just wait for the connection?
-//		if (isToConnect()) {
-//			// I have to connect to the remote server
-//			try {
-//				this.socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
-//						viewTopology.getStaticConf().getServerToServerPort(remoteId));
-//				SocketUtils.setSocketOptions(this.socket);
-//				new DataOutputStream(this.socket.getOutputStream())
-//						.writeInt(viewTopology.getStaticConf().getProcessId());
-//
-//			} catch (UnknownHostException ex) {
-//				LOGGER.warn(
-//						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
-//						ex);
-//			} catch (IOException ex) {
-//				LOGGER.warn(
-//						"Error occurred while creating connection to remote[" + remoteId + "]! --" + ex.getMessage(),
-//						ex);
-//			}
-//		}
-//		// else I have to wait a connection from the remote server
-
 	}
-
-//    public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
-//                            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
-//
-//        this.controller = controller;
-//
-//        this.socket = socket;
-//
-//        this.remoteId = remoteId;
-//
-//        this.inQueue = inQueue;
-//
-//        this.outQueue = new LinkedBlockingQueue<byte[]>(controller.getStaticConf().getOutQueueSize());
-//
-//        this.noMACs = new HashSet<Integer>();
-//        // Connect to the remote process or just wait for the connection?
-//        if (isToConnect()) {
-//            //I have to connect to the remote server
-//            try {
-//                this.socket = new Socket(controller.getStaticConf().getHost(remoteId),
-//                        controller.getStaticConf().getServerToServerPort(remoteId));
-//                ServersCommunicationLayer.setSocketOptions(this.socket);
-//                new DataOutputStream(this.socket.getOutputStream()).writeInt(controller.getStaticConf().getProcessId());
-//
-//            } catch (UnknownHostException ex) {
-//                ex.printStackTrace();
-//            } catch (IOException ex) {
-//                ex.printStackTrace();
-//            }
-//        }
-//        //else I have to wait a connection from the remote server
-//
-//        if (this.socket != null) {
-//            try {
-//                socketOutStream = new DataOutputStream(this.socket.getOutputStream());
-//                socketInStream = new DataInputStream(this.socket.getInputStream());
-//            } catch (IOException ex) {
-//                LOGGER.debug("Error creating connection to "+remoteId);
-//                ex.printStackTrace();
-//            }
-//        }
-//
-//        //******* EDUARDO BEGIN **************//
-//        this.useSenderThread = controller.getStaticConf().isUseSenderThread();
-//
-//        if (useSenderThread && (controller.getStaticConf().getTTPId() != remoteId)) {
-//            new SenderThread(latch).start();
-//        } else {
-//            sendLock = new ReentrantLock();
-//        }
-//        authenticateAndEstablishAuthKey();
-//
-//        if (!controller.getStaticConf().isTheTTP()) {
-//            if (controller.getStaticConf().getTTPId() == remoteId) {
-//                //Uma thread "diferente" para as msgs recebidas da TTP
-//                new TTPReceiverThread(replica).start();
-//            } else {
-//                new ReceiverThread().start();
-//            }
-//        }
-//        //******* EDUARDO END **************//
-//    }
-
-	// ******* EDUARDO BEGIN **************//
-	// return true of a process shall connect to the remote process, false otherwise
-	private boolean isToConnect() {
-		boolean ret = false;
-		if (this.viewTopology.isInCurrentView()) {
-
-			// in this case, the node with higher ID starts the connection
-			if (viewTopology.getStaticConf().getProcessId() > remoteId) {
-				ret = true;
-			}
-
-		}
-		return ret;
-	}
-	// ******* EDUARDO END **************//
-
-	/**
-	 * (Re-)establish connection between peers.
-	 *
-	 * @param newSocket socket created when this server accepted the connection
-	 *                  (only used if processId is less than remoteId)
-	 */
-//	protected void reconnect(Socket newSocket) {
-//		synchronized (connectLock) {
-//			if (socket != null && socket.isConnected()) {
-//				return;
-//			}
-//
-//			try {
-//				// ******* EDUARDO BEGIN **************//
-//				if (isToConnect()) {
-//					socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
-//							viewTopology.getStaticConf().getServerToServerPort(remoteId));
-//					SocketUtils.setSocketOptions(socket);
-//					new DataOutputStream(socket.getOutputStream())
-//							.writeInt(viewTopology.getStaticConf().getProcessId());
-//
-//					// ******* EDUARDO END **************//
-//				} else {
-//					socket = newSocket;
-//				}
-//			} catch (UnknownHostException ex) {
-//				LOGGER.warn(
-//						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
-//						ex);
-//			} catch (IOException ex) {
-//				LOGGER.warn(
-//						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
-//						ex);
-//			}
-//
-//			if (socket != null) {
-//				try {
-//					socketOutStream = new DataOutputStream(socket.getOutputStream());
-//					socketInStream = new DataInputStream(socket.getInputStream());
-//
-//					authKey = null;
-//					authenticateAndEstablishAuthKey();
-//				} catch (IOException ex) {
-//					LOGGER.error("Authentication fails while reconnect to remote replica[" + remoteId + "] ! --"
-//							+ ex.getMessage(), ex);
-//				}
-//			}
-//		}
-//	}
 
 	/**
 	 * 关闭连接；此方法不抛出任何异常；
@@ -270,8 +116,9 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 		return socket != null && socket.isConnected();
 	}
 
-	public void acceptSocket(Socket newSocket) {
+	public void accept(Socket newSocket) {
 		socket = newSocket;
+		LOGGER.debug("Accept new socket. --[me={}][remote={}]", me, remoteId);
 	}
 
 }

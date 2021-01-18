@@ -271,7 +271,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 
 		// ******* EDUARDO BEGIN **************//
 		MessageConnection[] connections = this.connections.values()
-				.toArray(new ServerSockectConnection[this.connections.size()]);
+				.toArray(new MessageConnection[this.connections.size()]);
 		this.connections.clear();
 		for (MessageConnection serverConnection : connections) {
 			serverConnection.shutdown();
@@ -400,7 +400,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 				// first time that this connection is being established
 				IncomingSockectConnection incomingConnection = new IncomingSockectConnection(replica.getRealName(),
 						topology, remoteId, messageInQueue);
-				incomingConnection.acceptSocket(newSocket);
+				incomingConnection.accept(newSocket);
 				this.connections.put(remoteId, incomingConnection);
 				conn = incomingConnection;
 			} else {
@@ -422,7 +422,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 					newSocket.close();
 					return;
 				}
-				incomingConnection.acceptSocket(newSocket);
+				incomingConnection.accept(newSocket);
 			}
 		}
 	}

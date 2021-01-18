@@ -63,10 +63,11 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	private final int RETRY_COUNT;
 	// private static final int SEND_QUEUE_SIZE = 50;
 
-	private final String REALM_NAME;
+	protected final String REALM_NAME;
+	protected final int me;
+	protected final int remoteId;
 
 	protected ViewTopology viewTopology;
-	protected final int remoteId;
 	private MessageQueue messageInQueue;
 	private LinkedBlockingQueue<MessageSendingTask> outQueue;// = new
 																// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
@@ -79,13 +80,17 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	private boolean doWork = true;
 	private CountDownLatch latch = new CountDownLatch(1);
 
+	private Thread senderTread;
+
+	private Thread receiverThread;
+
 	public AbstractSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		this.REALM_NAME = realmName;
-		this.viewTopology = viewTopology;
-
+		this.me = viewTopology.getCurrentProcessId();
 		this.remoteId = remoteId;
 
+		this.viewTopology = viewTopology;
 		this.messageInQueue = messageInQueue;
 
 		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(viewTopology.getStaticConf().getOutQueueSize());
@@ -94,14 +99,13 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		this.RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
 
 		LOGGER.info("I am proc {}", viewTopology.getStaticConf().getProcessId());
-		
-//		waitAndConnect();
 
-		new SenderThread(latch).start();
-		new ReceiverThread().start();
-		// ******* EDUARDO END **************//
+		senderTread = new SenderThread(latch);
+		receiverThread = new ReceiverThread();
+
+		senderTread.start();
+		receiverThread.start();
 	}
-
 
 	@Override
 	public SecretKey getSecretKey() {
@@ -117,17 +121,9 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 		doWork = false;
 		closeSocket();
-
+		
 		outQueue.clear();
 	}
-
-//	/**
-//	 * Used to send packets to the remote server.
-//	 */
-//	@Override
-//	public final AsyncFuture<byte[], Void> send(byte[] data, boolean useMAC, CompletedCallback<byte[], Void> callback) {
-//		return send(data, useMAC, true, callback);
-//	}
 
 	/**
 	 * Used to send packets to the remote server.
@@ -154,23 +150,6 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		}
 
 		return task;
-
-//        if (useSenderThread) {
-//            //only enqueue messages if there queue is not full
-//            if (!useMAC) {
-//                LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", System.identityHashCode(data));
-//                noMACs.add(System.identityHashCode(data));
-//            }
-//
-//            if (!outQueue.offer(data)) {
-//                LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", remoteId);
-//            }
-//        } else {
-//            sendLock.lock();
-//            sendBytes(data, useMAC);
-//            sendLock.unlock();
-//        }
-
 	}
 
 	private byte[] serializeMessage(SystemMessage message) {
@@ -193,18 +172,18 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		int counter = 0;
 		SystemMessage message = messageTask.getSource();
 		boolean useMAC = messageTask.useMac;
-		
+
 		byte[] messageData = serializeMessage(message);
 		if (!useMAC) {
 			int hashCodeOfMessage = System.identityHashCode(messageData);
 			LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", hashCodeOfMessage);
 		}
-		
+
 		do {
 			try {
 				Throwable error = null;
 				// if there is a need to reconnect, abort this method
-				DataOutputStream socketOutStream =  getSocketOutputStream();
+				DataOutputStream socketOutStream = getSocketOutputStream();
 				if (socketOutStream != null) {
 					try {
 						// do an extra copy of the data to be sent, but on a single out stream write
@@ -233,10 +212,10 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 						error = ex;
 					}
 				}
-				
-				//TODO: 如果连接未完成时，应该等待连接；
-				if(socketOutStream == null) {
-					//连接未完成；
+
+				// TODO: 如果连接未完成时，应该等待连接；
+				if (socketOutStream == null) {
+					// 连接未完成；
 					error = new IllegalStateException("The sockect connection is not ready!");
 				}
 
@@ -271,57 +250,30 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
 	}
 
+	/**
+	 * 尝试激活连接；
+	 * <p>
+	 */
+	protected abstract void ensureConnection();
+
+	/**
+	 * 关闭连接；此方法不抛出任何异常；
+	 */
+	protected abstract void closeSocket();
+
+	/**
+	 * 返回网络输出流；
+	 * 
+	 * @return
+	 */
 	protected abstract DataOutputStream getSocketOutputStream();
 
-	// ******* EDUARDO BEGIN **************//
-	// return true of a process shall connect to the remote process, false otherwise
-	private boolean isToConnect() {
-		// remove TTP；
-//		if (viewTopology.getStaticConf().getTTPId() == remoteId) {
-//			// Need to wait for the connection request from the TTP, do not tray to connect
-//			// to it
-//			return false;
-//		} else if (viewTopology.getStaticConf().getTTPId() == viewTopology.getStaticConf().getProcessId()) {
-//			// If this is a TTP, one must connect to the remote process
-//			return true;
-//		}
-		boolean ret = false;
-		if (this.viewTopology.isInCurrentView()) {
-
-			// in this case, the node with higher ID starts the connection
-			if (viewTopology.getStaticConf().getProcessId() > remoteId) {
-				ret = true;
-			}
-
-			/**
-			 * JCS: I commented the code below to fix a bug, but I am not sure whether its
-			 * completely useless or not. The 'if' above was taken from that same code (its
-			 * the only part I understand why is necessary) I keep the code commented just
-			 * to be on the safe side
-			 */
-
-			/**
-			 * 
-			 * boolean me =
-			 * this.controller.isInLastJoinSet(controller.getStaticConf().getProcessId());
-			 * boolean remote = this.controller.isInLastJoinSet(remoteId);
-			 * 
-			 * //either both endpoints are old in the system (entered the system in a
-			 * previous view), //or both entered during the last reconfiguration if ((me &&
-			 * remote) || (!me && !remote)) { //in this case, the node with higher ID starts
-			 * the connection if (controller.getStaticConf().getProcessId() > remoteId) {
-			 * ret = true; } //this process is the older one, and the other one entered in
-			 * the last reconfiguration } else if (!me && remote) { ret = true;
-			 * 
-			 * } //else if (me && !remote) { //this process entered in the last reconfig and
-			 * the other one is old //ret=false; //not necessary, as ret already is false
-			 * //}
-			 * 
-			 */
-		}
-		return ret;
-	}
-	// ******* EDUARDO END **************//
+	/**
+	 * 返回网络输入流；
+	 * 
+	 * @return
+	 */
+	protected abstract DataInputStream getSocketInputStream();
 
 	/**
 	 * (Re-)establish connection between peers.
@@ -331,35 +283,8 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	 */
 	private void reconnect() {
 		synchronized (connectLock) {
-//			if (socket != null && socket.isConnected()) {
-//				return;
-//			}
-//
-//			try {
-//				// ******* EDUARDO BEGIN **************//
-//				if (isToConnect()) {
-//					socket = new Socket(viewTopology.getStaticConf().getHost(remoteId),
-//							viewTopology.getStaticConf().getServerToServerPort(remoteId));
-//					SocketUtils.setSocketOptions(socket);
-//					new DataOutputStream(socket.getOutputStream())
-//							.writeInt(viewTopology.getStaticConf().getProcessId());
-//
-//					// ******* EDUARDO END **************//
-//				} else {
-//					socket = newSocket;
-//				}
-//			} catch (UnknownHostException ex) {
-//				LOGGER.warn(
-//						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
-//						ex);
-//			} catch (IOException ex) {
-//				LOGGER.warn(
-//						"Error occurred while reconnecting to remote replic[" + remoteId + "]! -- " + ex.getMessage(),
-//						ex);
-//			}
-			
 			ensureConnection();
-			
+
 			DataOutputStream socketOutStream = getSocketOutputStream();
 			DataInputStream socketInStream = getSocketInputStream();
 			if (socketOutStream != null && socketInStream != null) {
@@ -369,25 +294,12 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		}
 	}
 
-	protected abstract void ensureConnection();
-
-	protected abstract DataInputStream getSocketInputStream();
-
-	// TODO!
 	private void authenticateAndEstablishAuthKey(DataOutputStream socketOutStream, DataInputStream socketInStream) {
 		if (authKey != null || socketOutStream == null || socketInStream == null) {
 			return;
 		}
 
 		try {
-			// if (conf.getProcessId() > remoteId) {
-			// I asked for the connection, so I'm first on the auth protocol
-			// DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-			// } else {
-			// I received a connection request, so I'm second on the auth protocol
-			// DataInputStream dis = new DataInputStream(socket.getInputStream());
-			// }
-
 			// Derive DH private key from replica's own RSA private key
 
 			PrivateKey RSAprivKey = viewTopology.getStaticConf().getRSAPrivateKey();
@@ -469,11 +381,6 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		}
 	}
 
-	/**
-	 * 关闭连接；此方法不抛出任何异常；
-	 */
-	protected abstract void closeSocket();
-
 	private void waitAndConnect() {
 		waitAndConnect(RETRY_INTERVAL);
 	}
@@ -526,11 +433,6 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 				}
 
 				if (task != null) {
-					// sendBytes(data, noMACs.contains(System.identityHashCode(data)));
-//					int ref = System.identityHashCode(task.getSource());
-//					boolean sendMAC = !noMACs.remove(ref);
-//					LOGGER.debug("(ServerConnection.run) {} MAC for data {}", (sendMAC ? "Sending" : "Not sending"),
-//							ref);
 					sendBytes(task);
 				}
 			}
@@ -620,102 +522,6 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 			}
 		}
 	}
-
-	// ******* EDUARDO BEGIN: special thread for receiving messages indicating the
-	// entrance into the system, coming from the TTP **************//
-	// Simly pass the messages to the replica, indicating its entry into the system
-	// TODO: Ask eduardo why a new thread is needed!!!
-	// TODO2: Remove all duplicated code
-
-	/**
-	 * Thread used to receive packets from the remote server.
-	 */
-//	protected class TTPReceiverThread extends Thread {
-//
-//		private ServiceReplica replica;
-//
-//		public TTPReceiverThread(ServiceReplica replica) {
-//			super("TTPReceiver for " + remoteId);
-//			this.replica = replica;
-//		}
-//
-//		@Override
-//		public void run() {
-//			byte[] receivedMac = null;
-//			try {
-//				receivedMac = new byte[Mac.getInstance(MAC_ALGORITHM).getMacLength()];
-//			} catch (NoSuchAlgorithmException ex) {
-//			}
-//
-//			while (doWork) {
-//				if (socket != null && socketInStream != null) {
-//					try {
-//						// read data length
-//						int dataLength = socketInStream.readInt();
-//
-//						byte[] data = new byte[dataLength];
-//
-//						// read data
-//						int read = 0;
-//						do {
-//							read += socketInStream.read(data, read, dataLength - read);
-//						} while (read < dataLength);
-//
-//						// read mac
-//						boolean result = true;
-//
-//						byte hasMAC = socketInStream.readByte();
-//						if (viewTopology.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
-//
-//							LOGGER.debug("TTP CON USEMAC");
-//							read = 0;
-//							do {
-//								read += socketInStream.read(receivedMac, read, macSize - read);
-//							} while (read < macSize);
-//
-//							result = Arrays.equals(macReceive.doFinal(data), receivedMac);
-//						}
-//
-//						if (result) {
-//							SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
-//									.readObject());
-//
-//							if (sm.getSender() == remoteId) {
-//								// LOGGER.debug("Mensagem recebia de: "+remoteId);
-//								/*
-//								 * if (!inQueue.offer(sm)) { bftsmart.tom.util.LOGGER.
-//								 * debug("(ReceiverThread.run) in queue full (message from " + remoteId +
-//								 * " discarded).");
-//								 * LOGGER.debug("(ReceiverThread.run) in queue full (message from " + remoteId +
-//								 * " discarded)."); }
-//								 */
-//								this.replica.joinMsgReceived((VMMessage) sm);
-//							}
-//						} else {
-//							// TODO: violation of authentication... we should do something
-//							LOGGER.warn("WARNING: Violation of authentication in message received from {}", remoteId);
-//						}
-//					} catch (ClassNotFoundException ex) {
-//						ex.printStackTrace();
-//					} catch (IOException ex) {
-//						// ex.printStackTrace();
-//						if (doWork) {
-//							LOGGER.error(
-//									"[ServerConnection.TTPReceiverThread] I will close socket and waitAndConnect connect with {}",
-//									remoteId);
-//							closeSocket();
-//							waitAndConnect();
-//						}
-//					}
-//				} else {
-//					LOGGER.error("[ServerConnection.TTPReceiverThread] I will waitAndConnect connect with {}",
-//							remoteId);
-//					waitAndConnect();
-//				}
-//			}
-//		}
-//	}
-	// ******* EDUARDO END **************//
 
 	private static class MessageSendingTask extends AsyncFutureTask<SystemMessage, Void> {
 
