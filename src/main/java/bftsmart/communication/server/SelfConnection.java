@@ -51,7 +51,6 @@ public class SelfConnection implements MessageConnection {
 		this.remoteId = viewTopology.getCurrentProcessId();
 
 		this.messageInQueue = messageInQueue;
-
 	}
 
 //    public ServerConnection(ServerViewController controller, Socket socket, int remoteId,

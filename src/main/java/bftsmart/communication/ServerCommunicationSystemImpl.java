@@ -17,7 +17,6 @@ package bftsmart.communication;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.LoggerFactory;
@@ -48,7 +47,6 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 	private boolean doWork = true;
 	public static final long MESSAGE_WAIT_TIME = 100;
-	private LinkedBlockingQueue<SystemMessage> inQueue = null;// new LinkedBlockingQueue<SystemMessage>(IN_QUEUE_SIZE);
 	private MessageQueue messageInQueue;
 	private MessageHandler messageHandler ;//= new MessageHandler();
 	private ServersCommunicationLayer serversCommunication;
@@ -65,7 +63,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		this.messageHandler = messageHandler;
 		this.controller = controller;
 
-		// 创建消息队列
+		// 创建当前节点的消息接收队列
 		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
 				controller.getStaticConf().getInQueueSize());
 		// 创建消息处理器
@@ -89,45 +87,13 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			this.messageHandlerRunners.add(handler);
 		}
 
-//        inQueue = new LinkedBlockingQueue<SystemMessage>(controller.getStaticConf().getInQueueSize());
-
 		serversCommunication = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
 	}
 
-//	// ******* EDUARDO BEGIN **************//
-//	public void joinViewReceived() {
-//		serversCommunication.joinViewReceived();
-//	}
-
 	public synchronized void updateServersConnections() {
 		this.serversCommunication.updateConnections();
-//		if (clientsConn == null) {
-//			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-//		}
-
 	}
 
-	// ******* EDUARDO END **************//
-//	@Override
-//	public void setAcceptor(Acceptor acceptor) {
-//		messageHandler.setAcceptor(acceptor);
-//	}
-//
-//	@Override
-//	public Acceptor getAcceptor() {
-//		return messageHandler.getAcceptor();
-//	}
-//
-//	public void setTOMLayer(TOMLayer tomLayer) {
-//		messageHandler.setTOMLayer(tomLayer);
-//	}
-
-//	public synchronized void setRequestReceiver(RequestReceiver requestReceiver) {
-//		if (clientsConn == null) {
-//			clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
-//		}
-//		clientsConn.setRequestReceiver(requestReceiver);
-//	}
 
 	public void setMessageHandler(MessageHandler messageHandler) {
 		this.messageHandler = messageHandler;
@@ -154,30 +120,6 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			thrd.setDaemon(true);
 			thrd.start();
 		}
-		
-
-//        long count = 0;
-//        while (doWork) {
-//            try {
-//                if (count % 1000 == 0 && count > 0) {
-//                    LOGGER.debug("(ServerCommunicationSystem.run) After " + count + " messages, inQueue size=" + inQueue.size());
-//                }
-//
-//                SystemMessage sm = inQueue.poll(MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
-//
-//                if (sm != null) {
-//                    LOGGER.debug("<-------receiving---------- " + sm);
-//                    messageHandler.processData(sm);
-//                    count++;
-//                } else {
-//                    messageHandler.verifyPending();
-//                }
-//            } catch (InterruptedException e) {
-//                e.printStackTrace(System.err);
-//            }
-//        }
-//        java.util.logging.Logger.getLogger(ServerCommunicationSystem.class.getName()).log(Level.INFO, "ServerCommunicationSystem stopped.");
-
 	}
 
 	/**
@@ -229,11 +171,6 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			LOGGER.debug("--------sending with retrying----------> {}", sm);
 			serversCommunication.send(targets, sm, true);
 		}
-	}
-
-	@Override
-	public void setServersCommunication(ServersCommunicationLayer serversCommunication) {
-		this.serversCommunication = serversCommunication;
 	}
 
 	@Override

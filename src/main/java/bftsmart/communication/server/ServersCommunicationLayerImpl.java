@@ -48,14 +48,14 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 	private ReplicaTopology topology;
 
 	private Object connectionsLock = new Object();
-	
+
 	private Map<Integer, MessageConnection> connections = new ConcurrentHashMap<Integer, MessageConnection>();
 	private volatile ServerSocket serverSocket;
 	private int me;
 	private volatile boolean doWork = true;
-	
+
 	private ServiceReplica replica;
-	
+
 	private SecretKey selfPwd;
 	private MessageQueue messageInQueue;
 	private static final String PASSWORD = "commsyst";
@@ -139,13 +139,6 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		}
 	}
 
-	public void resetConnection(int remoteId) {
-		MessageConnection conn = this.connections.remove(remoteId);
-		if (conn != null) {
-			conn.shutdown();
-		}
-	}
-
 	private MessageConnection getConnection(int remoteId) {
 		MessageConnection ret = this.connections.get(remoteId);
 		if (ret == null) {
@@ -164,15 +157,16 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 				connection = this.connections.get(remoteId);
 				if (connection == null) {
 					if (isOutgoingToRemote(remoteId)) {
+						// 主动向外连接到远程节点；
 						OutgoingSockectConnection conn = new OutgoingSockectConnection(this.replica.getRealName(),
 								topology, remoteId, messageInQueue);
 						this.connections.put(remoteId, conn);
 						connection = conn;
 					} else {
+						// 等待外部节点接入；
 						IncomingSockectConnection conn = new IncomingSockectConnection(this.replica.getRealName(),
 								topology, remoteId, this.messageInQueue);
-						
-						
+
 						this.connections.put(remoteId, conn);
 						connection = conn;
 					}
@@ -224,29 +218,6 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 								}
 							}
 						});
-
-//				if (pid == me) {
-//					sm.authenticated = true;
-//					MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
-//					messageInQueue.put(msgType, sm);
-//				} else {
-//					// System.out.println("Going to send message to: "+i);
-//					// ******* EDUARDO BEGIN **************//
-//					// connections[i].send(data);
-////                    LOGGER.info("I am {}, send data to {}, which is {} !", controller.getStaticConf().getProcessId(), i, sm.getClass());
-//					futures[i] = ensureConnection(pid).send(sm, useMAC, retrySending,
-//							new CompletedCallback<SystemMessage, Void>() {
-//								@Override
-//								public void onCompleted(SystemMessage source, Void result, Throwable error) {
-//									if (error != null) {
-//										LOGGER.error("Fail to send message[" + sm.getClass().getName()
-//												+ "] to target proccess[" + pid + "]!");
-//									}
-//								}
-//							});
-//
-//					// ******* EDUARDO END **************//
-//				}
 			} catch (Exception ex) {
 				LOGGER.error("Failed to send messagea to target[" + pid + "]! --" + ex.getMessage(), ex);
 			}
@@ -288,22 +259,6 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 		}
 	}
 
-//	public void joinViewReceived() {
-//		waitViewLock.lock();
-//		for (int i = 0; i < pendingConn.size(); i++) {
-//			PendingConnection pc = pendingConn.get(i);
-//			try {
-//				establishConnection(pc.s, pc.remoteId);
-//			} catch (Exception e) {
-//				LOGGER.warn("Error occurred while establishing connection! --" + e.getMessage(), e);
-//			}
-//		}
-//
-//		pendingConn.clear();
-//
-//		waitViewLock.unlock();
-//	}
-
 	@Override
 	public void startListening() {
 		Thread thrd = new Thread(new Runnable() {
@@ -329,7 +284,7 @@ public class ServersCommunicationLayerImpl implements ServersCommunicationLayer 
 
 				LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
 				establishConnection(newSocket, remoteId);
-				
+
 				// ******* EDUARDO BEGIN **************//
 ////				if (!this.topology.isInCurrentView() && (this.topology.getStaticConf().getTTPId() != remoteId)) {
 //				if (!this.topology.isInCurrentView()) {

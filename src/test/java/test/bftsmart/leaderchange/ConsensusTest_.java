@@ -755,8 +755,8 @@ public class ConsensusTest_ {
 				return null;
 			}
 		}).when(serversCommunicationLayer).send(any(), any(), anyBoolean());
-
-		serverCommunicationSystems[index].setServersCommunication(serversCommunicationLayer);
+//TODO:
+//		serverCommunicationSystems[index].setServersCommunication(serversCommunicationLayer);
 
 		// 领导者心跳停止
 		stopLeaderHeartBeat(serviceReplicas);

@@ -25,23 +25,8 @@ import utils.concurrent.AsyncFuture;
  */
 public interface ServerCommunicationSystem {
 
-	// ******* EDUARDO BEGIN **************//
-//	void joinViewReceived();
 
 	void updateServersConnections();
-
-	// ******* EDUARDO END **************//
-//	void setAcceptor(Acceptor acceptor);
-//	
-//	Acceptor getAcceptor();
-//
-//	void setTOMLayer(TOMLayer tomLayer);
-//
-//	void setRequestReceiver(RequestReceiver requestReceiver);
-//
-//	void setMessageHandler(MessageHandler messageHandler);
-//
-//	MessageHandler getMessageHandler();
 
 	/**
 	 * Send a message to target processes. If the message is an instance of
@@ -63,8 +48,6 @@ public interface ServerCommunicationSystem {
 	 */
 	void send(int[] targets, SystemMessage sm);
 
-	void setServersCommunication(ServersCommunicationLayer serversConn);
-
 	ServersCommunicationLayer getServersCommunication();
 
 	ClientCommunicationServerSide getClientCommunication();
@@ -75,7 +58,5 @@ public interface ServerCommunicationSystem {
 	void shutdown();
 
 	AsyncFuture<Void> start();
-
-//	void waitStopped();
 
 }
