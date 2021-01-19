@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
-import bftsmart.communication.server.ServersCommunicationLayer;
-import bftsmart.communication.server.ServersCommunicationLayerImpl;
+import bftsmart.communication.server.ServerCommunicationLayer;
+import bftsmart.communication.server.SocketServerCommunicationLayer;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;
@@ -49,7 +49,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	public static final long MESSAGE_WAIT_TIME = 100;
 	private MessageQueue messageInQueue;
 	private MessageHandler messageHandler ;//= new MessageHandler();
-	private ServersCommunicationLayer serversCommunication;
+	private ServerCommunicationLayer serversCommunication;
 	private final ClientCommunicationServerSide clientCommunication;
 	private ViewTopology controller;
 	private final List<MessageHandlerBase> messageHandlerRunners = new ArrayList<>();
@@ -87,7 +87,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			this.messageHandlerRunners.add(handler);
 		}
 
-		serversCommunication = new ServersCommunicationLayerImpl(controller, messageInQueue, replica);
+		serversCommunication = new SocketServerCommunicationLayer(replica.getRealmName(), controller, messageInQueue);
 	}
 
 	public synchronized void updateServersConnections() {
@@ -174,7 +174,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	}
 
 	@Override
-	public ServersCommunicationLayer getServersCommunication() {
+	public ServerCommunicationLayer getServersCommunication() {
 		return serversCommunication;
 	}
 
@@ -203,7 +203,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 					+ e.getMessage(), e);
 		}
 		try {
-			serversCommunication.shutdown();
+			serversCommunication.close();
 		} catch (Exception e) {
 			LOGGER.warn("Server Connections shutdown error of node[" + controller.getCurrentProcessId() + "]! --"
 					+ e.getMessage(), e);
@@ -327,7 +327,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	@Override
 	public AsyncFuture<Void> start() {
 		startMessageHandle();
-		serversCommunication.startListening();
+		serversCommunication.start();
 		return CompletableAsyncFuture.completeFuture(null);
 	}
 }

@@ -42,8 +42,6 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 	private volatile DataInputStream socketInStream = null;
 	
 
-	/** Only used when there is no sender Thread */
-
 	public IncomingSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		super(realmName, viewTopology, remoteId, messageInQueue);

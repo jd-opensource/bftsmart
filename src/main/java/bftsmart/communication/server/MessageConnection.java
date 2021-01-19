@@ -9,22 +9,15 @@ public interface MessageConnection {
 	String MAC_ALGORITHM = "HmacMD5";
 
 	SecretKey getSecretKey();
-
+	
+	int getRemoteId();
+	
+	boolean isAlived();
+	
 	/**
 	 * Stop message sending and reception.
 	 */
 	void shutdown();
-
-//	/**
-//	 * Used to send packets to the remote server.
-//	 */
-//	/**
-//	 * @param data
-//	 * @param useMAC
-//	 * @param callback
-//	 * @return
-//	 */
-//	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean useMAC, CompletedCallback<SystemMessage, Void> callback);
 
 	/**
 	 * Used to send packets to the remote server.

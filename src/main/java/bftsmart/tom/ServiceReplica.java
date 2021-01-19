@@ -736,7 +736,7 @@ public class ServiceReplica {
 		return replicaCtx.getTOMLayer();
 	}
 
-	public String getRealName() {
+	public String getRealmName() {
 		return realmName;
 	}
 }

@@ -21,7 +21,7 @@ import org.mockito.stubbing.Answer;
 import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.ServerCommunicationSystemImpl;
-import bftsmart.communication.server.ServersCommunicationLayer;
+import bftsmart.communication.server.ServerCommunicationLayer;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.reconfiguration.util.TOMConfiguration;
@@ -728,7 +728,7 @@ public class ConsensusTest_ {
 
 		serverCommunicationSystems[index].setMessageHandler(mockMessageHandler);
 
-		ServersCommunicationLayer serversCommunicationLayer = spy(
+		ServerCommunicationLayer serversCommunicationLayer = spy(
 				serverCommunicationSystems[index].getServersCommunication());
 
 		doAnswer(new Answer() {
@@ -900,7 +900,7 @@ public class ConsensusTest_ {
 
 		private TOMLayer tomLayer;
 
-		private ServersCommunicationLayer serversCommunicationLayer;
+		private ServerCommunicationLayer serversCommunicationLayer;
 
 		public void setMessageHandler(MessageHandler messageHandler) {
 			this.messageHandler = messageHandler;
@@ -910,7 +910,7 @@ public class ConsensusTest_ {
 			this.tomLayer = tomLayer;
 		}
 
-		public void setServersCommunicationLayer(ServersCommunicationLayer serversCommunicationLayer) {
+		public void setServersCommunicationLayer(ServerCommunicationLayer serversCommunicationLayer) {
 			this.serversCommunicationLayer = serversCommunicationLayer;
 		}
 	}

@@ -52,68 +52,16 @@ public class SelfConnection implements MessageConnection {
 
 		this.messageInQueue = messageInQueue;
 	}
-
-//    public ServerConnection(ServerViewController controller, Socket socket, int remoteId,
-//                            LinkedBlockingQueue<SystemMessage> inQueue, ServiceReplica replica) {
-//
-//        this.controller = controller;
-//
-//        this.socket = socket;
-//
-//        this.remoteId = remoteId;
-//
-//        this.inQueue = inQueue;
-//
-//        this.outQueue = new LinkedBlockingQueue<byte[]>(controller.getStaticConf().getOutQueueSize());
-//
-//        this.noMACs = new HashSet<Integer>();
-//        // Connect to the remote process or just wait for the connection?
-//        if (isToConnect()) {
-//            //I have to connect to the remote server
-//            try {
-//                this.socket = new Socket(controller.getStaticConf().getHost(remoteId),
-//                        controller.getStaticConf().getServerToServerPort(remoteId));
-//                ServersCommunicationLayer.setSocketOptions(this.socket);
-//                new DataOutputStream(this.socket.getOutputStream()).writeInt(controller.getStaticConf().getProcessId());
-//
-//            } catch (UnknownHostException ex) {
-//                ex.printStackTrace();
-//            } catch (IOException ex) {
-//                ex.printStackTrace();
-//            }
-//        }
-//        //else I have to wait a connection from the remote server
-//
-//        if (this.socket != null) {
-//            try {
-//                socketOutStream = new DataOutputStream(this.socket.getOutputStream());
-//                socketInStream = new DataInputStream(this.socket.getInputStream());
-//            } catch (IOException ex) {
-//                LOGGER.debug("Error creating connection to "+remoteId);
-//                ex.printStackTrace();
-//            }
-//        }
-//
-//        //******* EDUARDO BEGIN **************//
-//        this.useSenderThread = controller.getStaticConf().isUseSenderThread();
-//
-//        if (useSenderThread && (controller.getStaticConf().getTTPId() != remoteId)) {
-//            new SenderThread(latch).start();
-//        } else {
-//            sendLock = new ReentrantLock();
-//        }
-//        authenticateAndEstablishAuthKey();
-//
-//        if (!controller.getStaticConf().isTheTTP()) {
-//            if (controller.getStaticConf().getTTPId() == remoteId) {
-//                //Uma thread "diferente" para as msgs recebidas da TTP
-//                new TTPReceiverThread(replica).start();
-//            } else {
-//                new ReceiverThread().start();
-//            }
-//        }
-//        //******* EDUARDO END **************//
-//    }
+	
+	@Override
+	public int getRemoteId() {
+		return remoteId;
+	}
+	
+	@Override
+	public boolean isAlived() {
+		return true;
+	}
 
 	@Override
 	public SecretKey getSecretKey() {

@@ -107,6 +107,12 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		receiverThread.start();
 	}
 
+	
+	@Override
+	public int getRemoteId() {
+		return remoteId;
+	}
+
 	@Override
 	public SecretKey getSecretKey() {
 		return authKey;

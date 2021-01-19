@@ -16,7 +16,7 @@ limitations under the License.
 package bftsmart.communication;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
-import bftsmart.communication.server.ServersCommunicationLayer;
+import bftsmart.communication.server.ServerCommunicationLayer;
 import utils.concurrent.AsyncFuture;
 
 /**
@@ -48,7 +48,7 @@ public interface ServerCommunicationSystem {
 	 */
 	void send(int[] targets, SystemMessage sm);
 
-	ServersCommunicationLayer getServersCommunication();
+	ServerCommunicationLayer getServersCommunication();
 
 	ClientCommunicationServerSide getClientCommunication();
 

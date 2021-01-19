@@ -20,13 +20,16 @@ import javax.crypto.SecretKey;
 import bftsmart.communication.SystemMessage;
 
 /**
+ * 服务端节点通讯层；
  *
- * @author alysson
  */
-public interface ServersCommunicationLayer  {
+public interface ServerCommunicationLayer {
 
 	SecretKey getSecretKey(int id);
-	
+
+	/**
+	 * 根据最新的拓扑更新连接；
+	 */
 	void updateConnections();
 
 	default void send(int[] targets, SystemMessage sm, boolean useMAC) {
@@ -35,9 +38,8 @@ public interface ServersCommunicationLayer  {
 
 	void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending);
 
-	
-	void startListening();
-	
-	void shutdown();
+	void start();
+
+	void close();
 
 }
