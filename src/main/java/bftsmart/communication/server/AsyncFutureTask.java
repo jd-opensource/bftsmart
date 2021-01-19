@@ -128,7 +128,7 @@ public class AsyncFutureTask<S, R> implements AsyncFuture<S, R> {
 	 * @param callback
 	 * @return 返回当前的 {@link AsyncFuture} 实例；
 	 */
-	AsyncFuture<S, R> setCallback(CompletedCallback<S, R> callback){
+	public AsyncFuture<S, R> setCallback(CompletedCallback<S, R> callback){
 		if (this.callback != null) {
 			throw new IllegalArgumentException("The callback has been setted!");
 		}

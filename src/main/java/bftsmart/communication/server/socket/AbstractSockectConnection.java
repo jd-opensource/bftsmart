@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package bftsmart.communication.server;
+package bftsmart.communication.server.socket;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +41,10 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
+import bftsmart.communication.server.AsyncFuture;
+import bftsmart.communication.server.AsyncFutureTask;
+import bftsmart.communication.server.CompletedCallback;
+import bftsmart.communication.server.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.util.TOMUtil;
 import utils.io.RuntimeIOException;

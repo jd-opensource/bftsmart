@@ -25,7 +25,7 @@ import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.communication.server.ServerCommunicationLayer;
-import bftsmart.communication.server.SocketServerCommunicationLayer;
+import bftsmart.communication.server.socket.SocketServerCommunicationLayer;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;

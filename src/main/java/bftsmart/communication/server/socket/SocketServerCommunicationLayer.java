@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package bftsmart.communication.server;
+package bftsmart.communication.server.socket;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -27,6 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
+import bftsmart.communication.server.AbstractServersCommunicationLayer;
+import bftsmart.communication.server.MessageConnection;
+import bftsmart.communication.server.SocketUtils;
 import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ViewTopology;
 import utils.io.RuntimeIOException;
