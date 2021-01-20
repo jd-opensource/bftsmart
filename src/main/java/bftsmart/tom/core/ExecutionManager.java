@@ -22,6 +22,7 @@ import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.consensus.roles.Proposer;
+import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public final class ExecutionManager {
 
-    private ServerViewController controller;
+    private ReplicaTopology topology;
     private Acceptor acceptor; // Acceptor role of the PaW algorithm
     private Proposer proposer; // Proposer role of the PaW algorithm
     //******* EDUARDO BEGIN: now these variables are all concentrated in the Reconfigurationmanager **************//
@@ -78,29 +79,29 @@ public final class ExecutionManager {
     /**
      * Creates a new instance of ExecutionManager
      *
-     * @param controller
+     * @param topology
      * @param acceptor Acceptor role of the PaW algorithm
      * @param proposer Proposer role of the PaW algorithm
      * @param me This process ID
      */
-    public ExecutionManager(ServerViewController controller, Acceptor acceptor,
+    public ExecutionManager(ReplicaTopology topology, Acceptor acceptor,
                             Proposer proposer, int me) {
         //******* EDUARDO BEGIN **************//
-        this.controller = controller;
+        this.topology = topology;
         this.acceptor = acceptor;
         this.proposer = proposer;
         //this.me = me;
 
-        this.paxosHighMark = this.controller.getStaticConf().getPaxosHighMark();
+        this.paxosHighMark = this.topology.getStaticConf().getPaxosHighMark();
         /** THIS IS JOAO'S CODE, TO HANDLE THE STATE TRANSFER */
-        this.revivalHighMark = this.controller.getStaticConf().getRevivalHighMark();
-        this.timeoutHighMark = this.controller.getStaticConf().getTimeoutHighMark();
+        this.revivalHighMark = this.topology.getStaticConf().getRevivalHighMark();
+        this.timeoutHighMark = this.topology.getStaticConf().getTimeoutHighMark();
         /******************************************************************/
         //******* EDUARDO END **************//
         
         // Get initial leader
-        if (controller.getCurrentViewAcceptors().length > 0)
-            currentLeader = controller.getCurrentViewAcceptors()[0];
+        if (topology.getCurrentViewProcesses().length > 0)
+            currentLeader = topology.getCurrentViewProcesses()[0];
         else currentLeader = 0;
     }
     
@@ -177,7 +178,7 @@ public final class ExecutionManager {
             //stoppedEpoch.getTimeoutTask().cancel();
 //            if (stoppedEpoch != null) LOGGER.debug("(ExecutionManager.stop) Stoping epoch " + stoppedEpoch.getTimestamp() + " of consensus " + tomLayer.getInExec());
 
-            if (stoppedEpoch != null) LOGGER.debug("(ExecutionManager.stop) I am proc {} Stoping epoch {} of consensus {}", controller.getStaticConf().getProcessId(), stoppedEpoch.getTimestamp(), tomLayer.getInExec());
+            if (stoppedEpoch != null) LOGGER.debug("(ExecutionManager.stop) I am proc {} Stoping epoch {} of consensus {}", topology.getStaticConf().getProcessId(), stoppedEpoch.getTimestamp(), tomLayer.getInExec());
 //            if (stoppedEpoch != null) System.out.println("(ExecutionManager.stop) I am proc  " + controller.getStaticConf().getProcessId() + " Stoping epoch " + stoppedEpoch.getTimestamp() + " of consensus " + tomLayer.getInExec());
         }
         stoppedMsgsLock.unlock();
@@ -245,7 +246,7 @@ public final class ExecutionManager {
             if (stopped) {//just an optimization to avoid calling the lock in normal case
                 stoppedMsgsLock.lock();
                 if (stopped) {
-                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, last cid is {}, in exe cid is {}", controller.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, lastConsId, inExec);
+                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, lastConsId, inExec);
 //                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped");
                     //the execution manager was stopped, the messages should be stored
                     //for later processing (when the consensus is restarted)
@@ -258,7 +259,7 @@ public final class ExecutionManager {
                         (inExec != -1 && inExec < msg.getNumber()) || 
                         (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus
 
-                    LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}", controller.getStaticConf().getProcessId(),
+                    LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(),
                             msg.getNumber(), lastConsId, inExec);
 
 
@@ -268,7 +269,7 @@ public final class ExecutionManager {
                     
                     addOutOfContextMessage(msg);
                 } else if (!rollHappend){ //can process!
-                    LOGGER.info("(ExecutionManager.checkLimits)I am proc {} ,message for consensus {} can be processed", this.controller.getStaticConf().getProcessId(), msg.getNumber());
+                    LOGGER.info("(ExecutionManager.checkLimits)I am proc {} ,message for consensus {} can be processed", this.topology.getStaticConf().getProcessId(), msg.getNumber());
             
                     //Logger.debug = false;
                     canProcessTheMessage = true;
@@ -278,14 +279,14 @@ public final class ExecutionManager {
                 (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
                 (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
-            LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, start state transfer, last cid is {}, recv msg cid is {}, in cid is {}", controller.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
-            LOGGER.info("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", controller.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
+            LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, start state transfer, last cid is {}, recv msg cid is {}, in cid is {}", topology.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
+            LOGGER.info("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", topology.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
             //Start state transfer
             /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
             LOGGER.info("(ExecutionManager.checkLimits) Message for consensus {} is beyond the paxos highmark, adding it to out of context set", msg.getNumber());
             addOutOfContextMessage(msg);
 
-            if (controller.getStaticConf().isStateTransferEnabled()) {
+            if (topology.getStaticConf().isStateTransferEnabled()) {
                 //Logger.debug = true;
                 tomLayer.getStateManager().analyzeState(msg.getNumber());
             }
@@ -465,7 +466,7 @@ public final class ExecutionManager {
         if (receivedOutOfContextPropose(cid)) {
             Consensus cons = getConsensus(cid);
             ConsensusMessage prop = outOfContextProposes.get(cons.getId());
-            Epoch epoch = cons.getEpoch(prop.getEpoch(), controller);
+            Epoch epoch = cons.getEpoch(prop.getEpoch(), topology);
             byte[] propHash = tomLayer.computeHash(prop.getValue());
             List<ConsensusMessage> msgs = outOfContext.get(cid);
             int countWrites = 0;
@@ -481,11 +482,11 @@ public final class ExecutionManager {
                     }
                 }
             }
-            if(controller.getStaticConf().isBFT()){
-            	return ((countWrites > (2*controller.getCurrentViewF())) &&
-            			(countAccepts > (2*controller.getCurrentViewF())));
+            if(topology.getStaticConf().isBFT()){
+            	return ((countWrites > (2*topology.getCurrentViewF())) &&
+            			(countAccepts > (2*topology.getCurrentViewF())));
             }else{
-            	return (countAccepts > controller.getQuorum());
+            	return (countAccepts > topology.getQuorum());
             }
         }
         return false;

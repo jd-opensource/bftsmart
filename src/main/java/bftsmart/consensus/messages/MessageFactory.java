@@ -36,6 +36,10 @@ public class MessageFactory{
         this.from = from;
 
     }
+    
+    public int getFrom() {
+		return from;
+	}
 
     /**
      * Creates a PROPOSE message to be sent by this process

@@ -35,10 +35,8 @@ import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.consensus.roles.Proposer;
-import bftsmart.reconfiguration.ReconfigureReply;
+import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.reconfiguration.VMMessage;
-import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.FileSystemViewStorage;
 import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
@@ -165,7 +163,7 @@ public class ServiceReplica {
 		this.replier = replier;
 	}
 
-	public ViewTopology getViewController() {
+	public ReplicaTopology getViewController() {
 		return serverViewController;
 	}
 

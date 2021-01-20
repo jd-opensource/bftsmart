@@ -154,9 +154,4 @@ public class ViewController implements ViewTopology {
     }
 
 
-	@Override
-	public boolean isInCurrentView() {
-		// TODO Auto-generated method stub
-		return false;
-	}
 }

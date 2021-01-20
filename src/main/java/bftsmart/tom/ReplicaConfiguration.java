@@ -48,10 +48,6 @@ public interface ReplicaConfiguration {
 
 	int[] getInitialView();
 	
-//	boolean isTheTTP();
-//
-//	int getTTPId();
-
 	int getRequestTimeout();
 
 	int getClientDatasMonitorTimeout();

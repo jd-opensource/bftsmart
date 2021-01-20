@@ -15,9 +15,12 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
+import java.util.concurrent.TimeUnit;
+
 import javax.crypto.SecretKey;
 
 import bftsmart.communication.SystemMessage;
+import bftsmart.communication.queue.MessageQueue.SystemMessageType;
 
 /**
  * 服务端节点通讯层；
@@ -32,14 +35,45 @@ public interface ServerCommunicationLayer {
 	 */
 	void updateConnections();
 
+	/**
+	 * 发送消息；
+	 * 
+	 * @param targets
+	 * @param sm
+	 * @param useMAC
+	 */
 	default void send(int[] targets, SystemMessage sm, boolean useMAC) {
 		send(targets, sm, useMAC, true);
 	}
 
+	/**
+	 * 发送消息；
+	 * 
+	 * @param targets
+	 * @param sm
+	 * @param useMAC
+	 * @param retrySending
+	 */
 	void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending);
 
+	/**
+	 * 接收消息；
+	 * 
+	 * @param type
+	 * @param timeout
+	 * @param unit
+	 * @return
+	 */
+	SystemMessage consume(SystemMessageType type, long timeout, TimeUnit unit);
+
+	/**
+	 * 启动通讯服务；
+	 */
 	void start();
 
+	/**
+	 * 关闭通讯服务；
+	 */
 	void close();
 
 }

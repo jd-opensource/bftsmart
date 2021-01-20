@@ -55,7 +55,7 @@ public class StandardStateManager extends BaseStateManager {
 
     @Override
     public void init(TOMLayer tomLayer, DeliveryThread dt) {
-    	SVController = tomLayer.controller;
+    	topology = tomLayer.controller;
     	
         this.tomLayer = tomLayer;
         this.dt = dt;
@@ -81,7 +81,7 @@ public class StandardStateManager extends BaseStateManager {
 
     private void changeReplica() {
         
-        int[] processes = this.SVController.getCurrentViewOtherAcceptors();
+        int[] processes = this.topology.getCurrentViewOtherAcceptors();
         Random r = new Random();
         
         int pos;
@@ -96,7 +96,7 @@ public class StandardStateManager extends BaseStateManager {
                 replica = 0;
                 break;
             }
-        } while (replica == SVController.getStaticConf().getProcessId());
+        } while (replica == topology.getStaticConf().getProcessId());
     }
     
     @Override
@@ -110,9 +110,9 @@ public class StandardStateManager extends BaseStateManager {
         // 优化时待处理
 //        changeReplica(); // always ask the complete state to a different replica
         
-        SMMessage smsg = new StandardSMMessage(SVController.getStaticConf().getProcessId(),
+        SMMessage smsg = new StandardSMMessage(topology.getStaticConf().getProcessId(),
                 waitingCID, TOMUtil.SM_REQUEST, replica, null, null, -1, -1);
-        tomLayer.getCommunication().send(SVController.getCurrentViewOtherAcceptors(), smsg);
+        tomLayer.getCommunication().send(topology.getCurrentViewOtherAcceptors(), smsg);
 
         LOGGER.info("(StandardStateManager.requestState) I just sent a request to the other replicas for the state up to CID {}", waitingCID);
 
@@ -123,7 +123,7 @@ public class StandardStateManager extends BaseStateManager {
                 }
             	LOGGER.info("Timeout to retrieve state");
                 int[] myself = new int[1];
-                myself[0] = SVController.getStaticConf().getProcessId();
+                myself[0] = topology.getStaticConf().getProcessId();
                 tomLayer.getCommunication().send(myself, new StandardSMMessage(-1, waitingCID, TOMUtil.TRIGGER_SM_LOCALLY, -1, null, null, -1, -1));
             }
         };
@@ -157,7 +157,7 @@ public class StandardStateManager extends BaseStateManager {
 	@Override
     public void SMRequestDeliver(SMMessage msg, boolean isBFT) {
         LOGGER.info("I will handle SMRequestDeliver !");
-        if (SVController.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
+        if (topology.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
         	StandardSMMessage stdMsg = (StandardSMMessage)msg;
 //            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
 
@@ -176,8 +176,8 @@ public class StandardStateManager extends BaseStateManager {
                 LOGGER.info("-- Will I send the state? {}", thisState.getSerializedState() != null);
             }
             int[] targets = { msg.getSender() };
-            SMMessage smsg = new StandardSMMessage(SVController.getStaticConf().getProcessId(),
-                    msg.getCID(), TOMUtil.SM_REPLY, -1, thisState, SVController.getCurrentView(),
+            SMMessage smsg = new StandardSMMessage(topology.getStaticConf().getProcessId(),
+                    msg.getCID(), TOMUtil.SM_REPLY, -1, thisState, topology.getCurrentView(),
                     tomLayer.getSynchronizer().getLCManager().getLastReg(), tomLayer.execManager.getCurrentLeader());
             
             LOGGER.info("Sending state");
@@ -190,7 +190,7 @@ public class StandardStateManager extends BaseStateManager {
     public void SMReplyDeliver(SMMessage msg, boolean isBFT) {
         LOGGER.info("I will handle SMReplyDeliver !");
         lockTimer.lock();
-        if (SVController.getStaticConf().isStateTransferEnabled()) {
+        if (topology.getStaticConf().isStateTransferEnabled()) {
             if (waitingCID != -1 && msg.getCID() == waitingCID) {
                 int currentRegency = -1;
                 int currentLeader = -1;
@@ -202,18 +202,18 @@ public class StandardStateManager extends BaseStateManager {
 //                	senderRegencies.put(msg.getSender(), msg.getRegency());
 //                	senderLeaders.put(msg.getSender(), msg.getLeader());
                 	senderViews.put(msg.getSender(), msg.getView());
-                    senderProofs.put(msg.getSender(), msg.getState().getCertifiedDecision(SVController));
+                    senderProofs.put(msg.getSender(), msg.getState().getCertifiedDecision(topology));
                     senderStates.put(msg.getSender(), msg.getState());
 //                    if (enoughRegencies(msg.getRegency())) currentRegency = msg.getRegency();
 //                    if (enoughLeaders(msg.getLeader())) currentLeader = msg.getLeader();
                     if (enoughViews(msg.getView())) currentView = msg.getView();
-                    if (enoughProofs(waitingCID, this.tomLayer.getSynchronizer().getLCManager())) currentProof = msg.getState().getCertifiedDecision(SVController);
+                    if (enoughProofs(waitingCID, this.tomLayer.getSynchronizer().getLCManager())) currentProof = msg.getState().getCertifiedDecision(topology);
                     if (enoughState(msg.getState())) state = msg.getState();
                     
                 } else {
                     currentLeader = tomLayer.execManager.getCurrentLeader();
                     currentRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
-                    currentView = SVController.getCurrentView();
+                    currentView = topology.getCurrentView();
                 }
 
                 // 待优化处理
@@ -234,7 +234,7 @@ public class StandardStateManager extends BaseStateManager {
                             hash = tomLayer.computeHash(state.getSerializedState());
                             if (otherReplicaState != null) {
                                 if (Arrays.equals(hash, otherReplicaState.getStateHash())) haveState = 1;
-                                else if (getNumEqualStates() > SVController.getCurrentViewF())
+                                else if (getNumEqualStates() > topology.getCurrentViewF())
                                     haveState = -1;
                             }
 //                        }
@@ -265,11 +265,11 @@ public class StandardStateManager extends BaseStateManager {
                             
                             for (ConsensusMessage cm : currentProof.getConsMessages()) {
 
-                                e = cons.getEpoch(cm.getEpoch(), true, SVController);
+                                e = cons.getEpoch(cm.getEpoch(), true, topology);
                                 if (e.getTimestamp() != cm.getEpoch()) {
 
                                     LOGGER.debug("Strange... proof contains messages from more than just one epoch");
-                                    e = cons.getEpoch(cm.getEpoch(), true, SVController);
+                                    e = cons.getEpoch(cm.getEpoch(), true, topology);
                                 }
                                 e.addToProof(cm);
 
@@ -323,10 +323,10 @@ public class StandardStateManager extends BaseStateManager {
                         
 //                        tomLayer.processOutOfContext();
                         
-                        if (SVController.getCurrentViewId() <= currentView.getId()) {
+                        if (topology.getCurrentViewId() <= currentView.getId()) {
                             LOGGER.info("Installing current view!");
                             // 当通过交易重放回补落后区块时，不仅要更新本地视图，还需要同时更新本地的hostconfig
-                            SVController.reconfigureTo(currentView);
+                            topology.reconfigureTo(currentView);
                             updateHostConfig(currentView);
                         }
                         
@@ -352,7 +352,7 @@ public class StandardStateManager extends BaseStateManager {
                         	appStateOnly = false;
                             tomLayer.getSynchronizer().resumeLC();
                         }
-                    } else if (otherReplicaState == null && (SVController.getCurrentViewN() / 2) < getReplies()) {
+                    } else if (otherReplicaState == null && (topology.getCurrentViewN() / 2) < getReplies()) {
                     	LOGGER.info("otherReplicaState == null && (SVController.getCurrentViewN() / 2) < getReplies()");
                         waitingCID = -1;
                         reset();
@@ -371,7 +371,7 @@ public class StandardStateManager extends BaseStateManager {
                         requestState();
 
                         if (stateTimer != null) stateTimer.cancel();
-                    } else if (haveState == 0 && (SVController.getCurrentViewN() - SVController.getCurrentViewF()) <= getReplies()) {
+                    } else if (haveState == 0 && (topology.getCurrentViewN() - topology.getCurrentViewF()) <= getReplies()) {
 
                         LOGGER.error("(TOMLayer.SMReplyDeliver) Could not obtain the state, retrying");
                         reset();
@@ -393,7 +393,7 @@ public class StandardStateManager extends BaseStateManager {
         for (int procId : currentView.getProcesses()) {
             NodeNetwork nodeNetwork = currentView.getAddress(procId);
             if (nodeNetwork != null) {
-            	this.SVController.addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
+            	this.topology.addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort());
             } else {
                 LOGGER.info("updateHostConfig, find node network is null!");
             }
@@ -407,7 +407,7 @@ public class StandardStateManager extends BaseStateManager {
      * @return The state sent from other replica
      */
     private ApplicationState getOtherReplicaState() {
-    	int[] processes = SVController.getCurrentViewProcesses();
+    	int[] processes = topology.getCurrentViewProcesses();
     	for(int process : processes) {
     		if(process == replica)
     			continue;
@@ -439,15 +439,15 @@ public class StandardStateManager extends BaseStateManager {
 	public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I will handle currentConsensusIdAsked sender = {}!", sender);
 
-        if (viewId < this.SVController.getCurrentView().getId()) {
+        if (viewId < this.topology.getCurrentView().getId()) {
             LOGGER.info("#######################################################################################################################################################");
             LOGGER.info("################State Transfer Requester View Is Obsolete, If Block Exist Diff, Please Requester Copy Ledger Database And Restart!#####################");
             LOGGER.info("#######################################################################################################################################################");
         }
-		int me = SVController.getStaticConf().getProcessId();
+		int me = topology.getStaticConf().getProcessId();
 		int lastConsensusId = tomLayer.getLastExec();
 		LOGGER.info("I wiil send consensusId = {} !", lastConsensusId);
-		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.SVController.getCurrentView(), 0, 0);
+		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.topology.getCurrentView(), 0, 0);
 		tomLayer.getCommunication().send(new int[]{sender}, currentCID);
 	}
 	

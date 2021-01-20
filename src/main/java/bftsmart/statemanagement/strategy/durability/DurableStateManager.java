@@ -62,7 +62,7 @@ public class DurableStateManager extends BaseStateManager {
 
 	@Override
 	public void init(TOMLayer tomLayer, DeliveryThread dt) {
-		SVController = tomLayer.controller;
+		topology = tomLayer.controller;
 
 		this.tomLayer = tomLayer;
 		this.dt = dt;
@@ -81,15 +81,15 @@ public class DurableStateManager extends BaseStateManager {
 		if (tomLayer.requestsTimer != null)
 			tomLayer.requestsTimer.clearAll();
 
-		int myProcessId = SVController.getStaticConf().getProcessId();
-		int[] otherProcesses = SVController.getCurrentViewOtherAcceptors();
-		int globalCkpPeriod = SVController.getStaticConf().getGlobalCheckpointPeriod();
+		int myProcessId = topology.getStaticConf().getProcessId();
+		int[] otherProcesses = topology.getCurrentViewOtherAcceptors();
+		int globalCkpPeriod = topology.getStaticConf().getGlobalCheckpointPeriod();
 
 		CSTRequestF1 cst = new CSTRequestF1(waitingCID);
 		cst.defineReplicas(otherProcesses, globalCkpPeriod, myProcessId);
 		this.cstRequest = cst;
 		CSTSMMessage cstMsg = new CSTSMMessage(myProcessId, waitingCID, TOMUtil.SM_REQUEST, cst, null, null, -1, -1);
-		tomLayer.getCommunication().send(SVController.getCurrentViewOtherAcceptors(), cstMsg);
+		tomLayer.getCommunication().send(topology.getCurrentViewOtherAcceptors(), cstMsg);
 
 		LOGGER.info("(TOMLayer.requestState) I just sent a request to the other replicas for the state up to CID {}",
 				waitingCID);
@@ -97,7 +97,7 @@ public class DurableStateManager extends BaseStateManager {
 		TimerTask stateTask = new TimerTask() {
 			public void run() {
 				int[] myself = new int[1];
-				myself[0] = SVController.getStaticConf().getProcessId();
+				myself[0] = topology.getStaticConf().getProcessId();
 				tomLayer.getCommunication().send(myself,
 						new CSTSMMessage(-1, waitingCID, TOMUtil.TRIGGER_SM_LOCALLY, null, null, null, -1, -1));
 			}
@@ -124,27 +124,27 @@ public class DurableStateManager extends BaseStateManager {
 	@Override
 	public void SMRequestDeliver(SMMessage msg, boolean isBFT) {
 		LOGGER.debug("(TOMLayer.SMRequestDeliver) invoked method");
-		if (SVController.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
+		if (topology.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
 			LOGGER.debug("(TOMLayer.SMRequestDeliver) The state transfer protocol is enabled");
 			LOGGER.info("(TOMLayer.SMRequestDeliver) I received a state request for CID {} from replica {}",
 					msg.getCID(), msg.getSender());
 			CSTSMMessage cstMsg = (CSTSMMessage) msg;
 			CSTRequestF1 cstConfig = cstMsg.getCstConfig();
-			boolean sendState = cstConfig.getCheckpointReplica() == SVController.getStaticConf().getProcessId();
+			boolean sendState = cstConfig.getCheckpointReplica() == topology.getStaticConf().getProcessId();
 			if (sendState)
 				LOGGER.info("(TOMLayer.SMRequestDeliver) I should be the one sending the state");
 
 			LOGGER.debug("--- state asked");
 
 			int[] targets = { msg.getSender() };
-			NodeNetwork address = SVController.getCurrentView().getAddress(SVController.getStaticConf().getProcessId());
+			NodeNetwork address = topology.getCurrentView().getAddress(topology.getStaticConf().getProcessId());
 			String myIp = address.getHost();
-			int myId = SVController.getStaticConf().getProcessId();
+			int myId = topology.getStaticConf().getProcessId();
 			int port = 4444 + myId;
 			address = new NodeNetwork(myIp, port, -1);
 			cstConfig.setAddress(address);
 			CSTSMMessage reply = new CSTSMMessage(myId, msg.getCID(), TOMUtil.SM_REPLY, cstConfig, null,
-					SVController.getCurrentView(), tomLayer.getSynchronizer().getLCManager().getLastReg(),
+					topology.getCurrentView(), tomLayer.getSynchronizer().getLCManager().getLastReg(),
 					tomLayer.execManager.getCurrentLeader());
 
 			StateSenderServer stateServer = new StateSenderServer(port);
@@ -161,7 +161,7 @@ public class DurableStateManager extends BaseStateManager {
 	public void SMReplyDeliver(SMMessage msg, boolean isBFT) {
 		lockTimer.lock();
 		CSTSMMessage reply = (CSTSMMessage) msg;
-		if (SVController.getStaticConf().isStateTransferEnabled()) {
+		if (topology.getStaticConf().isStateTransferEnabled()) {
 			LOGGER.debug("(TOMLayer.SMReplyDeliver) The state transfer protocol is enabled");
 			LOGGER.info("(TOMLayer.SMReplyDeliver) I received a state reply for CID {} from replica {}", reply.getCID(),
 					reply.getSender());
@@ -186,7 +186,7 @@ public class DurableStateManager extends BaseStateManager {
 						currentLeader = reply.getLeader();
 					if (enoughViews(reply.getView())) {
 						currentView = reply.getView();
-						if (!currentView.isMember(SVController.getStaticConf().getProcessId())) {
+						if (!currentView.isMember(topology.getStaticConf().getProcessId())) {
 							LOGGER.error("Not a member!");
 						}
 					}
@@ -196,7 +196,7 @@ public class DurableStateManager extends BaseStateManager {
 				} else {
 					currentLeader = tomLayer.execManager.getCurrentLeader();
 					currentRegency = tomLayer.getSynchronizer().getLCManager().getLastReg();
-					currentView = SVController.getCurrentView();
+					currentView = topology.getCurrentView();
 				}
 
 				LOGGER.info("(TOMLayer.SMReplyDeliver) The reply is for the CID that I want!");
@@ -270,7 +270,7 @@ public class DurableStateManager extends BaseStateManager {
 					CSTState statePlusLower = new CSTState(stateCkp.getSerializedState(),
 							TOMUtil.getBytes(stateCkp.getSerializedState()), stateLower.getLogLower(),
 							stateCkp.getHashLogLower(), null, null, stateCkp.getCheckpointCID(),
-							stateUpper.getCheckpointCID(), SVController.getStaticConf().getProcessId());
+							stateUpper.getCheckpointCID(), topology.getStaticConf().getProcessId());
 
 					if (haveState) { // validate checkpoint
 						LOGGER.debug("validating checkpoint!!!");
@@ -374,9 +374,9 @@ public class DurableStateManager extends BaseStateManager {
 
 						tomLayer.processOutOfContext();
 
-						if (SVController.getCurrentViewId() != currentView.getId()) {
+						if (topology.getCurrentViewId() != currentView.getId()) {
 							LOGGER.info("Installing current view!");
-							SVController.reconfigureTo(currentView);
+							topology.reconfigureTo(currentView);
 						}
 
 						isInitializing = false;
@@ -397,11 +397,11 @@ public class DurableStateManager extends BaseStateManager {
 							appStateOnly = false;
 							tomLayer.getSynchronizer().resumeLC();
 						}
-					} else if (state == null && (SVController.getCurrentViewN() / 2) < getReplies()) {
+					} else if (state == null && (topology.getCurrentViewN() / 2) < getReplies()) {
 						LOGGER.error("---- DIDNT RECEIVE STATE ----");
 
 						LOGGER.error("(TOMLayer.SMReplyDeliver) I have more than {} messages that are no good!",
-								(SVController.getCurrentViewN() / 2));
+								(topology.getCurrentViewN() / 2));
 
 						waitingCID = -1;
 						reset();

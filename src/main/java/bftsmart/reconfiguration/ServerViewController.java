@@ -67,11 +67,6 @@ public class ServerViewController extends ViewController implements ReplicaTopol
 		return this.otherProcesses;
 	}
 
-	@Override
-	public int[] getCurrentViewAcceptors() {
-		return this.currentView.getProcesses();
-	}
-
 	public boolean hasUpdates() {
 		return !this.updates.isEmpty();
 	}

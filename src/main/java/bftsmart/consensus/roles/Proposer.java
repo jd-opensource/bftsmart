@@ -26,7 +26,7 @@ public class Proposer {
 
     private MessageFactory factory; // Factory for PaW messages
     private ServerCommunicationSystem communication; // Replicas comunication system
-    private ReplicaTopology controller;
+    private ReplicaTopology topology;
 
     /**
      * Creates a new instance of Proposer
@@ -40,7 +40,7 @@ public class Proposer {
             ReplicaTopology controller) {
         this.communication = communication;
         this.factory = factory;
-        this.controller = controller;
+        this.topology = controller;
     }
 
     /**
@@ -52,7 +52,7 @@ public class Proposer {
      */
     public void startConsensus(int cid, byte[] value) {
         //******* EDUARDO BEGIN **************//
-        communication.send(this.controller.getCurrentViewAcceptors(),
+        communication.send(this.topology.getCurrentViewProcesses(),
                 factory.createPropose(cid, 0, value));
         //******* EDUARDO END **************//
     }

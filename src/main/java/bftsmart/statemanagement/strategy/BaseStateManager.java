@@ -16,8 +16,15 @@
  */
 package bftsmart.statemanagement.strategy;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Set;
+
+import org.slf4j.LoggerFactory;
+
 import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.SMMessage;
@@ -27,14 +34,6 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.leaderchange.LCManager;
 import bftsmart.tom.util.TOMUtil;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
 
 /**
  *
@@ -44,7 +43,7 @@ import java.util.Set;
 public abstract class BaseStateManager implements StateManager {
 
     protected TOMLayer tomLayer;
-    protected ServerViewController SVController;
+    protected ReplicaTopology topology;
     protected DeliveryThread dt;
 
     protected HashMap<Integer, ApplicationState> senderStates = null;
@@ -84,15 +83,15 @@ public abstract class BaseStateManager implements StateManager {
 
     protected boolean enoughReplies() {
 //        return senderStates.size() > SVController.getCurrentViewF();
-        return senderStates.size() >= SVController.getQuorum();
+        return senderStates.size() >= topology.getQuorum();
     }
 
     protected boolean enoughRegencies(int regency) {
-        return senderRegencies.size() >= SVController.getQuorum();
+        return senderRegencies.size() >= topology.getQuorum();
     }
 
     protected boolean enoughLeaders(int leader) {
-        return senderLeaders.size() >= SVController.getQuorum();
+        return senderLeaders.size() >= topology.getQuorum();
     }
 
     protected boolean enoughViews(View view) {
@@ -103,7 +102,7 @@ public abstract class BaseStateManager implements StateManager {
                 counter++;
             }
         }
-        boolean result = counter >= SVController.getQuorum();
+        boolean result = counter >= topology.getQuorum();
         return result;
     }
 
@@ -115,7 +114,7 @@ public abstract class BaseStateManager implements StateManager {
                 counter++;
             }
         }
-        boolean result = counter >= SVController.getQuorum();
+        boolean result = counter >= topology.getQuorum();
         return result;
     }
 
@@ -154,7 +153,7 @@ public abstract class BaseStateManager implements StateManager {
             }
             
         }
-        boolean result = counter >= SVController.getQuorum();
+        boolean result = counter >= topology.getQuorum();
         return result;
     }
     
@@ -201,7 +200,7 @@ public abstract class BaseStateManager implements StateManager {
         if (waitingCID == -1) {
            LOGGER.info("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {
-                LOGGER.info("BaseStateManager.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", SVController.getCurrentViewF(), cid, lastCID);
+                LOGGER.info("BaseStateManager.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", topology.getCurrentViewF(), cid, lastCID);
                 lastCID = cid;
                 waitingCID = cid - 1;
                 LOGGER.info("analyzeState {}", waitingCID);
@@ -224,14 +223,14 @@ public abstract class BaseStateManager implements StateManager {
     @Override
     public void askCurrentConsensusId() {
         int counter = 0;
-        int me = SVController.getStaticConf().getProcessId();
-        int[] target = SVController.getCurrentViewAcceptors();
+        int me = topology.getStaticConf().getProcessId();
+        int[] target = topology.getCurrentViewProcesses();
 
-        SMMessage currentCID = new StandardSMMessage(me, -1, TOMUtil.SM_ASK_INITIAL, 0, null, this.SVController.getCurrentView(), 0, 0);
+        SMMessage currentCID = new StandardSMMessage(me, -1, TOMUtil.SM_ASK_INITIAL, 0, null, this.topology.getCurrentView(), 0, 0);
         LOGGER.info("I will send StandardSMMessage[{}] to all nodes !", TOMUtil.SM_ASK_INITIAL);
         tomLayer.getCommunication().send(target, currentCID);
 
-        target = SVController.getCurrentViewOtherAcceptors();
+        target = topology.getCurrentViewOtherAcceptors();
 
         while (isInitializing && doWork) {
             LOGGER.info("I will send StandardSMMessage[{}] to others !", TOMUtil.SM_ASK_INITIAL);
@@ -253,14 +252,14 @@ public abstract class BaseStateManager implements StateManager {
     @Override
     public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I will handle currentConsensusIdAsked, sender = {} !", sender);
-        if (viewId < this.SVController.getCurrentView().getId()) {
+        if (viewId < this.topology.getCurrentView().getId()) {
             LOGGER.info("#######################################################################################################################################################");
             LOGGER.info("################State Transfer Requester View Is Obsolete, If Block Exist Diff, Please Requester Copy Ledger Database And Restart!#####################");
             LOGGER.info("#######################################################################################################################################################");
         }
-        int me = SVController.getStaticConf().getProcessId();
+        int me = topology.getStaticConf().getProcessId();
         int lastConsensusId = tomLayer.getLastExec();
-        SMMessage currentCIDReply = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.SVController.getCurrentView(), 0, 0);
+        SMMessage currentCIDReply = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.topology.getCurrentView(), 0, 0);
         tomLayer.getCommunication().send(new int[]{sender}, currentCIDReply);
     }
 
@@ -282,11 +281,11 @@ public abstract class BaseStateManager implements StateManager {
         senderVIDs.put(smsg.getSender(), smsg.getView().getId());
 
         // Report if view is consistent
-        checkViewInfo(this.SVController.getCurrentView().getId(), senderVIDs);
+        checkViewInfo(this.topology.getCurrentView().getId(), senderVIDs);
 
         LOGGER.info("currentConsensusIdReceived ->sender[{}], CID = {} !", smsg.getSender(), smsg.getCID());
-        LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), SVController.getQuorum());
-        if (senderCIDs.size() >= SVController.getQuorum()) {
+        LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), topology.getQuorum());
+        if (senderCIDs.size() >= topology.getQuorum()) {
 
             HashMap<Integer, Integer> cids = new HashMap<>();
             for (int id : senderCIDs.keySet()) {
@@ -301,10 +300,10 @@ public abstract class BaseStateManager implements StateManager {
                 }
             }
             for (int key : cids.keySet()) {
-                LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), SVController.getQuorum());
-                if (cids.get(key) >= SVController.getQuorum()) {
+                LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), topology.getQuorum());
+                if (cids.get(key) >= topology.getQuorum()) {
                     if (key == lastCID) {
-                        LOGGER.info("-- {} replica state is up to date ! --", SVController.getStaticConf().getProcessId());
+                        LOGGER.info("-- {} replica state is up to date ! --", topology.getStaticConf().getProcessId());
                         dt.deliverLock();
                         isInitializing = false;
                         tomLayer.setLastExec(key);

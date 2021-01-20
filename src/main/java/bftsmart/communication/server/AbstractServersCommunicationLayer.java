@@ -1,7 +1,10 @@
 package bftsmart.communication.server;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -12,7 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.reconfiguration.ReplicaTopology;
+import bftsmart.communication.queue.MessageQueue.SystemMessageType;
+import bftsmart.reconfiguration.ViewTopology;
 
 /**
  * @author huanghaiquan
@@ -21,43 +25,51 @@ import bftsmart.reconfiguration.ReplicaTopology;
 public abstract class AbstractServersCommunicationLayer implements ServerCommunicationLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractServersCommunicationLayer.class);
 
+	private static final String PASSWORD = "commsyst";
+
 	private Object connectionsLock = new Object();
 
 	private Map<Integer, MessageConnection> connections = new ConcurrentHashMap<Integer, MessageConnection>();
 
 	protected final int me;
 	protected final String realmName;
-	protected final ReplicaTopology topology;
+	protected final ViewTopology topology;
+
+	protected final MessageQueue messageInQueue;
 
 	protected volatile boolean doWork = false;
-
 	protected SecretKey selfPwd;
-	protected final MessageQueue messageInQueue;
-	private static final String PASSWORD = "commsyst";
 
-	public AbstractServersCommunicationLayer(String realmName, ReplicaTopology topology, MessageQueue messageInQueue)
-			throws Exception {
+	public AbstractServersCommunicationLayer(String realmName, ViewTopology topology, MessageQueue messageInQueue) {
 		this.topology = topology;
 		this.messageInQueue = messageInQueue;
 		this.me = topology.getCurrentProcessId();
 		this.realmName = realmName;
 
-		SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
-		PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-		selfPwd = fac.generateSecret(spec);
+		selfPwd = initSelfKey();
+	}
+
+	private SecretKey initSelfKey() {
+		try {
+			SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+			PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
+			return fac.generateSecret(spec);
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			throw new SecurityException(e.getMessage(), e);
+		}
 	}
 
 	private void initConnections() {
 		LOGGER.info("Start connecting to the other nodes of current view[{}]...[CurrentProcessID={}]",
-				topology.getCurrentView().getId(), topology.getStaticConf().getProcessId());
-		int[] initialV = topology.getCurrentViewAcceptors();
+				topology.getCurrentView().getId(), me);
+		int[] initialV = topology.getCurrentViewProcesses();
 		for (int i = 0; i < initialV.length; i++) {
 			ensureConnection(initialV[i]);
 		}
 	}
 
 	public SecretKey getSecretKey(int id) {
-		if (id == topology.getStaticConf().getProcessId())
+		if (id == me)
 			return selfPwd;
 		else if (connections.get(id) != null) {
 			return connections.get(id).getSecretKey();
@@ -77,7 +89,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 						conn.shutdown();
 					}
 				}
-//				int[] newV = topology.getCurrentViewAcceptors();
+//				int[] newV = topology.getCurrentViewProcesses();
 //				for (int i = 0; i < newV.length; i++) {
 //					if (newV[i] != me) {
 //						//加入新节点的连接；
@@ -129,7 +141,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 			}
 
 			if (remoteId == me) {
-				connection = new SelfConnection(realmName, topology, messageInQueue);
+				connection = new MessageQueueConnection(realmName, remoteId, messageInQueue);
 			} else if (isOutgoingToRemote(remoteId)) {
 				// 主动向外连接到远程节点；
 				connection = connectRemote(remoteId);
@@ -138,7 +150,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 				connection = acceptRemote(remoteId);
 			}
 			this.connections.put(remoteId, connection);
-			
+
 			LOGGER.debug("Ensure connection!  --[Current={}][Remote={}]", topology.getCurrentProcessId(), remoteId);
 		}
 		return connection;
@@ -197,6 +209,15 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 //			futures[i].getReturn(1000);
 //		}
 	}
+	
+	@Override
+	public SystemMessage consume(SystemMessageType type, long timeout, TimeUnit unit) {
+		try {
+			return messageInQueue.poll(type, timeout, unit);
+		} catch (InterruptedException e) {
+			return null;
+		}
+	}
 
 	public void close() {
 		if (!doWork) {
@@ -205,7 +226,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		LOGGER.info("Shutting down replica communication!");
 
 		doWork = false;
-		
+
 		closeCommunicationServer();
 
 		MessageConnection[] connections = this.connections.values()
@@ -290,7 +311,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 	public String toString() {
 		String str = "inQueue=" + messageInQueue.toString();
 
-		int[] activeServers = topology.getCurrentViewAcceptors();
+		int[] activeServers = topology.getCurrentViewProcesses();
 
 		for (int i = 0; i < activeServers.length; i++) {
 

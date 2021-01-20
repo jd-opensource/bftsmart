@@ -41,6 +41,7 @@ import bftsmart.consensus.app.BatchAppResult;
 import bftsmart.consensus.app.ComputeCode;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
+import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.ReplyManager;
@@ -69,7 +70,7 @@ public final class Acceptor {
 	private MessageFactory factory; // Factory for PaW messages
 	private ServerCommunicationSystem communication; // Replicas comunication system
 	private TOMLayer tomLayer; // TOM layer
-	private ServerViewController controller;
+	private ReplicaTopology topology;
 	// private Cipher cipher;
 	private Mac mac;
 
@@ -82,13 +83,13 @@ public final class Acceptor {
 	 * 
 	 * @param communication Replicas communication system
 	 * @param factory       Message factory for PaW messages
-	 * @param controller
+	 * @param topology
 	 */
-	public Acceptor(ServerCommunicationSystem communication, MessageFactory factory, ServerViewController controller) {
+	public Acceptor(ServerCommunicationSystem communication, MessageFactory factory, ServerViewController topology) {
 		this.communication = communication;
-		this.me = controller.getStaticConf().getProcessId();
+		this.me = topology.getStaticConf().getProcessId();
 		this.factory = factory;
-		this.controller = controller;
+		this.topology = topology;
 		try {
 			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
 			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
@@ -175,7 +176,7 @@ public final class Acceptor {
 			// 如果本轮共识没有走到预计算的过程，对于新时间戳内的共识消息也不做处理
 			// 本过程就是让没有参与到领导者切换过程的节点
 			if (consensus.getPrecomputed() && !consensus.getPrecomputeCommited()) {
-				Epoch epoch = consensus.getEpoch(latestEpoch, controller);
+				Epoch epoch = consensus.getEpoch(latestEpoch, topology);
 				consensus.lock.lock();
 				try {
 					getDefaultExecutor().preComputeRollback(consensus.getId(), epoch.getBatchId());
@@ -203,12 +204,12 @@ public final class Acceptor {
 		}
 
 		// 收到的共识消息对应的时间戳
-		Epoch poch = consensus.getEpoch(msg.getEpoch(), controller);
+		Epoch poch = consensus.getEpoch(msg.getEpoch(), topology);
 
 		switch (msg.getType()) {
 		case MessageFactory.PROPOSE: {
 			while (doWork && (!tomLayer.isReady())) {
-				LOGGER.warn("Wait for the node[{}] to be ready... ", controller.getCurrentProcessId());
+				LOGGER.warn("Wait for the node[{}] to be ready... ", topology.getCurrentProcessId());
 				try {
 					Thread.sleep(200);
 				} catch (InterruptedException e) {
@@ -256,7 +257,7 @@ public final class Acceptor {
 //    	LOGGER.debug("(Acceptor.proposeReceived) PROPOSE for consensus " + cid);
 
 		LOGGER.debug("(Acceptor.proposeReceived) I am proc {}, PROPOSE for consensus {} ",
-				controller.getStaticConf().getProcessId(), cid);
+				topology.getStaticConf().getProcessId(), cid);
 
 		if (msg.getSender() == executionManager.getCurrentLeader() // Is the replica the leader?
 				&& epoch.getTimestamp() == 0 && ts == ets && ets == 0) { // Is all this in epoch 0?
@@ -288,7 +289,7 @@ public final class Acceptor {
 		try {
 			int cid = epoch.getConsensus().getId();
 			LOGGER.info("(Acceptor.executePropose) I am proc {}, executing propose for cid : {}, epoch timestamp: {}",
-					controller.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
+					topology.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
 
 			long consensusStartTime = System.nanoTime();
 
@@ -322,14 +323,14 @@ public final class Acceptor {
 					}
 					epoch.getConsensus().getDecision().firstMessageProposed.proposeReceivedTime = System.nanoTime();
 
-					if (controller.getStaticConf().isBFT()) {
+					if (topology.getStaticConf().isBFT()) {
 						LOGGER.debug("(Acceptor.executePropose) sending WRITE for {}", cid);
 
 						epoch.setWrite(me, epoch.propValueHash);
 						epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
 
 //                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send write msg" + ", cid is " + cid);
-						communication.send(this.controller.getCurrentViewOtherAcceptors(),
+						communication.send(this.topology.getCurrentViewOtherAcceptors(),
 								factory.createWrite(cid, epoch.getTimestamp(), epoch.propValueHash));
 
 						LOGGER.debug("(Acceptor.executePropose) WRITE sent for {}", cid);
@@ -349,7 +350,7 @@ public final class Acceptor {
 						epoch.getConsensus().setQuorumWrites(epoch.propValueHash);
 						/*****************************************/
 
-						communication.send(this.controller.getCurrentViewOtherAcceptors(),
+						communication.send(this.topology.getCurrentViewOtherAcceptors(),
 								factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash));
 
 						computeAccept(cid, epoch, epoch.propValueHash);
@@ -404,16 +405,16 @@ public final class Acceptor {
 		try {
 			int writeAccepted = epoch.countWrite(value);
 
-			if (writeAccepted > controller.getQuorum()) {
+			if (writeAccepted > topology.getQuorum()) {
 				LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}",
-						this.controller.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
+						this.topology.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
 
 //            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
 
 				if (!epoch.isAcceptSetted(me) && Arrays.equals(value, epoch.propValueHash)) {
 
 					LOGGER.debug("(Acceptor.computeWrite) I am proc {} sending WRITE for {}",
-							this.controller.getStaticConf().getProcessId(), cid);
+							this.topology.getStaticConf().getProcessId(), cid);
 
 					/**** LEADER CHANGE CODE! ******/
 					LOGGER.debug(
@@ -428,7 +429,7 @@ public final class Acceptor {
 					}
 
 					// add to implement application consistency
-					if (controller.getStaticConf().isBFT()) {
+					if (topology.getStaticConf().isBFT()) {
 
 						DefaultRecoverable defaultExecutor = getDefaultExecutor();
 //                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
@@ -477,7 +478,7 @@ public final class Acceptor {
 								cid);
 						insertProof(cm, epoch);
 
-						int[] targets = this.controller.getCurrentViewOtherAcceptors();
+						int[] targets = this.topology.getCurrentViewOtherAcceptors();
 //                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept msg" + ", cid is "+cid);
 						communication.send(targets, cm);
 //                    communication.getServersConn().send(targets, cm, true);
@@ -495,7 +496,7 @@ public final class Acceptor {
 								cid);
 						insertProof(cm, epoch);
 
-						int[] targets = this.controller.getCurrentViewOtherAcceptors();
+						int[] targets = this.topology.getCurrentViewOtherAcceptors();
 						communication.getServersCommunication().send(targets, cm, true);
 
 						// communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
@@ -535,7 +536,7 @@ public final class Acceptor {
 		boolean hasReconf = false;
 
 		for (TOMMessage msg : msgs) {
-			if (msg.getReqType() == TOMMessageType.RECONFIG && msg.getViewID() == controller.getCurrentViewId()) {
+			if (msg.getReqType() == TOMMessageType.RECONFIG && msg.getViewID() == topology.getCurrentViewId()) {
 				hasReconf = true;
 				break; // no need to continue, exit the loop
 			}
@@ -546,14 +547,14 @@ public final class Acceptor {
 		// consensus instance, and so their MAC will be outdated and useless)
 		if (hasReconf) {
 
-			PrivateKey RSAprivKey = controller.getStaticConf().getRSAPrivateKey();
+			PrivateKey RSAprivKey = topology.getStaticConf().getRSAPrivateKey();
 
 			byte[] signature = TOMUtil.signMessage(RSAprivKey, data);
 
 			cm.setProof(signature);
 
 		} else { // ... if not, we can use MAC vectores
-			int[] processes = this.controller.getCurrentViewAcceptors();
+			int[] processes = this.topology.getCurrentViewProcesses();
 
 			HashMap<Integer, byte[]> macVector = new HashMap<>();
 
@@ -677,16 +678,16 @@ public final class Acceptor {
 		try {
 			List<byte[]> updatedResp;
 
-			if (epoch.countAccept(value) > controller.getQuorum() && !epoch.getConsensus().isDecided()) {
+			if (epoch.countAccept(value) > topology.getQuorum() && !epoch.getConsensus().isDecided()) {
 				LOGGER.info("(Acceptor.computeAccept) I am proc {}, I have {} ACCEPTs for cid {} and timestamp {}",
-						controller.getStaticConf().getProcessId(), epoch.countAccept(value), cid, epoch.getTimestamp());
+						topology.getStaticConf().getProcessId(), epoch.countAccept(value), cid, epoch.getTimestamp());
 				if (Arrays.equals(value, epoch.propAndAppValueHash)
 						&& (ComputeCode.valueOf(epoch.getPreComputeRes()) == ComputeCode.SUCCESS)) {
 					LOGGER.debug("(Acceptor.computeAccept) I am proc {}. Deciding {} ",
-							controller.getStaticConf().getProcessId(), cid);
+							topology.getStaticConf().getProcessId(), cid);
 					try {
 						LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger",
-								controller.getStaticConf().getProcessId(), cid);
+								topology.getStaticConf().getProcessId(), cid);
 						// 发生过预计算才会进行commit的操作,对于视图ID号小的请求以及视图更新的重配请求没有进行过预计算，不需要提交
 						getDefaultExecutor().preComputeCommit(cid, epoch.getBatchId());
 						tomLayer.getExecManager().getConsensus(cid).setPrecomputeCommited(true);
@@ -694,7 +695,7 @@ public final class Acceptor {
 					} catch (Exception e) {
 						// maybe storage exception
 						LOGGER.error("I am proc {} , flush storage fail, will rollback!",
-								controller.getStaticConf().getProcessId());
+								topology.getStaticConf().getProcessId());
 						getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
 						updateConsensusSetting(epoch);
 						updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(),
@@ -705,7 +706,7 @@ public final class Acceptor {
 				} else if (Arrays.equals(value, epoch.propAndAppValueHash)
 						&& (ComputeCode.valueOf(epoch.getPreComputeRes()) == ComputeCode.FAILURE)) {
 					LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback",
-							controller.getStaticConf().getProcessId(), cid);
+							topology.getStaticConf().getProcessId(), cid);
 					getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
 					updateConsensusSetting(epoch);
 					decide(epoch);
@@ -713,11 +714,11 @@ public final class Acceptor {
 					// Leader does evil to me only, need to roll back
 					LOGGER.error(
 							"(computeAccept) I am proc {}, My last regency is {}, Quorum is satisfied, but leader maybe do evil, will goto pre compute rollback branch!",
-							controller.getStaticConf().getProcessId(),
+							topology.getStaticConf().getProcessId(),
 							tomLayer.getSynchronizer().getLCManager().getLastReg());
 					LOGGER.error(
 							"(computeAccept) I am proc {}, my cid is {}, my propose value hash is {}, recv propose value hash is {}, my epoc timestamp is {}",
-							controller.getStaticConf().getProcessId(), cid, epoch.propAndAppValueHash, value,
+							topology.getStaticConf().getProcessId(), cid, epoch.propAndAppValueHash, value,
 							epoch.getTimestamp());
 					// rollback
 					getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
@@ -740,11 +741,11 @@ public final class Acceptor {
 			}
 
 			// consensus node hash inconsistent
-			if (((epoch.countAcceptSetted() == controller.getCurrentViewN())
-					&& (epoch.countAccept(value) < controller.getQuorum() + 1))
+			if (((epoch.countAcceptSetted() == topology.getCurrentViewN())
+					&& (epoch.countAccept(value) < topology.getQuorum() + 1))
 					|| ((epoch.countAcceptSetted() > 2f)
-							&& (epoch.countAccept(value) < controller.getCurrentViewF() + 1)
-							&& (epoch.maxSameValueCount() < controller.getCurrentViewF() + 1))) {
+							&& (epoch.countAccept(value) < topology.getCurrentViewF() + 1)
+							&& (epoch.maxSameValueCount() < topology.getCurrentViewF() + 1))) {
 
 				LOGGER.error(
 						"Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
@@ -764,7 +765,7 @@ public final class Acceptor {
 
 	// 视图ID落后的非Reconfig请求
 	private boolean ViewIdBackWard(TOMMessage tomMessage) {
-		return tomMessage.getViewID() < this.controller.getCurrentViewId()
+		return tomMessage.getViewID() < this.topology.getCurrentViewId()
 				&& tomMessage.getReqType() != TOMMessageType.RECONFIG;
 	}
 
