@@ -118,9 +118,9 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			LOGGER.info("-- Port = {}", controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
 			LOGGER.info("-- requestTimeout = {}", controller.getStaticConf().getRequestTimeout());
 			LOGGER.info("-- maxBatch = {}", controller.getStaticConf().getMaxBatchSize());
-			if (controller.getStaticConf().getUseMACs() == 1)
+			if (controller.getStaticConf().isUseMACs())
 				LOGGER.info("-- Using MACs");
-			if (controller.getStaticConf().getUseSignatures() == 1)
+			if (controller.getStaticConf().isUseSignatures())
 				LOGGER.info("-- Using Signatures");
 			// ******* EDUARDO END **************//
 

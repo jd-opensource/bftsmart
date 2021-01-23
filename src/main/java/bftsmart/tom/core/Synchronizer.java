@@ -468,7 +468,7 @@ public class Synchronizer {
 				// Store requests that the other replica did not manage to order
 				// TODO: The requests have to be verified!
 				byte[] temp = (byte[]) ois.readObject();
-				BatchReader batchReader = new BatchReader(temp, controller.getStaticConf().getUseSignatures() == 1);
+				BatchReader batchReader = new BatchReader(temp, controller.getStaticConf().isUseSignatures());
 				requests = batchReader.deserialiseRequests(controller);
 			}
 

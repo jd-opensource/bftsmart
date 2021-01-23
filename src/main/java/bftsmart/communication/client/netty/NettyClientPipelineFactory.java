@@ -49,11 +49,11 @@ public class NettyClientPipelineFactory{
 
 
     public ByteToMessageDecoder getDecoder(){
-    	return new NettyTOMMessageDecoder(true, sessionTable, macLength,controller,rl,signatureLength,controller.getStaticConf().getUseMACs()==1?true:false);	
+    	return new NettyTOMMessageDecoder(true, sessionTable, macLength,controller,rl,signatureLength,controller.getStaticConf().isUseMACs());	
     }
     
     public MessageToByteEncoder getEncoder(){
-    	return new NettyTOMMessageEncoder(true, sessionTable, macLength,rl, signatureLength, controller.getStaticConf().getUseMACs()==1?true:false);	
+    	return new NettyTOMMessageEncoder(true, sessionTable, macLength,rl, signatureLength, controller.getStaticConf().isUseMACs());	
     }
     
     public SimpleChannelInboundHandler getHandler(){

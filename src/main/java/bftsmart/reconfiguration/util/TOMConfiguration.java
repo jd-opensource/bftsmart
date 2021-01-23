@@ -732,8 +732,8 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	 * requests
 	 */
 	@Override
-	public int getUseSignatures() {
-		return useSignatures;
+	public boolean isUseSignatures() {
+		return useSignatures != 0;
 	}
 
 	/**
@@ -741,8 +741,8 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	 * and server-server messages
 	 */
 	@Override
-	public int getUseMACs() {
-		return useMACs;
+	public boolean isUseMACs() {
+		return useMACs != 0;
 	}
 
 	/**

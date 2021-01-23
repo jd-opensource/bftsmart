@@ -101,7 +101,7 @@ public final class BatchBuilder {
 
 		// return the batch
 		return createBatch(timestamp, numNounces,rnd.nextLong(), numMsgs, totalMessageSize,
-				controller.getStaticConf().getUseSignatures() == 1, messages, signatures, controller);
+				controller.getStaticConf().isUseSignatures(), messages, signatures, controller);
 
 	}
 	public byte[] makeBatch(List<TOMMessage> msgs, int numNounces, long seed, long timestamp, ViewTopology controller) {
@@ -127,7 +127,7 @@ public final class BatchBuilder {
 
 		// return the batch
 		return createBatch(timestamp, numNounces,seed, numMsgs, totalMessageSize,
-				controller.getStaticConf().getUseSignatures() == 1, messages, signatures, controller);
+				controller.getStaticConf().isUseSignatures(), messages, signatures, controller);
 
 	}
 }

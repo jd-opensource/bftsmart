@@ -589,7 +589,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		LOGGER.debug("(TOMLayer.isProposedValueValid) starting");
 
 		BatchReader batchReader = new BatchReader(proposedValue,
-				this.controller.getStaticConf().getUseSignatures() == 1);
+				this.controller.getStaticConf().isUseSignatures());
 
 		TOMMessage[] requests = null;
 

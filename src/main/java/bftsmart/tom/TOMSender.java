@@ -15,6 +15,12 @@ limitations under the License.
 */
 package bftsmart.tom;
 
+import java.io.Closeable;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 import bftsmart.communication.client.CommunicationSystemClientSide;
 import bftsmart.communication.client.CommunicationSystemClientSideFactory;
 import bftsmart.communication.client.ReplyReceiver;
@@ -23,12 +29,6 @@ import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
-
-import java.io.Closeable;
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class is used to multicast messages to replicas and receive replies.
@@ -78,7 +78,7 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 		this.cs = CommunicationSystemClientSideFactory.getCommunicationSystemClientSide(clientId, this.viewController);
 		this.cs.setReplyReceiver(this); // This object itself shall be a reply receiver
 		this.me = this.viewController.getStaticConf().getProcessId();
-		this.useSignatures = this.viewController.getStaticConf().getUseSignatures()==1?true:false;
+		this.useSignatures = this.viewController.getStaticConf().isUseSignatures();
 		this.session = new Random().nextInt();
 	}
 	//******* EDUARDO END **************//

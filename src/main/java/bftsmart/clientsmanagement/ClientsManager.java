@@ -15,21 +15,20 @@ limitations under the License.
 */
 package bftsmart.clientsmanagement;
 
-import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.reconfiguration.ViewTopology;
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.leaderchange.RequestsTimer;
-import bftsmart.tom.server.RequestVerifier;
-import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
+
+import org.slf4j.LoggerFactory;
+
+import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.reconfiguration.ViewTopology;
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.leaderchange.RequestsTimer;
+import bftsmart.tom.server.RequestVerifier;
 
 
 /**
@@ -87,7 +86,7 @@ public class ClientsManager {
 
             //******* EDUARDO BEGIN **************//
             clientData = new ClientData(clientId,
-                    (controller.getStaticConf().getUseSignatures() == 1)
+                    (controller.getStaticConf().isUseSignatures())
                     ? controller.getStaticConf().getRSAPublicKey(clientId)
                     : null);
             //******* EDUARDO END **************//

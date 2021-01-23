@@ -105,23 +105,24 @@ public interface ReplicaConfiguration {
 	int getNumberOfNonces();
 
 	/**
+	 * Indicates the checkpoint period used when fetching the state from the
+	 * application
+	 */
+	int getCheckpointPeriod();
+	
+	/**
 	 * Indicates if signatures should be used (1) or not (0) to authenticate client
 	 * requests
 	 */
-	int getUseSignatures();
+	boolean isUseSignatures();
 
 	/**
 	 * Indicates if MACs should be used (1) or not (0) to authenticate client-server
 	 * and server-server messages
 	 */
-	int getUseMACs();
+	boolean isUseMACs();
 
-	/**
-	 * Indicates the checkpoint period used when fetching the state from the
-	 * application
-	 */
-	int getCheckpointPeriod();
-
+	
 	boolean isToWriteCkpsToDisk();
 
 	boolean isToWriteSyncCkp();

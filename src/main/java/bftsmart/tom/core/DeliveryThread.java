@@ -309,7 +309,7 @@ public final class DeliveryThread extends Thread {
 
 			// obtain an array of requests from the decisions obtained
 			BatchReader batchReader = new BatchReader(dec.getValue(),
-					controller.getStaticConf().getUseSignatures() == 1);
+					controller.getStaticConf().isUseSignatures());
 			requests = batchReader.deserialiseRequests(controller);
 		} else {
 			LOGGER.debug("(DeliveryThread.run) using cached requests from the propose.");

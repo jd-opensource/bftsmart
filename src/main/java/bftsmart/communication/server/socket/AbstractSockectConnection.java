@@ -195,13 +195,13 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	 * try to send a message through the socket if some problem is detected, a
 	 * reconnection is done
 	 */
-	private final void sendBytes(MessageSendingTask messageTask) {
+	private final void processSendingTask(MessageSendingTask messageTask) {
 		int counter = 0;
 		SystemMessage message = messageTask.getSource();
-		boolean useMAC = messageTask.useMac;
+		boolean taskUseMAC = messageTask.useMac;
 
 		byte[] messageData = serializeMessage(message);
-		if (!useMAC) {
+		if (!taskUseMAC) {
 			int hashCodeOfMessage = System.identityHashCode(messageData);
 			LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", hashCodeOfMessage);
 		}
@@ -214,7 +214,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 				if (socketOutStream != null) {
 					try {
 						// do an extra copy of the data to be sent, but on a single out stream write
-						byte[] mac = (useMAC && viewTopology.getStaticConf().getUseMACs() == 1)
+						byte[] mac = (taskUseMAC && viewTopology.getStaticConf().isUseMACs())
 								? macSend.doFinal(messageData)
 								: null;
 						byte[] data = new byte[5 + messageData.length + ((mac != null) ? mac.length : 0)];
@@ -486,7 +486,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 					}
 
 					if (task != null) {
-						sendBytes(task);
+						processSendingTask(task);
 					}
 				} catch (Exception e) {
 					LOGGER.error(
@@ -533,8 +533,9 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 						// read mac
 						boolean result = true;
 
-						byte hasMAC = socketInStream.readByte();
-						if (viewTopology.getStaticConf().getUseMACs() == 1 && hasMAC == 1) {
+						byte macFlag = socketInStream.readByte();
+						boolean hasMAC = (macFlag == 1);
+						if (viewTopology.getStaticConf().isUseMACs() && hasMAC) {
 							read = 0;
 							do {
 								read += socketInStream.read(receivedMac, read, macSize - read);
@@ -546,7 +547,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 						if (result) {
 							SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
 									.readObject());
-							sm.authenticated = (viewTopology.getStaticConf().getUseMACs() == 1 && hasMAC == 1);
+							sm.authenticated = (viewTopology.getStaticConf().isUseMACs() && hasMAC);
 
 							if (sm.getSender() == remoteId) {
 
