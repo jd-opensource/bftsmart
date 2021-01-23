@@ -40,13 +40,20 @@ public class MessageQueueConnection implements MessageConnection {
 	public SecretKey getSecretKey() {
 		return null;
 	}
+	
+	@Override
+	public void start() {
+		LOGGER.info("Start the connection to remote[{}].", remoteId);
+	}
 
-	/**
-	 * Stop message sending and reception.
-	 */
 	@Override
 	public void shutdown() {
-		LOGGER.info("SHUTDOWN for {}", remoteId);
+		LOGGER.info("Shutdown the connection to remote[{}]!", remoteId);
+	}
+
+
+	@Override
+	public void clearOutQueue() {
 	}
 
 	@Override

@@ -2,6 +2,7 @@ package bftsmart.communication.server;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueue.SystemMessageType;
+import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
@@ -37,12 +39,15 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 
 	protected final MessageQueue messageInQueue;
 
+	private final Map<SystemMessageType, AggregatedListeners> listeners = new ConcurrentHashMap<MessageQueue.SystemMessageType, AbstractServersCommunicationLayer.AggregatedListeners>();
+
 	protected volatile boolean doWork = false;
 	protected SecretKey selfPwd;
 
-	public AbstractServersCommunicationLayer(String realmName, ViewTopology topology, MessageQueue messageInQueue) {
+	public AbstractServersCommunicationLayer(String realmName, ViewTopology topology) {
 		this.topology = topology;
-		this.messageInQueue = messageInQueue;
+		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
+				topology.getStaticConf().getInQueueSize());
 		this.me = topology.getCurrentProcessId();
 		this.realmName = realmName;
 
@@ -60,11 +65,15 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 	}
 
 	private void initConnections() {
-		LOGGER.info("Start connecting to the other nodes of current view[{}]...[CurrentProcessID={}]",
-				topology.getCurrentView().getId(), me);
-		int[] initialV = topology.getCurrentViewProcesses();
-		for (int i = 0; i < initialV.length; i++) {
-			ensureConnection(initialV[i]);
+		LOGGER.info("Start connecting to the other nodes of current view ... [CurrentProcessID={}][view={}]", me,
+				Arrays.toString(topology.getCurrentViewProcesses()));
+		int[] initialView = topology.getCurrentViewProcesses();
+		MessageConnection[] conns = new MessageConnection[initialView.length];
+		for (int i = 0; i < initialView.length; i++) {
+			conns[i] = ensureConnection(initialView[i]);
+		}
+		for (MessageConnection conn : conns) {
+			conn.start();
 		}
 	}
 
@@ -209,14 +218,88 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 //			futures[i].getReturn(1000);
 //		}
 	}
-	
+
 	@Override
-	public SystemMessage consume(SystemMessageType type, long timeout, TimeUnit unit) {
-		try {
-			return messageInQueue.poll(type, timeout, unit);
-		} catch (InterruptedException e) {
-			return null;
+	public void addMessageListener(SystemMessageType type, MessageListener listener) {
+		AggregatedListeners aggListeners = getListeners(type);
+		aggListeners.addListener(listener);
+	}
+
+	private synchronized AggregatedListeners getListeners(SystemMessageType messageType) {
+		AggregatedListeners aggListeners = listeners.get(messageType);
+		if (aggListeners == null) {
+			aggListeners = new AggregatedListeners();
+			listeners.put(messageType, aggListeners);
 		}
+		return aggListeners;
+	}
+
+	/**
+	 * 启动消息处理线程；
+	 */
+	private void startMessageProcessing() {
+		for (SystemMessageType messageType : SystemMessageType.values()) {
+			startProcess(messageType);
+		}
+	}
+
+	private void startProcess(SystemMessageType messageType) {
+		AggregatedListeners aggListeners = getListeners(messageType);
+		Thread thrd = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				consume(messageType, aggListeners);
+			}
+		}, "MESSAGE-PROCESS-[" + messageType.toString() + "]");
+
+		thrd.setDaemon(true);
+		thrd.start();
+	}
+
+	private void consume(SystemMessageType messageType, MessageListener listener) {
+		while (doWork) {
+			SystemMessage message = null;
+			try {
+				message = messageInQueue.poll(messageType, 200, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				continue;
+			}
+			if (message == null) {
+				continue;
+			}
+
+			listener.onReceived(messageType, message);
+		}
+
+	}
+
+	/**
+	 * 停止消息处理线程；
+	 */
+	private void stopMessageProcessing() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public synchronized void start() {
+		if (doWork) {
+			return;
+		}
+
+		if (!topology.isInCurrentView()) {
+			String errMsg = String.format("Current node is beyond the view! --[CurrentId=%s][View=%s]",
+					topology.getCurrentProcessId(), Arrays.toString(topology.getCurrentViewProcesses()));
+			throw new IllegalStateException(errMsg);
+		}
+
+		doWork = true;
+
+		initConnections();
+
+		startMessageProcessing();
+
+		startCommunicationServer();
 	}
 
 	public void close() {
@@ -229,38 +312,14 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 
 		closeCommunicationServer();
 
+		stopMessageProcessing();
+
 		MessageConnection[] connections = this.connections.values()
 				.toArray(new MessageConnection[this.connections.size()]);
 		this.connections.clear();
 		for (MessageConnection conn : connections) {
 			conn.shutdown();
 		}
-	}
-
-	@Override
-	public synchronized void start() {
-//		Thread thrd = new Thread(new Runnable() {
-//			@Override
-//			public void run() {
-//				acceptConnection();
-//			}
-//		}, "Servers Connection Listener");
-//		thrd.setDaemon(true);
-//		thrd.start();
-
-		if (doWork) {
-			return;
-		}
-
-		if (!topology.isInCurrentView()) {
-			throw new IllegalStateException("Current node is beyond the view!");
-		}
-
-		doWork = true;
-
-		initConnections();
-
-		startCommunicationServer();
 	}
 
 	/**
@@ -323,5 +382,26 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		}
 
 		return str;
+	}
+
+	private static class AggregatedListeners implements MessageListener {
+
+		private volatile MessageListener[] listeners = new MessageListener[0];
+
+		private synchronized void addListener(MessageListener listener) {
+			MessageListener[] newListeners = new MessageListener[this.listeners.length + 1];
+			System.arraycopy(this.listeners, 0, newListeners, 0, this.listeners.length);
+			newListeners[this.listeners.length] = listener;
+			this.listeners = newListeners;
+		}
+
+		@Override
+		public void onReceived(SystemMessageType type, SystemMessage message) {
+			MessageListener[] messageListeners = this.listeners;
+			for (MessageListener messageListener : messageListeners) {
+				messageListener.onReceived(type, message);
+			}
+		}
+
 	}
 }

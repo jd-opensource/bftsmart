@@ -15,15 +15,12 @@ limitations under the License.
 */
 package bftsmart.communication;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.queue.MessageQueueFactory;
+import bftsmart.communication.queue.MessageQueue.SystemMessageType;
+import bftsmart.communication.server.MessageListener;
 import bftsmart.communication.server.ServerCommunicationLayer;
 import bftsmart.communication.server.socket.SocketServerCommunicationLayer;
 import bftsmart.reconfiguration.ServerViewController;
@@ -47,53 +44,49 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 	private boolean doWork = true;
 	public static final long MESSAGE_WAIT_TIME = 100;
-	private MessageQueue messageInQueue;
-	private MessageHandler messageHandler ;//= new MessageHandler();
+//	private MessageQueue messageInQueue;
+	private MessageHandler messageHandler;// = new MessageHandler();
 	private ServerCommunicationLayer serversCommunication;
 	private final ClientCommunicationServerSide clientCommunication;
 	private ViewTopology controller;
-	private final List<MessageHandlerBase> messageHandlerRunners = new ArrayList<>();
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
 
 	/**
 	 * Creates a new instance of ServerCommunicationSystem
 	 */
-	public ServerCommunicationSystemImpl(ClientCommunicationServerSide clientCommunication, MessageHandler messageHandler, ServerViewController controller, ServiceReplica replica) throws Exception {
+	public ServerCommunicationSystemImpl(ClientCommunicationServerSide clientCommunication,
+			MessageHandler messageHandler, ServerViewController controller, ServiceReplica replica) throws Exception {
 		this.clientCommunication = clientCommunication;
 		this.messageHandler = messageHandler;
 		this.controller = controller;
+		
+		this.serversCommunication = new SocketServerCommunicationLayer(replica.getRealmName(), controller);
 
-		// 创建当前节点的消息接收队列
-		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
-				controller.getStaticConf().getInQueueSize());
 		// 创建消息处理器
 		// 遍历枚举类
 		for (MessageQueue.SystemMessageType msgType : MessageQueue.SystemMessageType.values()) {
-			MessageHandlerBase handler;
+			MessageHandlerAdapter handler;
 			switch (msgType) {
 			case CONSENSUS:
-				handler = new ConsensusMessageHandler(messageInQueue, messageHandler);
+				handler = new ConsensusMessageHandler(messageHandler);
 				break;
 			case HEART:
-				handler = new HeartbeatMessageHandler(messageInQueue, messageHandler);
+				handler = new HeartbeatMessageHandler(messageHandler);
 				break;
 			case LC:
-				handler = new LCMessageHandler(messageInQueue, messageHandler);
+				handler = new LCMessageHandler(messageHandler);
 				break;
 
 			default:
 				throw new IllegalStateException("Unsupport Message Type[" + msgType + "]!");
 			}
-			this.messageHandlerRunners.add(handler);
+			this.serversCommunication.addMessageListener(msgType, handler);
 		}
-
-		serversCommunication = new SocketServerCommunicationLayer(replica.getRealmName(), controller, messageInQueue);
 	}
 
 	public synchronized void updateServersConnections() {
 		this.serversCommunication.updateConnections();
 	}
-
 
 	public void setMessageHandler(MessageHandler messageHandler) {
 		this.messageHandler = messageHandler;
@@ -113,13 +106,6 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		}
 
 		messageHandler.getAcceptor().start();
-		
-		// 启动对应的消息队列处理器
-		for (MessageHandlerBase runner : messageHandlerRunners) {
-			Thread thrd = new Thread(runner, "MsgHandler-" + runner.MSG_TYPE.name());
-			thrd.setDaemon(true);
-			thrd.start();
-		}
 	}
 
 	/**
@@ -220,57 +206,42 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	/**
 	 * 消息处理线程
 	 */
-	private abstract class MessageHandlerBase implements Runnable {
+	private abstract class MessageHandlerAdapter implements MessageListener {
 
 		/**
 		 * 当前线程可处理的消息类型
 		 */
 		private final MessageQueue.SystemMessageType MSG_TYPE;
 
-		/**
-		 * 消息队列
-		 */
-		private MessageQueue messageQueue;
-
-		public MessageHandlerBase(MessageQueue.SystemMessageType msgType, MessageQueue messageQueue) {
+		public MessageHandlerAdapter(MessageQueue.SystemMessageType msgType) {
 			this.MSG_TYPE = msgType;
-			this.messageQueue = messageQueue;
 		}
 
 		protected abstract void processMessage(SystemMessage sm);
 
 		@Override
-		public void run() {
-			while (doWork) {
-				SystemMessage sm = null;
-				try {
-					sm = messageQueue.poll(MSG_TYPE, MESSAGE_WAIT_TIME, TimeUnit.MILLISECONDS);
-					processMessage(sm);
-				} catch (Throwable e) {
-					if (sm == null) {
-						String errMsg = String
-								.format("Error occurred while handling a null message! -- [HandlerType=%s]", MSG_TYPE);
-						LOGGER.error(errMsg, e);
-					} else {
-						String errMsg = String.format(
-								"Error occurred while handling message! -- %s [HandlerType=%s][MessageType=%s][MessageFrom=%s]",
-								e.getMessage(), MSG_TYPE, sm.getClass().getName(), sm.getSender());
-						LOGGER.error(errMsg, e);
-					}
-				}
+		public void onReceived(SystemMessageType messageType, SystemMessage message) {
+			try {
+				processMessage(message);
+			} catch (Throwable e) {
+				String errMsg = String.format(
+						"Error occurred while handling message! -- %s [HandlerType=%s][MessageType=%s][MessageFrom=%s]",
+						e.getMessage(), MSG_TYPE, message.getClass().getName(), message.getSender());
+				LOGGER.error(errMsg, e);
 			}
 		}
+
 	}
 
 	/**
 	 * 消息处理线程
 	 */
-	private class ConsensusMessageHandler extends MessageHandlerBase {
+	private class ConsensusMessageHandler extends MessageHandlerAdapter {
 
 		private MessageHandler messageHandler;
 
-		public ConsensusMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
-			super(MessageQueue.SystemMessageType.CONSENSUS, messageQueue);
+		public ConsensusMessageHandler(MessageHandler messageHandler) {
+			super(MessageQueue.SystemMessageType.CONSENSUS);
 			this.messageHandler = messageHandler;
 		}
 
@@ -279,6 +250,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 			if (sm != null) {
 				messageHandler.processData(sm);
 			} else {
+				// TODO: 优化潜在缺陷：当不传入 null 值的时候将不会触发对过期消息的处理；
 				messageHandler.verifyPending();
 			}
 		}
@@ -287,40 +259,36 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	/**
 	 * 消息处理线程
 	 */
-	private class HeartbeatMessageHandler extends MessageHandlerBase {
+	private class HeartbeatMessageHandler extends MessageHandlerAdapter {
 
 		private MessageHandler messageHandler;
 
-		public HeartbeatMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
-			super(MessageQueue.SystemMessageType.HEART, messageQueue);
+		public HeartbeatMessageHandler(MessageHandler messageHandler) {
+			super(MessageQueue.SystemMessageType.HEART);
 			this.messageHandler = messageHandler;
 		}
 
 		@Override
 		protected void processMessage(SystemMessage sm) {
-			if (sm != null) {
-				messageHandler.processData(sm);
-			}
+			messageHandler.processData(sm);
 		}
 	}
 
 	/**
 	 * 消息处理线程
 	 */
-	private class LCMessageHandler extends MessageHandlerBase {
+	private class LCMessageHandler extends MessageHandlerAdapter {
 
 		private MessageHandler messageHandler;
 
-		public LCMessageHandler(MessageQueue messageQueue, MessageHandler messageHandler) {
-			super(MessageQueue.SystemMessageType.LC, messageQueue);
+		public LCMessageHandler(MessageHandler messageHandler) {
+			super(MessageQueue.SystemMessageType.LC);
 			this.messageHandler = messageHandler;
 		}
 
 		@Override
 		protected void processMessage(SystemMessage sm) {
-			if (sm != null) {
-				messageHandler.processData(sm);
-			}
+			messageHandler.processData(sm);
 		}
 	}
 

@@ -23,9 +23,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -81,7 +83,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	private int macSize;
 	private Object connectLock = new Object();
 	/** Only used when there is no sender Thread */
-	private boolean doWork = true;
+	private volatile boolean doWork = true;
 	private CountDownLatch latch = new CountDownLatch(1);
 
 	private Thread senderTread;
@@ -103,7 +105,10 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		this.RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
 
 		LOGGER.info("I am proc {}", viewTopology.getStaticConf().getProcessId());
+	}
 
+	@Override
+	public synchronized void start() {
 		senderTread = new SenderThread(latch);
 		receiverThread = new ReceiverThread();
 
@@ -111,7 +116,6 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		receiverThread.start();
 	}
 
-	
 	@Override
 	public int getRemoteId() {
 		return remoteId;
@@ -126,12 +130,25 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	 * Stop message sending and reception.
 	 */
 	@Override
-	public void shutdown() {
+	public synchronized void shutdown() {
+		if (!doWork) {
+			return;
+		}
 		LOGGER.info("SHUTDOWN for {}", remoteId);
 
 		doWork = false;
+
+		senderTread.interrupt();
+		receiverThread.interrupt();
+
+		senderTread = null;
+		receiverThread = null;
+
 		closeSocket();
-		
+	}
+
+	@Override
+	public void clearOutQueue() {
 		outQueue.clear();
 	}
 
@@ -299,96 +316,122 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 			DataInputStream socketInStream = getSocketInputStream();
 			if (socketOutStream != null && socketInStream != null) {
 				authKey = null;
-				authenticateAndEstablishAuthKey(socketOutStream, socketInStream);
+				boolean success = authenticate(socketOutStream, socketInStream);
+				if (!success) {
+					shutdown();
+				}
 			}
 		}
 	}
 
-	private void authenticateAndEstablishAuthKey(DataOutputStream socketOutStream, DataInputStream socketInStream) {
-		if (authKey != null || socketOutStream == null || socketInStream == null) {
-			return;
+	/**
+	 * 认证连接；
+	 * 
+	 * @param socketOutStream
+	 * @param socketInStream
+	 * @return
+	 */
+	private boolean authenticate(DataOutputStream socketOutStream, DataInputStream socketInStream) {
+		if (socketOutStream == null || socketInStream == null) {
+			return false;
 		}
 
 		try {
 			// Derive DH private key from replica's own RSA private key
-
 			PrivateKey RSAprivKey = viewTopology.getStaticConf().getRSAPrivateKey();
 			BigInteger DHPrivKey = new BigInteger(RSAprivKey.getEncoded());
 
-			// Create DH public key
-			BigInteger myDHPubKey = viewTopology.getStaticConf().getDHG().modPow(DHPrivKey,
-					viewTopology.getStaticConf().getDHP());
+			// 发送 DH key；
+			sendDHKey(socketOutStream, RSAprivKey, DHPrivKey);
 
-			// turn it into a byte array
-			byte[] bytes = myDHPubKey.toByteArray();
+			// 接收 DH key;
+			BigInteger remoteDHPubKey = receiveDHKey(socketInStream);
 
-			byte[] signature = TOMUtil.signMessage(RSAprivKey, bytes);
+			// 初始化 MAC;
+			initMAC(DHPrivKey, remoteDHPubKey);
 
-			if (authKey == null && socketOutStream != null && socketInStream != null) {
-				// send my DH public key and signature
-				socketOutStream.writeInt(bytes.length);
-				socketOutStream.write(bytes);
+			return true;
 
-				socketOutStream.writeInt(signature.length);
-				socketOutStream.write(signature);
-
-				// receive remote DH public key and signature
-				int dataLength = socketInStream.readInt();
-				bytes = new byte[dataLength];
-				int read = 0;
-				do {
-					read += socketInStream.read(bytes, read, dataLength - read);
-
-				} while (read < dataLength);
-
-				byte[] remote_Bytes = bytes;
-
-				dataLength = socketInStream.readInt();
-				bytes = new byte[dataLength];
-				read = 0;
-				do {
-					read += socketInStream.read(bytes, read, dataLength - read);
-
-				} while (read < dataLength);
-
-				byte[] remote_Signature = bytes;
-
-				// verify signature
-				PublicKey remoteRSAPubkey = viewTopology.getStaticConf().getRSAPublicKey(remoteId);
-
-				if (!TOMUtil.verifySignature(remoteRSAPubkey, remote_Bytes, remote_Signature)) {
-
-					LOGGER.error("{} sent an invalid signature!", remoteId);
-					shutdown();
-					return;
-				}
-
-				BigInteger remoteDHPubKey = new BigInteger(remote_Bytes);
-
-				// Create secret key
-				BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, viewTopology.getStaticConf().getDHP());
-
-				LOGGER.info("[{}] ->  I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}",
-						REALM_NAME, viewTopology.getStaticConf().getProcessId(), remoteId,
-						viewTopology.getStaticConf().getServerToServerPort(remoteId));
-
-				SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
-				PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
-
-				// PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-				authKey = fac.generateSecret(spec);
-
-				macSend = Mac.getInstance(MAC_ALGORITHM);
-				macSend.init(authKey);
-				macReceive = Mac.getInstance(MAC_ALGORITHM);
-				macReceive.init(authKey);
-				macSize = macSend.getMacLength();
-				latch.countDown();
-			}
 		} catch (Exception ex) {
 			LOGGER.error("Error occurred while doing authenticateAndEstablishAuthKey with remote replica[" + remoteId
 					+ "] ! --" + ex.getMessage(), ex);
+			return false;
 		}
+	}
+
+	private void initMAC(BigInteger DHPrivKey, BigInteger remoteDHPubKey)
+			throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException {
+		// Create secret key
+		BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, viewTopology.getStaticConf().getDHP());
+
+		LOGGER.info("[{}] ->  I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", REALM_NAME,
+				viewTopology.getStaticConf().getProcessId(), remoteId,
+				viewTopology.getStaticConf().getServerToServerPort(remoteId));
+
+		SecretKeyFactory fac = SecretKeyFactory.getInstance(SECRET_KEY_ALGORITHM);
+		PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
+
+		// PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
+		authKey = fac.generateSecret(spec);
+
+		macSend = Mac.getInstance(MAC_ALGORITHM);
+		macSend.init(authKey);
+		macReceive = Mac.getInstance(MAC_ALGORITHM);
+		macReceive.init(authKey);
+		macSize = macSend.getMacLength();
+	}
+
+	/**
+	 * @param socketInStream
+	 * @return
+	 * @throws IOException
+	 */
+	private BigInteger receiveDHKey(DataInputStream socketInStream) throws IOException {
+		// receive remote DH public key and signature
+		int remoteDHPubKeyLength = socketInStream.readInt();
+		byte[] remoteDHPubKeyBytes = new byte[remoteDHPubKeyLength];
+		int read = 0;
+		do {
+			read += socketInStream.read(remoteDHPubKeyBytes, read, remoteDHPubKeyLength - read);
+
+		} while (read < remoteDHPubKeyLength);
+
+		int remoteSignatureLength = socketInStream.readInt();
+		byte[] remoteSignatureBytes = new byte[remoteSignatureLength];
+		read = 0;
+		do {
+			read += socketInStream.read(remoteSignatureBytes, read, remoteSignatureLength - read);
+
+		} while (read < remoteSignatureLength);
+
+		// verify signature
+		PublicKey remoteRSAPubkey = viewTopology.getStaticConf().getRSAPublicKey(remoteId);
+		if (!TOMUtil.verifySignature(remoteRSAPubkey, remoteDHPubKeyBytes, remoteSignatureBytes)) {
+			LOGGER.error("Authentication fail by invalid signature from remote[{}]! ", remoteId);
+			throw new SecurityException("Authentication fail by invalid signature from remote[" + remoteId + "]! ");
+		}
+
+		BigInteger remoteDHPubKey = new BigInteger(remoteDHPubKeyBytes);
+		return remoteDHPubKey;
+	}
+
+	private void sendDHKey(DataOutputStream socketOutStream, PrivateKey RSAprivKey, BigInteger DHPrivKey)
+			throws IOException {
+		// Create DH public key
+		BigInteger myDHPubKey = viewTopology.getStaticConf().getDHG().modPow(DHPrivKey,
+				viewTopology.getStaticConf().getDHP());
+
+		// turn it into a byte array
+		byte[] myDHPubKeyBytes = myDHPubKey.toByteArray();
+
+		byte[] signature = TOMUtil.signMessage(RSAprivKey, myDHPubKeyBytes);
+
+		// send my DH public key and signature
+		socketOutStream.writeInt(myDHPubKeyBytes.length);
+		socketOutStream.write(myDHPubKeyBytes);
+
+		socketOutStream.writeInt(signature.length);
+		socketOutStream.write(signature);
 	}
 
 	private void waitAndConnect() {
@@ -412,7 +455,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 	@Override
 	public String toString() {
-		return "ServerConnection[RemoteID: " + remoteId + "]-outQueue: " + outQueue;
+		return this.getClass().getName() + " To [" + remoteId + "]";
 	}
 
 	/**
@@ -429,25 +472,29 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 		@Override
 		public void run() {
-			MessageSendingTask task = null;
+			MessageSendingTask task;
 			try {
 				countDownLatch.await();
 			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
 			while (doWork) {
-				// get a message to be sent
 				try {
-					task = outQueue.poll(POOL_INTERVAL, TimeUnit.MILLISECONDS);
-				} catch (InterruptedException ex) {
-				}
+					task = null;
+					try {
+						task = outQueue.poll(POOL_INTERVAL, TimeUnit.MILLISECONDS);
+					} catch (InterruptedException ex) {
+					}
 
-				if (task != null) {
-					sendBytes(task);
+					if (task != null) {
+						sendBytes(task);
+					}
+				} catch (Exception e) {
+					LOGGER.error(
+							"Error occurred while sending message to remote[" + remoteId + "]! --" + e.getMessage(), e);
 				}
 			}
 
-			LOGGER.debug("Sender for {} stopped!", remoteId);
+			LOGGER.info("The sender thread of connection to remote[{}] stopped!", remoteId);
 		}
 	}
 
@@ -457,7 +504,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	protected class ReceiverThread extends Thread {
 
 		public ReceiverThread() {
-			super("Receiver for " + remoteId);
+			super("MESSAGE RECEIVER [" + remoteId + "]");
 		}
 
 		@Override

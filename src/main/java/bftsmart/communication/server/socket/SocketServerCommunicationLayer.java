@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.server.AbstractServersCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.SocketUtils;
@@ -32,12 +31,11 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 
 	private final Object acceptingLock = new Object();
 
-	public SocketServerCommunicationLayer(String realmName, ReplicaTopology topology, MessageQueue messageInQueue)
-			throws Exception {
-		super(realmName, topology, messageInQueue);
+	public SocketServerCommunicationLayer(String realmName, ReplicaTopology topology) {
+		super(realmName, topology);
 	}
 
-	private ServerSocket initServerSocket(ViewTopology topology, int port) throws IOException {
+	private ServerSocket initServerSocket(int port) throws IOException {
 		ServerSocket serverSocket = new ServerSocket(port);
 		serverSocket.setSoTimeout(10000);
 		serverSocket.setReuseAddress(true);
@@ -53,7 +51,7 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 				int remoteId = new DataInputStream(newSocket.getInputStream()).readInt();
 
 				doRequest(newSocket, remoteId);
-				
+
 				LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
 			} catch (SocketTimeoutException ex) {
 				// timeout on the accept... do nothing
@@ -89,9 +87,8 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 		}
 		synchronized (acceptingLock) {
 			IncomingSockectConnection conn = this.incomingConnections.get(remoteId);
-			if (conn == null) { 
-				conn = new IncomingSockectConnection(realmName, topology,
-						remoteId, messageInQueue);
+			if (conn == null) {
+				conn = new IncomingSockectConnection(realmName, topology, remoteId, messageInQueue);
 				this.incomingConnections.put(remoteId, conn);
 			} else {
 				// reconnection
@@ -128,7 +125,7 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 		int port = topology.getStaticConf().getServerToServerPort(me);
 		ServerSocket ssc;
 		try {
-			ssc = initServerSocket(topology, port);
+			ssc = initServerSocket(port);
 		} catch (IOException e) {
 			throw new RuntimeIOException(e.getMessage(), e);
 		}
@@ -162,8 +159,7 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 
 	@Override
 	protected MessageConnection connectRemote(int remoteId) {
-		// TODO Auto-generated method stub
-		return null;
+		return new OutgoingSockectConnection(realmName, topology, remoteId, messageInQueue);
 	}
 
 	@Override

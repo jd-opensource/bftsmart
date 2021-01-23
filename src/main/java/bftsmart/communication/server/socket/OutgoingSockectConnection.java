@@ -52,7 +52,7 @@ public class OutgoingSockectConnection extends AbstractSockectConnection {
 	 * 关闭连接；此方法不抛出任何异常；
 	 */
 	@Override
-	protected void closeSocket() {
+	protected synchronized void closeSocket() {
 		Socket sc = socket;
 		DataOutputStream out = socketOutStream;
 		DataInputStream in = socketInStream;
@@ -92,7 +92,7 @@ public class OutgoingSockectConnection extends AbstractSockectConnection {
 	}
 
 	@Override
-	protected void ensureConnection() {
+	protected synchronized void ensureConnection() {
 		if (isAlived()) {
 			return;
 		}

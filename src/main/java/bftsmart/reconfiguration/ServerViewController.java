@@ -271,7 +271,7 @@ public class ServerViewController extends ViewController implements ReplicaTopol
 				replyView);
 
 		// 更新 TOMConfiguration
-		staticConf.updateConfiguration(replyView.getProcesses(), replyView.getN(), replyView.getF());
+		staticConf.updateConfiguration(replyView.getProcesses());
 
 		return TOMUtil.getBytes(new ReconfigureReply(replyView, jSetInfo.toArray(new String[0]), cid,
 				tomLayer.execManager.getCurrentLeader()));

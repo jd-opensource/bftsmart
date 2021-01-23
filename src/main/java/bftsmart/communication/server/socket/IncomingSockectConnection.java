@@ -51,7 +51,7 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 	 * 关闭连接；此方法不抛出任何异常；
 	 */
 	@Override
-	protected void closeSocket() {
+	protected synchronized void closeSocket() {
 		Socket sk = socket;
 		DataOutputStream os = socketOutStream;
 		DataInputStream is = socketInStream;
@@ -91,7 +91,7 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 	}
 
 	@Override
-	protected void ensureConnection() {
+	protected synchronized void ensureConnection() {
 		if (socket == null) {
 			return;
 		}
@@ -114,7 +114,7 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 		return socket != null && socket.isConnected();
 	}
 
-	public void accept(Socket newSocket) {
+	public synchronized void accept(Socket newSocket) {
 		socket = newSocket;
 		LOGGER.debug("Accept new socket. --[me={}][remote={}]", me, remoteId);
 	}

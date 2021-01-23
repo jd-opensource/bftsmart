@@ -19,12 +19,15 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 import java.util.StringTokenizer;
 
 import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.NullNodeNetwork;
 import bftsmart.tom.ReplicaConfiguration;
+import bftsmart.util.ConsensusUtils;
 
 public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 
@@ -44,7 +47,7 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 
 	protected boolean defaultKeys = false;
 
-	private volatile int n;
+//	private volatile int n;
 	private volatile int f;
 	private int requestTimeout;
 	private int clientDatasMonitorTimeout;
@@ -153,8 +156,23 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 
 	private void initTomConfig(HostsConfig hosts, Properties configs) {
 		try {
-			n = Integer.parseInt(configs.remove("system.servers.num").toString());
-			String s = (String) configs.remove("system.servers.f");
+//			n = Integer.parseInt(configs.remove("system.servers.num").toString());
+
+			String s = (String) configs.remove("system.initial.view");
+			if (s == null) {
+				initialView = new int[0];
+			}
+			// bftsmart origin code
+			else {
+				StringTokenizer str = new StringTokenizer(s, ",");
+				initialView = new int[str.countTokens()];
+				for (int i = 0; i < initialView.length; i++) {
+					initialView[i] = Integer.parseInt(str.nextToken());
+				}
+			}
+			final int n = initialView.length;
+			
+			s = (String) configs.remove("system.servers.f");
 			if (s == null) {
 				f = (int) Math.ceil((n - 1) / 3);
 			} else {
@@ -354,22 +372,6 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 				useControlFlow = 0;
 			} else {
 				useControlFlow = Integer.parseInt(s);
-			}
-
-			s = (String) configs.remove("system.initial.view");
-			if (s == null) {
-				initialView = new int[n];
-				for (int i = 0; i < n; i++) {
-					initialView[i] = i;
-				}
-			}
-			// bftsmart origin code
-			else {
-				StringTokenizer str = new StringTokenizer(s, ",");
-				initialView = new int[str.countTokens()];
-				for (int i = 0; i < initialView.length; i++) {
-					initialView[i] = Integer.parseInt(str.nextToken());
-				}
 			}
 
 			s = (String) configs.remove("system.ttp.id");
@@ -639,7 +641,7 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 
 	@Override
 	public int getN() {
-		return n;
+		return initialView == null ? 0 : initialView.length;
 	}
 
 	@Override
@@ -864,10 +866,17 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 		return outerHostConfig;
 	}
 
-	public void updateConfiguration(int[] newView, int n, int f) {
+	public void updateConfiguration(int[] newView) {
+		Set<Integer> set = new HashSet<>();
+		for (int id : newView) {
+			if (set.contains(id)) {
+				throw new IllegalArgumentException("Repeatly process id["+id+"]!");
+			}
+			set.add(id);
+		}
+		
 		this.initialView = newView;
-		this.n = n;
-		this.f = f;
+		this.f = isBFT ? ConsensusUtils.computeBFT_F(newView.length) : ConsensusUtils.computeCFT_F(newView.length);
 	}
 
 	public void setProcessId(int processId) {

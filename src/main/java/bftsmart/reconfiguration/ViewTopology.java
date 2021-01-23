@@ -20,8 +20,6 @@ public interface ViewTopology {
 
 	ReplicaConfiguration getStaticConf();
 
-	boolean isCurrentViewMember(int id);
-
 	int getCurrentViewId();
 
 	int getCurrentViewF();
@@ -31,6 +29,16 @@ public interface ViewTopology {
 	int getCurrentViewPos(int id);
 
 	int[] getCurrentViewProcesses();
+
+	default boolean isCurrentViewMember(int id) {
+		int[] processIds = getCurrentViewProcesses();
+		for (int procId : processIds) {
+			if (id == procId) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	default boolean isInCurrentView() {
 		return isCurrentViewMember(getCurrentProcessId());

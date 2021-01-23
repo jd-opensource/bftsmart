@@ -15,8 +15,6 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
-import java.util.concurrent.TimeUnit;
-
 import javax.crypto.SecretKey;
 
 import bftsmart.communication.SystemMessage;
@@ -57,14 +55,12 @@ public interface ServerCommunicationLayer {
 	void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending);
 
 	/**
-	 * 接收消息；
+	 * 设置消息接收监听器；
 	 * 
 	 * @param type
-	 * @param timeout
-	 * @param unit
-	 * @return
+	 * @param listener
 	 */
-	SystemMessage consume(SystemMessageType type, long timeout, TimeUnit unit);
+	void addMessageListener(SystemMessageType type, MessageListener listener);
 
 	/**
 	 * 启动通讯服务；
