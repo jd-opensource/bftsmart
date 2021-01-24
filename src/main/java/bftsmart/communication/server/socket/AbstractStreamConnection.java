@@ -29,7 +29,6 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -60,15 +59,21 @@ import utils.io.RuntimeIOException;
  *
  * @author alysson
  */
-public abstract class AbstractSockectConnection implements MessageConnection {
+public abstract class AbstractStreamConnection implements MessageConnection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSockectConnection.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStreamConnection.class);
 
 	// 重连周期
 	private static final long RECONNECT_MILL_SECONDS = 5000L;
-	private static final long POOL_INTERVAL = 5000;
+
+	// 发送队列为空时每次检查的超时时长（毫秒）；
+	private static final long OUT_QUEUE_EMPTY_TIMEOUT = 5000;
+
+	// 每次重建连接的等待超时时长（毫秒）；
+	private static final long CONNECTION_REBUILD_TIMEOUT = 20 * 1000;
+
 	private final long RETRY_INTERVAL;
-	private final int RETRY_COUNT;
+	private final int MAX_RETRY_COUNT;
 	// private static final int SEND_QUEUE_SIZE = 50;
 
 	protected final String REALM_NAME;
@@ -79,19 +84,20 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	private MessageQueue messageInQueue;
 	private LinkedBlockingQueue<MessageSendingTask> outQueue;// = new
 																// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
-	private SecretKey authKey = null;
-	private Mac macSend;
-	private Mac macReceive;
-	private int macSize;
-	private Object connectLock = new Object();
+	private volatile SecretKey authKey = null;
+	private volatile Mac macSend;
+	private volatile Mac macReceive;
+	private volatile int macSize;
+
+	private final Object connectLock = new Object();
 	/** Only used when there is no sender Thread */
-	private volatile boolean doWork = true;
+	private volatile boolean doWork = false;
 
 	private Thread senderTread;
 
 	private Thread receiverThread;
 
-	public AbstractSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
+	public AbstractStreamConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		this.REALM_NAME = realmName;
 		this.ME = viewTopology.getCurrentProcessId();
@@ -103,25 +109,39 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(viewTopology.getStaticConf().getOutQueueSize());
 
 		this.RETRY_INTERVAL = viewTopology.getStaticConf().getSendRetryInterval();
-		this.RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
+		this.MAX_RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
+		if (MAX_RETRY_COUNT < 1) {
+			throw new IllegalArgumentException("Illegal SEND_RETRY_COUNT[" + MAX_RETRY_COUNT + "]!");
+		}
 
 		LOGGER.info("I am proc {}", viewTopology.getStaticConf().getProcessId());
 	}
 
+	protected boolean isDoWork() {
+		return doWork;
+	}
+
 	@Override
 	public synchronized void start() {
+		if (doWork) {
+			return;
+		}
+		doWork = true;
+
 		senderTread = new Thread(new Runnable() {
 			public void run() {
-				scheduleSendingTask();
+				scheduleSending();
 			}
 		}, "Sender-Thread-To-Remote[" + REMOTE_ID + "]");
-		receiverThread = new Thread(new Runnable() {
+		senderTread.setDaemon(true);
 
+		receiverThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				scheduleReceivingTask();
+				scheduleReceiving();
 			}
 		}, "Receiver-Thread-From-Remote[" + REMOTE_ID + "]");
+		receiverThread.setDaemon(true);
 
 		senderTread.start();
 		receiverThread.start();
@@ -155,7 +175,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		senderTread = null;
 		receiverThread = null;
 
-		closeSocket();
+		closeConnection();
 	}
 
 	@Override
@@ -202,17 +222,22 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		return bOut.toByteArray();
 	}
 
-	private final void scheduleSendingTask() {
+	/**
+	 * 驻留后台线程，执行消息发送；
+	 */
+	private final void scheduleSending() {
 		MessageSendingTask task;
 		while (doWork) {
 			try {
+				// 检查发送队列；
 				task = null;
 				try {
-					task = outQueue.poll(POOL_INTERVAL, TimeUnit.MILLISECONDS);
+					task = outQueue.poll(OUT_QUEUE_EMPTY_TIMEOUT, TimeUnit.MILLISECONDS);
 				} catch (InterruptedException ex) {
 				}
 
 				if (task != null) {
+					// 处理发送任务；
 					processSendingTask(task);
 				}
 			} catch (Exception e) {
@@ -229,59 +254,92 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	 * reconnection is done
 	 */
 	private final void processSendingTask(MessageSendingTask messageTask) {
-		int counter = 0;
-		SystemMessage message = messageTask.getSource();
-		byte[] outputBytes = generateOutputBytes(message, messageTask.USE_MAC);
+		byte[] outputBytes = generateOutputBytes(messageTask.getSource(), messageTask.USE_MAC);
 
+		int retryCount = 0;
+		DataOutputStream out = getOutputStream();
 		do {
 			try {
-				Throwable error = null;
-				// if there is a need to reconnect, abort this method
-				DataOutputStream socketOutStream = getSocketOutputStream();
-				if (socketOutStream != null) {
-					try {
-						socketOutStream.write(outputBytes);
-
-						messageTask.complete(null);
-						return;
-					} catch (IOException ex) {
-						error = ex;
+				// 检查连接；
+				try {
+					if (out == null) {
+						out = rebuildOutputConnection(CONNECTION_REBUILD_TIMEOUT);
 					}
+				} catch (IOException e) {
+					// 建立连接时发生网络IO错误；
+					LOGGER.error("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID
+							+ "] " + e.getMessage(), e);
+					out = null;
 				}
 
-				// TODO: 如果连接未完成时，应该等待连接；
-				if (socketOutStream == null) {
-					// 连接未完成；
-					error = new IllegalStateException("The sockect connection is not ready!");
+				// 当连接未建立时：
+				// 对于无需重试发送的消息，则直接丢弃；
+				// 对于需要重试发送的消息，则一直等待直到连接重新建立为止；
+				if (out == null) {
+					if (!messageTask.RETRY) {
+						// 抛弃连接；
+						messageTask.error(new IllegalStateException("Connection has not been established!"));
+						LOGGER.warn(
+								"Discard the message because connection has not been established and the task has no retry indication! --[Me={}][Remote={}]",
+								ME, REMOTE_ID);
+						return;
+					}
+
+					if (retryCount >= MAX_RETRY_COUNT) {
+						// 抛弃连接；
+						messageTask.error(
+								new IllegalStateException("Connection has not been established after retrying!"));
+						LOGGER.warn(
+								"Discard the message because connection has not been established after retrying! --[Me={}][Remote={}]",
+								ME, REMOTE_ID);
+						return;
+					}
+
+					retryCount++;
+					continue;
+				}
+
+				IOException error = null;
+				// if there is a need to reconnect, abort this method
+				try {
+					out.write(outputBytes);
+
+					messageTask.complete(null);
+					return;
+				} catch (IOException ex) {
+					error = ex;
+				}
+
+				// 写数据时发生网络IO错误；
+				// 如果不重试发送失败的消息，则立即报告错误；
+				if (!messageTask.RETRY) {
+					messageTask.error(error);
+					LOGGER.error(
+							"Discard the message due to the io error and no retry indication! --" + error.getMessage(),
+							error);
+					return;
 				}
 
 				// 如果不重试发送失败的消息，则立即报告错误；
-				if (!messageTask.RETRY) {
-					counter = RETRY_COUNT;
-					messageTask.error(error);
-				}
-
-				LOGGER.error(
-						"[ServerConnection.sendBytes] current proc id: {}. Close socket and waitAndConnect connect with {}",
-						ME, REMOTE_ID);
-				closeSocket();
-
-				LOGGER.error("[ServerConnection.sendBytes] current proc id: {}, Wait and reonnect with {}",
-						viewTopology.getStaticConf().getProcessId(), REMOTE_ID);
-				waitAndConnect();
-
-				if (messageTask.RETRY && counter++ >= RETRY_COUNT) {
-					LOGGER.error("[ServerConnection.sendBytes] fails, and the fail times is out of the max retry count["
-							+ RETRY_COUNT + "]!", ME, REMOTE_ID);
-
+				if (retryCount++ >= MAX_RETRY_COUNT) {
+					LOGGER.error("Discard the message due to the io error after retrying! --[Me=" + ME + "][Remote="
+							+ REMOTE_ID + "]" + error.getMessage(), error);
 					messageTask.error(error);
 					return;
 				}
+
+				// 重试；
+				out = null;
+				retryCount++;
+
 			} catch (Exception e) {
+				// 发生了未知的错误，不必重试，直接丢弃消息；
+				LOGGER.error("Discard the message due to the unknown error! --[Me=" + ME + "][Remote=" + REMOTE_ID + "]"
+						+ e.getMessage(), e);
 				messageTask.error(e);
 				return;
 			}
-		} while (doWork && counter < RETRY_COUNT);
+		} while (doWork && retryCount < MAX_RETRY_COUNT);
 
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
 	}
@@ -306,12 +364,12 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 		// do an extra copy of the data to be sent, but on a single out stream write
 		byte[] outputBytes = new byte[4 + messageBytes.length + 1 + macBytes.length];
-		
+
 //		int messageLength = messageBytes.length;
 //		byte[] messageLengthBytes = new byte[] { (byte) (messageLength >>> 24), (byte) (messageLength >>> 16),
 //				(byte) (messageLength >>> 8), (byte) messageLength };
 //		System.arraycopy(messageLengthBytes, 0, outputBytes, 0, 4);
-		
+
 		// write message;
 		BytesUtils.toBytes_BigEndian(messageBytes.length, outputBytes, 0);
 		System.arraycopy(messageBytes, 0, outputBytes, 4, messageBytes.length);
@@ -322,128 +380,150 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		if (macBytes.length > 0) {
 			System.arraycopy(macBytes, 0, outputBytes, 5 + messageBytes.length, macBytes.length);
 		}
-		
+
 		return outputBytes;
 	}
 
-	private void scheduleReceivingTask() {
-		byte[] receivedMac = null;
+	/**
+	 * 驻留后台线程，执行消息接收；
+	 */
+	private void scheduleReceiving() {
+		DataInputStream in = null;
 		try {
-			receivedMac = new byte[Mac.getInstance(MAC_ALGORITHM).getMacLength()];
-		} catch (NoSuchAlgorithmException ex) {
-			ex.printStackTrace();
+			in = getInputStream();
+		} catch (Exception e) {
+			LOGGER.error("Unexpected error occurred while start receiving message from remote! --[Me=" + ME
+					+ "][Remote=" + REMOTE_ID + "] " + e.getMessage(), e);
 		}
 
 		while (doWork) {
-			DataInputStream socketInStream = getSocketInputStream();
-			if (socketInStream != null) {
-				try {
-					// read data length
-					int dataLength = socketInStream.readInt();
-					byte[] data = new byte[dataLength];
-
-					// read data
-					int read = 0;
-					do {
-						read += socketInStream.read(data, read, dataLength - read);
-					} while (read < dataLength);
-
-					// read mac
-					boolean macMatch = true;
-
-					byte macFlag = socketInStream.readByte();
-					boolean hasMAC = (macFlag == 1);
-					if (viewTopology.getStaticConf().isUseMACs() && hasMAC) {
-						read = 0;
-						do {
-							read += socketInStream.read(receivedMac, read, macSize - read);
-						} while (read < macSize);
-
-						macMatch = Arrays.equals(macReceive.doFinal(data), receivedMac);
-					}
-
-					if (macMatch) {
-						SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
-								.readObject());
-						sm.authenticated = (viewTopology.getStaticConf().isUseMACs() && hasMAC);
-
-						if (sm.getSender() == REMOTE_ID) {
-
-							MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
-
-							if (!messageInQueue.offer(msgType, sm)) {
-								LOGGER.error("(ReceiverThread.run) in queue full (message from {} discarded).",
-										REMOTE_ID);
-							}
-						}
-					} else {
-						// TODO: violation of authentication... we should do something
-						LOGGER.warn("WARNING: Violation of authentication in message received from {}", REMOTE_ID);
-					}
-				} catch (ClassNotFoundException ex) {
-					// invalid message sent, just ignore;
-				} catch (IOException ex) {
-					if (doWork) {
-						LOGGER.warn(
-								"[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}",
-								REMOTE_ID);
-						closeSocket();
-						waitAndConnect(RECONNECT_MILL_SECONDS);
-					}
+			// 检查连接；
+			try {
+				if (in == null) {
+					in = rebuildInputConnection(CONNECTION_REBUILD_TIMEOUT);
 				}
-			} else {
-				LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", REMOTE_ID);
-				waitAndConnect(RECONNECT_MILL_SECONDS);
+			} catch (Exception e) {
+				// 建立连接时发生网络IO错误；重试建立连接；
+				LOGGER.error("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID + "] "
+						+ e.getMessage(), e);
+				continue;
 			}
+			if (in == null) {
+				// 重试，直到建立连接；
+				continue;
+			}
+
+			try {
+				// read message;
+				SystemMessage sm = null;
+				try {
+					sm = readMessage(in);
+				} catch (IOException e) {
+					// 接收消息时发生网络错误；需要重新建立连接；
+					LOGGER.error("Error occurred while reading the input message! --[Me=" + ME + "][Remote=" + REMOTE_ID
+							+ "] " + e.getMessage(), e);
+					in = null;
+					continue;
+				}
+
+				if (sm == null) {
+					continue;
+				}
+				if (sm.getSender() == REMOTE_ID) {
+					MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
+					if (!messageInQueue.offer(msgType, sm)) {
+						LOGGER.error("Discard message because the input queue is full! [Me={}][Remote={}]", ME,
+								REMOTE_ID);
+					}
+				} else {
+					LOGGER.error(
+							"Discard the received message from wrong sender!  --[Sender={}][ExpectedSender={}][Me={}]",
+							sm.getSender(), REMOTE_ID, ME);
+				}
+			} catch (Exception e) {
+				LOGGER.error("Unknown error occurred! --[Me=" + ME + "][Remote=" + REMOTE_ID + "] " + e.getMessage(),
+						e);
+			}
+		} // End of: while (doWork);
+	}// End of : private void scheduleReceivingTask()
+
+	/**
+	 * 从输入流读消息；
+	 * <p>
+	 * 
+	 * 如果输入流发生错误，则抛出 {@link IOException}；
+	 * 
+	 * @param in
+	 * @return
+	 * @throws IOException
+	 */
+	private SystemMessage readMessage(DataInputStream in) throws IOException {
+		int messageLength = in.readInt();
+		byte[] messageBytes = new byte[messageLength];
+
+		// read data
+		int read = 0;
+		do {
+			read += in.read(messageBytes, read, messageLength - read);
+		} while (read < messageLength);
+
+		// read mac;
+
+		byte macFlag = in.readByte();
+		boolean hasMAC = (macFlag == 1);
+		if (hasMAC && viewTopology.getStaticConf().isUseMACs()) {
+			byte[] macBytes = new byte[macSize];
+			read = 0;
+			do {
+				read += in.read(macBytes, read, macBytes.length - read);
+			} while (read < macBytes.length);
+
+			byte[] expectedMacBytes = macReceive.doFinal(messageBytes);
+			boolean macMatch = Arrays.equals(expectedMacBytes, macBytes);
+			if (!macMatch) {
+				LOGGER.error("The MAC Validation of the received message fail! --[Me={}][Remote={}]", ME, REMOTE_ID);
+				return null;
+			}
+		}
+
+		try {
+			SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(messageBytes))
+					.readObject());
+			sm.authenticated = (hasMAC && viewTopology.getStaticConf().isUseMACs());
+			return sm;
+		} catch (Exception e) {
+			LOGGER.error("Error occurred while deserialize the received message bytes! --[Me=" + ME + "][Remote="
+					+ REMOTE_ID + "] " + e.getMessage(), e);
+			return null;
 		}
 	}
 
 	/**
-	 * 尝试激活连接；
+	 * 重建连接；
 	 * <p>
+	 * 
+	 * @throws IOException
 	 */
-	protected abstract void ensureConnection();
+	protected abstract void rebuildConnection(long timeoutMillis) throws IOException;
 
 	/**
 	 * 关闭连接；此方法不抛出任何异常；
 	 */
-	protected abstract void closeSocket();
+	protected abstract void closeConnection();
 
 	/**
-	 * 返回网络输出流；
+	 * 返回网络输出流； 如果连接未建立或者连接无效，则返回 null；
 	 * 
 	 * @return
 	 */
-	protected abstract DataOutputStream getSocketOutputStream();
+	protected abstract DataOutputStream getOutputStream();
 
 	/**
-	 * 返回网络输入流；
+	 * 返回网络输入流；如果连接未建立或者连接无效，则返回 null；
 	 * 
 	 * @return
 	 */
-	protected abstract DataInputStream getSocketInputStream();
-
-	/**
-	 * (Re-)establish connection between peers.
-	 *
-	 * @param newSocket socket created when this server accepted the connection
-	 *                  (only used if processId is less than remoteId)
-	 */
-	private void reconnect() {
-		synchronized (connectLock) {
-			ensureConnection();
-
-			DataOutputStream socketOutStream = getSocketOutputStream();
-			DataInputStream socketInStream = getSocketInputStream();
-			if (socketOutStream != null && socketInStream != null) {
-				authKey = null;
-				boolean success = authenticate(socketOutStream, socketInStream);
-				if (!success) {
-					shutdown();
-				}
-			}
-		}
-	}
+	protected abstract DataInputStream getInputStream();
 
 	/**
 	 * 认证连接；
@@ -479,6 +559,13 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 			return false;
 		}
 	}
+	
+	private void resetMAC() {
+		this.authKey = null;
+		this.macSend = null;
+		this.macReceive = null;
+		this.macSize = 0;
+	}
 
 	private void initMAC(BigInteger DHPrivKey, BigInteger remoteDHPubKey)
 			throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException {
@@ -493,13 +580,18 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
 
 		// PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-		authKey = fac.generateSecret(spec);
+		SecretKey authKey = fac.generateSecret(spec);
 
-		macSend = Mac.getInstance(MAC_ALGORITHM);
+		Mac macSend = Mac.getInstance(MAC_ALGORITHM);
 		macSend.init(authKey);
-		macReceive = Mac.getInstance(MAC_ALGORITHM);
+		Mac macReceive = Mac.getInstance(MAC_ALGORITHM);
 		macReceive.init(authKey);
-		macSize = macSend.getMacLength();
+		int macSize = macSend.getMacLength();
+
+		this.authKey = authKey;
+		this.macSend = macSend;
+		this.macReceive = macReceive;
+		this.macSize = macSize;
 	}
 
 	/**
@@ -555,22 +647,47 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		socketOutStream.write(signature);
 	}
 
-	private void waitAndConnect() {
-		waitAndConnect(RETRY_INTERVAL);
+	/**
+	 * 重建连接；
+	 * <p>
+	 * 
+	 * 此方法将堵塞当前线程，直到重新建立了连接并成功返回一个新的输出流；
+	 * 
+	 * @return 输出流；
+	 * @throws IOException
+	 */
+	private DataOutputStream rebuildOutputConnection(long timeoutMillis) throws IOException {
+		reconnect(timeoutMillis);
+		return getOutputStream();
 	}
 
 	/**
-	 * 等待指定时间
-	 *
-	 * @param timeout
+	 * 重建连接；
+	 * <p>
+	 * 
+	 * 此方法将堵塞当前线程，直到重新建立了连接并成功返回一个新的输出流；
+	 * 
+	 * @return 输出流；
+	 * @throws IOException
 	 */
-	private void waitAndConnect(long timeout) {
-		if (doWork) {
-			try {
-				Thread.sleep(timeout);
-			} catch (InterruptedException ie) {
+	private DataInputStream rebuildInputConnection(long timeoutMillis) throws IOException {
+		reconnect(timeoutMillis);
+		return getInputStream();
+	}
+
+	private synchronized void reconnect(long timeoutMillis) throws IOException {
+		// TODO: 处理发送线程和接收线程可能会并发地引发重连的问题；
+		rebuildConnection(timeoutMillis);
+
+		DataOutputStream socketOutStream = getOutputStream();
+		DataInputStream socketInStream = getInputStream();
+		if (socketOutStream != null && socketInStream != null) {
+			resetMAC();
+			
+			boolean success = authenticate(socketOutStream, socketInStream);
+			if (!success) {
+				closeConnection();
 			}
-			reconnect();
 		}
 	}
 

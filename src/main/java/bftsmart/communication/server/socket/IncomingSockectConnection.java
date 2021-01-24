@@ -19,13 +19,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
-import utils.io.RuntimeIOException;
 
 /**
  * This class represents a connection with other server.
@@ -34,13 +35,14 @@ import utils.io.RuntimeIOException;
  *
  * @author alysson
  */
-public class IncomingSockectConnection extends AbstractSockectConnection {
+public class IncomingSockectConnection extends AbstractStreamConnection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(IncomingSockectConnection.class);
 
 	private volatile Socket socket;
 	private volatile DataOutputStream socketOutStream = null;
 	private volatile DataInputStream socketInStream = null;
-	
+
+	private Semaphore acceptor = new Semaphore(0);
 
 	public IncomingSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
@@ -51,71 +53,89 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 	 * 关闭连接；此方法不抛出任何异常；
 	 */
 	@Override
-	protected synchronized void closeSocket() {
-		Socket sk = socket;
-		DataOutputStream os = socketOutStream;
-		DataInputStream is = socketInStream;
-
+	protected synchronized void closeConnection() {
+		Socket sc = socket;
+		if (sc == null) {
+			return;
+		}
+		
+		DataOutputStream out = socketOutStream;
+		DataInputStream in = socketInStream;
+		
 		socket = null;
 		socketOutStream = null;
 		socketInStream = null;
 
-		if (os != null) {
+		if (out != null) {
 			try {
-				os.close();
+				out.close();
 			} catch (Exception e) {
 			}
 		}
-		if (is != null) {
+		if (in != null) {
 			try {
-				is.close();
+				in.close();
 			} catch (Exception e) {
 			}
 		}
-		if (sk != null) {
+		if (sc != null) {
 			try {
-				sk.close();
+				sc.close();
 			} catch (Exception e) {
 			}
 		}
 	}
 
 	@Override
-	protected DataOutputStream getSocketOutputStream() {
+	protected DataOutputStream getOutputStream() {
 		return socketOutStream;
 	}
 
 	@Override
-	protected DataInputStream getSocketInputStream() {
+	protected DataInputStream getInputStream() {
 		return socketInStream;
 	}
 
 	@Override
-	protected synchronized void ensureConnection() {
-		if (socket == null) {
+	protected void rebuildConnection(long timeout) {
+		int v = acceptor.drainPermits();
+		if (v > 0) {
 			return;
 		}
-		if (socket.isClosed()) {
-			socket = null;
-			this.socketOutStream = null;
-			this.socketInStream = null;
-		}
 		try {
-			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			DataInputStream in = new DataInputStream(socket.getInputStream());
-			this.socketOutStream = out;
-			this.socketInStream = in;
-		} catch (IOException e) {
-			throw new RuntimeIOException(e.getMessage(), e);
+			acceptor.tryAcquire(timeout, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
 		}
 	}
-	
+
 	public boolean isAlived() {
 		return socket != null && socket.isConnected();
 	}
 
-	public synchronized void accept(Socket newSocket) {
-		socket = newSocket;
+	/**
+	 * 接入新的 Socket 连接；
+	 * 
+	 * @param newSocket
+	 * @throws IOException 
+	 */
+	public synchronized void accept(Socket newSocket) throws IOException {
+		// 先关闭旧的 Socket 对象；
+		closeConnection();
+		
+		if (!isDoWork()) {
+			newSocket.close();
+			return;
+		}
+		// 更新 Socket；
+		DataOutputStream out = new DataOutputStream(newSocket.getOutputStream());
+		DataInputStream in = new DataInputStream(newSocket.getInputStream());
+		
+		this.socketOutStream = out;
+		this.socketInStream = in;
+		this.socket = newSocket;
+		
+		acceptor.release();
+		
 		LOGGER.debug("Accept new socket. --[me={}][remote={}]", ME, REMOTE_ID);
 	}
 
