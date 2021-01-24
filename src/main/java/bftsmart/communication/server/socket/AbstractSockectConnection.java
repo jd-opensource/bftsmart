@@ -29,7 +29,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
-import java.util.concurrent.CountDownLatch;
+import java.util.Base64;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -49,6 +49,8 @@ import bftsmart.communication.server.CompletedCallback;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.util.TOMUtil;
+import utils.codec.Base58Utils;
+import utils.io.BytesUtils;
 import utils.io.RuntimeIOException;
 
 /**
@@ -70,8 +72,8 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	// private static final int SEND_QUEUE_SIZE = 50;
 
 	protected final String REALM_NAME;
-	protected final int me;
-	protected final int remoteId;
+	protected final int ME;
+	protected final int REMOTE_ID;
 
 	protected ViewTopology viewTopology;
 	private MessageQueue messageInQueue;
@@ -84,7 +86,6 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	private Object connectLock = new Object();
 	/** Only used when there is no sender Thread */
 	private volatile boolean doWork = true;
-	private CountDownLatch latch = new CountDownLatch(1);
 
 	private Thread senderTread;
 
@@ -93,8 +94,8 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	public AbstractSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		this.REALM_NAME = realmName;
-		this.me = viewTopology.getCurrentProcessId();
-		this.remoteId = remoteId;
+		this.ME = viewTopology.getCurrentProcessId();
+		this.REMOTE_ID = remoteId;
 
 		this.viewTopology = viewTopology;
 		this.messageInQueue = messageInQueue;
@@ -109,8 +110,18 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 	@Override
 	public synchronized void start() {
-		senderTread = new SenderThread(latch);
-		receiverThread = new ReceiverThread();
+		senderTread = new Thread(new Runnable() {
+			public void run() {
+				scheduleSendingTask();
+			}
+		}, "Sender-Thread-To-Remote[" + REMOTE_ID + "]");
+		receiverThread = new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				scheduleReceivingTask();
+			}
+		}, "Receiver-Thread-From-Remote[" + REMOTE_ID + "]");
 
 		senderTread.start();
 		receiverThread.start();
@@ -118,7 +129,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 	@Override
 	public int getRemoteId() {
-		return remoteId;
+		return REMOTE_ID;
 	}
 
 	@Override
@@ -134,7 +145,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		if (!doWork) {
 			return;
 		}
-		LOGGER.info("SHUTDOWN for {}", remoteId);
+		LOGGER.info("SHUTDOWN for {}", REMOTE_ID);
 
 		doWork = false;
 
@@ -170,10 +181,10 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		task.setCallback(callback);
 
 		if (!outQueue.offer(task)) {
-			LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", remoteId);
+			LOGGER.error("(ServerConnection.send) out queue for {} full (message discarded).", REMOTE_ID);
 
 			task.error(new IllegalStateException(
-					"(ServerConnection.send) out queue for {" + remoteId + "} full (message discarded)."));
+					"(ServerConnection.send) out queue for {" + REMOTE_ID + "} full (message discarded)."));
 		}
 
 		return task;
@@ -191,6 +202,28 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		return bOut.toByteArray();
 	}
 
+	private final void scheduleSendingTask() {
+		MessageSendingTask task;
+		while (doWork) {
+			try {
+				task = null;
+				try {
+					task = outQueue.poll(POOL_INTERVAL, TimeUnit.MILLISECONDS);
+				} catch (InterruptedException ex) {
+				}
+
+				if (task != null) {
+					processSendingTask(task);
+				}
+			} catch (Exception e) {
+				LOGGER.error("Error occurred while sending message to remote[" + REMOTE_ID + "]! --" + e.getMessage(),
+						e);
+			}
+		}
+
+		LOGGER.info("The sending task schedule of connection to remote[{}] stopped!", REMOTE_ID);
+	}
+
 	/**
 	 * try to send a message through the socket if some problem is detected, a
 	 * reconnection is done
@@ -198,13 +231,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 	private final void processSendingTask(MessageSendingTask messageTask) {
 		int counter = 0;
 		SystemMessage message = messageTask.getSource();
-		boolean taskUseMAC = messageTask.useMac;
-
-		byte[] messageData = serializeMessage(message);
-		if (!taskUseMAC) {
-			int hashCodeOfMessage = System.identityHashCode(messageData);
-			LOGGER.debug("(ServerConnection.send) Not sending defaultMAC {}", hashCodeOfMessage);
-		}
+		byte[] outputBytes = generateOutputBytes(message, messageTask.USE_MAC);
 
 		do {
 			try {
@@ -213,25 +240,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 				DataOutputStream socketOutStream = getSocketOutputStream();
 				if (socketOutStream != null) {
 					try {
-						// do an extra copy of the data to be sent, but on a single out stream write
-						byte[] mac = (taskUseMAC && viewTopology.getStaticConf().isUseMACs())
-								? macSend.doFinal(messageData)
-								: null;
-						byte[] data = new byte[5 + messageData.length + ((mac != null) ? mac.length : 0)];
-						int value = messageData.length;
-
-						System.arraycopy(new byte[] { (byte) (value >>> 24), (byte) (value >>> 16),
-								(byte) (value >>> 8), (byte) value }, 0, data, 0, 4);
-						System.arraycopy(messageData, 0, data, 4, messageData.length);
-						if (mac != null) {
-							// System.arraycopy(mac,0,data,4+messageData.length,mac.length);
-							System.arraycopy(new byte[] { (byte) 1 }, 0, data, 4 + messageData.length, 1);
-							System.arraycopy(mac, 0, data, 5 + messageData.length, mac.length);
-						} else {
-							System.arraycopy(new byte[] { (byte) 0 }, 0, data, 4 + messageData.length, 1);
-						}
-
-						socketOutStream.write(data);
+						socketOutStream.write(outputBytes);
 
 						messageTask.complete(null);
 						return;
@@ -247,23 +256,23 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 				}
 
 				// 如果不重试发送失败的消息，则立即报告错误；
-				if (!messageTask.isRetry()) {
+				if (!messageTask.RETRY) {
 					counter = RETRY_COUNT;
 					messageTask.error(error);
 				}
 
 				LOGGER.error(
 						"[ServerConnection.sendBytes] current proc id: {}. Close socket and waitAndConnect connect with {}",
-						viewTopology.getStaticConf().getProcessId(), remoteId);
+						ME, REMOTE_ID);
 				closeSocket();
 
 				LOGGER.error("[ServerConnection.sendBytes] current proc id: {}, Wait and reonnect with {}",
-						viewTopology.getStaticConf().getProcessId(), remoteId);
+						viewTopology.getStaticConf().getProcessId(), REMOTE_ID);
 				waitAndConnect();
 
-				if (messageTask.isRetry() && counter++ >= RETRY_COUNT) {
+				if (messageTask.RETRY && counter++ >= RETRY_COUNT) {
 					LOGGER.error("[ServerConnection.sendBytes] fails, and the fail times is out of the max retry count["
-							+ RETRY_COUNT + "]!", viewTopology.getStaticConf().getProcessId(), remoteId);
+							+ RETRY_COUNT + "]!", ME, REMOTE_ID);
 
 					messageTask.error(error);
 					return;
@@ -275,6 +284,118 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		} while (doWork && counter < RETRY_COUNT);
 
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
+	}
+
+	private byte[] generateOutputBytes(SystemMessage message, boolean taskUseMAC) {
+		byte[] messageBytes = serializeMessage(message);
+
+		byte[] macBytes = BytesUtils.EMPTY_BYTES;
+		if (taskUseMAC && viewTopology.getStaticConf().isUseMACs()) {
+			macBytes = macSend.doFinal(messageBytes);
+		}
+
+		if (LOGGER.isDebugEnabled()) {
+			String macStr;
+			if (macBytes.length > 0) {
+				macStr = Base58Utils.encode(macBytes);
+			} else {
+				macStr = "HASH-" + System.identityHashCode(messageBytes);
+			}
+			LOGGER.debug("Sending message bytes with mac[{}]", macStr);
+		}
+
+		// do an extra copy of the data to be sent, but on a single out stream write
+		byte[] outputBytes = new byte[4 + messageBytes.length + 1 + macBytes.length];
+		
+//		int messageLength = messageBytes.length;
+//		byte[] messageLengthBytes = new byte[] { (byte) (messageLength >>> 24), (byte) (messageLength >>> 16),
+//				(byte) (messageLength >>> 8), (byte) messageLength };
+//		System.arraycopy(messageLengthBytes, 0, outputBytes, 0, 4);
+		
+		// write message;
+		BytesUtils.toBytes_BigEndian(messageBytes.length, outputBytes, 0);
+		System.arraycopy(messageBytes, 0, outputBytes, 4, messageBytes.length);
+
+		// write mac;
+		byte macFlag = (byte) (macBytes.length > 0 ? 1 : 0);
+		outputBytes[4 + messageBytes.length] = macFlag;
+		if (macBytes.length > 0) {
+			System.arraycopy(macBytes, 0, outputBytes, 5 + messageBytes.length, macBytes.length);
+		}
+		
+		return outputBytes;
+	}
+
+	private void scheduleReceivingTask() {
+		byte[] receivedMac = null;
+		try {
+			receivedMac = new byte[Mac.getInstance(MAC_ALGORITHM).getMacLength()];
+		} catch (NoSuchAlgorithmException ex) {
+			ex.printStackTrace();
+		}
+
+		while (doWork) {
+			DataInputStream socketInStream = getSocketInputStream();
+			if (socketInStream != null) {
+				try {
+					// read data length
+					int dataLength = socketInStream.readInt();
+					byte[] data = new byte[dataLength];
+
+					// read data
+					int read = 0;
+					do {
+						read += socketInStream.read(data, read, dataLength - read);
+					} while (read < dataLength);
+
+					// read mac
+					boolean macMatch = true;
+
+					byte macFlag = socketInStream.readByte();
+					boolean hasMAC = (macFlag == 1);
+					if (viewTopology.getStaticConf().isUseMACs() && hasMAC) {
+						read = 0;
+						do {
+							read += socketInStream.read(receivedMac, read, macSize - read);
+						} while (read < macSize);
+
+						macMatch = Arrays.equals(macReceive.doFinal(data), receivedMac);
+					}
+
+					if (macMatch) {
+						SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
+								.readObject());
+						sm.authenticated = (viewTopology.getStaticConf().isUseMACs() && hasMAC);
+
+						if (sm.getSender() == REMOTE_ID) {
+
+							MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
+
+							if (!messageInQueue.offer(msgType, sm)) {
+								LOGGER.error("(ReceiverThread.run) in queue full (message from {} discarded).",
+										REMOTE_ID);
+							}
+						}
+					} else {
+						// TODO: violation of authentication... we should do something
+						LOGGER.warn("WARNING: Violation of authentication in message received from {}", REMOTE_ID);
+					}
+				} catch (ClassNotFoundException ex) {
+					// invalid message sent, just ignore;
+				} catch (IOException ex) {
+					if (doWork) {
+						LOGGER.warn(
+								"[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}",
+								REMOTE_ID);
+						closeSocket();
+						waitAndConnect(RECONNECT_MILL_SECONDS);
+					}
+				}
+			} else {
+				LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", REMOTE_ID);
+				waitAndConnect(RECONNECT_MILL_SECONDS);
+			}
+		}
 	}
 
 	/**
@@ -353,7 +474,7 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 			return true;
 
 		} catch (Exception ex) {
-			LOGGER.error("Error occurred while doing authenticateAndEstablishAuthKey with remote replica[" + remoteId
+			LOGGER.error("Error occurred while doing authenticateAndEstablishAuthKey with remote replica[" + REMOTE_ID
 					+ "] ! --" + ex.getMessage(), ex);
 			return false;
 		}
@@ -365,8 +486,8 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, viewTopology.getStaticConf().getDHP());
 
 		LOGGER.info("[{}] ->  I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", REALM_NAME,
-				viewTopology.getStaticConf().getProcessId(), remoteId,
-				viewTopology.getStaticConf().getServerToServerPort(remoteId));
+				viewTopology.getStaticConf().getProcessId(), REMOTE_ID,
+				viewTopology.getStaticConf().getServerToServerPort(REMOTE_ID));
 
 		SecretKeyFactory fac = SecretKeyFactory.getInstance(SECRET_KEY_ALGORITHM);
 		PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
@@ -405,10 +526,10 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 		} while (read < remoteSignatureLength);
 
 		// verify signature
-		PublicKey remoteRSAPubkey = viewTopology.getStaticConf().getRSAPublicKey(remoteId);
+		PublicKey remoteRSAPubkey = viewTopology.getStaticConf().getRSAPublicKey(REMOTE_ID);
 		if (!TOMUtil.verifySignature(remoteRSAPubkey, remoteDHPubKeyBytes, remoteSignatureBytes)) {
-			LOGGER.error("Authentication fail by invalid signature from remote[{}]! ", remoteId);
-			throw new SecurityException("Authentication fail by invalid signature from remote[" + remoteId + "]! ");
+			LOGGER.error("Authentication fail by invalid signature from remote[{}]! ", REMOTE_ID);
+			throw new SecurityException("Authentication fail by invalid signature from remote[" + REMOTE_ID + "]! ");
 		}
 
 		BigInteger remoteDHPubKey = new BigInteger(remoteDHPubKeyBytes);
@@ -455,146 +576,19 @@ public abstract class AbstractSockectConnection implements MessageConnection {
 
 	@Override
 	public String toString() {
-		return this.getClass().getName() + " To [" + remoteId + "]";
-	}
-
-	/**
-	 * Thread used to send packets to the remote server.
-	 */
-	private class SenderThread extends Thread {
-
-		private CountDownLatch countDownLatch;
-
-		public SenderThread(CountDownLatch countDownLatch) {
-			super("Sender for " + remoteId);
-			this.countDownLatch = countDownLatch;
-		}
-
-		@Override
-		public void run() {
-			MessageSendingTask task;
-			try {
-				countDownLatch.await();
-			} catch (InterruptedException e) {
-			}
-			while (doWork) {
-				try {
-					task = null;
-					try {
-						task = outQueue.poll(POOL_INTERVAL, TimeUnit.MILLISECONDS);
-					} catch (InterruptedException ex) {
-					}
-
-					if (task != null) {
-						processSendingTask(task);
-					}
-				} catch (Exception e) {
-					LOGGER.error(
-							"Error occurred while sending message to remote[" + remoteId + "]! --" + e.getMessage(), e);
-				}
-			}
-
-			LOGGER.info("The sender thread of connection to remote[{}] stopped!", remoteId);
-		}
-	}
-
-	/**
-	 * Thread used to receive packets from the remote server.
-	 */
-	protected class ReceiverThread extends Thread {
-
-		public ReceiverThread() {
-			super("MESSAGE RECEIVER [" + remoteId + "]");
-		}
-
-		@Override
-		public void run() {
-			byte[] receivedMac = null;
-			try {
-				receivedMac = new byte[Mac.getInstance(MAC_ALGORITHM).getMacLength()];
-			} catch (NoSuchAlgorithmException ex) {
-				ex.printStackTrace();
-			}
-
-			while (doWork) {
-				DataInputStream socketInStream = getSocketInputStream();
-				if (socketInStream != null) {
-					try {
-						// read data length
-						int dataLength = socketInStream.readInt();
-						byte[] data = new byte[dataLength];
-
-						// read data
-						int read = 0;
-						do {
-							read += socketInStream.read(data, read, dataLength - read);
-						} while (read < dataLength);
-
-						// read mac
-						boolean result = true;
-
-						byte macFlag = socketInStream.readByte();
-						boolean hasMAC = (macFlag == 1);
-						if (viewTopology.getStaticConf().isUseMACs() && hasMAC) {
-							read = 0;
-							do {
-								read += socketInStream.read(receivedMac, read, macSize - read);
-							} while (read < macSize);
-
-							result = Arrays.equals(macReceive.doFinal(data), receivedMac);
-						}
-
-						if (result) {
-							SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(data))
-									.readObject());
-							sm.authenticated = (viewTopology.getStaticConf().isUseMACs() && hasMAC);
-
-							if (sm.getSender() == remoteId) {
-
-								MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(sm);
-
-								if (!messageInQueue.offer(msgType, sm)) {
-									LOGGER.error("(ReceiverThread.run) in queue full (message from {} discarded).",
-											remoteId);
-								}
-							}
-						} else {
-							// TODO: violation of authentication... we should do something
-							LOGGER.warn("WARNING: Violation of authentication in message received from {}", remoteId);
-						}
-					} catch (ClassNotFoundException ex) {
-						// invalid message sent, just ignore;
-					} catch (IOException ex) {
-						if (doWork) {
-							LOGGER.warn(
-									"[ServerConnection.ReceiverThread] I will close socket and waitAndConnect connect with {}",
-									remoteId);
-							closeSocket();
-							waitAndConnect(RECONNECT_MILL_SECONDS);
-						}
-					}
-				} else {
-					LOGGER.warn("[ServerConnection.ReceiverThread] I will waitAndConnect connect with {}", remoteId);
-					waitAndConnect(RECONNECT_MILL_SECONDS);
-				}
-			}
-		}
+		return this.getClass().getName() + " To [" + REMOTE_ID + "]";
 	}
 
 	private static class MessageSendingTask extends AsyncFutureTask<SystemMessage, Void> {
 
-		private boolean retry;
+		public final boolean RETRY;
 
-		private boolean useMac;
+		private final boolean USE_MAC;
 
 		public MessageSendingTask(SystemMessage message, boolean useMac, boolean retry) {
 			super(message);
-			this.useMac = useMac;
-			this.retry = retry;
-		}
-
-		public boolean isRetry() {
-			return retry;
+			this.USE_MAC = useMac;
+			this.RETRY = retry;
 		}
 
 	}

@@ -119,14 +119,14 @@ public class OutgoingSockectConnection extends AbstractSockectConnection {
 	private Socket connect() {
 		// I have to connect to the remote server
 		try {
-			Socket sc = new Socket(viewTopology.getStaticConf().getHost(remoteId),
-					viewTopology.getStaticConf().getServerToServerPort(remoteId));
+			Socket sc = new Socket(viewTopology.getStaticConf().getHost(REMOTE_ID),
+					viewTopology.getStaticConf().getServerToServerPort(REMOTE_ID));
 			SocketUtils.setSocketOptions(sc);
 
 			return sc;
 		} catch (IOException e) {
 			LOGGER.error("Error occurred while connect to remote! --{} --[CurrentId={}][RemoteId={}]",
-					viewTopology.getCurrentProcessId(), remoteId);
+					viewTopology.getCurrentProcessId(), REMOTE_ID);
 			return null;
 		}
 	}

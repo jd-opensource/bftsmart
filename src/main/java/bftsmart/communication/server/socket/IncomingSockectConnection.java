@@ -116,7 +116,7 @@ public class IncomingSockectConnection extends AbstractSockectConnection {
 
 	public synchronized void accept(Socket newSocket) {
 		socket = newSocket;
-		LOGGER.debug("Accept new socket. --[me={}][remote={}]", me, remoteId);
+		LOGGER.debug("Accept new socket. --[me={}][remote={}]", ME, REMOTE_ID);
 	}
 
 }

@@ -137,10 +137,10 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 			}
 		}, "SERVER-COMMUNICATION-LAYER[Id=" + me + "][Port=" + port + "]");
 
-		this.serverSocket = ssc;
-
 		thrd.setDaemon(true);
 		thrd.start();
+		
+		this.serverSocket = ssc;
 	}
 
 	@Override

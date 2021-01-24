@@ -292,14 +292,15 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 					topology.getCurrentProcessId(), Arrays.toString(topology.getCurrentViewProcesses()));
 			throw new IllegalStateException(errMsg);
 		}
-
+		
 		doWork = true;
+		
+		startCommunicationServer();
 
 		initConnections();
 
 		startMessageProcessing();
-
-		startCommunicationServer();
+		
 	}
 
 	public void close() {
