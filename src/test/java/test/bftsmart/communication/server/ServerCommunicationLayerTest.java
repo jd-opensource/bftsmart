@@ -5,20 +5,14 @@ import static org.junit.Assert.assertEquals;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
-import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueue.SystemMessageType;
-import bftsmart.communication.server.AbstractServersCommunicationLayer;
-import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.MessageListener;
-import bftsmart.communication.server.MessageQueueConnection;
 import bftsmart.communication.server.ServerCommunicationLayer;
 import bftsmart.communication.server.socket.SocketServerCommunicationLayer;
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -49,7 +43,7 @@ public class ServerCommunicationLayerTest {
 		final String realmName = "TEST-NET";
 		int[] viewProcessIds = { 0, 1, 2, 3 };
 
-		final MessageNetwork messageNetwork = new MessageNetwork();
+		final MessageQueuesNetwork messageNetwork = new MessageQueuesNetwork();
 
 		ServerCommunicationLayer[] servers = prepareQueueNodes(realmName, viewProcessIds, messageNetwork);
 		MessageCounter[] counters = prepareMessageCounters(servers);
@@ -64,6 +58,37 @@ public class ServerCommunicationLayerTest {
 		// 从 server0 广播给全部的节点，包括 server0 自己；
 		broadcast(servers[0], viewProcessIds, testMessages);
 
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+		}
+		// 验证所有节点都能完整地收到消息；
+		for (MessageCounter counter : counters) {
+			counter.assertMessagesEquals(testMessages);
+			counter.clear();
+		}
+	}
+	
+	@Test
+	public void testStreamNodes() {
+		final String realmName = "TEST-NET";
+		int[] viewProcessIds = { 0, 1, 2, 3 };
+		
+		final MessageStreamNodeNetwork messageNetwork = new MessageStreamNodeNetwork();
+		
+		ServerCommunicationLayer[] servers = prepareStreamNodes(realmName, viewProcessIds, messageNetwork);
+		MessageCounter[] counters = prepareMessageCounters(servers);
+		
+		for (ServerCommunicationLayer srv : servers) {
+			srv.start();
+		}
+		
+		// 生成待发送的测试消息；
+		SystemMessage[] testMessages = prepareMessages(0, 6);
+		
+		// 从 server0 广播给全部的节点，包括 server0 自己；
+		broadcast(servers[0], viewProcessIds, testMessages);
+		
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
@@ -105,11 +130,22 @@ public class ServerCommunicationLayerTest {
 		}
 	}
 	
-	private ServerCommunicationLayer[] prepareQueueNodes(String realmName, int[] viewProcessIds, MessageNetwork messageNetwork) {
+	private ServerCommunicationLayer[] prepareQueueNodes(String realmName, int[] viewProcessIds, MessageQueuesNetwork messageNetwork) {
 		ServerCommunicationLayer[] comLayers = new ServerCommunicationLayer[viewProcessIds.length];
 		for (int i = 0; i < comLayers.length; i++) {
 			ViewTopology topology = CommunicationtTestMocker.mockTopology(viewProcessIds[i], viewProcessIds);
 			ServerCommunicationLayer comLayer = new MessageQueueCommunicationLayer(realmName, topology, messageNetwork);
+			comLayers[i] = comLayer;
+		}
+		
+		return comLayers;
+	}
+	
+	private ServerCommunicationLayer[] prepareStreamNodes(String realmName, int[] viewProcessIds, MessageStreamNodeNetwork messageNetwork) {
+		ServerCommunicationLayer[] comLayers = new ServerCommunicationLayer[viewProcessIds.length];
+		for (int i = 0; i < comLayers.length; i++) {
+			ViewTopology topology = CommunicationtTestMocker.mockTopology(viewProcessIds[i], viewProcessIds);
+			ServerCommunicationLayer comLayer = new MessageStreamCommunicationLayer(realmName, topology, messageNetwork);
 			comLayers[i] = comLayer;
 		}
 		
@@ -151,61 +187,6 @@ public class ServerCommunicationLayerTest {
 			messages[i] = msg;
 		}
 		return messages;
-	}
-
-	private static class MessageNetwork {
-
-		private Map<Integer, MessageQueue> queues = new ConcurrentHashMap<Integer, MessageQueue>();
-
-		public MessageQueue getQueueOfNode(int processId) {
-			MessageQueue queue = queues.get(processId);
-			if (queue == null) {
-				throw new IllegalArgumentException("The specified id[" + processId + "] is not registered! ");
-			}
-			return queue;
-		}
-
-		public void register(int processId, MessageQueue queue) {
-			queues.put(processId, queue);
-		}
-	}
-
-	/**
-	 * 基于队列对消息直接投递的通讯层实现；
-	 * 
-	 * @author huanghaiquan
-	 *
-	 */
-	private static class MessageQueueCommunicationLayer extends AbstractServersCommunicationLayer {
-
-		private MessageNetwork messageNetwork;
-
-		public MessageQueueCommunicationLayer(String realmName, ViewTopology topology, MessageNetwork messageNetwork) {
-			super(realmName, topology);
-			this.messageNetwork = messageNetwork;
-			this.messageNetwork.register(me, messageInQueue);
-		}
-
-		@Override
-		protected void startCommunicationServer() {
-		}
-
-		@Override
-		protected void closeCommunicationServer() {
-		}
-
-		@Override
-		protected MessageConnection connectRemote(int remoteId) {
-			MessageQueue queue = messageNetwork.getQueueOfNode(remoteId);
-			return new MessageQueueConnection(realmName, remoteId, queue);
-		}
-
-		@Override
-		protected MessageConnection acceptRemote(int remoteId) {
-			MessageQueue queue = messageNetwork.getQueueOfNode(remoteId);
-			return new MessageQueueConnection(realmName, remoteId, queue);
-		}
-
 	}
 
 	private static class MessageCounter implements MessageListener {

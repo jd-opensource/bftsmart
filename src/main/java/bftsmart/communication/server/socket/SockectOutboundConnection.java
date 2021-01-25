@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
+import bftsmart.communication.server.AbstractStreamConnection;
 import bftsmart.communication.server.SocketUtils;
 import bftsmart.reconfiguration.ViewTopology;
 
@@ -80,6 +81,10 @@ public class SockectOutboundConnection extends AbstractStreamConnection {
 
 	@Override
 	protected synchronized void rebuildConnection(long timeoutMillis) throws IOException {
+		if (socket != null && socket.isConnected() && (!socket.isClosed())) {
+			// 如果 socket 已连接且未关闭，则直接返回；
+			return;
+		}
 		closeConnection();
 
 		long startTs = System.currentTimeMillis();

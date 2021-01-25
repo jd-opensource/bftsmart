@@ -45,6 +45,7 @@ public class CommunicationtTestMocker {
 		when(conf.getInitialView()).thenReturn(processIds);
 		when(conf.getInQueueSize()).thenReturn(100000);
 		when(conf.getOutQueueSize()).thenReturn(100000);
+		when(conf.getSendRetryCount()).thenReturn(10);
 
 		try {
 			DefaultRSAKeyLoader defaultRSAKeyLoader = new DefaultRSAKeyLoader();

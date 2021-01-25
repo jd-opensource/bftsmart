@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
+import bftsmart.communication.server.AbstractStreamConnection;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**

@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package bftsmart.communication.server.socket;
+package bftsmart.communication.server;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,10 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.AsyncFuture;
-import bftsmart.communication.server.AsyncFutureTask;
-import bftsmart.communication.server.CompletedCallback;
-import bftsmart.communication.server.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.util.TOMUtil;
 import utils.codec.Base58Utils;
@@ -69,7 +65,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	// 每次重建连接的等待超时时长（毫秒）；
 	private static final long CONNECTION_REBUILD_TIMEOUT = 20 * 1000;
 
-	private final long RETRY_INTERVAL;
 	private final int MAX_RETRY_COUNT;
 	// private static final int SEND_QUEUE_SIZE = 50;
 
@@ -103,7 +98,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(viewTopology.getStaticConf().getOutQueueSize());
 
-		this.RETRY_INTERVAL = viewTopology.getStaticConf().getSendRetryInterval();
 		this.MAX_RETRY_COUNT = viewTopology.getStaticConf().getSendRetryCount();
 		if (MAX_RETRY_COUNT < 1) {
 			throw new IllegalArgumentException("Illegal SEND_RETRY_COUNT[" + MAX_RETRY_COUNT + "]!");
@@ -298,10 +292,15 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 				// if there is a need to reconnect, abort this method
 				try {
 					out.write(outputBytes);
-
+					out.flush();
 					messageTask.complete(null);
 					return;
 				} catch (IOException ex) {
+					try {
+						out.close();
+					} catch (Exception e) {
+					}
+					out = null;
 					error = ex;
 				}
 
@@ -417,6 +416,10 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 					// 接收消息时发生网络错误；需要重新建立连接；
 					LOGGER.error("Error occurred while reading the input message! --[Me=" + ME + "][Remote=" + REMOTE_ID
 							+ "] " + e.getMessage(), e);
+					try {
+						in.close();
+					} catch (Exception e1) {
+					}
 					in = null;
 					continue;
 				}
