@@ -15,7 +15,6 @@ import bftsmart.communication.server.AbstractServersCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.SocketUtils;
 import bftsmart.reconfiguration.ReplicaTopology;
-import bftsmart.reconfiguration.ViewTopology;
 import utils.io.RuntimeIOException;
 
 /**
@@ -25,7 +24,13 @@ import utils.io.RuntimeIOException;
 public class SocketServerCommunicationLayer extends AbstractServersCommunicationLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SocketServerCommunicationLayer.class);
 
-	private Map<Integer, IncomingSockectConnection> incomingConnections = new ConcurrentHashMap<Integer, IncomingSockectConnection>();
+	/**
+	 * 入站连接表；
+	 * <p>
+	 * key: 接入节点的 Id；<br>
+	 * value：入站连接对象；
+	 */
+	private Map<Integer, SockectInboundConnection> inboundConnections = new ConcurrentHashMap<Integer, SockectInboundConnection>();
 
 	private ServerSocket serverSocket;
 
@@ -86,10 +91,10 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 			return;
 		}
 		synchronized (acceptingLock) {
-			IncomingSockectConnection conn = this.incomingConnections.get(remoteId);
+			SockectInboundConnection conn = this.inboundConnections.get(remoteId);
 			if (conn == null) {
-				conn = new IncomingSockectConnection(realmName, topology, remoteId, messageInQueue);
-				this.incomingConnections.put(remoteId, conn);
+				conn = new SockectInboundConnection(realmName, topology, remoteId, messageInQueue);
+				this.inboundConnections.put(remoteId, conn);
 			} else {
 				// reconnection
 				if (conn.isAlived()) {
@@ -139,7 +144,7 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 
 		thrd.setDaemon(true);
 		thrd.start();
-		
+
 		this.serverSocket = ssc;
 	}
 
@@ -159,18 +164,18 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 
 	@Override
 	protected MessageConnection connectRemote(int remoteId) {
-		return new OutgoingSockectConnection(realmName, topology, remoteId, messageInQueue);
+		return new SockectOutboundConnection(realmName, topology, remoteId, messageInQueue);
 	}
 
 	@Override
 	protected MessageConnection acceptRemote(int remoteId) {
-		IncomingSockectConnection conn = incomingConnections.get(remoteId);
+		SockectInboundConnection conn = inboundConnections.get(remoteId);
 		if (conn == null) {
 			synchronized (acceptingLock) {
-				conn = incomingConnections.get(remoteId);
+				conn = inboundConnections.get(remoteId);
 				if (conn == null) {
-					conn = new IncomingSockectConnection(realmName, topology, remoteId, messageInQueue);
-					incomingConnections.put(remoteId, conn);
+					conn = new SockectInboundConnection(realmName, topology, remoteId, messageInQueue);
+					inboundConnections.put(remoteId, conn);
 				}
 			}
 		}

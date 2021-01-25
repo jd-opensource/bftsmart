@@ -63,9 +63,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStreamConnection.class);
 
-	// 重连周期
-	private static final long RECONNECT_MILL_SECONDS = 5000L;
-
 	// 发送队列为空时每次检查的超时时长（毫秒）；
 	private static final long OUT_QUEUE_EMPTY_TIMEOUT = 5000;
 
@@ -89,8 +86,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	private volatile Mac macReceive;
 	private volatile int macSize;
 
-	private final Object connectLock = new Object();
-	/** Only used when there is no sender Thread */
 	private volatile boolean doWork = false;
 
 	private Thread senderTread;

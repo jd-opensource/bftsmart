@@ -14,6 +14,7 @@ import javax.crypto.spec.PBEKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.CommunicationException;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueue.SystemMessageType;
@@ -151,7 +152,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 
 			if (remoteId == me) {
 				connection = new MessageQueueConnection(realmName, remoteId, messageInQueue);
-			} else if (isOutgoingToRemote(remoteId)) {
+			} else if (isOutboundToRemote(remoteId)) {
 				// 主动向外连接到远程节点；
 				connection = connectRemote(remoteId);
 			} else {
@@ -166,20 +167,20 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 	}
 
 	/**
-	 * 到指定节点是否是应建立外向连接；
+	 * 到指定远端节点的连接是否是应建立出站连接；
 	 * 
 	 * @param remoteId
 	 * @return
 	 */
-	private boolean isOutgoingToRemote(int remoteId) {
-		boolean ret = false;
+	private boolean isOutboundToRemote(int remoteId) {
+		boolean outbound = false;
 		if (this.topology.isInCurrentView()) {
 			// in this case, the node with higher ID starts the connection
 			if (me > remoteId) {
-				ret = true;
+				outbound = true;
 			}
 		}
-		return ret;
+		return outbound;
 	}
 
 	// ******* EDUARDO END **************//
@@ -189,6 +190,10 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 	}
 
 	public final void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending) {
+		if (!doWork) {
+			throw new CommunicationException("ServerCommunicationLayer has stopped!");
+		}
+		
 		@SuppressWarnings("unchecked")
 		AsyncFuture<SystemMessage, Void>[] futures = new AsyncFuture[targets.length];
 		int i = 0;
@@ -211,12 +216,6 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 
 			i++;
 		}
-
-		// 检查发送成功的数量；
-//		for (int j = 0; j < futures.length; j++) {
-//			//阻塞等待返回；
-//			futures[i].getReturn(1000);
-//		}
 	}
 
 	@Override

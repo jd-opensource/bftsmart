@@ -29,14 +29,13 @@ import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
- * This class represents a connection with other server.
+ * 基于 Socket 实现的入站连接；
+ * 
+ * @author huanghaiquan
  *
- * ServerConnections are created by ServerCommunicationLayer.
- *
- * @author alysson
  */
-public class IncomingSockectConnection extends AbstractStreamConnection {
-	private static final Logger LOGGER = LoggerFactory.getLogger(IncomingSockectConnection.class);
+public class SockectInboundConnection extends AbstractStreamConnection {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SockectInboundConnection.class);
 
 	private volatile Socket socket;
 	private volatile DataOutputStream socketOutStream = null;
@@ -44,7 +43,7 @@ public class IncomingSockectConnection extends AbstractStreamConnection {
 
 	private Semaphore acceptor = new Semaphore(0);
 
-	public IncomingSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
+	public SockectInboundConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		super(realmName, viewTopology, remoteId, messageInQueue);
 	}
@@ -58,10 +57,10 @@ public class IncomingSockectConnection extends AbstractStreamConnection {
 		if (sc == null) {
 			return;
 		}
-		
+
 		DataOutputStream out = socketOutStream;
 		DataInputStream in = socketInStream;
-		
+
 		socket = null;
 		socketOutStream = null;
 		socketInStream = null;
@@ -116,12 +115,12 @@ public class IncomingSockectConnection extends AbstractStreamConnection {
 	 * 接入新的 Socket 连接；
 	 * 
 	 * @param newSocket
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	public synchronized void accept(Socket newSocket) throws IOException {
 		// 先关闭旧的 Socket 对象；
 		closeConnection();
-		
+
 		if (!isDoWork()) {
 			newSocket.close();
 			return;
@@ -129,13 +128,13 @@ public class IncomingSockectConnection extends AbstractStreamConnection {
 		// 更新 Socket；
 		DataOutputStream out = new DataOutputStream(newSocket.getOutputStream());
 		DataInputStream in = new DataInputStream(newSocket.getInputStream());
-		
+
 		this.socketOutStream = out;
 		this.socketInStream = in;
 		this.socket = newSocket;
-		
+
 		acceptor.release();
-		
+
 		LOGGER.debug("Accept new socket. --[me={}][remote={}]", ME, REMOTE_ID);
 	}
 

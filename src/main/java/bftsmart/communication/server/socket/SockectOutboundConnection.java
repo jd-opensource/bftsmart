@@ -14,19 +14,20 @@ import bftsmart.communication.server.SocketUtils;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
+ * 基于 Socket 实现的出站连接；
  * 
  * @author huanghaiquan
  *
  */
-public class OutgoingSockectConnection extends AbstractStreamConnection {
+public class SockectOutboundConnection extends AbstractStreamConnection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(OutgoingSockectConnection.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(SockectOutboundConnection.class);
 
 	private volatile Socket socket;
 	private volatile DataOutputStream socketOutStream = null;
 	private volatile DataInputStream socketInStream = null;
 
-	public OutgoingSockectConnection(String realmName, ViewTopology viewTopology, int remoteId,
+	public SockectOutboundConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		super(realmName, viewTopology, remoteId, messageInQueue);
 	}
@@ -43,7 +44,6 @@ public class OutgoingSockectConnection extends AbstractStreamConnection {
 		DataOutputStream out = socketOutStream;
 		DataInputStream in = socketInStream;
 
-		
 		socket = null;
 		socketOutStream = null;
 		socketInStream = null;
