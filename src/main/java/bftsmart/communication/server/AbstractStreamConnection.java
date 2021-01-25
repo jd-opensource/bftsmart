@@ -103,7 +103,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 			throw new IllegalArgumentException("Illegal SEND_RETRY_COUNT[" + MAX_RETRY_COUNT + "]!");
 		}
 
-		LOGGER.info("I am proc {}", viewTopology.getStaticConf().getProcessId());
+		LOGGER.debug("Create stream connection from {} to {}!", ME, REMOTE_ID);
 	}
 
 	protected boolean isDoWork() {

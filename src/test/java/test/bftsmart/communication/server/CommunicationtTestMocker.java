@@ -16,14 +16,19 @@ import bftsmart.tom.ReplicaConfiguration;
 public class CommunicationtTestMocker {
 
 	public static ViewTopology mockTopology(int currentId, int[] processIds) {
+		ReplicaConfiguration conf = mockConfiguration(currentId, processIds);
+		
+		return mockTopology(currentId, processIds, conf);
+	}
+	
+	public static ViewTopology mockTopology(int currentId, int[] processIds, ReplicaConfiguration conf) {
 		ViewTopology topology = Mockito.mock(ViewTopology.class);
 		when(topology.getCurrentProcessId()).thenReturn(currentId);
 		when(topology.getCurrentViewProcesses()).thenReturn(processIds);
 		when(topology.isInCurrentView()).thenReturn(contains(currentId, processIds));
-
-		ReplicaConfiguration conf = mockConfiguration(currentId, processIds);
+		
 		when(topology.getStaticConf()).thenReturn(conf);
-
+		
 		return topology;
 	}
 
@@ -33,7 +38,7 @@ public class CommunicationtTestMocker {
 		when(topology.getCurrentViewProcesses()).thenReturn(processIds);
 		when(topology.isInCurrentView()).thenReturn(contains(currentId, processIds));
 
-		ReplicaConfiguration conf = mockConfiguration(currentId, processIds, ports);
+		ReplicaConfiguration conf = mockDefaultConfiguration(currentId, processIds, ports);
 		when(topology.getStaticConf()).thenReturn(conf);
 
 		return topology;
@@ -57,10 +62,14 @@ public class CommunicationtTestMocker {
 		return conf;
 	}
 
-	public static ReplicaConfiguration mockConfiguration(int currentId, int[] processIds, int[] ports) {
+	public static ReplicaConfiguration mockDefaultConfiguration(int currentId, int[] processIds) {
+		return mockDefaultConfiguration(currentId, processIds, null);
+	}
+	public static ReplicaConfiguration mockDefaultConfiguration(int currentId, int[] processIds, int[] ports) {
 		HostsConfig hosts = new HostsConfig();
 		for (int i = 0; i < processIds.length; i++) {
-			hosts.add(processIds[i], "localhost", ports[i], 0);
+			int port = ports == null ? 0 : ports[i];
+			hosts.add(processIds[i], "localhost", port, 0);
 		}
 		TOMConfiguration conf = new TOMConfiguration(currentId, new Properties(), hosts);
 		

@@ -6,19 +6,14 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
-import javax.crypto.SecretKey;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.server.AbstractStreamConnection;
-import bftsmart.communication.server.AsyncFuture;
-import bftsmart.communication.server.AsyncFutureTask;
-import bftsmart.communication.server.CompletedCallback;
-import bftsmart.communication.server.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
 import utils.io.BytesOutputBuffer;
 import utils.io.BytesUtils;
@@ -34,12 +29,16 @@ public class MessageStreamNode extends AbstractStreamConnection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MessageStreamNode.class);
 
 	private volatile BytesOutputBuffer bytesBuffer = new BytesOutputBuffer();
+	
+	private static final BytesOutputBuffer EMPTY = new BytesOutputBuffer();
 
 	private Output out = new Output();
 	private Input in = new Input();
-	
+
 	private DataOutputStream dataout = new DataOutputStream(out);
 	private DataInputStream datain = new DataInputStream(in);
+	
+	private ReentrantLock readLock = new ReentrantLock();
 
 	public MessageStreamNode(String realmName, ViewTopology viewTopology, MessageQueue messageInQueue) {
 		super(realmName, viewTopology, viewTopology.getCurrentProcessId(), messageInQueue);
@@ -74,6 +73,9 @@ public class MessageStreamNode extends AbstractStreamConnection {
 
 	private synchronized BytesOutputBuffer drainOutput() {
 		BytesOutputBuffer dataBuff = bytesBuffer;
+		if (dataBuff.getSize() == 0) {
+			return EMPTY;
+		}
 		bytesBuffer = new BytesOutputBuffer();
 		return dataBuff;
 	}
@@ -97,7 +99,7 @@ public class MessageStreamNode extends AbstractStreamConnection {
 	}
 
 	private class Input extends InputStream {
-
+		
 		private volatile ByteArrayInputStream in = new ByteArrayInputStream(BytesUtils.EMPTY_BYTES);
 
 		private synchronized void readBuffer() {
@@ -108,7 +110,8 @@ public class MessageStreamNode extends AbstractStreamConnection {
 
 		@Override
 		public synchronized int read() throws IOException {
-			if (in.available() <= 0) {
+			int v = in.read();
+			if (v < 0) {
 				readBuffer();
 			}
 			return in.read();
@@ -116,22 +119,24 @@ public class MessageStreamNode extends AbstractStreamConnection {
 
 		@Override
 		public synchronized int read(byte[] b) throws IOException {
-			int r = in.read(b);
-			if (r < b.length) {
-				readBuffer();
-				r += in.read(b, r, b.length - r);
-			}
-			return r;
+			return read(b, 0, b.length);
 		}
 
 		@Override
 		public synchronized int read(byte[] b, int off, int len) throws IOException {
-			int r = in.read(b, off, len);
-			if (r < len) {
-				readBuffer();
-				r += in.read(b, off + r, len - r);
+			int size = 0;
+			while (size < len) {
+				int r = in.read(b, off + size, len - size);
+				if (r < 0) {
+					readBuffer();
+					if (in.available() <= 0) {
+						break;
+					}
+					continue;
+				}
+				size += r;
 			}
-			return r;
+			return size;
 		}
 
 	}
