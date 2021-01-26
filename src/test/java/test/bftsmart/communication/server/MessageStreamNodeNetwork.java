@@ -12,10 +12,10 @@ class MessageStreamNodeNetwork {
 		
 		
 		public void register(MessageStreamNode node) {
-			nodes.put(node.getRemoteId(), node);
+			nodes.put(node.getId(), node);
 		}
 
-		public MessageConnection getConnectionToNode(int processId) {
+		public MessageStreamNode getNode(int processId) {
 			MessageStreamNode conn = nodes.get(processId);
 			if (conn == null) {
 				throw new IllegalArgumentException("The specified id[" + processId + "] is not exist! ");

@@ -20,6 +20,7 @@ import bftsmart.reconfiguration.ViewTopology;
 			super(realmName, topology);
 			this.currentNode = new MessageStreamNode(realmName, topology, messageInQueue);
 			this.nodesNetwork = nodesNetwork;
+			
 			nodesNetwork.register(currentNode);
 		}
 
@@ -33,12 +34,14 @@ import bftsmart.reconfiguration.ViewTopology;
 
 		@Override
 		protected MessageConnection connectRemote(int remoteId) {
-			return nodesNetwork.getConnectionToNode(remoteId);
+			MessageStreamNode remoteNode =  nodesNetwork.getNode(remoteId);
+			return new MessageStreamConnection(realmName, topology, remoteId, remoteNode);
 		}
 
 		@Override
 		protected MessageConnection acceptRemote(int remoteId) {
-			return nodesNetwork.getConnectionToNode(remoteId);
+			MessageStreamNode remoteNode =  nodesNetwork.getNode(remoteId);
+			return new MessageStreamConnection(realmName, topology, remoteId, remoteNode);
 		}
 
 	}

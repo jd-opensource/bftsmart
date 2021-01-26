@@ -6,16 +6,14 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import org.bouncycastle.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.AbstractStreamConnection;
 import bftsmart.reconfiguration.ViewTopology;
-import utils.io.BytesOutputBuffer;
 import utils.io.BytesUtils;
 
 /**
@@ -24,97 +22,102 @@ import utils.io.BytesUtils;
  * @author huanghaiquan
  *
  */
-public class MessageStreamNode extends AbstractStreamConnection {
+public class MessageStreamNode {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(MessageStreamNode.class);
-
-	private volatile BytesOutputBuffer bytesBuffer = new BytesOutputBuffer();
-	
-	private static final BytesOutputBuffer EMPTY = new BytesOutputBuffer();
 
 	private Output out = new Output();
 	private Input in = new Input();
 
 	private DataOutputStream dataout = new DataOutputStream(out);
 	private DataInputStream datain = new DataInputStream(in);
+
+	private LinkedBlockingQueue<byte[]> dataQueues = new LinkedBlockingQueue<>(1000);
 	
-	private ReentrantLock readLock = new ReentrantLock();
+	private final int id;
+	
+	private MessageQueue messageInQueue;
 
 	public MessageStreamNode(String realmName, ViewTopology viewTopology, MessageQueue messageInQueue) {
-		super(realmName, viewTopology, viewTopology.getCurrentProcessId(), messageInQueue);
+		this.id = viewTopology.getCurrentProcessId();
+		this.messageInQueue = messageInQueue;
 	}
 
-	@Override
-	public boolean isAlived() {
-		return true;
-	}
-
-	@Override
-	protected void rebuildConnection(long timeoutMillis) throws IOException {
-	}
-
-	@Override
-	protected void closeConnection() {
-	}
-
-	@Override
 	protected DataOutputStream getOutputStream() {
 		return dataout;
 	}
 
-	@Override
 	protected DataInputStream getInputStream() {
 		return datain;
 	}
 
-	private synchronized void writeBuffer(byte[] b, int off, int len) {
-		bytesBuffer.writeCopy(b, off, len);
+
+	public int getId() {
+		return id;
 	}
 
-	private synchronized BytesOutputBuffer drainOutput() {
-		BytesOutputBuffer dataBuff = bytesBuffer;
-		if (dataBuff.getSize() == 0) {
-			return EMPTY;
-		}
-		bytesBuffer = new BytesOutputBuffer();
-		return dataBuff;
+
+	public MessageQueue getMessageInQueue() {
+		return messageInQueue;
 	}
 
 	private class Output extends OutputStream {
 
 		@Override
 		public void write(int b) throws IOException {
-			writeBuffer(new byte[] { (byte) b }, 0, 1);
+			do {
+				try {
+					dataQueues.put(new byte[] { (byte) b });
+					return;
+				} catch (InterruptedException e) {
+				}
+			} while (true);
 		}
 
 		@Override
 		public void write(byte[] b) throws IOException {
-			writeBuffer(b, 0, b.length);
+			write(b, 0, b.length);
 		}
 
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
-			writeBuffer(b, off, len);
+			if (b == null || len <= 0) {
+				return;
+			}
+			do {
+				try {
+					dataQueues.put(Arrays.copyOfRange(b, off, off + len));
+					return;
+				} catch (InterruptedException e) {
+				}
+			} while (true);
 		}
 	}
 
 	private class Input extends InputStream {
-		
+
 		private volatile ByteArrayInputStream in = new ByteArrayInputStream(BytesUtils.EMPTY_BYTES);
 
-		private synchronized void readBuffer() {
-			BytesOutputBuffer newBuffer = drainOutput();
-			byte[] bytes = newBuffer.toBytes();
-			in = new ByteArrayInputStream(bytes);
+		private synchronized void fillBuffer() {
+			do {
+				try {
+					byte[] bytes = dataQueues.take();
+					in = new ByteArrayInputStream(bytes);
+					return;
+				} catch (InterruptedException e) {
+				}
+			} while (true);
 		}
 
 		@Override
 		public synchronized int read() throws IOException {
-			int v = in.read();
-			if (v < 0) {
-				readBuffer();
-			}
-			return in.read();
+			do {
+				int v = in.read();
+				if (v > -1) {
+					return v;
+				}
+				fillBuffer();
+			} while (true);
 		}
 
 		@Override
@@ -124,19 +127,13 @@ public class MessageStreamNode extends AbstractStreamConnection {
 
 		@Override
 		public synchronized int read(byte[] b, int off, int len) throws IOException {
-			int size = 0;
-			while (size < len) {
-				int r = in.read(b, off + size, len - size);
-				if (r < 0) {
-					readBuffer();
-					if (in.available() <= 0) {
-						break;
-					}
-					continue;
+			do {
+				int r = in.read(b, off, len);
+				if (r > 0) {
+					return r;
 				}
-				size += r;
-			}
-			return size;
+				fillBuffer();
+			} while (true);
 		}
 
 	}
