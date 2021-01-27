@@ -18,10 +18,7 @@ import org.bouncycastle.util.Arrays;
 
 import utils.io.BytesUtils;
 
-public class MACKeyGenerator {
-
-//	public static final String MAC_ALGORITHM = "HmacMD5";
-//	public static final String SECRET_KEY_ALGORITHM = "PBEWithMD5AndDES";
+public class MacKeyGenerator {
 
 	public static final String MAC_ALGORITHM = "HmacSHA256";
 
@@ -46,7 +43,7 @@ public class MACKeyGenerator {
 	 * @param dhG
 	 * @param dhP
 	 */
-	public MACKeyGenerator(PublicKey rasPubKey, PrivateKey rsaPrivKey, BigInteger dhG, BigInteger dhP) {
+	public MacKeyGenerator(PublicKey rasPubKey, PrivateKey rsaPrivKey, BigInteger dhG, BigInteger dhP) {
 		this.rsaPrivKey = rsaPrivKey;
 		this.dhG = dhG;
 		this.dhP = dhP;

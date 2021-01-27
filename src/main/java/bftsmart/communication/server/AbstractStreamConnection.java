@@ -1,18 +1,3 @@
-/**
- Copyright (c) 2007-2013 Alysson Bessani, Eduardo Alchieri, Paulo Sousa, and the authors indicated in the @author tags
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
- http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
- */
 package bftsmart.communication.server;
 
 import java.io.ByteArrayInputStream;
@@ -22,38 +7,29 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.math.BigInteger;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import javax.crypto.Mac;
 import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.DHPubKeyCertificate;
+import bftsmart.communication.MacKeyGenerator;
+import bftsmart.communication.MacKey;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
-import bftsmart.tom.util.TOMUtil;
 import utils.codec.Base58Utils;
 import utils.io.BytesUtils;
 import utils.io.RuntimeIOException;
 
 /**
- * This class represents a connection with other server.
+ * AbstractStreamConnection 实现了基于流的消息连接对象；
+ * 
+ * @author huanghaiquan
  *
- * ServerConnections are created by ServerCommunicationLayer.
- *
- * @author alysson
  */
 public abstract class AbstractStreamConnection implements MessageConnection {
 
@@ -66,32 +42,34 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	private static final long CONNECTION_REBUILD_TIMEOUT = 20 * 1000;
 
 	private final int MAX_RETRY_COUNT;
-	// private static final int SEND_QUEUE_SIZE = 50;
 
 	protected final String REALM_NAME;
 	protected final int ME;
 	protected final int REMOTE_ID;
+	
+	private final MacKeyGenerator MAC_KEY_GEN;
 
 	protected ViewTopology viewTopology;
 	private MessageQueue messageInQueue;
-	private LinkedBlockingQueue<MessageSendingTask> outQueue;// = new
-																// LinkedBlockingQueue<byte[]>(SEND_QUEUE_SIZE);
-	private volatile SecretKey authKey = null;
-	private volatile Mac macSend;
-	private volatile Mac macReceive;
-	private volatile int macSize;
+	private LinkedBlockingQueue<MessageSendingTask> outQueue;
+
+	private volatile MacKey macKey;
 
 	private volatile boolean doWork = false;
 
-	private Thread senderTread;
+	private volatile Thread senderTread;
 
-	private Thread receiverThread;
+	private volatile Thread receiverThread;
 
 	public AbstractStreamConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		this.REALM_NAME = realmName;
 		this.ME = viewTopology.getCurrentProcessId();
 		this.REMOTE_ID = remoteId;
+
+		this.MAC_KEY_GEN = new MacKeyGenerator(viewTopology.getStaticConf().getRSAPublicKey(),
+				viewTopology.getStaticConf().getRSAPrivateKey(), viewTopology.getStaticConf().getDHG(),
+				viewTopology.getStaticConf().getDHP());
 
 		this.viewTopology = viewTopology;
 		this.messageInQueue = messageInQueue;
@@ -143,7 +121,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 	@Override
 	public SecretKey getSecretKey() {
-		return authKey;
+		return macKey == null ? null : macKey.getSecretKey();
 	}
 
 	/**
@@ -343,7 +321,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 		byte[] macBytes = BytesUtils.EMPTY_BYTES;
 		if (taskUseMAC && viewTopology.getStaticConf().isUseMACs()) {
-			macBytes = macSend.doFinal(messageBytes);
+			macBytes = macKey.generateMac(messageBytes);
 		}
 
 		if (LOGGER.isDebugEnabled()) {
@@ -357,22 +335,16 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		}
 
 		// do an extra copy of the data to be sent, but on a single out stream write
-		byte[] outputBytes = new byte[4 + messageBytes.length + 1 + macBytes.length];
-
-//		int messageLength = messageBytes.length;
-//		byte[] messageLengthBytes = new byte[] { (byte) (messageLength >>> 24), (byte) (messageLength >>> 16),
-//				(byte) (messageLength >>> 8), (byte) messageLength };
-//		System.arraycopy(messageLengthBytes, 0, outputBytes, 0, 4);
+		byte[] outputBytes = new byte[4 + messageBytes.length + 4 + macBytes.length];
 
 		// write message;
 		BytesUtils.toBytes_BigEndian(messageBytes.length, outputBytes, 0);
 		System.arraycopy(messageBytes, 0, outputBytes, 4, messageBytes.length);
 
 		// write mac;
-		byte macFlag = (byte) (macBytes.length > 0 ? 1 : 0);
-		outputBytes[4 + messageBytes.length] = macFlag;
+		BytesUtils.toBytes(macBytes.length, outputBytes, 4 + messageBytes.length);
 		if (macBytes.length > 0) {
-			System.arraycopy(macBytes, 0, outputBytes, 5 + messageBytes.length, macBytes.length);
+			System.arraycopy(macBytes, 0, outputBytes, 4 + messageBytes.length + 4, macBytes.length);
 		}
 
 		return outputBytes;
@@ -456,28 +428,29 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * @throws IOException
 	 */
 	private SystemMessage readMessage(DataInputStream in) throws IOException {
+		// 读消息字节；
 		int messageLength = in.readInt();
 		byte[] messageBytes = new byte[messageLength];
-
-		// read data
 		int read = 0;
 		do {
 			read += in.read(messageBytes, read, messageLength - read);
 		} while (read < messageLength);
 
-		// read mac;
-
-		byte macFlag = in.readByte();
-		boolean hasMAC = (macFlag == 1);
-		if (hasMAC && viewTopology.getStaticConf().isUseMACs()) {
-			byte[] macBytes = new byte[macSize];
+		// 读 MAC；无论本地是否标记了验证 MAC，都要完整地读取 MAC 数据 ；
+		int macLength = in.readInt();
+		byte[] macBytes = null;
+		boolean hasMAC = macLength > 0;
+		if (hasMAC) {
+			macBytes = new byte[macLength];
 			read = 0;
 			do {
-				read += in.read(macBytes, read, macBytes.length - read);
+				read += in.read(macBytes, read, macLength - read);
 			} while (read < macBytes.length);
+		}
 
-			byte[] expectedMacBytes = macReceive.doFinal(messageBytes);
-			boolean macMatch = Arrays.equals(expectedMacBytes, macBytes);
+		// 消息认证；
+		if (hasMAC && viewTopology.getStaticConf().isUseMACs()) {
+			boolean macMatch = macKey.authenticate(messageBytes, macBytes);
 			if (!macMatch) {
 				LOGGER.error("The MAC Validation of the received message fail! --[Me={}][Remote={}]", ME, REMOTE_ID);
 				return null;
@@ -536,18 +509,21 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		}
 
 		try {
-			// Derive DH private key from replica's own RSA private key
-			PrivateKey RSAprivKey = viewTopology.getStaticConf().getRSAPrivateKey();
-			BigInteger DHPrivKey = new BigInteger(RSAprivKey.getEncoded());
-
 			// 发送 DH key；
-			sendDHKey(socketOutStream, RSAprivKey, DHPrivKey);
+			DHPubKeyCertificate currentDHPubKeyCert = MAC_KEY_GEN.getDHPubKeyCertificate();
+			sendDHKey(socketOutStream, currentDHPubKeyCert);
 
 			// 接收 DH key;
-			BigInteger remoteDHPubKey = receiveDHKey(socketInStream);
+			DHPubKeyCertificate remoteDHPubKeyCert = receiveDHKey(socketInStream);
+			if (remoteDHPubKeyCert == null) {
+				// 认证失败；
+				LOGGER.error("The DHPubKey verification failed while establishing connection with remote[{}]!",
+						REMOTE_ID);
+				return false;
+			}
 
-			// 初始化 MAC;
-			initMAC(DHPrivKey, remoteDHPubKey);
+			// 生成共享密钥
+			this.macKey = MAC_KEY_GEN.exchange(remoteDHPubKeyCert);
 
 			return true;
 
@@ -557,93 +533,41 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 			return false;
 		}
 	}
-	
 
-	private void sendDHKey(DataOutputStream socketOutStream, PrivateKey RSAprivKey, BigInteger DHPrivKey)
+	private void sendDHKey(DataOutputStream socketOutStream, DHPubKeyCertificate currentDHPubKeyCert)
 			throws IOException {
-		// Create DH public key
-		BigInteger myDHPubKey = viewTopology.getStaticConf().getDHG().modPow(DHPrivKey,
-				viewTopology.getStaticConf().getDHP());
-
-		// turn it into a byte array
-		byte[] myDHPubKeyBytes = myDHPubKey.toByteArray();
-
-		byte[] signature = TOMUtil.signMessage(RSAprivKey, myDHPubKeyBytes);
+		byte[] encodedBytes = currentDHPubKeyCert.getEncodedBytes();
 
 		// send my DH public key and signature
-		socketOutStream.writeInt(myDHPubKeyBytes.length);
-		socketOutStream.write(myDHPubKeyBytes);
-
-		socketOutStream.writeInt(signature.length);
-		socketOutStream.write(signature);
+		socketOutStream.writeInt(encodedBytes.length);
+		socketOutStream.write(encodedBytes);
 	}
-	
+
 	private void resetMAC() {
-		this.authKey = null;
-		this.macSend = null;
-		this.macReceive = null;
-		this.macSize = 0;
-	}
-
-	private void initMAC(BigInteger DHPrivKey, BigInteger remoteDHPubKey)
-			throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException {
-		// Create secret key
-		BigInteger secretKey = remoteDHPubKey.modPow(DHPrivKey, viewTopology.getStaticConf().getDHP());
-
-		LOGGER.info("[{}] ->  I am proc {}, -- Diffie-Hellman complete with proc id {}, with port {}", REALM_NAME,
-				viewTopology.getStaticConf().getProcessId(), REMOTE_ID,
-				viewTopology.getStaticConf().getServerToServerPort(REMOTE_ID));
-
-		SecretKeyFactory fac = SecretKeyFactory.getInstance(SECRET_KEY_ALGORITHM);
-		PBEKeySpec spec = new PBEKeySpec(secretKey.toString().toCharArray());
-
-		// PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-		SecretKey authKey = fac.generateSecret(spec);
-
-		Mac macSend = Mac.getInstance(MAC_ALGORITHM);
-		macSend.init(authKey);
-		Mac macReceive = Mac.getInstance(MAC_ALGORITHM);
-		macReceive.init(authKey);
-		int macSize = macSend.getMacLength();
-
-		this.authKey = authKey;
-		this.macSend = macSend;
-		this.macReceive = macReceive;
-		this.macSize = macSize;
+		this.macKey = null;
 	}
 
 	/**
+	 * 接收和验证“密钥交互公钥凭证”；
+	 * <p>
+	 * 如果验证失败，则返回 null;
+	 * 
 	 * @param socketInStream
 	 * @return
 	 * @throws IOException
 	 */
-	private BigInteger receiveDHKey(DataInputStream socketInStream) throws IOException {
+	private DHPubKeyCertificate receiveDHKey(DataInputStream socketInStream) throws IOException {
 		// receive remote DH public key and signature
-		int remoteDHPubKeyLength = socketInStream.readInt();
-		byte[] remoteDHPubKeyBytes = new byte[remoteDHPubKeyLength];
+		int remoteMacPubKeyCertLength = socketInStream.readInt();
+		byte[] remoteMacPubKeyCertBytes = new byte[remoteMacPubKeyCertLength];
 		int read = 0;
 		do {
-			read += socketInStream.read(remoteDHPubKeyBytes, read, remoteDHPubKeyLength - read);
+			read += socketInStream.read(remoteMacPubKeyCertBytes, read, remoteMacPubKeyCertLength - read);
 
-		} while (read < remoteDHPubKeyLength);
+		} while (read < remoteMacPubKeyCertLength);
 
-		int remoteSignatureLength = socketInStream.readInt();
-		byte[] remoteSignatureBytes = new byte[remoteSignatureLength];
-		read = 0;
-		do {
-			read += socketInStream.read(remoteSignatureBytes, read, remoteSignatureLength - read);
-
-		} while (read < remoteSignatureLength);
-
-		// verify signature
-		PublicKey remoteRSAPubkey = viewTopology.getStaticConf().getRSAPublicKey(REMOTE_ID);
-		if (!TOMUtil.verifySignature(remoteRSAPubkey, remoteDHPubKeyBytes, remoteSignatureBytes)) {
-			LOGGER.error("Authentication fail by invalid signature from remote[{}]! ", REMOTE_ID);
-			throw new SecurityException("Authentication fail by invalid signature from remote[" + REMOTE_ID + "]! ");
-		}
-
-		BigInteger remoteDHPubKey = new BigInteger(remoteDHPubKeyBytes);
-		return remoteDHPubKey;
+		return MacKeyGenerator.resolveAndVerify(remoteMacPubKeyCertBytes,
+				viewTopology.getStaticConf().getRSAPublicKey(REMOTE_ID));
 	}
 
 	/**
@@ -682,7 +606,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		DataInputStream socketInStream = getInputStream();
 		if (socketOutStream != null && socketInStream != null) {
 			resetMAC();
-			
+
 			boolean success = authenticate(socketOutStream, socketInStream);
 			if (!success) {
 				closeConnection();

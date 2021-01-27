@@ -154,6 +154,15 @@ public interface ReplicaConfiguration {
 	 * @return
 	 */
 	PublicKey getRSAPublicKey(int id);
+	
+	/**
+	 * Get RSAPublicKey of current process;
+	 * 
+	 * @return
+	 */
+	default PublicKey getRSAPublicKey() {
+		return getRSAPublicKey(getProcessId());
+	}
 
 	/**
 	 * Get RSAPrivateKey of current process;

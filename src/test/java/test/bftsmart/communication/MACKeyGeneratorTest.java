@@ -10,7 +10,7 @@ import java.util.Properties;
 import org.junit.Test;
 
 import bftsmart.communication.DHPubKeyCertificate;
-import bftsmart.communication.MACKeyGenerator;
+import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.MacKey;
 import bftsmart.reconfiguration.util.HostsConfig;
 import bftsmart.reconfiguration.util.TOMConfiguration;
@@ -26,12 +26,12 @@ public class MACKeyGeneratorTest {
 
 		ReplicaConfiguration conf0 = generateConfig(0, viewProcessIds);
 		PublicKey pubKey0 = conf0.getRSAPublicKey(0);
-		MACKeyGenerator macKeyGen0 = new MACKeyGenerator(pubKey0, conf0.getRSAPrivateKey(), conf0.getDHG(),
+		MacKeyGenerator macKeyGen0 = new MacKeyGenerator(pubKey0, conf0.getRSAPrivateKey(), conf0.getDHG(),
 				conf0.getDHP());
 
 		ReplicaConfiguration conf1 = generateConfig(1, viewProcessIds);
 		PublicKey pubKey1 = conf0.getRSAPublicKey(0);
-		MACKeyGenerator macKeyGen1 = new MACKeyGenerator(pubKey1, conf1.getRSAPrivateKey(), conf1.getDHG(),
+		MacKeyGenerator macKeyGen1 = new MacKeyGenerator(pubKey1, conf1.getRSAPrivateKey(), conf1.getDHG(),
 				conf1.getDHP());
 
 		/**
@@ -45,8 +45,8 @@ public class MACKeyGeneratorTest {
 		byte[] encodedDHPubKeyCertBytes1 = dhPubKeyCert1.getEncodedBytes();
 
 		// 解析和验证密钥认证；
-		DHPubKeyCertificate verifedDhPubKeyCert0 = MACKeyGenerator.resolveAndVerify(encodedDHPubKeyCertBytes0, pubKey0);
-		DHPubKeyCertificate verifedDhPubKeyCert1 = MACKeyGenerator.resolveAndVerify(encodedDHPubKeyCertBytes1, pubKey1);
+		DHPubKeyCertificate verifedDhPubKeyCert0 = MacKeyGenerator.resolveAndVerify(encodedDHPubKeyCertBytes0, pubKey0);
+		DHPubKeyCertificate verifedDhPubKeyCert1 = MacKeyGenerator.resolveAndVerify(encodedDHPubKeyCertBytes1, pubKey1);
 
 		// 密钥交互；
 		MacKey macKey_0_to_1 = macKeyGen0.exchange(verifedDhPubKeyCert1);
