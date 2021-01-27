@@ -2,25 +2,18 @@ package test.bftsmart.communication.server;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CyclicBarrier;
 
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.SystemMessage;
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.queue.MessageQueueFactory;
 import bftsmart.communication.queue.MessageQueue.SystemMessageType;
 import bftsmart.communication.server.MessageListener;
 import bftsmart.communication.server.ServerCommunicationLayer;
@@ -30,7 +23,9 @@ import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ReplicaConfiguration;
+import utils.io.BytesUtils;
 import utils.security.RandomUtils;
+import utils.serialize.binary.BinarySerializeUtils;
 
 public class ServerCommunicationLayerTest {
 
@@ -67,168 +62,102 @@ public class ServerCommunicationLayerTest {
 		}
 	}
 
-	@Test
-	public void testMessageStreamInputOutput() throws IOException, InterruptedException {
-		final String realmName = "TEST-NET";
-		int[] viewProcessIds = { 0, 1, 2, 3 };
-		ViewTopology topology = CommunicationtTestMocker.mockTopology(viewProcessIds[0], viewProcessIds);
-		MessageQueue messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
-				topology.getStaticConf().getInQueueSize());
-		MessageStreamNode node = new MessageStreamNode(realmName, topology, messageInQueue);
-
-		DataOutputStream output = node.getOutputStream();
-		DataInputStream input = node.getInputStream();
-
-		// 测试在同步环境下，写入和读取的一致性；
-		{
-			ByteArrayOutputStream randomBytesBuff = new ByteArrayOutputStream();
-			for (int i = 0; i < 2; i++) {
-				byte[] bytes = RandomUtils.generateRandomBytes(4 * i + 6);
-				output.write(bytes);
-				randomBytesBuff.write(bytes);
-			}
-			output.flush();
-
-			byte[] totalBytes = randomBytesBuff.toByteArray();
-
-			ByteArrayOutputStream readBuffer = new ByteArrayOutputStream();
-			int totalSize = totalBytes.length;
-			byte[] bf = new byte[16];
-			int len = 0;
-			while ((len = input.read(bf)) > 0) {
-				readBuffer.write(bf, 0, len);
-				totalSize -= len;
-				if (totalSize <= 0) {
-					break;
-				}
-			}
-			byte[] totalReadBytes = readBuffer.toByteArray();
-
-			assertArrayEquals(totalBytes, totalReadBytes);
-		}
-
-		// 测试在异步环境下，写入和读取的一致性；
-//		{
-//			CyclicBarrier barrier = new CyclicBarrier(2);
-//
-//			ByteArrayOutputStream randomBytesBuff = new ByteArrayOutputStream();
-//			Thread sendThrd = new Thread(new Runnable() {
-//				@Override
-//				public void run() {
-//					try {
-//						barrier.await();
-//					} catch (InterruptedException | BrokenBarrierException e1) {
-//						e1.printStackTrace();
-//					}
-//					try {
-//
-//						for (int i = 0; i < 10; i++) {
-//							byte[] bytes = RandomUtils.generateRandomBytes(4 * i + 6);
-//							output.write(bytes);
-//							randomBytesBuff.write(bytes);
-//						}
-//						output.flush();
-//					} catch (IOException e) {
-//						e.printStackTrace();
-//					}
-//				}
-//			});
-//
-//			boolean[] flag = { true };
-//
-//			ByteArrayOutputStream readBuffer = new ByteArrayOutputStream();
-//			Thread recvThrd = new Thread(new Runnable() {
-//				@Override
-//				public void run() {
-//					try {
-//						barrier.await();
-//					} catch (InterruptedException | BrokenBarrierException e1) {
-//						e1.printStackTrace();
-//					}
-//					while (flag[0]) {
-//						try {
-//							byte[] bf = new byte[16];
-//							int len = 0;
-//							while ((len = input.read(bf)) > 0) {
-//								readBuffer.write(bf, 0, len);
-//							}
-//						} catch (IOException e) {
-//							e.printStackTrace();
-//						}
-//
-//						try {
-//							Thread.sleep(1000);
-//						} catch (InterruptedException e) {
-//						}
-//					}
-//				}
-//			});
-//
-//			sendThrd.start();
-//			recvThrd.start();
-//
-//			sendThrd.join();
-//			Thread.sleep(1000);
-//			flag[0] = false;
-//			recvThrd.join();
-//
-//			byte[] totalBytes = randomBytesBuff.toByteArray();
-//			byte[] totalReadBytes = readBuffer.toByteArray();
-//
-//			assertTrue(totalBytes.length > 0);
-//			assertArrayEquals(totalBytes, totalReadBytes);
-//		}
-	}
-
 	/**
 	 * 测试当个节点的对消息的发送和接收；
+	 * 
+	 * @throws IOException
+	 * @throws InterruptedException
 	 */
 	@Test
-	public void testSingleStreamNode() {
+	public void testDoubleStreamNodes() throws IOException, InterruptedException {
 		final String realmName = "TEST-NET";
 		final int[] viewProcessIds = { 0, 1 };
 		final MessageStreamNodeNetwork nodesNetwork = new MessageStreamNodeNetwork();
 
 		ServerCommunicationLayer server0 = createStreamNode(realmName, 0, viewProcessIds, nodesNetwork);
-		MessageCounter counter1 = prepareMessageCounter(server0);
-		
+		MessageCounter counter0 = prepareMessageCounter(server0);
+		ServerCommunicationLayer server1 = createStreamNode(realmName, 1, viewProcessIds, nodesNetwork);
+		MessageCounter counter1 = prepareMessageCounter(server1);
+
+		server0.start();
+		server1.start();
+
 		MessageStreamNode node0 = nodesNetwork.getNode(0);
-		
-		
-		
+
+		// 生成待测试发送的消息；
+		ConsensusMessage msg_from_0 = createTestMessage(0);
+		ConsensusMessage msg_from_1 = createTestMessage(1);
+
+		// 测试自我发送的正确性；
+		server0.send(msg_from_0, 0);
+		server1.send(msg_from_1, 1);
+
+		Thread.sleep(100);// 稍等待一下，避免接收线程未来得及处理；
+		counter0.assertMessagesEquals(msg_from_0);
+		counter1.assertMessagesEquals(msg_from_1);
+		counter0.clear();
+		counter1.clear();
+
+		// 测试对端消息接收的处理的正确性；
+		// 模拟发送给节点 1；
+		MacMessageCodec<SystemMessage> msgCodec1 = server0.getMessageCodec(1);// 取得用于发送给远端节点 1 的编解码器；
+		byte[] messageBytes0 = msgCodec1.encode(msg_from_0);// 编码消息；
+
+		// 发送编码消息；
+		MessageStreamNode node1 = nodesNetwork.getNode(1);
+		BytesUtils.writeInt(messageBytes0.length, node1.requestInboundPipeline(0).getOutputStream());
+		node1.requestInboundPipeline(0).write(messageBytes0);
+
+		// 检测 ServerCommunicationLayer 是否接收到消息；
+		Thread.sleep(100);
+		counter1.assertMessagesEquals(msg_from_0);
 	}
 
 	/**
 	 * 测试一组节点构成网络的消息广播发送和接收；
+	 * 
+	 * @throws InterruptedException
 	 */
 	@Test
-	public void testStreamNodesNetwork() {
+	public void testStreamNodesNetwork() throws InterruptedException {
 		final String realmName = "TEST-NET";
-		final int[] viewProcessIds = { 0, 1 };
-
+		final int[] viewProcessIds = { 0, 1, 2, 3 };
 		final MessageStreamNodeNetwork nodesNetwork = new MessageStreamNodeNetwork();
 
 		ServerCommunicationLayer[] servers = prepareStreamNodes(realmName, viewProcessIds, nodesNetwork);
-		MessageCounter counter1 = prepareMessageCounter(servers[1]);
+		MessageCounter[] counters = prepareMessageCounters(servers);
 
-		for (ServerCommunicationLayer srv : servers) {
-			srv.start();
+		startServers(servers);
+
+		// 生成待测试发送的消息；
+		ConsensusMessage msg_from_0 = createTestMessage(0);
+
+		// 测试直接从底层的通讯队列中写入数据，验证接收处理是否正确；
+		directSend(msg_from_0, servers[0], nodesNetwork, 1, 2, 3);
+
+		Thread.sleep(200);// 稍等待一下，避免接收线程未来得及处理；
+		counters[1].assertMessagesEquals(msg_from_0);
+		counters[1].clear();
+		counters[2].assertMessagesEquals(msg_from_0);
+		counters[2].clear();
+		counters[3].assertMessagesEquals(msg_from_0);
+		counters[3].clear();
+		
+		// 测试完整的广播发送和接收处理，验证整体的正确性；
+		servers[0].send(msg_from_0, viewProcessIds);
+		Thread.sleep(200);
+		assertMessageCounters(counters, msg_from_0);
+	}
+
+	private void directSend(SystemMessage message, ServerCommunicationLayer sender,
+			MessageStreamNodeNetwork nodesNetwork, int... targets) {
+		for (int i = 0; i < targets.length; i++) {
+			MacMessageCodec<SystemMessage> msgCodec = sender.getMessageCodec(targets[i]);// 取得用于发送给远端节点 1 的编解码器；
+			byte[] messageBytes = msgCodec.encode(message);// 编码消息；
+			MessageStreamNode node = nodesNetwork.getNode(targets[i]);
+			BytesUtils.writeInt(messageBytes.length, node.requestInboundPipeline(sender.getId()).getOutputStream());
+			node.requestInboundPipeline(sender.getId()).write(messageBytes);
 		}
-
-		// 生成待发送的测试消息；
-		SystemMessage[] testMessages = prepareMessages(0, 1);
-
-		// 从 server0 发送给 server1 ；
-		broadcast(servers[0], testMessages, viewProcessIds[1]);
-
-		// 验证节点都能完整地收到消息；
-		try {
-			counter1.assertMessagesEquals(testMessages);
-			counter1.clear();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
 	}
 
 	@Test
@@ -259,6 +188,24 @@ public class ServerCommunicationLayerTest {
 			counter.assertMessagesEquals(testMessages);
 			counter.clear();
 		}
+	}
+
+	private void startServers(ServerCommunicationLayer... servers) {
+		for (ServerCommunicationLayer server : servers) {
+			server.start();
+		}
+	}
+
+	private void assertMessageCounters(MessageCounter[] counters, SystemMessage... testMessages) {
+		for (MessageCounter counter : counters) {
+			counter.assertMessagesEquals(testMessages);
+			counter.clear();
+		}
+	}
+
+	private ConsensusMessage createTestMessage(int senderId) {
+		MessageFactory messageFactory = new MessageFactory(senderId);
+		return messageFactory.createPropose(0, 0, RandomUtils.generateRandomBytes(100));
 	}
 
 	private ServerCommunicationLayer[] prepareQueueNodes(String realmName, int[] viewProcessIds,
@@ -355,7 +302,9 @@ public class ServerCommunicationLayerTest {
 			SystemMessage[] actualMessages = messages.toArray(new SystemMessage[messages.size()]);
 			assertEquals(expectedMessages.length, actualMessages.length);
 			for (int i = 0; i < actualMessages.length; i++) {
-				assertEquals(expectedMessages[i], actualMessages[i]);
+				byte[] expected = BinarySerializeUtils.serialize(expectedMessages[i]);
+				byte[] actual = BinarySerializeUtils.serialize(actualMessages[i]);
+				assertArrayEquals(expected, actual);
 			}
 		}
 	}

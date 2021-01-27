@@ -1,36 +1,47 @@
 package bftsmart.communication.server;
 
-import javax.crypto.SecretKey;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.MacMessageCodec;
-import bftsmart.communication.MessageCodec;
 import bftsmart.communication.SystemMessage;
+import bftsmart.communication.SystemMessageCodec;
 import bftsmart.communication.queue.MessageQueue;
 
-public class MessageQueueConnection implements MessageConnection {
+/**
+ * 环回连接 ；
+ * <p>
+ * 
+ * 连接到自身的连接；
+ * 
+ * @author huanghaiquan
+ *
+ */
+public class LoopbackConnection implements MessageConnection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(MessageQueueConnection.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(LoopbackConnection.class);
 
 	protected final String REALM_NAME;
 
-	protected final int remoteId;
+	protected final int PROCESS_ID;
 
 	private MessageQueue messageInQueue;
 
-	public MessageQueueConnection(String realmName, int remoteId, MessageQueue remoteQueue) {
+	private SystemMessageCodec messageCodec;
+
+	public LoopbackConnection(String realmName, int processId, MessageQueue remoteQueue) {
 		this.REALM_NAME = realmName;
 
-		this.remoteId = remoteId;
+		this.PROCESS_ID = processId;
+		this.messageCodec = new SystemMessageCodec();
+		this.messageCodec.setUseMac(false);
 
 		this.messageInQueue = remoteQueue;
 	}
 
 	@Override
 	public int getRemoteId() {
-		return remoteId;
+		return PROCESS_ID;
 	}
 
 	@Override
@@ -40,19 +51,18 @@ public class MessageQueueConnection implements MessageConnection {
 
 	@Override
 	public MacMessageCodec<SystemMessage> getMessageCodec() {
-		return null;
+		return messageCodec;
 	}
-	
+
 	@Override
 	public void start() {
-		LOGGER.info("Start the connection to remote[{}].", remoteId);
+		LOGGER.info("Start the loopback connection!  --[Id={}].",  PROCESS_ID);
 	}
 
 	@Override
 	public void shutdown() {
-		LOGGER.info("Shutdown the connection to remote[{}]!", remoteId);
+		LOGGER.info("Shutdown the loopback connection! [Id={}]!", PROCESS_ID);
 	}
-
 
 	@Override
 	public void clearOutQueue() {
@@ -77,7 +87,7 @@ public class MessageQueueConnection implements MessageConnection {
 
 	@Override
 	public String toString() {
-		return "SelfConnection[RemoteID: " + remoteId + "]";
+		return "Loopback Connection[Id=" + PROCESS_ID + "]";
 	}
 
 }

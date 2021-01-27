@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +18,7 @@ import bftsmart.communication.SystemMessage;
 import bftsmart.communication.SystemMessageCodec;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
+import utils.io.BytesUtils;
 
 /**
  * AbstractStreamConnection 实现了基于流的消息连接对象；
@@ -35,6 +35,11 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 	// 每次重建连接的等待超时时长（毫秒）；
 	private static final long CONNECTION_REBUILD_TIMEOUT = 20 * 1000;
+
+	/**
+	 * 最大消息尺寸 100MB；
+	 */
+	private final int MAX_MESSAGE_SIZE = 100 * 1024 * 1024;
 
 	private final int MAX_RETRY_COUNT;
 
@@ -109,6 +114,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 		senderTread.start();
 		receiverThread.start();
+
+		LOGGER.debug("Start connection! --[Me={}][Remote={}]", ME, REMOTE_ID);
 	}
 
 	@Override
@@ -140,6 +147,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		receiverThread = null;
 
 		closeConnection();
+
+		LOGGER.debug("Shutdown connection! --[Me={}][Remote={}]", ME, REMOTE_ID);
 	}
 
 	@Override
@@ -184,7 +193,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 				// 检查发送队列；
 				task = null;
 				try {
-					task = outQueue.poll(OUT_QUEUE_EMPTY_TIMEOUT, TimeUnit.MILLISECONDS);
+					task = outQueue.take();
 				} catch (InterruptedException ex) {
 				}
 
@@ -255,6 +264,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 				IOException error = null;
 				// if there is a need to reconnect, abort this method
 				try {
+					BytesUtils.writeInt(outputBytes.length, out);
 					out.write(outputBytes);
 					out.flush();
 					messageTask.complete(null);
@@ -381,7 +391,12 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 */
 	private SystemMessage readMessage(DataInputStream in) throws IOException {
 		// 读消息字节；
-		int length = in.readInt();
+//		int length = in.readInt();
+		int length = BytesUtils.readInt(in);
+		if (length > MAX_MESSAGE_SIZE) {
+			LOGGER.error("Illegal message size! --[MessageSize={}][Me={}]", length, ME);
+			throw new IOException("Illegal message size[" + length + "]!");
+		}
 		byte[] encodedMessageBytes = new byte[length];
 		int read = 0;
 		do {
@@ -413,14 +428,19 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	protected abstract void closeConnection();
 
 	/**
-	 * 返回网络输出流； 如果连接未建立或者连接无效，则返回 null；
+	 * 返回用于发送数据的输出流；
+	 * <p>
+	 *  如果连接未建立或者连接无效，则返回 null；
 	 * 
 	 * @return
 	 */
 	protected abstract DataOutputStream getOutputStream();
 
 	/**
-	 * 返回网络输入流；如果连接未建立或者连接无效，则返回 null；
+	 * 返回用于接收数据的输入流；
+	 * <p>
+	 * 
+	 * 如果连接未建立或者连接无效，则返回 null；
 	 * 
 	 * @return
 	 */

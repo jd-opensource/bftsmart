@@ -26,8 +26,16 @@ import bftsmart.communication.queue.MessageQueue.SystemMessageType;
  */
 public interface ServerCommunicationLayer {
 	
-	MacMessageCodec<SystemMessage> getMessageCodec(int id);
-	
+	int getId();
+
+	/**
+	 * 返回指定远端节点关联的消息编解码器；
+	 * 
+	 * @param remoteId
+	 * @return
+	 */
+	MacMessageCodec<SystemMessage> getMessageCodec(int remoteId);
+
 	default MacKey getMacKey(int id) {
 		MacMessageCodec<SystemMessage> codec = getMessageCodec(id);
 		return codec == null ? null : codec.getMacKey();
@@ -47,6 +55,31 @@ public interface ServerCommunicationLayer {
 	 */
 	default void send(int[] targets, SystemMessage sm) {
 		send(targets, sm, true);
+	}
+
+	/**
+	 * 发送消息；
+	 * <p>
+	 * 如果发送失败，会执行重试策略；
+	 * 
+	 * @param targets
+	 * @param sm
+	 * @param useMAC
+	 */
+	default void send(SystemMessage sm, int... targets) {
+		send(targets, sm, true);
+	}
+
+	/**
+	 * 发送消息；
+	 * <p>
+	 * 
+	 * @param sm      消息；
+	 * @param retry   是否重试；
+	 * @param targets 接收目标；
+	 */
+	default void send(SystemMessage sm, boolean retry, int... targets) {
+		send(targets, sm, retry);
 	}
 
 	/**

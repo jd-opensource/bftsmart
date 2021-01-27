@@ -78,7 +78,12 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 			conn.start();
 		}
 	}
-	
+
+	@Override
+	public int getId() {
+		return me;
+	}
+
 	@Override
 	public MacMessageCodec<SystemMessage> getMessageCodec(int id) {
 		MessageConnection conn = connections.get(id);
@@ -151,7 +156,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 			}
 
 			if (remoteId == me) {
-				connection = new MessageQueueConnection(realmName, remoteId, messageInQueue);
+				connection = connectLocal(me);
 			} else if (isOutboundToRemote(remoteId)) {
 				// 主动向外连接到远程节点；
 				connection = connectRemote(remoteId);
@@ -194,23 +199,22 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		if (!doWork) {
 			throw new CommunicationException("ServerCommunicationLayer has stopped!");
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		AsyncFuture<SystemMessage, Void>[] futures = new AsyncFuture[targets.length];
 		int i = 0;
 		for (int pid : targets) {
 			try {
 				// 对包括对当前节点的连接都统一抽象为 MessageConnection;
-				futures[i] = ensureConnection(pid).send(sm, retrySending,
-						new CompletedCallback<SystemMessage, Void>() {
-							@Override
-							public void onCompleted(SystemMessage source, Void result, Throwable error) {
-								if (error != null) {
-									LOGGER.error("Fail to send message[" + sm.getClass().getName()
-											+ "] to target proccess[" + pid + "]!");
-								}
-							}
-						});
+				futures[i] = ensureConnection(pid).send(sm, retrySending, new CompletedCallback<SystemMessage, Void>() {
+					@Override
+					public void onCompleted(SystemMessage source, Void result, Throwable error) {
+						if (error != null) {
+							LOGGER.error("Fail to send message[" + sm.getClass().getName() + "] to target proccess["
+									+ pid + "]!");
+						}
+					}
+				});
 			} catch (Exception ex) {
 				LOGGER.error("Failed to send messagea to target[" + pid + "]! --" + ex.getMessage(), ex);
 			}
@@ -260,7 +264,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		while (doWork) {
 			SystemMessage message = null;
 			try {
-				message = messageInQueue.poll(messageType, 200, TimeUnit.MILLISECONDS);
+				message = messageInQueue.take(messageType);
 			} catch (InterruptedException e) {
 				continue;
 			}
@@ -294,9 +298,9 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		}
 
 		doWork = true;
-		
+
 		initConnections();
-		
+
 		startCommunicationServer();
 
 		startMessageProcessing();
@@ -332,6 +336,19 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 	 * 启动通讯服务器；
 	 */
 	protected abstract void closeCommunicationServer();
+
+	/**
+	 * 创建与当前字节自身的连接；
+	 * <p>
+	 * 
+	 * 默认实现：基于本地队列进行消息直接投递；
+	 * 
+	 * @param currentId
+	 * @return
+	 */
+	protected MessageConnection connectLocal(int currentId) {
+		return new LoopbackConnection(realmName, currentId, messageInQueue);
+	}
 
 	/**
 	 * 尝试连接远端节点；

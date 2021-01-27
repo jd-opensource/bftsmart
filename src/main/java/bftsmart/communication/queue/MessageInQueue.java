@@ -53,4 +53,16 @@ public class MessageInQueue implements MessageQueue {
         }
         return null;
     }
+    
+    @Override
+    public SystemMessage take(SystemMessageType type) throws InterruptedException {
+    	if (type == SystemMessageType.CONSENSUS) {
+    		return consMsgQueue.take();
+    	} else if (type == SystemMessageType.HEART) {
+    		return heartMsgQueue.take();
+    	} else if (type == SystemMessageType.LC) {
+    		return lcMsgQueue.take();
+    	}
+    	return null;
+    }
 }

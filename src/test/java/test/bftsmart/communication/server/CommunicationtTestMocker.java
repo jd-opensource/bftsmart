@@ -75,6 +75,7 @@ public class CommunicationtTestMocker {
 		
 		conf = Mockito.spy(conf);
 		
+		when(conf.getProcessId()).thenReturn(currentId);
 		when(conf.getInQueueSize()).thenReturn(100000);
 		when(conf.getOutQueueSize()).thenReturn(100000);
 		

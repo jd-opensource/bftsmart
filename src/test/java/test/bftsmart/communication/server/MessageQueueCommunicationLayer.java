@@ -3,7 +3,7 @@ package test.bftsmart.communication.server;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.server.AbstractServersCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
-import bftsmart.communication.server.MessageQueueConnection;
+import bftsmart.communication.server.LoopbackConnection;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
@@ -33,13 +33,13 @@ import bftsmart.reconfiguration.ViewTopology;
 		@Override
 		protected MessageConnection connectRemote(int remoteId) {
 			MessageQueue queue = messageNetwork.getQueueOfNode(remoteId);
-			return new MessageQueueConnection(realmName, remoteId, queue);
+			return new LoopbackConnection(realmName, remoteId, queue);
 		}
 
 		@Override
 		protected MessageConnection acceptRemote(int remoteId) {
 			MessageQueue queue = messageNetwork.getQueueOfNode(remoteId);
-			return new MessageQueueConnection(realmName, remoteId, queue);
+			return new LoopbackConnection(realmName, remoteId, queue);
 		}
 
 	}

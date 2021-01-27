@@ -31,10 +31,10 @@ public class SystemMessageCodec implements MacMessageCodec<SystemMessage> {
 	}
 
 	public void setMacKey(MacKey macKey) {
-		if (macKey.getMacLength() > 255 || macKey.getMacLength() < 0) {
+		this.macKey = macKey;
+		if (macKey != null && (macKey.getMacLength() > 255 || macKey.getMacLength() < 0)) {
 			throw new IllegalArgumentException("The MAC Length of specified MacKey is out of range[0 - 255]!");
 		}
-		this.macKey = macKey;
 	}
 
 	public void setUseMac(boolean useMac) {

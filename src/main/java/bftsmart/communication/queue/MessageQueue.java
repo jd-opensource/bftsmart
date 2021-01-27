@@ -40,6 +40,14 @@ public interface MessageQueue {
 	 */
 	SystemMessage poll(SystemMessageType type, long timeout, TimeUnit unit) throws InterruptedException;
 
+	/**
+	 * 从队列中获取指定类型消息； 如果没有消息，则堵塞等待，直到有消息返回；
+	 * 
+	 * @param type    消息类型
+	 * @return
+	 */
+	SystemMessage take(SystemMessageType type) throws InterruptedException;
+
 	public static enum QueueDirection {
 		/**
 		 * Socket消息接收队列
@@ -64,27 +72,23 @@ public interface MessageQueue {
 		 * 领导者改变相关消息
 		 */
 		LC;
-		
+
 		/**
-	     * 返回消息类型枚举
-	     *
-	     * @param sm
-	     *         消息
-	     * @return
-	     *         枚举类型
-	     */
-	    public static MessageQueue.SystemMessageType typeOf(SystemMessage sm) {
-	        if (sm instanceof ConsensusMessage) {
-	            return MessageQueue.SystemMessageType.CONSENSUS;
-	        } else if (sm instanceof HeartBeatMessage 
-	        		|| sm instanceof LeaderRequestMessage 
-	        		|| sm instanceof LeaderResponseMessage
-	        		|| sm instanceof LeaderStatusRequestMessage
-	        		|| sm instanceof LeaderStatusResponseMessage) {
-	            return MessageQueue.SystemMessageType.HEART;
-	        } else {
-	            return MessageQueue.SystemMessageType.LC;
-	        }
-	    }
+		 * 返回消息类型枚举
+		 *
+		 * @param sm 消息
+		 * @return 枚举类型
+		 */
+		public static MessageQueue.SystemMessageType typeOf(SystemMessage sm) {
+			if (sm instanceof ConsensusMessage) {
+				return MessageQueue.SystemMessageType.CONSENSUS;
+			} else if (sm instanceof HeartBeatMessage || sm instanceof LeaderRequestMessage
+					|| sm instanceof LeaderResponseMessage || sm instanceof LeaderStatusRequestMessage
+					|| sm instanceof LeaderStatusResponseMessage) {
+				return MessageQueue.SystemMessageType.HEART;
+			} else {
+				return MessageQueue.SystemMessageType.LC;
+			}
+		}
 	}
 }
