@@ -558,6 +558,26 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		}
 	}
 	
+
+	private void sendDHKey(DataOutputStream socketOutStream, PrivateKey RSAprivKey, BigInteger DHPrivKey)
+			throws IOException {
+		// Create DH public key
+		BigInteger myDHPubKey = viewTopology.getStaticConf().getDHG().modPow(DHPrivKey,
+				viewTopology.getStaticConf().getDHP());
+
+		// turn it into a byte array
+		byte[] myDHPubKeyBytes = myDHPubKey.toByteArray();
+
+		byte[] signature = TOMUtil.signMessage(RSAprivKey, myDHPubKeyBytes);
+
+		// send my DH public key and signature
+		socketOutStream.writeInt(myDHPubKeyBytes.length);
+		socketOutStream.write(myDHPubKeyBytes);
+
+		socketOutStream.writeInt(signature.length);
+		socketOutStream.write(signature);
+	}
+	
 	private void resetMAC() {
 		this.authKey = null;
 		this.macSend = null;
@@ -624,25 +644,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 		BigInteger remoteDHPubKey = new BigInteger(remoteDHPubKeyBytes);
 		return remoteDHPubKey;
-	}
-
-	private void sendDHKey(DataOutputStream socketOutStream, PrivateKey RSAprivKey, BigInteger DHPrivKey)
-			throws IOException {
-		// Create DH public key
-		BigInteger myDHPubKey = viewTopology.getStaticConf().getDHG().modPow(DHPrivKey,
-				viewTopology.getStaticConf().getDHP());
-
-		// turn it into a byte array
-		byte[] myDHPubKeyBytes = myDHPubKey.toByteArray();
-
-		byte[] signature = TOMUtil.signMessage(RSAprivKey, myDHPubKeyBytes);
-
-		// send my DH public key and signature
-		socketOutStream.writeInt(myDHPubKeyBytes.length);
-		socketOutStream.write(myDHPubKeyBytes);
-
-		socketOutStream.writeInt(signature.length);
-		socketOutStream.write(signature);
 	}
 
 	/**

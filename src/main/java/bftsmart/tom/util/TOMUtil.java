@@ -104,22 +104,16 @@ public class TOMUtil {
 	 * @return the signature
 	 */
 	public static byte[] signMessage(PrivateKey key, byte[] message) {
-
-		byte[] result = null;
 		try {
-
 			Signature signatureEngine = Signature.getInstance("SHA1withRSA");
-
 			signatureEngine.initSign(key);
-
 			signatureEngine.update(message);
-
-			result = signatureEngine.sign();
-		} catch (Exception e) {
-			e.printStackTrace();
+			
+			byte[] result = signatureEngine.sign();
+			return result;
+		} catch (InvalidKeyException | NoSuchAlgorithmException | SignatureException e) {
+			throw new IllegalStateException(e.getMessage(), e);
 		}
-
-		return result;
 	}
 
 	/**
