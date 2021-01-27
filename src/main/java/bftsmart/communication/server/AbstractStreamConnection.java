@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import javax.crypto.SecretKey;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +13,7 @@ import bftsmart.communication.DHPubKeyCertificate;
 import bftsmart.communication.IllegalMessageException;
 import bftsmart.communication.MacKey;
 import bftsmart.communication.MacKeyGenerator;
+import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.MessageAuthenticationException;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.SystemMessageCodec;
@@ -118,9 +117,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	}
 
 	@Override
-	public SecretKey getSecretKey() {
-		MacKey macKey = messageCodec.getMacKey();
-		return macKey == null ? null : macKey.getSecretKey();
+	public MacMessageCodec<SystemMessage> getMessageCodec() {
+		return messageCodec;
 	}
 
 	/**

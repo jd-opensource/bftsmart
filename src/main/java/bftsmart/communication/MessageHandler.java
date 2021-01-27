@@ -18,18 +18,12 @@ package bftsmart.communication;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.server.MessageConnection;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
@@ -105,15 +99,10 @@ public class MessageHandler {
 				// byte[] hash = tomLayer.computeHash(data);
 
 				byte[] myMAC = null;
-				SecretKey key = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
-				try {
-					Mac mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
-					mac.init(key);
-					myMAC = mac.doFinal(data);
-				} catch (/* IllegalBlockSizeException | BadPaddingException | */ InvalidKeyException
-						| NoSuchAlgorithmException ex) {
-					LOGGER.error("Error occurred in node[" + tomLayer.getCurrentProcessId()
-							+ "] while initializing the MAC with sender[" + consMsg.getSender() + "]!", ex);
+				MacMessageCodec<SystemMessage> msgCodec = tomLayer.getCommunication().getServersCommunication().getMessageCodec(consMsg.getSender());
+				MacKey macKey = msgCodec.getMacKey();
+				if (macKey != null) {
+					myMAC = macKey.generateMac(data);
 				}
 
 				if (recvMAC != null && myMAC != null && Arrays.equals(recvMAC, myMAC))

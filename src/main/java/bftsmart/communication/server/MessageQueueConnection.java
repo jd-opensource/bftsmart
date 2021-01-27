@@ -5,6 +5,8 @@ import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.MacMessageCodec;
+import bftsmart.communication.MessageCodec;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 
@@ -37,7 +39,7 @@ public class MessageQueueConnection implements MessageConnection {
 	}
 
 	@Override
-	public SecretKey getSecretKey() {
+	public MacMessageCodec<SystemMessage> getMessageCodec() {
 		return null;
 	}
 	

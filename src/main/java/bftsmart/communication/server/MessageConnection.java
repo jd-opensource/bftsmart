@@ -2,25 +2,40 @@ package bftsmart.communication.server;
 
 import javax.crypto.SecretKey;
 
+import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.SystemMessage;
 
+/**
+ * 消息连接；
+ * 
+ * @author huanghaiquan
+ *
+ */
 public interface MessageConnection {
 
-//	public static final String MAC_ALGORITHM = "HmacMD5";
-//	public static final String SECRET_KEY_ALGORITHM = "PBEWithMD5AndDES";
-	
-	public static final String MAC_ALGORITHM = "HmacSHA256";
-
-	public static final String SECRET_KEY_ALGORITHM = "PBEWithHmacSHA256AndAES_128";
-
-	SecretKey getSecretKey();
-
+	/**
+	 * 连接的远端节点 ID；
+	 * 
+	 * @return
+	 */
 	int getRemoteId();
 
+	/**
+	 * 连接是否还在存活；
+	 * 
+	 * @return
+	 */
 	boolean isAlived();
 
 	/**
+	 * 当前连接关联的消息编解码器；
 	 * 
+	 * @return
+	 */
+	MacMessageCodec<SystemMessage> getMessageCodec();
+
+	/**
+	 * 开始连接的数据处理；
 	 */
 	void start();
 

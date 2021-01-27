@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.CommunicationException;
+import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.queue.MessageQueue.SystemMessageType;
@@ -77,14 +78,13 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 			conn.start();
 		}
 	}
-
-	public SecretKey getSecretKey(int id) {
-		if (id == me)
-			return selfPwd;
-		else if (connections.get(id) != null) {
-			return connections.get(id).getSecretKey();
+	
+	@Override
+	public MacMessageCodec<SystemMessage> getMessageCodec(int id) {
+		MessageConnection conn = connections.get(id);
+		if (conn != null) {
+			return conn.getMessageCodec();
 		}
-
 		return null;
 	}
 

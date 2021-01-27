@@ -15,8 +15,8 @@ limitations under the License.
 */
 package bftsmart.communication.server;
 
-import javax.crypto.SecretKey;
-
+import bftsmart.communication.MacKey;
+import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.queue.MessageQueue.SystemMessageType;
 
@@ -25,8 +25,13 @@ import bftsmart.communication.queue.MessageQueue.SystemMessageType;
  *
  */
 public interface ServerCommunicationLayer {
-
-	SecretKey getSecretKey(int id);
+	
+	MacMessageCodec<SystemMessage> getMessageCodec(int id);
+	
+	default MacKey getMacKey(int id) {
+		MacMessageCodec<SystemMessage> codec = getMessageCodec(id);
+		return codec == null ? null : codec.getMacKey();
+	}
 
 	/**
 	 * 根据最新的拓扑更新连接；

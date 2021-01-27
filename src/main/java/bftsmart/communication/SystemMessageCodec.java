@@ -4,7 +4,7 @@ import utils.io.BytesUtils;
 import utils.io.NumberMask;
 import utils.serialize.binary.BinarySerializeUtils;
 
-public class SystemMessageCodec implements MessageCodec<SystemMessage> {
+public class SystemMessageCodec implements MacMessageCodec<SystemMessage> {
 
 	private static final int MESSAGE_HEADER_SIZE = 4;
 
@@ -25,6 +25,7 @@ public class SystemMessageCodec implements MessageCodec<SystemMessage> {
 		return useMac;
 	}
 
+	@Override
 	public MacKey getMacKey() {
 		return macKey;
 	}

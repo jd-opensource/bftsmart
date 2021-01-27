@@ -18,8 +18,6 @@ package bftsmart.consensus.roles;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,14 +25,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.MacKey;
 import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.communication.server.MessageConnection;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.app.BatchAppResult;
@@ -72,7 +67,7 @@ public final class Acceptor {
 	private TOMLayer tomLayer; // TOM layer
 	private ReplicaTopology topology;
 	// private Cipher cipher;
-	private Mac mac;
+//	private Mac mac;
 
 	private LinkedBlockingQueue<ConsensusMessage> consensusMessageQueue = new LinkedBlockingQueue<>();
 	private volatile boolean doWork = false;
@@ -90,13 +85,13 @@ public final class Acceptor {
 		this.me = topology.getStaticConf().getProcessId();
 		this.factory = factory;
 		this.topology = topology;
-		try {
-			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
-			this.mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
-		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
-			ex.printStackTrace();
-		}
+//		try {
+//			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+//			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
+//			this.mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
+//		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
+//			ex.printStackTrace();
+//		}
 	}
 
 	public DefaultRecoverable getDefaultExecutor() {
@@ -561,10 +556,14 @@ public final class Acceptor {
 			for (int id : processes) {
 				int retrySize = 0;
 				try {
-					SecretKey key = null;
+//					SecretKey key = null;
+					MacKey macKey = null;
 					while (retrySize < MAX_RETRY_SIZE) {
-						key = communication.getServersCommunication().getSecretKey(id);
-						if (key == null) {
+
+//						key = communication.getServersCommunication().getSecretKey(id);
+						macKey = tomLayer.getCommunication().getServersCommunication()
+								.getMacKey(id);
+						if (macKey == null) {
 							LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with {} . Retrying.",
 									id);
 							retrySize++;
@@ -573,9 +572,10 @@ public final class Acceptor {
 							break;
 						}
 					}
-					if (key != null) {
-						this.mac.init(key);
-						macVector.put(id, this.mac.doFinal(data));
+					if (macKey != null) {
+//						this.mac.init(key);
+						byte[] macBytes = macKey.generateMac(data);
+						macVector.put(id, macBytes);
 					}
 //
 //                    do {
@@ -593,10 +593,6 @@ public final class Acceptor {
 //                    this.mac.init(key);
 //                    macVector.put(id, this.mac.doFinal(data));
 				} catch (InterruptedException ex) {
-					ex.printStackTrace();
-				} catch (InvalidKeyException ex) {
-
-					LOGGER.error("Problem with secret key from {}", id);
 					ex.printStackTrace();
 				}
 			}
@@ -743,8 +739,7 @@ public final class Acceptor {
 			// consensus node hash inconsistent
 			if (((epoch.countAcceptSetted() == topology.getCurrentViewN())
 					&& (epoch.countAccept(value) < topology.getQuorum() + 1))
-					|| ((epoch.countAcceptSetted() > 2f)
-							&& (epoch.countAccept(value) < topology.getCurrentViewF() + 1)
+					|| ((epoch.countAcceptSetted() > 2f) && (epoch.countAccept(value) < topology.getCurrentViewF() + 1)
 							&& (epoch.maxSameValueCount() < topology.getCurrentViewF() + 1))) {
 
 				LOGGER.error(

@@ -189,9 +189,13 @@ public class ServerCommunicationLayerTest {
 		final int[] viewProcessIds = { 0, 1 };
 		final MessageStreamNodeNetwork nodesNetwork = new MessageStreamNodeNetwork();
 
-		ServerCommunicationLayer node0 = createStreamNode(realmName, 0, viewProcessIds, nodesNetwork);
+		ServerCommunicationLayer server0 = createStreamNode(realmName, 0, viewProcessIds, nodesNetwork);
+		MessageCounter counter1 = prepareMessageCounter(server0);
 		
-
+		MessageStreamNode node0 = nodesNetwork.getNode(0);
+		
+		
+		
 	}
 
 	/**

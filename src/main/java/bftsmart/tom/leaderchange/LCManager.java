@@ -18,8 +18,6 @@ package bftsmart.tom.leaderchange;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SignedObject;
 import java.util.Arrays;
@@ -31,13 +29,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.server.MessageConnection;
+import bftsmart.communication.MacKey;
 import bftsmart.consensus.TimestampValuePair;
 import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -84,7 +79,7 @@ public class LCManager {
 	private TOMLayer tomLayer;
 
 	// private Cipher cipher;
-	private Mac mac;
+//	private Mac mac;
 
 	/**
 	 * Constructor
@@ -106,13 +101,13 @@ public class LCManager {
 		this.SVController = SVController;
 		this.md = md;
 
-		try {
-			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
-			this.mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
-		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
-			ex.printStackTrace();
-		}
+//		try {
+//			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+//			// this.cipher = Cipher.getInstance(ServerConnection.MAC_ALGORITHM);
+//			this.mac = Mac.getInstance(MessageConnection.MAC_ALGORITHM);
+//		} catch (NoSuchAlgorithmException /* | NoSuchPaddingException */ ex) {
+//			ex.printStackTrace();
+//		}
 
 	}
 
@@ -858,11 +853,12 @@ public class LCManager {
 	 *         Secure Distributed Programming"
 	 */
 	public boolean sound(HashSet<CollectData> collects) {
+		if (collects == null) {
+			return false;
+		}
 
 		LOGGER.info("(LCManager.sound) I collected the context from {} replicas", collects.size());
 
-		if (collects == null)
-			return false;
 
 		HashSet<Integer> timestamps = new HashSet<Integer>();
 		HashSet<byte[]> values = new HashSet<byte[]>();
@@ -1346,7 +1342,6 @@ public class LCManager {
 		if (tomLayer.controller.getLastView() != null)
 			certificateLastView = (2 * tomLayer.controller.getLastView().getF()) + 1;
 		int countValid = 0;
-		SecretKey secretKey = null;
 		PublicKey pubRSAKey = null;
 
 		HashSet<Integer> alreadyCounted = new HashSet<>(); // stores replica IDs that were already counted
@@ -1376,15 +1371,10 @@ public class LCManager {
 
 				byte[] myMAC = null;
 
-				secretKey = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
-
-				if (secretKey != null) {
-					try {
-						this.mac.init(secretKey);
-						myMAC = this.mac.doFinal(data);
-					} catch (InvalidKeyException ex) {
-						ex.printStackTrace();
-					}
+//				SecretKey secretKey = tomLayer.getCommunication().getServersCommunication().getSecretKey(consMsg.getSender());
+				MacKey macKey = tomLayer.getCommunication().getServersCommunication().getMacKey(consMsg.getSender());
+				if (macKey != null) {
+					myMAC = macKey.generateMac(data);
 				}
 
 				// 不能判断mac, 对于部分节点宕机，或者重启的情况mac是会为空的，这样证据就验证失败了
