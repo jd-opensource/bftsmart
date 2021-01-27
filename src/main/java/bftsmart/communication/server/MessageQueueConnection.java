@@ -57,7 +57,7 @@ public class MessageQueueConnection implements MessageConnection {
 	}
 
 	@Override
-	public AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean useMAC, boolean retrySending,
+	public AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean retrySending,
 			CompletedCallback<SystemMessage, Void> callback) {
 		message.authenticated = true;
 		MessageQueue.SystemMessageType msgType = MessageQueue.SystemMessageType.typeOf(message);

@@ -190,6 +190,11 @@ public class MacKeyGenerator {
 		public SecretKey getSecretKey() {
 			return key;
 		}
+		
+		@Override
+		public int getMacLength() {
+			return macGen.getMacLength();
+		}
 
 		@Override
 		public byte[] generateMac(byte[] message) {
@@ -207,6 +212,15 @@ public class MacKeyGenerator {
 			return Arrays.areEqual(expectedMac, mac);
 		}
 
+		@Override
+		public boolean authenticate(byte[] message, int messageOffset, int messageSize, byte[] mac, int macOffset) {
+			byte[] expectedMac;
+			synchronized (mutxAuth) {
+				macAuth.update(message, messageOffset, messageSize);
+				expectedMac = macAuth.doFinal();
+			}
+			return BytesUtils.equals(expectedMac, 0, mac, macOffset, expectedMac.length);
+		}
 	}
 
 	private static class DHPubKeyCertEntry implements DHPubKeyCertificate {

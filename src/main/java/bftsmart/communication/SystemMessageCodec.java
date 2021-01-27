@@ -1,7 +1,5 @@
 package bftsmart.communication;
 
-import javax.crypto.Mac;
-
 import utils.io.BytesUtils;
 import utils.io.NumberMask;
 import utils.serialize.binary.BinarySerializeUtils;
@@ -9,15 +7,37 @@ import utils.serialize.binary.BinarySerializeUtils;
 public class SystemMessageCodec implements MessageCodec<SystemMessage> {
 
 	private static final int MESSAGE_HEADER_SIZE = 4;
-	
-	private static final int MAC_HEADER_SIZE = 2;
 
-	private boolean USE_MAC;
-	private volatile Mac macSend;
-	private volatile Mac macReceive;
-	
-	public SystemMessageCodec(boolean useMAC, String secretKeyString) {
-		// TODO Auto-generated constructor stub
+	private static final int MAC_HEADER_SIZE = 1;
+
+	private boolean useMac;
+	private volatile MacKey macKey;
+
+	public SystemMessageCodec() {
+	}
+
+	public SystemMessageCodec(boolean useMAC, MacKey macKey) {
+		setUseMac(useMAC);
+		setMacKey(macKey);
+	}
+
+	public boolean isUseMac() {
+		return useMac;
+	}
+
+	public MacKey getMacKey() {
+		return macKey;
+	}
+
+	public void setMacKey(MacKey macKey) {
+		if (macKey.getMacLength() > 255 || macKey.getMacLength() < 0) {
+			throw new IllegalArgumentException("The MAC Length of specified MacKey is out of range[0 - 255]!");
+		}
+		this.macKey = macKey;
+	}
+
+	public void setUseMac(boolean useMac) {
+		this.useMac = useMac;
 	}
 
 	/**
@@ -35,59 +55,62 @@ public class SystemMessageCodec implements MessageCodec<SystemMessage> {
 		byte[] messageBytes = BinarySerializeUtils.serialize(message);
 
 		byte[] macBytes = BytesUtils.EMPTY_BYTES;
-		if (USE_MAC) {
-			macBytes = macSend.doFinal(messageBytes);
+		if (useMac) {
+			macBytes = macKey.generateMac(messageBytes);
 		}
-		final int MESSAGE_SIZE = messageBytes.length;
-		final int MAC_SIZE = macBytes.length;
+		int messageSize = messageBytes.length;
+		byte macSize = (byte) macBytes.length;
 
 		// do an extra copy of the data to be sent, but on a single out stream write
-		byte[] outputBytes = new byte[MESSAGE_HEADER_SIZE + MESSAGE_SIZE + MAC_HEADER_SIZE + MAC_SIZE];
+		byte[] outputBytes = new byte[MESSAGE_HEADER_SIZE + messageSize + MAC_HEADER_SIZE + macSize];
 
 		// write message;
-		BytesUtils.toBytes_BigEndian(MESSAGE_SIZE, outputBytes, 0);
-		System.arraycopy(messageBytes, 0, outputBytes, MESSAGE_HEADER_SIZE, MESSAGE_SIZE);
+		BytesUtils.toBytes_BigEndian(messageSize, outputBytes, 0);
+		System.arraycopy(messageBytes, 0, outputBytes, MESSAGE_HEADER_SIZE, messageSize);
 
 		// write mac;
-		BytesUtils.toBytes_BigEndian((short) macBytes.length, outputBytes, MESSAGE_HEADER_SIZE + MESSAGE_SIZE);
+		outputBytes[MESSAGE_HEADER_SIZE + messageSize] = macSize;
 		if (macBytes.length > 0) {
-			System.arraycopy(macBytes, 0, outputBytes, MESSAGE_HEADER_SIZE + MESSAGE_SIZE + MAC_HEADER_SIZE, MAC_SIZE);
+			System.arraycopy(macBytes, 0, outputBytes, MESSAGE_HEADER_SIZE + messageSize + MAC_HEADER_SIZE, macSize);
 		}
 		return outputBytes;
 	}
 
 	@Override
-	public synchronized SystemMessage decode(byte[] bytes)
+	public synchronized SystemMessage decode(byte[] encodedMessageBytes)
 			throws MessageAuthenticationException, IllegalMessageException {
-		int messageSize = BytesUtils.toInt(bytes);
+		int messageSize = BytesUtils.toInt(encodedMessageBytes);
 		if (messageSize < 0) {
-			throw new IllegalMessageException("Illgal message bytes! Wrong header!");
+			throw new IllegalMessageException("Illgal encoded message bytes! Wrong message header!");
 		}
-		
-		int macSize = 0xFFFF & BytesUtils.toShort(bytes, MESSAGE_HEADER_SIZE + messageSize);
+		if (encodedMessageBytes.length < MESSAGE_HEADER_SIZE + messageSize + MAC_HEADER_SIZE) {
+			throw new IllegalMessageException("Too short length of encoded message bytes!");
+		}
+
+		int macSize = 0xFF & encodedMessageBytes[MESSAGE_HEADER_SIZE + messageSize];
 		if (macSize < 0) {
-			throw new IllegalMessageException("Illgal message bytes! Wrong MAC header!");
+			throw new IllegalMessageException("Illgal encoded message bytes! Wrong mac header!");
 		}
 
 		// read mac;
-		if (USE_MAC) {
+		if (useMac) {
 			if (macSize == 0) {
-				throw new MessageAuthenticationException("MAC is missing in the message!");
+				throw new MessageAuthenticationException("The MAC is missing in the received message!");
+			}
+			if (encodedMessageBytes.length < MESSAGE_HEADER_SIZE + messageSize + MAC_HEADER_SIZE + macSize) {
+				throw new IllegalMessageException("Too short length of encoded message bytes!");
 			}
 			// 本地生成 MAC，验证消息；
-			macReceive.update(bytes, MESSAGE_HEADER_SIZE, messageSize);
-			byte[] expectedMacBytes = macReceive.doFinal();
-
-			boolean macMatch = BytesUtils.equals(expectedMacBytes, 0, bytes, MESSAGE_HEADER_SIZE + messageSize + MAC_HEADER_SIZE, macSize);
+			boolean macMatch = macKey.authenticate(encodedMessageBytes, MESSAGE_HEADER_SIZE, messageSize,
+					encodedMessageBytes, MESSAGE_HEADER_SIZE + messageSize + MAC_HEADER_SIZE);
 			if (!macMatch) {
 				throw new MessageAuthenticationException("Message authentication failed!");
 			}
 		}
 
-		SystemMessage sm = BinarySerializeUtils.deserialize(bytes, MESSAGE_HEADER_SIZE, messageSize);
-		sm.authenticated = USE_MAC;
+		SystemMessage sm = BinarySerializeUtils.deserialize(encodedMessageBytes, MESSAGE_HEADER_SIZE, messageSize);
+		sm.authenticated = useMac;
 		return sm;
 	}
-
 
 }

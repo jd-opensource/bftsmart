@@ -1,12 +1,8 @@
 package bftsmart.communication.server;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -16,14 +12,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.DHPubKeyCertificate;
-import bftsmart.communication.MacKeyGenerator;
+import bftsmart.communication.IllegalMessageException;
 import bftsmart.communication.MacKey;
+import bftsmart.communication.MacKeyGenerator;
+import bftsmart.communication.MessageAuthenticationException;
 import bftsmart.communication.SystemMessage;
+import bftsmart.communication.SystemMessageCodec;
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
-import utils.codec.Base58Utils;
-import utils.io.BytesUtils;
-import utils.io.RuntimeIOException;
 
 /**
  * AbstractStreamConnection 实现了基于流的消息连接对象；
@@ -46,14 +42,14 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	protected final String REALM_NAME;
 	protected final int ME;
 	protected final int REMOTE_ID;
-	
+
 	private final MacKeyGenerator MAC_KEY_GEN;
 
 	protected ViewTopology viewTopology;
 	private MessageQueue messageInQueue;
 	private LinkedBlockingQueue<MessageSendingTask> outQueue;
 
-	private volatile MacKey macKey;
+	private SystemMessageCodec messageCodec;
 
 	private volatile boolean doWork = false;
 
@@ -71,6 +67,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 				viewTopology.getStaticConf().getRSAPrivateKey(), viewTopology.getStaticConf().getDHG(),
 				viewTopology.getStaticConf().getDHP());
 
+		this.messageCodec = new SystemMessageCodec();
+		this.messageCodec.setUseMac(viewTopology.getStaticConf().isUseMACs());
 		this.viewTopology = viewTopology;
 		this.messageInQueue = messageInQueue;
 
@@ -121,6 +119,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 	@Override
 	public SecretKey getSecretKey() {
+		MacKey macKey = messageCodec.getMacKey();
 		return macKey == null ? null : macKey.getSecretKey();
 	}
 
@@ -162,9 +161,9 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * @throws InterruptedException
 	 */
 	@Override
-	public AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean useMAC, boolean retrySending,
+	public AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean retrySending,
 			CompletedCallback<SystemMessage, Void> callback) {
-		MessageSendingTask task = new MessageSendingTask(message, useMAC, retrySending);
+		MessageSendingTask task = new MessageSendingTask(message, retrySending);
 		task.setCallback(callback);
 
 		if (!outQueue.offer(task)) {
@@ -175,18 +174,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		}
 
 		return task;
-	}
-
-	private byte[] serializeMessage(SystemMessage message) {
-		// 首先判断消息类型
-		ByteArrayOutputStream bOut = new ByteArrayOutputStream(248);
-		try {
-			new ObjectOutputStream(bOut).writeObject(message);
-		} catch (IOException ex) {
-			throw new RuntimeIOException(ex.getMessage(), ex);
-		}
-
-		return bOut.toByteArray();
 	}
 
 	/**
@@ -221,7 +208,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * reconnection is done
 	 */
 	private final void processSendingTask(MessageSendingTask messageTask) {
-		byte[] outputBytes = generateOutputBytes(messageTask.getSource(), messageTask.USE_MAC);
+//		byte[] outputBytes = generateOutputBytes(messageTask.getSource(), messageTask.USE_MAC);
+		byte[] outputBytes = messageCodec.encode(messageTask.getSource());
 
 		int retryCount = 0;
 		DataOutputStream out = getOutputStream();
@@ -316,40 +304,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
 	}
 
-	private byte[] generateOutputBytes(SystemMessage message, boolean taskUseMAC) {
-		byte[] messageBytes = serializeMessage(message);
-
-		byte[] macBytes = BytesUtils.EMPTY_BYTES;
-		if (taskUseMAC && viewTopology.getStaticConf().isUseMACs()) {
-			macBytes = macKey.generateMac(messageBytes);
-		}
-
-		if (LOGGER.isDebugEnabled()) {
-			String macStr;
-			if (macBytes.length > 0) {
-				macStr = Base58Utils.encode(macBytes);
-			} else {
-				macStr = "HASH-" + System.identityHashCode(messageBytes);
-			}
-			LOGGER.debug("Sending message bytes with mac[{}]", macStr);
-		}
-
-		// do an extra copy of the data to be sent, but on a single out stream write
-		byte[] outputBytes = new byte[4 + messageBytes.length + 4 + macBytes.length];
-
-		// write message;
-		BytesUtils.toBytes_BigEndian(messageBytes.length, outputBytes, 0);
-		System.arraycopy(messageBytes, 0, outputBytes, 4, messageBytes.length);
-
-		// write mac;
-		BytesUtils.toBytes(macBytes.length, outputBytes, 4 + messageBytes.length);
-		if (macBytes.length > 0) {
-			System.arraycopy(macBytes, 0, outputBytes, 4 + messageBytes.length + 4, macBytes.length);
-		}
-
-		return outputBytes;
-	}
-
 	/**
 	 * 驻留后台线程，执行消息接收；
 	 */
@@ -429,44 +383,22 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 */
 	private SystemMessage readMessage(DataInputStream in) throws IOException {
 		// 读消息字节；
-		int messageLength = in.readInt();
-		byte[] messageBytes = new byte[messageLength];
+		int length = in.readInt();
+		byte[] encodedMessageBytes = new byte[length];
 		int read = 0;
 		do {
-			read += in.read(messageBytes, read, messageLength - read);
-		} while (read < messageLength);
-
-		// 读 MAC；无论本地是否标记了验证 MAC，都要完整地读取 MAC 数据 ；
-		int macLength = in.readInt();
-		byte[] macBytes = null;
-		boolean hasMAC = macLength > 0;
-		if (hasMAC) {
-			macBytes = new byte[macLength];
-			read = 0;
-			do {
-				read += in.read(macBytes, read, macLength - read);
-			} while (read < macBytes.length);
-		}
-
-		// 消息认证；
-		if (hasMAC && viewTopology.getStaticConf().isUseMACs()) {
-			boolean macMatch = macKey.authenticate(messageBytes, macBytes);
-			if (!macMatch) {
-				LOGGER.error("The MAC Validation of the received message fail! --[Me={}][Remote={}]", ME, REMOTE_ID);
-				return null;
-			}
-		}
+			read += in.read(encodedMessageBytes, read, length - read);
+		} while (read < length);
 
 		try {
-			SystemMessage sm = (SystemMessage) (new ObjectInputStream(new ByteArrayInputStream(messageBytes))
-					.readObject());
-			sm.authenticated = (hasMAC && viewTopology.getStaticConf().isUseMACs());
-			return sm;
-		} catch (Exception e) {
-			LOGGER.error("Error occurred while deserialize the received message bytes! --[Me=" + ME + "][Remote="
-					+ REMOTE_ID + "] " + e.getMessage(), e);
+			return messageCodec.decode(encodedMessageBytes);
+		} catch (MessageAuthenticationException | IllegalMessageException e) {
+			String errMsg = String.format("The MAC Validation of the received message fail! --[Me=%s][Remote=%s] %s",
+					ME, REMOTE_ID, e.getMessage());
+			LOGGER.error(errMsg, e);
 			return null;
 		}
+
 	}
 
 	/**
@@ -523,7 +455,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 			}
 
 			// 生成共享密钥
-			this.macKey = MAC_KEY_GEN.exchange(remoteDHPubKeyCert);
+			MacKey macKey = MAC_KEY_GEN.exchange(remoteDHPubKeyCert);
+			messageCodec.setMacKey(macKey);
 
 			return true;
 
@@ -544,7 +477,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	}
 
 	private void resetMAC() {
-		this.macKey = null;
+		messageCodec.setMacKey(null);
 	}
 
 	/**
@@ -623,11 +556,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 		public final boolean RETRY;
 
-		private final boolean USE_MAC;
-
-		public MessageSendingTask(SystemMessage message, boolean useMac, boolean retry) {
+		public MessageSendingTask(SystemMessage message, boolean retry) {
 			super(message);
-			this.USE_MAC = useMac;
 			this.RETRY = retry;
 		}
 

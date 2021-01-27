@@ -185,11 +185,12 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 
 	// ******* EDUARDO END **************//
 
-	public void send(int[] targets, SystemMessage sm, boolean useMAC) {
-		send(targets, sm, useMAC, true);
+	public void send(int[] targets, SystemMessage sm) {
+		send(targets, sm, true);
 	}
 
-	public final void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending) {
+	@Override
+	public final void send(int[] targets, SystemMessage sm, boolean retrySending) {
 		if (!doWork) {
 			throw new CommunicationException("ServerCommunicationLayer has stopped!");
 		}
@@ -200,7 +201,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		for (int pid : targets) {
 			try {
 				// 对包括对当前节点的连接都统一抽象为 MessageConnection;
-				futures[i] = ensureConnection(pid).send(sm, useMAC, retrySending,
+				futures[i] = ensureConnection(pid).send(sm, retrySending,
 						new CompletedCallback<SystemMessage, Void>() {
 							@Override
 							public void onCompleted(SystemMessage source, Void result, Throwable error) {

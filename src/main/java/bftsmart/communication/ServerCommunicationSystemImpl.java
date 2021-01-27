@@ -136,23 +136,23 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		} else if (sm instanceof HeartBeatMessage) {
 			// 心跳相关请求消息不做重发处理；
 			LOGGER.debug("--------sending heart beat message with no retrying----------> {}", sm);
-			serversCommunication.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, false);
 		} else if (sm instanceof LeaderRequestMessage || sm instanceof LeaderResponseMessage) {
 			// 从其他节点获取Leader信息的请求消息
 			LOGGER.debug("--------sending leader res&resp message with no retrying----------> {}", sm);
-			serversCommunication.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, false);
 		} else if (sm instanceof LeaderStatusRequestMessage) {
 			// 获取其他节点Leader状态的请求消息
 			LOGGER.debug("--------sending leader status message with no retrying----------> {}", sm);
-			serversCommunication.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm,  false);
 		} else if (sm instanceof ViewMessage) {
 			// 视图消息
 			LOGGER.debug("--------sending view message with no retrying----------> {}", sm);
-			serversCommunication.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm,  false);
 		} else if (sm instanceof LCMessage) {
 			// 领导者切换相关消息
 			LOGGER.debug("--------sending leader change message with no retrying----------> {}", sm);
-			serversCommunication.send(targets, sm, true, false);
+			serversCommunication.send(targets, sm, false);
 		} else {
 			LOGGER.debug("--------sending with retrying----------> {}", sm);
 			serversCommunication.send(targets, sm, true);

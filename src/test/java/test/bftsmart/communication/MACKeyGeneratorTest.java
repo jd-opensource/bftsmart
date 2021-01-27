@@ -1,6 +1,7 @@
 package test.bftsmart.communication;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -51,16 +52,21 @@ public class MACKeyGeneratorTest {
 		// 密钥交互；
 		MacKey macKey_0_to_1 = macKeyGen0.exchange(verifedDhPubKeyCert1);
 		MacKey macKey_1_to_0 = macKeyGen1.exchange(verifedDhPubKeyCert0);
+		
+		// 验证两个生成的密钥是一致的；
+		assertArrayEquals(macKey_0_to_1.getSecretKey().getEncoded(), macKey_1_to_0.getSecretKey().getEncoded());
 
 		// 根据共享密钥生成消息认证码；
 		// 测试双方的相互认证；
 		byte[] message = RandomUtils.generateRandomBytes(100);
 
 		byte[] mac0 = macKey_0_to_1.generateMac(message);
+		assertEquals(macKey_0_to_1.getMacLength(), mac0.length);
 		boolean authBy1 = macKey_1_to_0.authenticate(message, mac0);
 		assertTrue(authBy1);
 
 		byte[] mac1 = macKey_1_to_0.generateMac(message);
+		assertEquals(macKey_1_to_0.getMacLength(), mac1.length);
 		boolean authBy0 = macKey_0_to_1.authenticate(message, mac1);
 		assertTrue(authBy0);
 

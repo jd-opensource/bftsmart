@@ -40,8 +40,8 @@ public interface ServerCommunicationLayer {
 	 * @param sm
 	 * @param useMAC
 	 */
-	default void send(int[] targets, SystemMessage sm, boolean useMAC) {
-		send(targets, sm, useMAC, true);
+	default void send(int[] targets, SystemMessage sm) {
+		send(targets, sm, true);
 	}
 
 	/**
@@ -52,7 +52,7 @@ public interface ServerCommunicationLayer {
 	 * @param useMAC
 	 * @param retrySending
 	 */
-	void send(int[] targets, SystemMessage sm, boolean useMAC, boolean retrySending);
+	void send(int[] targets, SystemMessage sm, boolean retrySending);
 
 	/**
 	 * 设置消息接收监听器；

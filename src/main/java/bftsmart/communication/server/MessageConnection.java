@@ -46,7 +46,7 @@ public interface MessageConnection {
 	 * @param callback     发送完成回调；
 	 * @return
 	 */
-	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean useMAC, boolean retrySending,
+	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean retrySending,
 			CompletedCallback<SystemMessage, Void> callback);
 
 }
