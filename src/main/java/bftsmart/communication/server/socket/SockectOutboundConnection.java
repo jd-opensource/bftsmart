@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.server.AbstractStreamConnection;
+import bftsmart.communication.server.IOChannel;
 import bftsmart.communication.server.SocketUtils;
 import bftsmart.reconfiguration.ViewTopology;
 
@@ -24,97 +25,57 @@ public class SockectOutboundConnection extends AbstractStreamConnection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SockectOutboundConnection.class);
 
-	private volatile Socket socket;
-	private volatile DataOutputStream socketOutStream = null;
-	private volatile DataInputStream socketInStream = null;
+	private volatile SocketChannel socketChannel;
 
 	public SockectOutboundConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		super(realmName, viewTopology, remoteId, messageInQueue);
 	}
 
+	@Override
+	protected IOChannel getIOChannel(long timeoutMillis) {
+		if (socketChannel != null && !socketChannel.isClosed()) {
+			return socketChannel;
+		}
+		try {
+			socketChannel.close();
+		} catch (Exception e) {
+		}
+		socketChannel = null;
+		
+		socketChannel = reconnect(timeoutMillis);
+		return socketChannel;
+	}
+
 	/**
-	 * 关闭连接；此方法不抛出任何异常；
+	 * 重连；
+	 * <p>
+	 * 
+	 * 如果超时尚未连接成功，则返回 null;
+	 * 
+	 * @param timeoutMillis
+	 * @return
 	 */
-	@Override
-	protected synchronized void closeConnection() {
-		Socket sc = socket;
-		if (sc == null) {
-			return;
-		}
-		DataOutputStream out = socketOutStream;
-		DataInputStream in = socketInStream;
-
-		socket = null;
-		socketOutStream = null;
-		socketInStream = null;
-
-		if (out != null) {
-			try {
-				out.close();
-			} catch (Exception e) {
-			}
-		}
-		if (in != null) {
-			try {
-				in.close();
-			} catch (Exception e) {
-			}
-		}
-		if (sc != null) {
-			try {
-				sc.close();
-			} catch (Exception e) {
-			}
-		}
-	}
-
-	@Override
-	protected DataOutputStream getOutputStream() {
-		return socketOutStream;
-	}
-
-	@Override
-	protected DataInputStream getInputStream() {
-		return socketInStream;
-	}
-
-	@Override
-	protected synchronized void rebuildConnection(long timeoutMillis) throws IOException {
-		if (socket != null && socket.isConnected() && (!socket.isClosed())) {
-			// 如果 socket 已连接且未关闭，则直接返回；
-			return;
-		}
-		closeConnection();
-
+	private SocketChannel reconnect(long timeoutMillis) {
 		long startTs = System.currentTimeMillis();
 
-		IOException error = null;
 		do {
 			try {
 				Socket sc = connectToRemote();
-				DataOutputStream out = new DataOutputStream(sc.getOutputStream());
-				DataInputStream in = new DataInputStream(sc.getInputStream());
-
-				this.socketOutStream = out;
-				this.socketInStream = in;
-				this.socket = sc;
-
-				return;
-			} catch (IOException e) {
-				LOGGER.debug("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID + "] "
+				return new SocketChannel(sc);
+			} catch (Exception e) {
+				LOGGER.warn("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID + "] "
 						+ e.getMessage(), e);
-				error = e;
 			}
+
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e) {
-				return;
+				return null;
 			}
 		} while ((System.currentTimeMillis() - startTs) < timeoutMillis);
 
-		// 连接出错，并且重试超时；
-		throw error;
+		return null;
 	}
 
 	private Socket connectToRemote() throws UnknownHostException, IOException {
@@ -130,7 +91,7 @@ public class SockectOutboundConnection extends AbstractStreamConnection {
 	 */
 	@Override
 	public boolean isAlived() {
-		return socket != null && socket.isConnected();
+		return socketChannel != null && !socketChannel.isClosed();
 	}
 
 }

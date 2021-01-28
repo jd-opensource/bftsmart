@@ -8,8 +8,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.DHPubKeyCertificate;
 import bftsmart.communication.IllegalMessageException;
+import bftsmart.communication.MacAuthenticationException;
+import bftsmart.communication.MacAuthenticator;
 import bftsmart.communication.MacKey;
 import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.MacMessageCodec;
@@ -30,8 +31,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStreamConnection.class);
 
-	// 每次重建连接的等待超时时长（毫秒）；
-	private static final long CONNECTION_REBUILD_TIMEOUT = 20 * 1000;
+	// 每次连接的等待超时时长（毫秒）；
+	private static final long CONNECTION_TIMEOUT = 20 * 1000;
 
 	/**
 	 * 最大消息尺寸 100MB；
@@ -44,13 +45,17 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	protected final int ME;
 	protected final int REMOTE_ID;
 
-	private final MacKeyGenerator MAC_KEY_GEN;
-
 	protected ViewTopology viewTopology;
+
+	private MacAuthenticator macAuthenticator;
+
 	private MessageQueue messageInQueue;
 	private LinkedBlockingQueue<MessageSendingTask> outQueue;
 
 	private SystemMessageCodec messageCodec;
+
+	private final Object channelMutex = new Object();
+	private volatile IOChannel ioChannel;
 
 	private volatile boolean doWork = false;
 
@@ -64,14 +69,16 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		this.ME = viewTopology.getCurrentProcessId();
 		this.REMOTE_ID = remoteId;
 
-		this.MAC_KEY_GEN = new MacKeyGenerator(viewTopology.getStaticConf().getRSAPublicKey(),
-				viewTopology.getStaticConf().getRSAPrivateKey(), viewTopology.getStaticConf().getDHG(),
-				viewTopology.getStaticConf().getDHP());
-
 		this.messageCodec = new SystemMessageCodec();
 		this.messageCodec.setUseMac(viewTopology.getStaticConf().isUseMACs());
 		this.viewTopology = viewTopology;
 		this.messageInQueue = messageInQueue;
+
+		MacKeyGenerator macKeyGen = new MacKeyGenerator(viewTopology.getStaticConf().getRSAPublicKey(),
+				viewTopology.getStaticConf().getRSAPrivateKey(), viewTopology.getStaticConf().getDHG(),
+				viewTopology.getStaticConf().getDHP());
+		this.macAuthenticator = new MacAuthenticator(remoteId, viewTopology.getStaticConf().getRSAPublicKey(remoteId),
+				macKeyGen);
 
 		this.outQueue = new LinkedBlockingQueue<MessageSendingTask>(viewTopology.getStaticConf().getOutQueueSize());
 
@@ -133,19 +140,35 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		if (!doWork) {
 			return;
 		}
-		LOGGER.info("SHUTDOWN for {}", REMOTE_ID);
 
 		doWork = false;
 
-		senderTread.interrupt();
-		receiverThread.interrupt();
+		try {
+			senderTread.interrupt();
+			receiverThread.interrupt();
+			try {
+				senderTread.join();
+			} catch (InterruptedException e) {
+			}
+			try {
+				receiverThread.join();
+			} catch (InterruptedException e) {
+			}
 
-		senderTread = null;
-		receiverThread = null;
+			senderTread = null;
+			receiverThread = null;
 
-		closeConnection();
+			IOChannel chl = this.ioChannel;
+			if (chl != null) {
+				this.ioChannel = null;
+				chl.close();
+			}
+		} catch (Exception e) {
+			LOGGER.warn(String.format("Error occurred while closing connection! --[Me=%s][Remote=%s] %s", ME,
+					REALM_NAME, e.getMessage()), e);
+		}
 
-		LOGGER.debug("Shutdown connection! --[Me={}][Remote={}]", ME, REMOTE_ID);
+		LOGGER.debug("Connection is closed! --[Me={}][Remote={}]", ME, REMOTE_ID);
 	}
 
 	@Override
@@ -212,19 +235,19 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * reconnection is done
 	 */
 	private final void processSendingTask(MessageSendingTask messageTask) {
-//		byte[] outputBytes = generateOutputBytes(messageTask.getSource(), messageTask.USE_MAC);
+		// 生成消息的输出编码；
 		byte[] outputBytes = messageCodec.encode(messageTask.getSource());
 
 		int retryCount = 0;
-		OutputStream out = getOutputStream();
+		OutputStream out = null;
 		do {
 			try {
 				// 检查连接；
 				try {
 					if (out == null) {
-						out = rebuildOutputConnection(CONNECTION_REBUILD_TIMEOUT);
+						out = getOutputStream(CONNECTION_TIMEOUT);
 					}
-				} catch (IOException e) {
+				} catch (Exception e) {
 					// 建立连接时发生网络IO错误；
 					LOGGER.error("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID
 							+ "] " + e.getMessage(), e);
@@ -314,18 +337,11 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 */
 	private void scheduleReceiving() {
 		InputStream in = null;
-		try {
-			in = getInputStream();
-		} catch (Exception e) {
-			LOGGER.error("Unexpected error occurred while start receiving message from remote! --[Me=" + ME
-					+ "][Remote=" + REMOTE_ID + "] " + e.getMessage(), e);
-		}
-
 		while (doWork) {
 			// 检查连接；
 			try {
 				if (in == null) {
-					in = rebuildInputConnection(CONNECTION_REBUILD_TIMEOUT);
+					in = getInputStream(CONNECTION_TIMEOUT);
 				}
 			} catch (Exception e) {
 				// 建立连接时发生网络IO错误；重试建立连接；
@@ -412,161 +428,124 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	}
 
 	/**
-	 * 重建连接；
-	 * <p>
+	 * 获取经过认证的通过；
 	 * 
+	 * @param timeoutMillis
+	 * @return
 	 * @throws IOException
+	 * @throws MacAuthenticationException
 	 */
-	protected abstract void rebuildConnection(long timeoutMillis) throws IOException;
+	private IOChannel getAuthenticatedChannel(long timeoutMillis) throws MacAuthenticationException, IOException {
+		if (ioChannel == null || ioChannel.isClosed()) {
+			synchronized (channelMutex) {
+				if (ioChannel == null || ioChannel.isClosed()) {
+					IOChannel chl = getIOChannel(timeoutMillis);
+					if (chl == null) {
+						ioChannel = null;
+						messageCodec.setMacKey(null);
+						return null;
+					}
+					try {
+						MacKey macKey = macAuthenticator.authenticate(chl);
+						ioChannel = chl;
+						messageCodec.setMacKey(macKey);
+					} catch (MacAuthenticationException | IOException e) {
+						// 认证失败，直接关闭通道，并报告异常；
+						ioChannel = null;
+						messageCodec.setMacKey(null);
 
-	/**
-	 * 关闭连接；此方法不抛出任何异常；
-	 */
-	protected abstract void closeConnection();
+						try {
+							chl.close();
+						} catch (Exception e1) {
+						}
+						throw e;
+					}
+				}
+			}
+		}
+		return ioChannel;
+	}
 
 	/**
 	 * 返回用于发送数据的输出流；
 	 * <p>
-	 *  如果连接未建立或者连接无效，则返回 null；
 	 * 
-	 * @return
-	 */
-	protected abstract OutputStream getOutputStream();
-
-	/**
-	 * 返回用于接收数据的输入流；
+	 * 如果连接未就绪，将堵塞当前线程进行等待，直到超时或者连接已就绪；
 	 * <p>
 	 * 
-	 * 如果连接未建立或者连接无效，则返回 null；
-	 * 
-	 * @return
-	 */
-	protected abstract InputStream getInputStream();
-
-	/**
-	 * 认证连接；
-	 * 
-	 * @param socketOutStream
-	 * @param socketInStream
-	 * @return
-	 */
-	private boolean authenticate(OutputStream socketOutStream, InputStream socketInStream) {
-		if (socketOutStream == null || socketInStream == null) {
-			return false;
-		}
-
-		try {
-			// 发送 DH key；
-			DHPubKeyCertificate currentDHPubKeyCert = MAC_KEY_GEN.getDHPubKeyCertificate();
-			sendDHKey(socketOutStream, currentDHPubKeyCert);
-
-			// 接收 DH key;
-			DHPubKeyCertificate remoteDHPubKeyCert = receiveDHKey(socketInStream);
-			if (remoteDHPubKeyCert == null) {
-				// 认证失败；
-				LOGGER.error("The DHPubKey verification failed while establishing connection with remote[{}]!",
-						REMOTE_ID);
-				return false;
-			}
-
-			// 生成共享密钥
-			MacKey macKey = MAC_KEY_GEN.exchange(remoteDHPubKeyCert);
-			messageCodec.setMacKey(macKey);
-
-			return true;
-
-		} catch (Exception ex) {
-			LOGGER.error("Error occurred while doing authenticateAndEstablishAuthKey with remote replica[" + REMOTE_ID
-					+ "] ! --" + ex.getMessage(), ex);
-			return false;
-		}
-	}
-
-	private void sendDHKey(OutputStream socketOutStream, DHPubKeyCertificate currentDHPubKeyCert)
-			throws IOException {
-		byte[] encodedBytes = currentDHPubKeyCert.getEncodedBytes();
-
-		// send my DH public key and signature
-		BytesUtils.writeInt(encodedBytes.length, socketOutStream);
-		socketOutStream.write(encodedBytes);
-	}
-
-	private void resetMAC() {
-		messageCodec.setMacKey(null);
-	}
-
-	/**
-	 * 接收和验证“密钥交互公钥凭证”；
+	 * 如果连接未就绪，或者等待超时，则返回 null；
 	 * <p>
-	 * 如果验证失败，则返回 null;
 	 * 
-	 * @param in
 	 * @return
 	 * @throws IOException
+	 * @throws MacAuthenticationException
 	 */
-	private DHPubKeyCertificate receiveDHKey(InputStream in) throws IOException {
-		// receive remote DH public key and signature
-		int remoteMacPubKeyCertLength = BytesUtils.readInt(in);
-		byte[] remoteMacPubKeyCertBytes = new byte[remoteMacPubKeyCertLength];
-		int read = 0;
-		do {
-			read += in.read(remoteMacPubKeyCertBytes, read, remoteMacPubKeyCertLength - read);
-
-		} while (read < remoteMacPubKeyCertLength);
-
-		return MacKeyGenerator.resolveAndVerify(remoteMacPubKeyCertBytes,
-				viewTopology.getStaticConf().getRSAPublicKey(REMOTE_ID));
-	}
-
-	/**
-	 * 重建连接；
-	 * <p>
-	 * 
-	 * 此方法将堵塞当前线程，直到重新建立了连接并成功返回一个新的输出流；
-	 * 
-	 * @return 输出流；
-	 * @throws IOException
-	 */
-	private OutputStream rebuildOutputConnection(long timeoutMillis) throws IOException {
-		reconnect(timeoutMillis);
-		return getOutputStream();
-	}
-
-	/**
-	 * 重建连接；
-	 * <p>
-	 * 
-	 * 此方法将堵塞当前线程，直到重新建立了连接并成功返回一个新的输出流；
-	 * 
-	 * @return 输出流；
-	 * @throws IOException
-	 */
-	private InputStream rebuildInputConnection(long timeoutMillis) throws IOException {
-		reconnect(timeoutMillis);
-		return getInputStream();
-	}
-
-	private synchronized void reconnect(long timeoutMillis) throws IOException {
-		// TODO: 处理发送线程和接收线程可能会并发地引发重连的问题；
-		rebuildConnection(timeoutMillis);
-
-		OutputStream socketOutStream = getOutputStream();
-		InputStream socketInStream = getInputStream();
-		if (socketOutStream != null && socketInStream != null) {
-			resetMAC();
-
-			boolean success = authenticate(socketOutStream, socketInStream);
-			if (!success) {
-				closeConnection();
-			}
+	private OutputStream getOutputStream(long timeoutMillis) throws MacAuthenticationException, IOException {
+		IOChannel channel = getAuthenticatedChannel(timeoutMillis);
+		if (channel != null) {
+			return channel.getOutputStream();
 		}
+		return null;
 	}
+
+	/**
+	 * 获取用于接收数据的输入流；
+	 * <p>
+	 * 
+	 * 如果连接未就绪，将堵塞当前线程进行等待，直到超时或者连接已就绪；
+	 * <p>
+	 * 
+	 * 如果连接未就绪，或者等待超时，则返回 null；
+	 * <p>
+	 * 
+	 * @param timeoutMillis
+	 * @return
+	 * @throws IOException
+	 * @throws MacAuthenticationException
+	 */
+	private InputStream getInputStream(long timeoutMillis) throws MacAuthenticationException, IOException {
+		IOChannel channel = getAuthenticatedChannel(timeoutMillis);
+		if (channel != null) {
+			return channel.getInputStream();
+		}
+		return null;
+	}
+
+	/**
+	 * 返回用于消息通讯的输入输出通道；
+	 * <p>
+	 * 如果连接未就绪，将堵塞当前线程进行等待，直到超时或者连接已就绪；
+	 * <p>
+	 * 
+	 * 如果连接未就绪，或者等待超时，则返回 null；
+	 * <p>
+	 * 
+	 * 当前类型（{@link AbstractStreamConnection}）的实现中，当需要执行重置输入输出的操作时，会遵循以下步骤：<br>
+	 * 1. 关闭输入输出流 ({@link OutputStream#close()} 或 {@link InputStream#close()} 或
+	 * {@link IOChannel#close()})；<br>
+	 * 2. 重新取输入输出流 ({@link #getOutputStream(long)} 或 {@link #getInputStream(long)} 或
+	 * {@link #getIOChannel(long)})；<br>
+	 * <p>
+	 * 实现者需遵循这一约定提供相应实现，确保关闭操作能够正确地释放资源；
+	 * 
+	 * @param timeoutMillis
+	 * @return
+	 */
+	protected abstract IOChannel getIOChannel(long timeoutMillis);
 
 	@Override
 	public String toString() {
 		return this.getClass().getName() + " To [" + REMOTE_ID + "]";
 	}
 
+	// ---------------------
+
+	/**
+	 * 消息发送任务；
+	 * 
+	 * @author huanghaiquan
+	 *
+	 */
 	private static class MessageSendingTask extends AsyncFutureTask<SystemMessage, Void> {
 
 		public final boolean RETRY;
@@ -577,4 +556,5 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		}
 
 	}
+
 }

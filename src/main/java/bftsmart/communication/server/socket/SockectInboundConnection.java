@@ -15,18 +15,15 @@
  */
 package bftsmart.communication.server.socket;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.server.AbstractStreamConnection;
+import bftsmart.communication.server.IOChannel;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
@@ -38,78 +35,39 @@ import bftsmart.reconfiguration.ViewTopology;
 public class SockectInboundConnection extends AbstractStreamConnection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SockectInboundConnection.class);
 
-	private volatile Socket socket;
-	private volatile DataOutputStream socketOutStream = null;
-	private volatile DataInputStream socketInStream = null;
-
-	private Semaphore acceptor = new Semaphore(0);
+	private volatile SocketChannel socketChannel;
 
 	public SockectInboundConnection(String realmName, ViewTopology viewTopology, int remoteId,
 			MessageQueue messageInQueue) {
 		super(realmName, viewTopology, remoteId, messageInQueue);
 	}
 
-	/**
-	 * 关闭连接；此方法不抛出任何异常；
-	 */
-	@Override
-	protected synchronized void closeConnection() {
-		Socket sc = socket;
-		if (sc == null) {
-			return;
-		}
-
-		DataOutputStream out = socketOutStream;
-		DataInputStream in = socketInStream;
-
-		socket = null;
-		socketOutStream = null;
-		socketInStream = null;
-
-		if (out != null) {
-			try {
-				out.close();
-			} catch (Exception e) {
-			}
-		}
-		if (in != null) {
-			try {
-				in.close();
-			} catch (Exception e) {
-			}
-		}
-		if (sc != null) {
-			try {
-				sc.close();
-			} catch (Exception e) {
-			}
-		}
-	}
 
 	@Override
-	protected DataOutputStream getOutputStream() {
-		return socketOutStream;
-	}
-
-	@Override
-	protected DataInputStream getInputStream() {
-		return socketInStream;
-	}
-
-	@Override
-	protected void rebuildConnection(long timeout) {
-		int v = acceptor.drainPermits();
-		if (v > 0) {
-			return;
+	protected IOChannel getIOChannel(long timeoutMillis) {
+		SocketChannel chl = this.socketChannel;
+		if (chl != null && !chl.isClosed()) {
+			return socketChannel;
 		}
+		
 		try {
-			acceptor.tryAcquire(timeout, TimeUnit.MILLISECONDS);
+			long startTs = System.currentTimeMillis();
+			do {
+				Thread.sleep(1000);
+				
+				chl = this.socketChannel;
+				if (chl != null && !chl.isClosed()) {
+					return chl;
+				}
+			} while ((System.currentTimeMillis() - startTs) < timeoutMillis);
 		} catch (InterruptedException e) {
 		}
+		return null;
 	}
 
+	@Override
 	public boolean isAlived() {
-		return socket != null && socket.isConnected();
+		return socketChannel != null && !socketChannel.isClosed();
 	}
 
 	/**
@@ -120,23 +78,38 @@ public class SockectInboundConnection extends AbstractStreamConnection {
 	 */
 	public synchronized void accept(Socket newSocket) throws IOException {
 		// 先关闭旧的 Socket 对象；
-		closeConnection();
+		SocketChannel chl = this.socketChannel;
+		if (chl != null) {
+			this.socketChannel = null;
+			try {
+				chl.close();
+			} catch (Exception e) {
+				LOGGER.debug("Error occurred while closing the socket channel! --" + e.getMessage(), e);
+			}
+		}
 
 		if (!isDoWork()) {
 			newSocket.close();
 			return;
 		}
 		// 更新 Socket；
-		DataOutputStream out = new DataOutputStream(newSocket.getOutputStream());
-		DataInputStream in = new DataInputStream(newSocket.getInputStream());
-
-		this.socketOutStream = out;
-		this.socketInStream = in;
-		this.socket = newSocket;
-
-		acceptor.release();
+		socketChannel = new SocketChannel(newSocket);
 
 		LOGGER.debug("Accept new socket. --[me={}][remote={}]", ME, REMOTE_ID);
 	}
 
+	@Override
+	public synchronized void close() {
+		super.close();
+		
+		SocketChannel chl = socketChannel;
+		if (chl != null) {
+			socketChannel = null;
+			try {
+				chl.close();
+			} catch (Exception e) {
+			}
+		}
+	}
+	
 }

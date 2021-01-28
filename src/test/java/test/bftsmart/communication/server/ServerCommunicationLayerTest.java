@@ -160,6 +160,41 @@ public class ServerCommunicationLayerTest {
 			node.requestInboundPipeline(sender.getId()).write(messageBytes);
 		}
 	}
+	
+
+	/**
+	 * 测试当个节点的对消息的发送和接收；
+	 * 
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	@Test
+	public void testDoubleTCPNodes() throws IOException, InterruptedException {
+		final String realmName = "TEST-NET";
+		int[] viewProcessIds = { 0, 1};
+		int[] ports = { 15100, 15110};
+
+		ServerCommunicationLayer[] servers = prepareSocketNodes(realmName, viewProcessIds, ports);
+		MessageCounter[] counters = prepareMessageCounters(servers);
+
+		for (ServerCommunicationLayer server : servers) {
+			server.start();
+		}
+
+		// 生成待测试发送的消息；
+		ConsensusMessage msg_from_0 = createTestMessage(0);
+		ConsensusMessage msg_from_1 = createTestMessage(1);
+
+		// 测试自我发送的正确性；
+		servers[0].send(msg_from_0, 0);
+		servers[1].send(msg_from_1, 1);
+
+		Thread.sleep(100);// 稍等待一下，避免接收线程未来得及处理；
+		counters[0].assertMessagesEquals(msg_from_0);
+		counters[1].assertMessagesEquals(msg_from_1);
+		counters[0].clear();
+		counters[1].clear();
+	}
 
 	@Ignore
 	@Test
@@ -176,13 +211,13 @@ public class ServerCommunicationLayerTest {
 		}
 
 		// 生成待发送的测试消息；
-		SystemMessage[] testMessages = prepareMessages(0, 6);
+		SystemMessage[] testMessages = prepareMessages(0, 1);
 
 		// 从 server0 广播给全部的节点，包括 server0 自己；
 		broadcast(servers[0], testMessages, viewProcessIds);
 
 		try {
-			Thread.sleep(10000);
+			Thread.sleep(3000);
 		} catch (InterruptedException e) {
 		}
 		// 验证所有节点都能完整地收到消息；

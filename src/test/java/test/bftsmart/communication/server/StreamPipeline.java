@@ -1,8 +1,6 @@
 package test.bftsmart.communication.server;
 
 import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,9 +29,6 @@ public class StreamPipeline {
 	private Output out = new Output();
 	private Input in = new Input();
 	
-	private DataOutputStream dataOut = new DataOutputStream(out);
-	private DataInputStream dataIn = new DataInputStream(in);
-
 	public StreamPipeline() {
 		this(1000);
 	}
@@ -62,12 +57,12 @@ public class StreamPipeline {
 		}
 	}
 	
-	public DataOutputStream getOutputStream() {
-		return dataOut;
+	public OutputStream getOutputStream() {
+		return out;
 	}
 
-	public DataInputStream getInputStream() {
-		return dataIn;
+	public InputStream getInputStream() {
+		return in;
 	}
 	
 	private byte[] take() throws InterruptedException {

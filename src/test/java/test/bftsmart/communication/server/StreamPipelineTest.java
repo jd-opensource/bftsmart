@@ -3,9 +3,9 @@ package test.bftsmart.communication.server;
 import static org.junit.Assert.assertArrayEquals;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import org.junit.Test;
 
@@ -16,8 +16,8 @@ public class StreamPipelineTest {
 	@Test
 	public void testInputOutput() throws IOException, InterruptedException {
 		StreamPipeline pipeline = new StreamPipeline();
-		DataOutputStream output = pipeline.getOutputStream();
-		DataInputStream input = pipeline.getInputStream();
+		OutputStream output = pipeline.getOutputStream();
+		InputStream input = pipeline.getInputStream();
 
 		// 测试在同步环境下，写入和读取的一致性；
 		{

@@ -33,6 +33,19 @@ public interface MessageConnection extends Closeable {
 	 * @return
 	 */
 	MacMessageCodec<SystemMessage> getMessageCodec();
+	
+	/**
+	 * 发送消息；
+	 * 
+	 * @param data         要发送的数据；
+	 * @param useMAC       是否使用 MAC；
+	 * @param retrySending 当发送失败时，是否要重试；
+	 * @param callback     发送完成回调；
+	 * @return
+	 */
+	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean retrySending,
+			CompletedCallback<SystemMessage, Void> callback);
+	
 
 	/**
 	 * 开始连接的数据处理；
@@ -52,17 +65,5 @@ public interface MessageConnection extends Closeable {
 	 * 清除发送队列中尚未发送的数据；
 	 */
 	void clearSendingQueue();
-	
-	/**
-	 * 发送消息；
-	 * 
-	 * @param data         要发送的数据；
-	 * @param useMAC       是否使用 MAC；
-	 * @param retrySending 当发送失败时，是否要重试；
-	 * @param callback     发送完成回调；
-	 * @return
-	 */
-	AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean retrySending,
-			CompletedCallback<SystemMessage, Void> callback);
 
 }

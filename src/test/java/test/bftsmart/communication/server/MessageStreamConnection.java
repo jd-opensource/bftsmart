@@ -1,18 +1,16 @@
 package test.bftsmart.communication.server;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import bftsmart.communication.queue.MessageQueue;
 import bftsmart.communication.server.AbstractStreamConnection;
+import bftsmart.communication.server.IOChannel;
 import bftsmart.reconfiguration.ViewTopology;
 
 public class MessageStreamConnection extends AbstractStreamConnection{
 	
-	private DataOutputStream sendOut;
-	
-	private DataInputStream recevIn;
+	private IOChannel ioChannel;
 
 	/**
 	 * @param realmName 共识域
@@ -23,33 +21,20 @@ public class MessageStreamConnection extends AbstractStreamConnection{
 	 * @param recevIn 从远端节点
 	 */
 	public MessageStreamConnection(String realmName, ViewTopology viewTopology, int remoteId,
-			MessageQueue messageInQueue, DataOutputStream sendOut, DataInputStream recevIn) {
+			MessageQueue messageInQueue, OutputStream sendOut, InputStream recevIn) {
 		super(realmName, viewTopology, remoteId, messageInQueue);
-		this.sendOut = sendOut;
-		this.recevIn = recevIn;
+		
+		this.ioChannel = new IOChannel(recevIn, sendOut);
 	}
 
 	@Override
 	public boolean isAlived() {
-		return false;
+		return !ioChannel.isClosed();
 	}
 
 	@Override
-	protected void rebuildConnection(long timeoutMillis) throws IOException {
-	}
-
-	@Override
-	protected void closeConnection() {
-	}
-
-	@Override
-	protected DataOutputStream getOutputStream() {
-		return sendOut;
-	}
-
-	@Override
-	protected DataInputStream getInputStream() {
-		return recevIn;
+	protected IOChannel getIOChannel(long timeoutMillis) {
+		return ioChannel;
 	}
 
 }
