@@ -1,17 +1,17 @@
 package bftsmart.communication.server;
 
-import javax.crypto.SecretKey;
+import java.io.Closeable;
 
 import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.SystemMessage;
 
 /**
- * 消息连接；
+ * 面向消息的连接；
  * 
  * @author huanghaiquan
  *
  */
-public interface MessageConnection {
+public interface MessageConnection extends Closeable {
 
 	/**
 	 * 连接的远端节点 ID；
@@ -45,13 +45,14 @@ public interface MessageConnection {
 	 * 
 	 * 连接关闭后将不再处理数据；
 	 */
-	void shutdown();
+	@Override
+	void close();
 
 	/**
 	 * 清除发送队列中尚未发送的数据；
 	 */
-	void clearOutQueue();
-
+	void clearSendingQueue();
+	
 	/**
 	 * 发送消息；
 	 * 

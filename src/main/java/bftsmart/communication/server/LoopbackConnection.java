@@ -60,12 +60,12 @@ public class LoopbackConnection implements MessageConnection {
 	}
 
 	@Override
-	public void shutdown() {
+	public void close() {
 		LOGGER.info("Shutdown the loopback connection! [Id={}]!", PROCESS_ID);
 	}
 
 	@Override
-	public void clearOutQueue() {
+	public void clearSendingQueue() {
 	}
 
 	@Override

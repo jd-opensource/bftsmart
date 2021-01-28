@@ -1,8 +1,8 @@
 package bftsmart.communication.server;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
@@ -29,9 +29,6 @@ import utils.io.BytesUtils;
 public abstract class AbstractStreamConnection implements MessageConnection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStreamConnection.class);
-
-	// 发送队列为空时每次检查的超时时长（毫秒）；
-	private static final long OUT_QUEUE_EMPTY_TIMEOUT = 5000;
 
 	// 每次重建连接的等待超时时长（毫秒）；
 	private static final long CONNECTION_REBUILD_TIMEOUT = 20 * 1000;
@@ -132,7 +129,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * Stop message sending and reception.
 	 */
 	@Override
-	public synchronized void shutdown() {
+	public synchronized void close() {
 		if (!doWork) {
 			return;
 		}
@@ -152,7 +149,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	}
 
 	@Override
-	public void clearOutQueue() {
+	public void clearSendingQueue() {
 		outQueue.clear();
 	}
 
@@ -219,7 +216,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		byte[] outputBytes = messageCodec.encode(messageTask.getSource());
 
 		int retryCount = 0;
-		DataOutputStream out = getOutputStream();
+		OutputStream out = getOutputStream();
 		do {
 			try {
 				// 检查连接；
@@ -316,7 +313,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * 驻留后台线程，执行消息接收；
 	 */
 	private void scheduleReceiving() {
-		DataInputStream in = null;
+		InputStream in = null;
 		try {
 			in = getInputStream();
 		} catch (Exception e) {
@@ -389,7 +386,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * @return
 	 * @throws IOException
 	 */
-	private SystemMessage readMessage(DataInputStream in) throws IOException {
+	private SystemMessage readMessage(InputStream in) throws IOException {
 		// 读消息字节；
 //		int length = in.readInt();
 		int length = BytesUtils.readInt(in);
@@ -434,7 +431,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * 
 	 * @return
 	 */
-	protected abstract DataOutputStream getOutputStream();
+	protected abstract OutputStream getOutputStream();
 
 	/**
 	 * 返回用于接收数据的输入流；
@@ -444,7 +441,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * 
 	 * @return
 	 */
-	protected abstract DataInputStream getInputStream();
+	protected abstract InputStream getInputStream();
 
 	/**
 	 * 认证连接；
@@ -453,7 +450,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * @param socketInStream
 	 * @return
 	 */
-	private boolean authenticate(DataOutputStream socketOutStream, DataInputStream socketInStream) {
+	private boolean authenticate(OutputStream socketOutStream, InputStream socketInStream) {
 		if (socketOutStream == null || socketInStream == null) {
 			return false;
 		}
@@ -485,12 +482,12 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		}
 	}
 
-	private void sendDHKey(DataOutputStream socketOutStream, DHPubKeyCertificate currentDHPubKeyCert)
+	private void sendDHKey(OutputStream socketOutStream, DHPubKeyCertificate currentDHPubKeyCert)
 			throws IOException {
 		byte[] encodedBytes = currentDHPubKeyCert.getEncodedBytes();
 
 		// send my DH public key and signature
-		socketOutStream.writeInt(encodedBytes.length);
+		BytesUtils.writeInt(encodedBytes.length, socketOutStream);
 		socketOutStream.write(encodedBytes);
 	}
 
@@ -503,17 +500,17 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * <p>
 	 * 如果验证失败，则返回 null;
 	 * 
-	 * @param socketInStream
+	 * @param in
 	 * @return
 	 * @throws IOException
 	 */
-	private DHPubKeyCertificate receiveDHKey(DataInputStream socketInStream) throws IOException {
+	private DHPubKeyCertificate receiveDHKey(InputStream in) throws IOException {
 		// receive remote DH public key and signature
-		int remoteMacPubKeyCertLength = socketInStream.readInt();
+		int remoteMacPubKeyCertLength = BytesUtils.readInt(in);
 		byte[] remoteMacPubKeyCertBytes = new byte[remoteMacPubKeyCertLength];
 		int read = 0;
 		do {
-			read += socketInStream.read(remoteMacPubKeyCertBytes, read, remoteMacPubKeyCertLength - read);
+			read += in.read(remoteMacPubKeyCertBytes, read, remoteMacPubKeyCertLength - read);
 
 		} while (read < remoteMacPubKeyCertLength);
 
@@ -530,7 +527,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * @return 输出流；
 	 * @throws IOException
 	 */
-	private DataOutputStream rebuildOutputConnection(long timeoutMillis) throws IOException {
+	private OutputStream rebuildOutputConnection(long timeoutMillis) throws IOException {
 		reconnect(timeoutMillis);
 		return getOutputStream();
 	}
@@ -544,7 +541,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 * @return 输出流；
 	 * @throws IOException
 	 */
-	private DataInputStream rebuildInputConnection(long timeoutMillis) throws IOException {
+	private InputStream rebuildInputConnection(long timeoutMillis) throws IOException {
 		reconnect(timeoutMillis);
 		return getInputStream();
 	}
@@ -553,8 +550,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		// TODO: 处理发送线程和接收线程可能会并发地引发重连的问题；
 		rebuildConnection(timeoutMillis);
 
-		DataOutputStream socketOutStream = getOutputStream();
-		DataInputStream socketInStream = getInputStream();
+		OutputStream socketOutStream = getOutputStream();
+		InputStream socketInStream = getInputStream();
 		if (socketOutStream != null && socketInStream != null) {
 			resetMAC();
 

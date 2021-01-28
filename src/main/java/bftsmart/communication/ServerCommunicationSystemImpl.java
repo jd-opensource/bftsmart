@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.queue.MessageQueue.SystemMessageType;
 import bftsmart.communication.server.MessageListener;
 import bftsmart.communication.server.ServerCommunicationLayer;
 import bftsmart.communication.server.socket.SocketServerCommunicationLayer;
@@ -220,7 +219,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		protected abstract void processMessage(SystemMessage sm);
 
 		@Override
-		public void onReceived(SystemMessageType messageType, SystemMessage message) {
+		public void onReceived(SystemMessage message) {
 			try {
 				processMessage(message);
 			} catch (Throwable e) {

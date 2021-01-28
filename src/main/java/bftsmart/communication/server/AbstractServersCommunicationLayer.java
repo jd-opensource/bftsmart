@@ -5,7 +5,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -101,7 +100,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 					if (!this.topology.isCurrentViewMember(remoteId)) {
 						// 移除已经不属于当前视图的连接；
 						MessageConnection conn = this.connections.remove(remoteId);
-						conn.shutdown();
+						conn.close();
 					}
 				}
 //				int[] newV = topology.getCurrentViewProcesses();
@@ -114,7 +113,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 			} else {
 				// 当前节点已经不属于当前视图，关闭全部连接；
 				for (MessageConnection conn : this.connections.values()) {
-					conn.shutdown();
+					conn.close();
 				}
 				this.connections.clear();
 
@@ -272,7 +271,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 				continue;
 			}
 
-			listener.onReceived(messageType, message);
+			listener.onReceived(message);
 		}
 
 	}
@@ -323,7 +322,7 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 				.toArray(new MessageConnection[this.connections.size()]);
 		this.connections.clear();
 		for (MessageConnection conn : connections) {
-			conn.shutdown();
+			conn.close();
 		}
 	}
 
@@ -414,10 +413,10 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 		}
 
 		@Override
-		public void onReceived(SystemMessageType type, SystemMessage message) {
+		public void onReceived(SystemMessage message) {
 			MessageListener[] messageListeners = this.listeners;
 			for (MessageListener messageListener : messageListeners) {
-				messageListener.onReceived(type, message);
+				messageListener.onReceived(message);
 			}
 		}
 
