@@ -62,6 +62,10 @@ public class SockectOutboundConnection extends AbstractStreamConnection {
 		do {
 			try {
 				Socket sc = connectToRemote();
+				
+				// 发送当前节点的 Id 到服务端，进行识别；
+				sendCurrentId(sc);
+				
 				return new SocketChannel(sc);
 			} catch (Exception e) {
 				LOGGER.warn("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID + "] "
@@ -76,6 +80,11 @@ public class SockectOutboundConnection extends AbstractStreamConnection {
 		} while ((System.currentTimeMillis() - startTs) < timeoutMillis);
 
 		return null;
+	}
+
+	private void sendCurrentId(Socket sc) throws IOException {
+		DataOutputStream out = new DataOutputStream(sc.getOutputStream());
+		out.writeInt(ME);
 	}
 
 	private Socket connectToRemote() throws UnknownHostException, IOException {

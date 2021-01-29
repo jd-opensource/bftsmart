@@ -1,14 +1,8 @@
 package bftsmart.communication.server;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +19,10 @@ import bftsmart.reconfiguration.ViewTopology;
  * @author huanghaiquan
  *
  */
-public abstract class AbstractServersCommunicationLayer implements ServerCommunicationLayer {
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractServersCommunicationLayer.class);
+public abstract class AbstractServerCommunicationLayer implements ServerCommunicationLayer {
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractServerCommunicationLayer.class);
 
-	private static final String PASSWORD = "commsyst";
+//	private static final String PASSWORD = "commsyst";
 
 	private Object connectionsLock = new Object();
 
@@ -40,30 +34,30 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 
 	protected final MessageQueue messageInQueue;
 
-	private final Map<SystemMessageType, AggregatedListeners> listeners = new ConcurrentHashMap<MessageQueue.SystemMessageType, AbstractServersCommunicationLayer.AggregatedListeners>();
+	private final Map<SystemMessageType, AggregatedListeners> listeners = new ConcurrentHashMap<MessageQueue.SystemMessageType, AbstractServerCommunicationLayer.AggregatedListeners>();
 
 	protected volatile boolean doWork = false;
-	protected SecretKey selfPwd;
+//	protected SecretKey selfPwd;
 
-	public AbstractServersCommunicationLayer(String realmName, ViewTopology topology) {
+	public AbstractServerCommunicationLayer(String realmName, ViewTopology topology) {
 		this.topology = topology;
 		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
 				topology.getStaticConf().getInQueueSize());
 		this.me = topology.getCurrentProcessId();
 		this.realmName = realmName;
 
-		selfPwd = initSelfKey();
+//		selfPwd = initSelfKey();
 	}
 
-	private SecretKey initSelfKey() {
-		try {
-			SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
-			PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
-			return fac.generateSecret(spec);
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			throw new SecurityException(e.getMessage(), e);
-		}
-	}
+//	private SecretKey initSelfKey() {
+//		try {
+//			SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+//			PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
+//			return fac.generateSecret(spec);
+//		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+//			throw new SecurityException(e.getMessage(), e);
+//		}
+//	}
 
 	private void initConnections() {
 		LOGGER.info("Start connecting to the other nodes of current view ... [CurrentProcessID={}][view={}]", me,
@@ -103,13 +97,6 @@ public abstract class AbstractServersCommunicationLayer implements ServerCommuni
 						conn.close();
 					}
 				}
-//				int[] newV = topology.getCurrentViewProcesses();
-//				for (int i = 0; i < newV.length; i++) {
-//					if (newV[i] != me) {
-//						//加入新节点的连接；
-//						ensureConnection(newV[i]);
-//					}
-//				}
 			} else {
 				// 当前节点已经不属于当前视图，关闭全部连接；
 				for (MessageConnection conn : this.connections.values()) {

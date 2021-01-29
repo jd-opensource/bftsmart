@@ -53,7 +53,7 @@ public class SockectInboundConnection extends AbstractStreamConnection {
 		try {
 			long startTs = System.currentTimeMillis();
 			do {
-				Thread.sleep(1000);
+				Thread.sleep(500);
 				
 				chl = this.socketChannel;
 				if (chl != null && !chl.isClosed()) {

@@ -1,7 +1,7 @@
 package test.bftsmart.communication.server;
 
 import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.AbstractServersCommunicationLayer;
+import bftsmart.communication.server.AbstractServerCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.LoopbackConnection;
 import bftsmart.reconfiguration.ViewTopology;
@@ -12,7 +12,7 @@ import bftsmart.reconfiguration.ViewTopology;
 	 * @author huanghaiquan
 	 *
 	 */
-	class MessageQueueCommunicationLayer extends AbstractServersCommunicationLayer {
+	class MessageQueueCommunicationLayer extends AbstractServerCommunicationLayer {
 
 		private MessageQueuesNetwork messageNetwork;
 

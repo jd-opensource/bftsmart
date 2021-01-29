@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.server.AbstractServersCommunicationLayer;
+import bftsmart.communication.server.AbstractServerCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.SocketUtils;
 import bftsmart.reconfiguration.ReplicaTopology;
@@ -21,7 +21,7 @@ import utils.io.RuntimeIOException;
  * @author huanghaiquan
  *
  */
-public class SocketServerCommunicationLayer extends AbstractServersCommunicationLayer {
+public class SocketServerCommunicationLayer extends AbstractServerCommunicationLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SocketServerCommunicationLayer.class);
 
 	/**
@@ -53,6 +53,8 @@ public class SocketServerCommunicationLayer extends AbstractServersCommunication
 			try {
 				Socket newSocket = ssc.accept();
 				SocketUtils.setSocketOptions(newSocket);
+				
+				// 收到新的接入，读取对端的节点 Id 进行识别；
 				int remoteId = new DataInputStream(newSocket.getInputStream()).readInt();
 
 				doRequest(newSocket, remoteId);

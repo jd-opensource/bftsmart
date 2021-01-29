@@ -1,6 +1,6 @@
 package test.bftsmart.communication.server;
 
-import bftsmart.communication.server.AbstractServersCommunicationLayer;
+import bftsmart.communication.server.AbstractServerCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
 
@@ -10,7 +10,7 @@ import bftsmart.reconfiguration.ViewTopology;
  * @author huanghaiquan
  *
  */
-class MessageStreamCommunicationLayer extends AbstractServersCommunicationLayer {
+class MessageStreamCommunicationLayer extends AbstractServerCommunicationLayer {
 
 	private MessageStreamNodeNetwork nodesNetwork;
 

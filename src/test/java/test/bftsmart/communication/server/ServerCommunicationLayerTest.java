@@ -196,7 +196,6 @@ public class ServerCommunicationLayerTest {
 		counters[1].clear();
 	}
 
-	@Ignore
 	@Test
 	public void testSocketNodesNetwork() {
 		final String realmName = "TEST-NET";
@@ -217,7 +216,7 @@ public class ServerCommunicationLayerTest {
 		broadcast(servers[0], testMessages, viewProcessIds);
 
 		try {
-			Thread.sleep(3000);
+			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 		}
 		// 验证所有节点都能完整地收到消息；

@@ -1,10 +1,12 @@
 package test.bftsmart.communication.server;
 
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.Properties;
 
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ViewTopology;
@@ -26,8 +28,14 @@ public class CommunicationtTestMocker {
 		when(topology.getCurrentProcessId()).thenReturn(currentId);
 		when(topology.getCurrentViewProcesses()).thenReturn(processIds);
 		when(topology.isInCurrentView()).thenReturn(contains(currentId, processIds));
-		
-		when(topology.getStaticConf()).thenReturn(conf);
+		when(topology.isCurrentViewMember(anyInt())).thenAnswer(new Answer<Boolean>() {
+
+			@Override
+			public Boolean answer(InvocationOnMock invocation) throws Throwable {
+				int id = invocation.getArgument(0);
+				return contains(id, processIds);
+			}
+		});
 		
 		return topology;
 	}
@@ -37,6 +45,13 @@ public class CommunicationtTestMocker {
 		when(topology.getCurrentProcessId()).thenReturn(currentId);
 		when(topology.getCurrentViewProcesses()).thenReturn(processIds);
 		when(topology.isInCurrentView()).thenReturn(contains(currentId, processIds));
+		when(topology.isCurrentViewMember(anyInt())).thenAnswer(new Answer<Boolean>() {
+			@Override
+			public Boolean answer(InvocationOnMock invocation) throws Throwable {
+				int id = invocation.getArgument(0);
+				return contains(id, processIds);
+			}
+		});
 
 		ReplicaConfiguration conf = mockDefaultConfiguration(currentId, processIds, ports);
 		when(topology.getStaticConf()).thenReturn(conf);
