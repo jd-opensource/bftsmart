@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

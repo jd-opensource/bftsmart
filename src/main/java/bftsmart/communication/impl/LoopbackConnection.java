@@ -1,12 +1,12 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.MacMessageCodec;
+import bftsmart.communication.MessageQueue;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.SystemMessageCodec;
-import bftsmart.communication.queue.MessageQueue;
 
 /**
  * 环回连接 ；

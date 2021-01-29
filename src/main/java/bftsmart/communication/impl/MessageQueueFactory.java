@@ -1,12 +1,6 @@
-package bftsmart.communication.queue;
+package bftsmart.communication.impl;
 
-import bftsmart.communication.SystemMessage;
-import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.tom.leaderchange.HeartBeatMessage;
-import bftsmart.tom.leaderchange.LeaderRequestMessage;
-import bftsmart.tom.leaderchange.LeaderResponseMessage;
-import bftsmart.tom.leaderchange.LeaderStatusRequestMessage;
-import bftsmart.tom.leaderchange.LeaderStatusResponseMessage;
+import bftsmart.communication.MessageQueue;
 
 public class MessageQueueFactory {
 
@@ -36,7 +30,7 @@ public class MessageQueueFactory {
          * 暂时只支持接收Socket消息队列
          */
         if (type == MessageQueue.QueueDirection.IN) {
-            return new MessageInQueue(capacity);
+            return new LinkedBlockingMessageQueue(capacity);
         } else {
             throw new IllegalArgumentException("Factory can create in queue only !!!");
         }

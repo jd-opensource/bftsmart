@@ -1,4 +1,4 @@
-package bftsmart.communication.server.timestamp;
+package bftsmart.communication.impl.timestamp;
 
 /**
  * 时间戳校验接口

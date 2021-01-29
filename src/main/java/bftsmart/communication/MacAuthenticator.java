@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.PublicKey;
 
-import bftsmart.communication.server.IOChannel;
+import bftsmart.communication.impl.IOChannel;
 import utils.io.BytesUtils;
 
 /**

@@ -1,7 +1,7 @@
 package test.bftsmart.communication.server;
 
-import bftsmart.communication.server.AbstractServerCommunicationLayer;
-import bftsmart.communication.server.MessageConnection;
+import bftsmart.communication.impl.AbstractCommunicationLayer;
+import bftsmart.communication.impl.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
@@ -10,7 +10,7 @@ import bftsmart.reconfiguration.ViewTopology;
  * @author huanghaiquan
  *
  */
-class MessageStreamCommunicationLayer extends AbstractServerCommunicationLayer {
+class MessageStreamCommunicationLayer extends AbstractCommunicationLayer {
 
 	private MessageStreamNodeNetwork nodesNetwork;
 
@@ -34,7 +34,7 @@ class MessageStreamCommunicationLayer extends AbstractServerCommunicationLayer {
 	}
 
 	@Override
-	protected MessageConnection connectRemote(int remoteId) {
+	protected MessageConnection connectOutbound(int remoteId) {
 		MessageStreamNode remoteNode = nodesNetwork.getNode(remoteId);
 		MessageStreamNode currentNode = nodesNetwork.getNode(me);
 		return new MessageStreamConnection(realmName, topology, remoteId, messageInQueue,
@@ -42,7 +42,7 @@ class MessageStreamCommunicationLayer extends AbstractServerCommunicationLayer {
 	}
 
 	@Override
-	protected MessageConnection acceptRemote(int remoteId) {
+	protected MessageConnection acceptInbound(int remoteId) {
 		MessageStreamNode remoteNode = nodesNetwork.getNode(remoteId);
 		MessageStreamNode currentNode = nodesNetwork.getNode(me);
 		return new MessageStreamConnection(realmName, topology, remoteId, messageInQueue,

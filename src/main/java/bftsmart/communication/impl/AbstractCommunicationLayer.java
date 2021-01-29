@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -8,21 +8,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.CommunicationException;
+import bftsmart.communication.CommunicationLayer;
 import bftsmart.communication.MacMessageCodec;
+import bftsmart.communication.MessageQueue;
 import bftsmart.communication.SystemMessage;
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.queue.MessageQueue.SystemMessageType;
-import bftsmart.communication.queue.MessageQueueFactory;
+import bftsmart.communication.MessageQueue.SystemMessageType;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
+ * 通讯层的基础实现；
+ * <p>
+ * 
+ * 
+ * 
  * @author huanghaiquan
  *
  */
-public abstract class AbstractServerCommunicationLayer implements ServerCommunicationLayer {
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractServerCommunicationLayer.class);
+public abstract class AbstractCommunicationLayer implements CommunicationLayer {
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCommunicationLayer.class);
 
 //	private static final String PASSWORD = "commsyst";
+//	protected SecretKey selfPwd;
 
 	private Object connectionsLock = new Object();
 
@@ -34,12 +40,11 @@ public abstract class AbstractServerCommunicationLayer implements ServerCommunic
 
 	protected final MessageQueue messageInQueue;
 
-	private final Map<SystemMessageType, AggregatedListeners> listeners = new ConcurrentHashMap<MessageQueue.SystemMessageType, AbstractServerCommunicationLayer.AggregatedListeners>();
+	private final Map<SystemMessageType, AggregatedListeners> listeners = new ConcurrentHashMap<MessageQueue.SystemMessageType, AbstractCommunicationLayer.AggregatedListeners>();
 
 	protected volatile boolean doWork = false;
-//	protected SecretKey selfPwd;
 
-	public AbstractServerCommunicationLayer(String realmName, ViewTopology topology) {
+	public AbstractCommunicationLayer(String realmName, ViewTopology topology) {
 		this.topology = topology;
 		this.messageInQueue = MessageQueueFactory.newMessageQueue(MessageQueue.QueueDirection.IN,
 				topology.getStaticConf().getInQueueSize());
@@ -143,12 +148,12 @@ public abstract class AbstractServerCommunicationLayer implements ServerCommunic
 
 			if (remoteId == me) {
 				connection = connectLocal(me);
-			} else if (isOutboundToRemote(remoteId)) {
+			} else if (isOutbound(remoteId)) {
 				// 主动向外连接到远程节点；
-				connection = connectRemote(remoteId);
+				connection = connectOutbound(remoteId);
 			} else {
 				// 等待外部节点接入；
-				connection = acceptRemote(remoteId);
+				connection = acceptInbound(remoteId);
 			}
 			this.connections.put(remoteId, connection);
 
@@ -163,7 +168,7 @@ public abstract class AbstractServerCommunicationLayer implements ServerCommunic
 	 * @param remoteId
 	 * @return
 	 */
-	private boolean isOutboundToRemote(int remoteId) {
+	private boolean isOutbound(int remoteId) {
 		boolean outbound = false;
 		if (this.topology.isInCurrentView()) {
 			// in this case, the node with higher ID starts the connection
@@ -337,7 +342,7 @@ public abstract class AbstractServerCommunicationLayer implements ServerCommunic
 	}
 
 	/**
-	 * 尝试连接远端节点；
+	 * 出站连接到远程节点；
 	 * <p>
 	 * 
 	 * 实现者应提供异步的实现，确保实施以下约束：
@@ -348,13 +353,13 @@ public abstract class AbstractServerCommunicationLayer implements ServerCommunic
 	 * 
 	 * 3. 调用未就绪的 {@link MessageConnection} 实例发送时将缓存消息，直到连接建立之后再发送； <br>
 	 * 
-	 * @param remoteId
+	 * @param remoteId 远程节点 Id；
 	 * @return
 	 */
-	protected abstract MessageConnection connectRemote(int remoteId);
+	protected abstract MessageConnection connectOutbound(int remoteId);
 
 	/**
-	 * 开始接受从指定节点的接入；
+	 * 接入来自指定的远程节点的入站连接；
 	 * <p>
 	 * 
 	 * 实现者应提供异步的实现，确保实施以下约束：
@@ -365,10 +370,10 @@ public abstract class AbstractServerCommunicationLayer implements ServerCommunic
 	 * 
 	 * 3. 调用未就绪的 {@link MessageConnection} 实例发送时将缓存消息，直到连接建立之后再发送； <br>
 	 * 
-	 * @param remoteId
+	 * @param remoteId 远程节点 Id；
 	 * @return
 	 */
-	protected abstract MessageConnection acceptRemote(int remoteId);
+	protected abstract MessageConnection acceptInbound(int remoteId);
 
 	@Override
 	public String toString() {

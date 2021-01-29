@@ -1,4 +1,4 @@
-package bftsmart.communication.server.socket;
+package bftsmart.communication.impl.socket;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -13,9 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.CommunicationException;
-import bftsmart.communication.server.AbstractServerCommunicationLayer;
-import bftsmart.communication.server.MessageConnection;
-import bftsmart.communication.server.SocketUtils;
+import bftsmart.communication.impl.AbstractCommunicationLayer;
+import bftsmart.communication.impl.MessageConnection;
+import bftsmart.communication.impl.SocketUtils;
 import bftsmart.reconfiguration.ReplicaTopology;
 import utils.io.RuntimeIOException;
 
@@ -23,7 +23,7 @@ import utils.io.RuntimeIOException;
  * @author huanghaiquan
  *
  */
-public class SocketServerCommunicationLayer extends AbstractServerCommunicationLayer {
+public class SocketServerCommunicationLayer extends AbstractCommunicationLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SocketServerCommunicationLayer.class);
 
 	/**
@@ -170,12 +170,12 @@ public class SocketServerCommunicationLayer extends AbstractServerCommunicationL
 	}
 
 	@Override
-	protected MessageConnection connectRemote(int remoteId) {
+	protected MessageConnection connectOutbound(int remoteId) {
 		return new SockectOutboundConnection(realmName, topology, remoteId, messageInQueue);
 	}
 
 	@Override
-	protected MessageConnection acceptRemote(int remoteId) {
+	protected MessageConnection acceptInbound(int remoteId) {
 		SockectInboundConnection conn = inboundConnections.get(remoteId);
 		if (conn == null) {
 			synchronized (acceptingLock) {

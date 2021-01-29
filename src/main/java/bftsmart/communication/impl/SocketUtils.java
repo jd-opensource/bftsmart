@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 import java.net.Socket;
 import java.net.SocketException;

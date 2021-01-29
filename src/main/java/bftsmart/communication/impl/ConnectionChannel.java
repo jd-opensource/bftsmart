@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 public interface ConnectionChannel {
 

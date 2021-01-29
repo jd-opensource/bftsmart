@@ -1,9 +1,9 @@
-package bftsmart.communication.server.socket;
+package bftsmart.communication.impl.socket;
 
 import java.io.IOException;
 import java.net.Socket;
 
-import bftsmart.communication.server.IOChannel;
+import bftsmart.communication.impl.IOChannel;
 
 class SocketChannel extends IOChannel {
 

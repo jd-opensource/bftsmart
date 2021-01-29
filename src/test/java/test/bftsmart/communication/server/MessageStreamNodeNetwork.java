@@ -3,8 +3,8 @@ package test.bftsmart.communication.server;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.MessageConnection;
+import bftsmart.communication.MessageQueue;
+import bftsmart.communication.impl.MessageConnection;
 
 class MessageStreamNodeNetwork {
 

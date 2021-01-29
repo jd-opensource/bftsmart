@@ -18,10 +18,8 @@ package bftsmart.communication;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.MessageListener;
-import bftsmart.communication.server.ServerCommunicationLayer;
-import bftsmart.communication.server.socket.SocketServerCommunicationLayer;
+import bftsmart.communication.impl.MessageListener;
+import bftsmart.communication.impl.socket.SocketServerCommunicationLayer;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.ServiceReplica;
@@ -45,7 +43,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	public static final long MESSAGE_WAIT_TIME = 100;
 //	private MessageQueue messageInQueue;
 	private MessageHandler messageHandler;// = new MessageHandler();
-	private ServerCommunicationLayer serversCommunication;
+	private CommunicationLayer serversCommunication;
 	private final ClientCommunicationServerSide clientCommunication;
 	private ViewTopology controller;
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServerCommunicationSystemImpl.class);
@@ -159,7 +157,7 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	}
 
 	@Override
-	public ServerCommunicationLayer getServersCommunication() {
+	public CommunicationLayer getServersCommunication() {
 		return serversCommunication;
 	}
 

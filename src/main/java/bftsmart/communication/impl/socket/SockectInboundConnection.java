@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package bftsmart.communication.server.socket;
+package bftsmart.communication.impl.socket;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -21,9 +21,9 @@ import java.net.Socket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.AbstractStreamConnection;
-import bftsmart.communication.server.IOChannel;
+import bftsmart.communication.MessageQueue;
+import bftsmart.communication.impl.AbstractStreamConnection;
+import bftsmart.communication.impl.IOChannel;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**

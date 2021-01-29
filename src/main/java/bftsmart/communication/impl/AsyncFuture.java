@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 /**
  * 提供对异步操作的结果描述；

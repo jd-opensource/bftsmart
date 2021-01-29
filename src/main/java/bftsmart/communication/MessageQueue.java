@@ -1,6 +1,5 @@
-package bftsmart.communication.queue;
+package bftsmart.communication;
 
-import bftsmart.communication.SystemMessage;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
 import bftsmart.tom.leaderchange.LeaderRequestMessage;

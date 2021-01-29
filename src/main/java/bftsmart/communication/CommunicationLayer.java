@@ -1,31 +1,18 @@
-/**
-Copyright (c) 2007-2013 Alysson Bessani, Eduardo Alchieri, Paulo Sousa, and the authors indicated in the @author tags
+package bftsmart.communication;
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-package bftsmart.communication.server;
-
-import bftsmart.communication.MacKey;
-import bftsmart.communication.MacMessageCodec;
-import bftsmart.communication.SystemMessage;
-import bftsmart.communication.queue.MessageQueue.SystemMessageType;
+import bftsmart.communication.MessageQueue.SystemMessageType;
+import bftsmart.communication.impl.MessageListener;
 
 /**
  * 服务端节点通讯层；
  *
  */
-public interface ServerCommunicationLayer {
-	
+public interface CommunicationLayer {
+
+	/**
+	 * 当前节点的 Id；
+	 * @return
+	 */
 	int getId();
 
 	/**
@@ -36,6 +23,15 @@ public interface ServerCommunicationLayer {
 	 */
 	MacMessageCodec<SystemMessage> getMessageCodec(int remoteId);
 
+	/**
+	 * 返回当前节点与指定的节点的消息认证共享密钥；
+	 * <p>
+	 * 
+	 * 如果与指定节点的连接尚未建立，则返回 null；
+	 * 
+	 * @param id
+	 * @return
+	 */
 	default MacKey getMacKey(int id) {
 		MacMessageCodec<SystemMessage> codec = getMessageCodec(id);
 		return codec == null ? null : codec.getMacKey();

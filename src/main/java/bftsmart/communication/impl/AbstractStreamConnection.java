@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,9 +15,9 @@ import bftsmart.communication.MacKey;
 import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.MacMessageCodec;
 import bftsmart.communication.MessageAuthenticationException;
+import bftsmart.communication.MessageQueue;
 import bftsmart.communication.SystemMessage;
 import bftsmart.communication.SystemMessageCodec;
-import bftsmart.communication.queue.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
 import utils.io.BytesUtils;
 

@@ -1,11 +1,12 @@
-package bftsmart.communication.queue;
+package bftsmart.communication.impl;
 
+import bftsmart.communication.MessageQueue;
 import bftsmart.communication.SystemMessage;
 
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class MessageInQueue implements MessageQueue {
+public class LinkedBlockingMessageQueue implements MessageQueue {
 
     private final LinkedBlockingQueue<SystemMessage> consMsgQueue;
 
@@ -13,7 +14,7 @@ public class MessageInQueue implements MessageQueue {
 
     private final LinkedBlockingQueue<SystemMessage> heartMsgQueue;
 
-    public MessageInQueue(int capacity){
+    public LinkedBlockingMessageQueue(int capacity){
         consMsgQueue = new LinkedBlockingQueue<>(capacity);
         lcMsgQueue = new LinkedBlockingQueue<>(capacity);
         heartMsgQueue = new LinkedBlockingQueue<>(capacity);

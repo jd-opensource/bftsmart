@@ -3,9 +3,9 @@ package test.bftsmart.communication.server;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.AbstractStreamConnection;
-import bftsmart.communication.server.IOChannel;
+import bftsmart.communication.MessageQueue;
+import bftsmart.communication.impl.AbstractStreamConnection;
+import bftsmart.communication.impl.IOChannel;
 import bftsmart.reconfiguration.ViewTopology;
 
 public class MessageStreamConnection extends AbstractStreamConnection{

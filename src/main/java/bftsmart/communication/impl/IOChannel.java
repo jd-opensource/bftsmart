@@ -1,4 +1,4 @@
-package bftsmart.communication.server;
+package bftsmart.communication.impl;
 
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;

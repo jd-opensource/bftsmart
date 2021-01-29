@@ -1,3 +1,4 @@
+package bftsmart.communication.impl.timestamp;
 //package bftsmart.communication.server.timestamp;
 //
 //import bftsmart.communication.MessageHandler;

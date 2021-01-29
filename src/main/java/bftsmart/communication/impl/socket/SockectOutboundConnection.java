@@ -1,4 +1,4 @@
-package bftsmart.communication.server.socket;
+package bftsmart.communication.impl.socket;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -9,10 +9,10 @@ import java.net.UnknownHostException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bftsmart.communication.queue.MessageQueue;
-import bftsmart.communication.server.AbstractStreamConnection;
-import bftsmart.communication.server.IOChannel;
-import bftsmart.communication.server.SocketUtils;
+import bftsmart.communication.MessageQueue;
+import bftsmart.communication.impl.AbstractStreamConnection;
+import bftsmart.communication.impl.IOChannel;
+import bftsmart.communication.impl.SocketUtils;
 import bftsmart.reconfiguration.ViewTopology;
 
 /**
