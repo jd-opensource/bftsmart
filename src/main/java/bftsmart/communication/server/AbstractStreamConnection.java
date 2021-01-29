@@ -241,102 +241,90 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 		int retryCount = 0;
 		OutputStream out = null;
 		do {
+			// 检查连接；
 			try {
-				// 检查连接；
-				try {
-					if (out == null) {
-						out = getOutputStream(CONNECTION_TIMEOUT);
-					}
-				} catch (Exception e) {
-					// 建立连接时发生网络IO错误；
-					LOGGER.error("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID
-							+ "] " + e.getMessage(), e);
-					out = null;
-				}
-
-				// 当连接未建立时：
-				// 对于无需重试发送的消息，则直接丢弃；
-				// 对于需要重试发送的消息，则一直等待直到连接重新建立为止；
 				if (out == null) {
-					if (!messageTask.RETRY) {
-						// 抛弃连接；
-						messageTask.error(new IllegalStateException("Connection has not been established!"));
-						LOGGER.warn(
-								"Discard the message because connection has not been established and the task has no retry indication! --[Me={}][Remote={}]",
-								ME, REMOTE_ID);
-						return;
-					}
-
-					if (retryCount >= MAX_RETRY_COUNT) {
-						// 抛弃连接；
-						messageTask.error(
-								new IllegalStateException("Connection has not been established after retrying!"));
-						LOGGER.warn(
-								"Discard the message because connection has not been established after retrying! --[Me={}][Remote={}]",
-								ME, REMOTE_ID);
-						return;
-					}
-
-					retryCount++;
-					continue;
+					out = getOutputStream(CONNECTION_TIMEOUT);
 				}
-
-				IOException error = null;
-				// if there is a need to reconnect, abort this method
-				try {
-					// 连接已准备就绪，并通过了 MAC 认证；
-					// 基于连接认证生成的 MAC 共享密钥对消息进行编码输出；
-					outputBytes = messageCodec.encode(messageTask.getSource());
-
-					// 将编码消息写入输出流；
-					BytesUtils.writeInt(outputBytes.length, out);
-					out.write(outputBytes);
-					out.flush();
-
-					// 发送任务成果；
-					messageTask.complete(null);
-					return;
-				} catch (IOException ex) {
-					try {
-						out.close();
-					} catch (Exception e) {
-					}
-					out = null;
-					error = ex;
-				}
-
-				// 写数据时发生网络IO错误；
-				// 如果不重试发送失败的消息，则立即报告错误；
-				if (!messageTask.RETRY) {
-					messageTask.error(error);
-					LOGGER.error(
-							"Discard the message due to the io error and no retry indication! --" + error.getMessage(),
-							error);
-					return;
-				}
-
-				// 如果不重试发送失败的消息，则立即报告错误；
-				if (retryCount++ >= MAX_RETRY_COUNT) {
-					LOGGER.error("Discard the message due to the io error after retrying! --[Me=" + ME + "][Remote="
-							+ REMOTE_ID + "]" + error.getMessage(), error);
-					messageTask.error(error);
-					return;
-				}
-
-				// 重试；
-				out = null;
-				retryCount++;
-
 			} catch (Exception e) {
-				// 发生了未知的错误，不必重试，直接丢弃消息；
-				LOGGER.error("Discard the message due to the unknown error! --[Me=" + ME + "][Remote=" + REMOTE_ID + "]"
-						+ e.getMessage(), e);
-				messageTask.error(e);
+				// 建立连接时发生网络IO错误；
+				LOGGER.error("Error occurred while connecting to remote! --[Me=" + ME + "][Remote=" + REMOTE_ID
+						+ "] " + e.getMessage(), e);
+				out = null;
+			}
+			
+			// 当连接未建立时：
+			// 对于无需重试发送的消息，则直接丢弃；
+			// 对于需要重试发送的消息，则一直等待直到连接重新建立为止；
+			if (out == null) {
+				if (!messageTask.RETRY) {
+					// 抛弃连接；
+					messageTask.error(new IllegalStateException("Connection has not been established!"));
+					LOGGER.warn(
+							"Discard the message because connection has not been established and the task has no retry indication! --[Me={}][Remote={}]",
+							ME, REMOTE_ID);
+					return;
+				}
+				
+				if (retryCount >= MAX_RETRY_COUNT) {
+					// 抛弃连接；
+					messageTask.error(
+							new IllegalStateException("Connection has not been established after retrying!"));
+					LOGGER.warn(
+							"Discard the message because connection has not been established after retrying! --[Me={}][Remote={}]",
+							ME, REMOTE_ID);
+					return;
+				}
+				
+				retryCount++;
+				continue;
+			}
+			
+			Exception error = null;
+			try {
+				// 连接已准备就绪，并通过了 MAC 认证；
+				// 基于连接认证生成的 MAC 共享密钥对消息进行编码输出；
+				outputBytes = messageCodec.encode(messageTask.getSource());
+				
+				// 将编码消息写入输出流；
+				BytesUtils.writeInt(outputBytes.length, out);
+				out.write(outputBytes);
+				out.flush();
+				
+				// 发送任务成功；
+				messageTask.complete(null);
+				return;
+			} catch (Exception ex) {
+				try {
+					out.close();
+				} catch (Exception e) {
+				}
+				out = null;
+				error = ex;
+			}
+			
+			// 写数据时发生网络IO错误；
+			// 如果不重试发送失败的消息，则立即报告错误；
+			if (!messageTask.RETRY) {
+				messageTask.error(error);
+				LOGGER.error(
+						"Discard the message due to the io error and no retry indication! --" + error.getMessage(),
+						error);
 				return;
 			}
-		} while (doWork && retryCount < MAX_RETRY_COUNT);
+			
+			retryCount++;
+			
+			// 如果不重试发送失败的消息，则立即报告错误；
+			if (retryCount >= MAX_RETRY_COUNT) {
+				LOGGER.error("Discard the message due to the io error after retrying! --[Me=" + ME + "][Remote="
+						+ REMOTE_ID + "]" + error.getMessage(), error);
+				messageTask.error(error);
+				return;
+			}
+		} while (doWork);
 
-		messageTask.error(new IllegalStateException("Completed in unexpected state!"));
+		messageTask.error(new IllegalStateException("Message has not sent because connection is shutdown!"));
 	}
 
 	/**
