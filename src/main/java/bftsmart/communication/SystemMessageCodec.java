@@ -57,6 +57,9 @@ public class SystemMessageCodec implements MacMessageCodec<SystemMessage> {
 
 		byte[] macBytes = BytesUtils.EMPTY_BYTES;
 		if (useMac) {
+			if (macKey == null) {
+				throw new IllegalStateException("Mac key is not ready!");
+			}
 			macBytes = macKey.generateMac(messageBytes);
 		}
 		int messageSize = messageBytes.length;

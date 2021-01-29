@@ -236,7 +236,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 */
 	private final void processSendingTask(MessageSendingTask messageTask) {
 		// 生成消息的输出编码；
-		byte[] outputBytes = messageCodec.encode(messageTask.getSource());
+		byte[] outputBytes = null;
 
 		int retryCount = 0;
 		OutputStream out = null;
@@ -284,9 +284,16 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 				IOException error = null;
 				// if there is a need to reconnect, abort this method
 				try {
+					// 连接已准备就绪，并通过了 MAC 认证；
+					// 基于连接认证生成的 MAC 共享密钥对消息进行编码输出；
+					outputBytes = messageCodec.encode(messageTask.getSource());
+
+					// 将编码消息写入输出流；
 					BytesUtils.writeInt(outputBytes.length, out);
 					out.write(outputBytes);
 					out.flush();
+
+					// 发送任务成果；
 					messageTask.complete(null);
 					return;
 				} catch (IOException ex) {
@@ -359,7 +366,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 				SystemMessage sm = null;
 				try {
 					sm = readMessage(in);
-				} catch (IOException e) {
+				} catch (Exception e) {
 					// 接收消息时发生网络错误；需要重新建立连接；
 					LOGGER.error("Error occurred while reading the input message! --[Me=" + ME + "][Remote=" + REMOTE_ID
 							+ "] " + e.getMessage(), e);

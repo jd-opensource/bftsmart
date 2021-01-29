@@ -153,6 +153,14 @@ public class ServiceReplica {
 		}
 		
 		this.replicaCtx = this.init();
+		
+		// 先启动通讯层，以便其它部分在启动后的通讯操作能够正常进行；
+		this.cs.start();
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+		}
+		
 		this.replier.initContext(replicaCtx);
 		this.recoverer.initContext(replicaCtx);
 		
@@ -237,7 +245,6 @@ public class ServiceReplica {
 //	}
 
 	private void startReplica(ReplicaContext context) {
-		cs.start();
 		repMan = new ReplyManager(serverViewController.getStaticConf().getNumRepliers(), cs);
 
 		context.start();
