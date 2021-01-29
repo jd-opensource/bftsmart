@@ -172,7 +172,7 @@ public class ServerCommunicationLayerTest {
 	public void testDoubleTCPNodes() throws IOException, InterruptedException {
 		final String realmName = "TEST-NET";
 		int[] viewProcessIds = { 0, 1};
-		int[] ports = { 15100, 15110};
+		int[] ports = { 14100, 14110};
 
 		ServerCommunicationLayer[] servers = prepareSocketNodes(realmName, viewProcessIds, ports);
 		MessageCounter[] counters = prepareMessageCounters(servers);

@@ -37,6 +37,8 @@ public class CommunicationtTestMocker {
 			}
 		});
 		
+        when(topology.getStaticConf()).thenReturn(conf);
+        
 		return topology;
 	}
 

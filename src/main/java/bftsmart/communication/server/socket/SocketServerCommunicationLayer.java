@@ -2,6 +2,7 @@ package bftsmart.communication.server.socket;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -11,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bftsmart.communication.CommunicationException;
 import bftsmart.communication.server.AbstractServerCommunicationLayer;
 import bftsmart.communication.server.MessageConnection;
 import bftsmart.communication.server.SocketUtils;
@@ -53,7 +55,7 @@ public class SocketServerCommunicationLayer extends AbstractServerCommunicationL
 			try {
 				Socket newSocket = ssc.accept();
 				SocketUtils.setSocketOptions(newSocket);
-				
+
 				// 收到新的接入，读取对端的节点 Id 进行识别；
 				int remoteId = new DataInputStream(newSocket.getInputStream()).readInt();
 
@@ -133,8 +135,11 @@ public class SocketServerCommunicationLayer extends AbstractServerCommunicationL
 		ServerSocket ssc;
 		try {
 			ssc = initServerSocket(port);
+		} catch (BindException e) {
+			LOGGER.error("Address binding error! --[port=" + port + "]" + e.getMessage(), e);
+			throw new CommunicationException(e.getMessage(), e);
 		} catch (IOException e) {
-			throw new RuntimeIOException(e.getMessage(), e);
+			throw new CommunicationException(e.getMessage(), e);
 		}
 
 		Thread thrd = new Thread(new Runnable() {
