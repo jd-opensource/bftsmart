@@ -18,12 +18,19 @@ package bftsmart.tom.leaderchange;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeSet;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import bftsmart.tom.core.messages.ForwardedMessage;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.ServerCommunicationSystem;
@@ -54,6 +61,8 @@ public class RequestsTimer {
 
 	private Hashtable<Integer, Timer> stopTimers = new Hashtable<>();
 
+	private ScheduledExecutorService requestsTimer = null;
+
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(RequestsTimer.class);
 
 	// private Storage st1 = new Storage(100000);
@@ -71,6 +80,8 @@ public class RequestsTimer {
 
 		this.timeout = this.controller.getStaticConf().getRequestTimeout();
 		this.shortTimeout = -1;
+
+		startTimer();
 	}
 
 	public void setShortTimeout(long shortTimeout) {
@@ -85,6 +96,62 @@ public class RequestsTimer {
 		return timeout;
 	}
 
+	public void startTimer() {
+		requestsTimer = Executors.newSingleThreadScheduledExecutor();
+		requestsTimer.scheduleWithFixedDelay(new RequestsTimeoutTask(), 2000,
+				this.timeout, TimeUnit.MILLISECONDS);
+	}
+
+	public void stopTimer() {
+		if (requestsTimer != null) {
+			requestsTimer.shutdownNow();
+		}
+		requestsTimer = null;
+	}
+
+	private class RequestsTimeoutTask implements Runnable {
+
+        @Override
+		public void run() {
+
+			// 需要判断所有连接是否已经成功建立,即状态传输是否完成
+			if (!tomLayer.isConnectRemotesOK()) {
+				return;
+			}
+
+			LinkedList<TOMMessage> pendingRequests = new LinkedList<TOMMessage>();
+
+			rwLock.readLock().lock();
+
+			for (Iterator<TOMMessage> iter = watched.iterator(); iter.hasNext();) {
+				TOMMessage request = iter.next();
+				if ((System.currentTimeMillis() - request.receptionTime) > timeout) {
+					pendingRequests.add(request);
+				} else {
+					break;
+				}
+			}
+
+			rwLock.readLock().unlock();
+
+			// 存在超时的交易请求
+			if (pendingRequests.size() !=0) {
+				// 向其他处理器转发消息，防止其他节点没有收到业务消息而无法触发超时
+				forwardRequestsToTargets(pendingRequests);
+				if (tomLayer.isLeader()) {
+					tomLayer.heartBeatTimer.stopAll();
+					tomLayer.heartBeatTimer.setLeaderInactived();
+				}
+			}
+		}// End of : public void run();
+	}//
+
+	private void forwardRequestsToTargets(LinkedList<TOMMessage> pendingRequests) {
+		for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
+                TOMMessage request = li.next();
+                communication.send(this.controller.getCurrentViewOtherAcceptors(), new ForwardedMessage(this.controller.getStaticConf().getProcessId(), request));
+		}
+	}
 //    public void startTimer() {
 //        if (rtTask == null) {
 //            long t = (shortTimeout > -1 ? shortTimeout : timeout);
@@ -281,6 +348,7 @@ public class RequestsTimer {
 	public void shutdown() {
 //        timer.cancel();
 		stopAllSTOPs();
+		stopTimer();
 		LOGGER.info("RequestsTimer stopped.");
 
 	}

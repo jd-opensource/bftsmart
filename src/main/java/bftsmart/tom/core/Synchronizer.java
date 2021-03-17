@@ -18,9 +18,13 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
+import bftsmart.tom.leaderchange.LCState;
+import bftsmart.tom.leaderchange.LCTimestampStatePair;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.LoggerFactory;
 
@@ -297,6 +301,31 @@ public class Synchronizer {
 					m.getViewProcessIds(), m.getSender());
 			lcManager.addStop(propose);
 		}
+	}
+
+	// get stops count with max regency from out of context
+	//
+	//
+	private int maxRegencyOutOfContextSTOPs(int regency) {
+
+		Map<Integer, Map<Integer, LeaderRegencyPropose>> stops = new ConcurrentHashMap<Integer, Map<Integer, LeaderRegencyPropose>>();
+
+		for (LCMessage m : outOfContextLC) {
+
+			if (m.getType() == LCType.STOP && m.getReg() == regency) {
+				LeaderRegencyPropose propose = LeaderRegencyPropose.copy(m.getLeader(), m.getReg(), m.getViewId(),
+						m.getViewProcessIds(), m.getSender());
+
+				Map<Integer, LeaderRegencyPropose> peerProposes = stops.get(regency);
+				if (peerProposes == null) {
+					peerProposes = new ConcurrentHashMap<Integer, LeaderRegencyPropose>();
+					stops.put(regency, peerProposes);
+				}
+				peerProposes.put(m.getSender(), propose);
+			}
+		}
+
+		return stops.get(regency) == null ? 0 : stops.get(regency).size();
 	}
 
 	// Processes STOPDATA messages that were not process upon reception, because
@@ -627,6 +656,9 @@ public class Synchronizer {
 		final int PROPOSED_NEXT_REGENCY_ID = regencyPropose.getRegency().getId();
 
 		heartBeatTimer.stopAll();
+		requestsTimer.stopTimer();
+
+		this.getLCManager().setLcTimestampStatePair(new LCTimestampStatePair(System.currentTimeMillis(), LCState.LC_SELECTING));
 
 		// 加入当前节点的领导者执政期提议；
 		// store information about message I am going to send
@@ -719,6 +751,7 @@ public class Synchronizer {
 		if (!execManager.stopped()) {
 			execManager.stop(); // stop consensus execution if more than f replicas sent a STOP message
 		}
+
 		electionResult = lcManager.commitElection(proposedRegencyId);
 
 		LOGGER.info("(Synchronizer.startSynchronization) [{}] -> I am proc {} installing regency {}",
@@ -742,6 +775,10 @@ public class Synchronizer {
 
 		// 重启心跳
 		tom.heartBeatTimer.restart();
+		// 重启业务消息超时定时器
+		requestsTimer.startTimer();
+
+		lcManager.setLcTimestampStatePair(new LCTimestampStatePair(System.currentTimeMillis(), LCState.LC_SYNC));
 
 		// If I am not the leader, I have to send a STOPDATA message to the elected
 		// leader
@@ -1284,6 +1321,35 @@ public class Synchronizer {
 						msg.getSender());
 
 				outOfContextLC.add(msg);
+
+				// 解决节点处于选举中，新一轮选举的消息放入缓存没有机会处理的问题
+				LeaderRegency maxRegency = getMaxRegencyFromOutofContextLC();
+
+				// 对超出预期的，且个数满足f+1条件的最大regency进行处理
+				for (int outofregency = maxRegency.getId(); outofregency > lcManager.getNextReg(); outofregency--) {
+					if (maxRegencyOutOfContextSTOPs(outofregency) == lcManager.getBeginQuorum()) {
+						processOutOfContextSTOPs(outofregency);
+						lcManager.updateNextReg(outofregency);
+						// 生成本地的附议Stop消息
+						LeaderRegencyPropose leaderRegencyPropose = LeaderRegencyPropose.copy(maxRegency.getLeaderId(),
+								maxRegency.getId(), this.controller.getCurrentView().getId(),
+								this.controller.getCurrentView().getProcesses(), getCurrentId());
+						lcManager.addStop(leaderRegencyPropose);
+						try {
+
+							byte[] payload = makeTomMessageReplyBatch(maxRegency.getId());
+
+							LCMessage msgSTOP_APPEND = LCMessage.createSTOP_APPEND(this.controller.getStaticConf().getProcessId(),
+									leaderRegencyPropose.getRegency(), controller.getCurrentView(), payload);
+							requestsTimer.setSTOP(maxRegency.getId(), msgSTOP_APPEND); // make replica re-transmit the stop
+
+							communication.send(this.controller.getCurrentViewOtherAcceptors(), msgSTOP_APPEND);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+						break;
+					}
+				}
 			} else {
 				// 未开始选举进程，或者已经开始选举进程并且提议的执政期等于正在选举中的执政期；
 				// 等同于表达式：(!lcManager.isInProgress()) || proposedRegencyId ==
@@ -1310,6 +1376,17 @@ public class Synchronizer {
 			log_warn("process_LC_STOP", "Discard the outdated STOP message with regency[" + proposedRegencyId + "]!",
 					msg.getType(), msg.getSender());
 		}
+	}
+
+	private LeaderRegency getMaxRegencyFromOutofContextLC() {
+		LeaderRegency maxLeaderRegency = new LeaderRegency(-1, -1);
+
+		for (LCMessage m : outOfContextLC) {
+			if (m.getType() == LCType.STOP && m.getReg() > maxLeaderRegency.getId()) {
+				maxLeaderRegency = new LeaderRegency(m.getLeader(), m.getReg());
+			}
+		}
+		return maxLeaderRegency;
 	}
 
 	// this method is used to verify if the leader can make the message catch-up
@@ -1560,6 +1637,8 @@ public class Synchronizer {
 					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId());
 		}
 
+		lcManager.setLcTimestampStatePair(new LCTimestampStatePair(System.currentTimeMillis(), LCState.NORMAL));
+
 		if (tmpval != null) { // did I manage to get some value?
 
 			LOGGER.info("(Synchronizer.finalise) [{}] -> I am proc {} resuming normal phase",
@@ -1572,6 +1651,9 @@ public class Synchronizer {
 			cons = execManager.getConsensus(currentCID);
 
 			e = cons.getLastEpoch();
+
+			// 回滚已经发生预计算但未提交的共识，LC的最后阶段会重新对该轮共识进行预计算
+			execManager.preComputeRollback(cons, e);
 
 			int ets = cons.getEts();
 
@@ -1594,14 +1676,14 @@ public class Synchronizer {
 				 */
 
 				// 对于在领导者切换过程中已经收到三个Write，即已经进行了预计算的节点，需要进行预计算的回滚，因为领导者切换完成时会对本轮共识重新发送write消息，重新执行共识过程；
-				if (cons != null && cons.getPrecomputed() && !cons.getPrecomputeCommited()) {
-
-					DefaultRecoverable defaultRecoverable = ((DefaultRecoverable) tom.getDeliveryThread().getReceiver()
-							.getExecutor());
-					if (e != null) {
-						defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
-					}
-				}
+//				if (cons != null && cons.getPrecomputed() && !cons.getPrecomputeCommited()) {
+//
+//					DefaultRecoverable defaultRecoverable = ((DefaultRecoverable) tom.getDeliveryThread().getReceiver()
+//							.getExecutor());
+//					if (e != null) {
+//						defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
+//					}
+//				}
 				cons.setETS(regency);
 
 				// cons.createEpoch(currentETS, controller);

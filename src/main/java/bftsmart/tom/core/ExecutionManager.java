@@ -24,6 +24,7 @@ import bftsmart.consensus.roles.Acceptor;
 import bftsmart.consensus.roles.Proposer;
 import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
@@ -566,5 +567,15 @@ public final class ExecutionManager {
     @Override
     public String toString() {
         return stoppedMsgs.toString();
+    }
+
+    public void preComputeRollback(Consensus cons, Epoch e) {
+        if (cons != null && cons.getPrecomputed() && !cons.getPrecomputeCommited()) {
+
+					DefaultRecoverable defaultRecoverable = getAcceptor().getDefaultExecutor();
+					if (e != null) {
+						defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
+					}
+				}
     }
 }

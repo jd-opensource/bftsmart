@@ -243,7 +243,7 @@ public class HeartBeatTimer {
 		// 获取当前节点的领导者信息，然后应答给发送者
 		LeaderRegency currentRegency = tomLayer.getSynchronizer().getLCManager().getCurrentRegency();
 		LeaderResponseMessage leaderRegencyResponse = new LeaderResponseMessage(getCurrentProcessId(), currentRegency,
-				this.tomLayer.controller.getCurrentView(), leaderRegencyRequest.getSequence());
+				this.tomLayer.controller.getCurrentView(), leaderRegencyRequest.getSequence(), tomLayer.getSynchronizer().getLCManager().getLcTimestampStatePair().getLcState().CODE);
 
 		tomLayer.getCommunication().send(leaderRegencyResponse, leaderRegencyRequest.getSender());
 	}

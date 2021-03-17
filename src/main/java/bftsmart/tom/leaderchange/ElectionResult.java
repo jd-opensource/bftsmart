@@ -143,6 +143,11 @@ public class ElectionResult {
 				continue;
 			}
 
+			if (proposes[i].getStateCode() != LCState.NORMAL.CODE) {
+				// 忽略未处于Normal状态的节点提议
+				continue;
+			}
+
 			// 统一对齐到最大的视图，统计在最大视图上的投票数；
 			if (proposes[i].getViewId() > standard.getViewId()) {
 				// 发现更大的视图，重置对齐标注和计数器；

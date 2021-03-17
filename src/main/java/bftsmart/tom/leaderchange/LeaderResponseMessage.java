@@ -25,6 +25,8 @@ public class LeaderResponseMessage extends SystemMessage implements LeaderRegenc
 
 	private int[] viewProcessIds;
 
+	private int stateCode;
+
 	public LeaderResponseMessage() {
 	}
 
@@ -34,13 +36,14 @@ public class LeaderResponseMessage extends SystemMessage implements LeaderRegenc
 	 * @param from   replica that creates this message
 	 * @param leader type of the message (STOP, SYNC, CATCH-UP)
 	 */
-	public LeaderResponseMessage(int from, LeaderRegency regency, View view, long sequence) {
+	public LeaderResponseMessage(int from, LeaderRegency regency, View view, long sequence, int stateCode) {
 		super(from);
 		this.lastRegency = regency.getId();
 		this.leader = regency.getLeaderId();
 		this.viewId = view.getId();
 		this.viewProcessIds = view.getProcesses();
 		this.sequence = sequence;
+		this.stateCode = stateCode;
 	}
 
 	public int getLeaderId() {
@@ -75,6 +78,10 @@ public class LeaderResponseMessage extends SystemMessage implements LeaderRegenc
 		return viewProcessIds;
 	}
 
+	public int getStateCode() {
+		return stateCode;
+	}
+
 	@Override
 	public int getRegencyId() {
 		return lastRegency;
@@ -94,6 +101,7 @@ public class LeaderResponseMessage extends SystemMessage implements LeaderRegenc
 		out.writeInt(viewId);
 		out.writeObject(viewProcessIds);
 		out.writeLong(sequence);
+		out.writeInt(stateCode);
 	}
 
 	@Override
@@ -106,6 +114,7 @@ public class LeaderResponseMessage extends SystemMessage implements LeaderRegenc
 		viewProcessIds = (int[]) in.readObject();
 		Arrays.sort(viewProcessIds);
 		sequence = in.readLong();
+		stateCode = in.readInt();
 
 	}
 }

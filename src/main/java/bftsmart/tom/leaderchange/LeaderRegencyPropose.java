@@ -20,6 +20,8 @@ public class LeaderRegencyPropose implements LeaderRegencyView{
 
 	private int sender;
 
+	private int stateCode;
+
 	/**
 	 * 创建领导者选举提议；
 	 * 
@@ -113,6 +115,11 @@ public class LeaderRegencyPropose implements LeaderRegencyView{
 
 	public int getViewId() {
 		return viewId;
+	}
+
+	@Override
+	public int getStateCode() {
+		return stateCode;
 	}
 
 	public int[] getViewProcessIds() {

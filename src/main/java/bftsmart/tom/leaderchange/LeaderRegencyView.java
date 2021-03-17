@@ -51,6 +51,13 @@ public interface LeaderRegencyView {
 	int[] getViewProcessIds();
 
 	/**
+	 * LC 状态码信息；
+	 *
+	 * @return
+	 */
+	int getStateCode();
+
+	/**
 	 * 当前实例表示的领导者执政期视图所在的节点；
 	 * 
 	 * @return

@@ -320,7 +320,7 @@ public class LeaderConfirmationTask {
 				if (isTaskTimeout()) {
 					// 有可能该任务运行的时候，由于收到足够数量的stop而附议，完成一轮领导者切换并启动了定时器，此时不必再次发起lc流程
 					if (!hearbeatTimer.isActived()) {
-						hearbeatTimer.setLeaderInactived();
+//						hearbeatTimer.setLeaderInactived();
 						LeaderRegencyPropose propose = generateRegencyPropose();
 						tomLayer.getRequestsTimer().run_lc_protocol(propose);
 					}

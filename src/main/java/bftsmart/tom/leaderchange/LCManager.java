@@ -78,6 +78,8 @@ public class LCManager {
 	private SHA256Utils md = new SHA256Utils();
 	private TOMLayer tomLayer;
 
+	private LCTimestampStatePair lcTimestampStatePair;
+
 	// private Cipher cipher;
 //	private Mac mac;
 
@@ -100,6 +102,10 @@ public class LCManager {
 
 		this.SVController = SVController;
 		this.md = md;
+
+		this.lcTimestampStatePair = new LCTimestampStatePair(System.currentTimeMillis(), LCState.NORMAL);
+
+
 
 //		try {
 //			// this.cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
@@ -445,6 +451,12 @@ public class LCManager {
 		return SVController.getCurrentViewF() + 1;
 	}
 
+	public LCTimestampStatePair getLcTimestampStatePair() {return lcTimestampStatePair; }
+
+	public synchronized void setLcTimestampStatePair(LCTimestampStatePair lcTimestampStatePair) {
+		this.lcTimestampStatePair = lcTimestampStatePair;
+	}
+
 	/**
 	 * 提交正在进行的 regency 为指定值的选举；
 	 * <p>
@@ -670,6 +682,9 @@ public class LCManager {
 		return nextreg;
 	}
 
+	public synchronized void updateNextReg(int nextreg) {
+		this.nextreg = nextreg;
+	}
 	/**
 	 * Keep information about an incoming STOP message
 	 * 
