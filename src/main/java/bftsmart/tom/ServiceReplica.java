@@ -146,11 +146,11 @@ public class ServiceReplica {
 		this.verifier = verifier;
 		this.recoverer.setRealName(realName);
 
-		if (viewController.getStaticConf().isLoggingToDisk()) {
-			this.lastCid = this.recoverer.getStateManager().getLastCID();
-		} else {
-			this.lastCid = lastCid;
-		}
+//		if (viewController.getStaticConf().isLoggingToDisk()) {
+//			this.lastCid = this.recoverer.getStateManager().getLastCID();
+//		} else {
+//			this.lastCid = lastCid;
+//		}
 		
 		this.replicaCtx = this.init();
 		
@@ -163,6 +163,8 @@ public class ServiceReplica {
 		
 		this.replier.initContext(replicaCtx);
 		this.recoverer.initContext(replicaCtx);
+
+		getTomLayer().setLastExec(recoverer.getStateManager().getLastCID());
 		
 		startReplica(replicaCtx);
 	}
@@ -216,7 +218,7 @@ public class ServiceReplica {
 							serverViewController.getCurrentProcessId(), serverViewController.getCurrentView()));
 		}
 		
-		ReplicaContext context = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, lastCid, verifier,
+		ReplicaContext context = initTOMLayer(id, realmName, this, cs, recoverer, serverViewController, verifier,
 				messageHandler, clientCommunication); // initiaze the TOM layer
 		return context;
 		
@@ -665,7 +667,7 @@ public class ServiceReplica {
 	 * @param conf Total order messaging configuration
 	 */
 	private static ReplicaContext initTOMLayer(int currentProcessId, String realName, ServiceReplica replica,
-			ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc, int lastCid,
+			ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc,
 			RequestVerifier verifier, MessageHandler messageHandler,
 			ClientCommunicationServerSide clientCommunication) {
 
@@ -692,8 +694,8 @@ public class ServiceReplica {
 
 		TOMLayer tomLayer = new TOMLayer(executionManager, replica, recoverer, acceptor, cs, svc, verifier);
 		tomLayer.setRealName(realName);
-		tomLayer.setLastExec(lastCid);
-		tomLayer.getStateManager().setLastCID(lastCid);
+//		tomLayer.setLastExec(lastCid);
+//		tomLayer.getStateManager().setLastCID(lastCid);
 
 		executionManager.setTOMLayer(tomLayer);
 
