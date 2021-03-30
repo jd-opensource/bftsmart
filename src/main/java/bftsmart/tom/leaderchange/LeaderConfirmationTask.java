@@ -184,6 +184,9 @@ public class LeaderConfirmationTask {
 		// 计算最高执政期的列表；
 		ElectionResult electionResult = ElectionResult.generateHighestRegnecy(responsedRegencies.values());
 
+		// 排除掉不处于NORMAL状态的节点提议
+		int validStateCount = getValidStateCountFromElectionResult(electionResult);
+
 		int quorum = tomLayer.controller.getStaticConf().isBFT() ? currentView.computeBFT_QUORUM()
 				: currentView.computeCFT_QUORUM();
 
@@ -194,10 +197,10 @@ public class LeaderConfirmationTask {
 		// 2. 已存在的节点回复的数量比法定数量少 1 个，如果加入当前节点则刚好维护法定数量的网络活性；
 
 		LeaderRegency newRegency = null;
-		if (electionResult.getValidCount() >= quorum) {
+		if (validStateCount >= quorum) {
 			// 1. 已存在的节点回复已经满足法定数量；
 			newRegency = electionResult.getRegency();
-		} else if (electionResult.getValidCount() + 1 == quorum) {
+		} else if (validStateCount + 1 == quorum) {
 			// 2. 已存在的节点回复的数量比法定数量少 1 个;
 			// 如果新的领导者属于已存在的节点或者当前节点，则加入当前节点；
 			int newLeader = electionResult.getRegency().getLeaderId();
@@ -231,6 +234,19 @@ public class LeaderConfirmationTask {
 			return true;
 		}
 		return false;
+	}
+
+	private int getValidStateCountFromElectionResult(ElectionResult electionResult) {
+
+		int validStateCount = 0;
+
+		for (LeaderRegencyView leaderRegencyView : electionResult.getValidProposes()) {
+			if (leaderRegencyView.getStateCode() == LCState.NORMAL.CODE) {
+				validStateCount++;
+			}
+		}
+
+		return validStateCount;
 	}
 
 	/**

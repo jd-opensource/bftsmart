@@ -149,6 +149,7 @@ public class StandardStateManager extends BaseStateManager {
     public void shutdown() {
         LOGGER.info("I will shut down StandardStateManager !");
         doWork = false;
+        isInitializing = true;
         if (stateTimer != null) {
             stateTimer.cancel();
         }

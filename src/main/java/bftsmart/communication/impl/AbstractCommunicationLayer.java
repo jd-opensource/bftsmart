@@ -3,6 +3,7 @@ package bftsmart.communication.impl;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,8 @@ public abstract class AbstractCommunicationLayer implements CommunicationLayer {
 	protected final ViewTopology topology;
 
 	protected final MessageQueue messageInQueue;
+
+	private int messageTimeout = 2000;
 
 	private final Map<SystemMessageType, AggregatedListeners> listeners = new ConcurrentHashMap<MessageQueue.SystemMessageType, AbstractCommunicationLayer.AggregatedListeners>();
 
@@ -255,13 +258,14 @@ public abstract class AbstractCommunicationLayer implements CommunicationLayer {
 		while (doWork) {
 			SystemMessage message = null;
 			try {
-				message = messageInQueue.take(messageType);
+				message = messageInQueue.poll(messageType, messageTimeout, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
 				continue;
 			}
-			if (message == null) {
-				continue;
-			}
+			// 从队列里没有取到消息，也需要进行后续的处理流程，处理之前超出预期的共识消息
+//			if (message == null) {
+//				continue;
+//			}
 
 			listener.onReceived(message);
 		}

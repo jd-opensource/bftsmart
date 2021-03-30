@@ -267,7 +267,9 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 		@Override
 		protected void processMessage(SystemMessage sm) {
-			messageHandler.processData(sm);
+			if (sm != null) {
+				messageHandler.processData(sm);
+			}
 		}
 	}
 
@@ -285,7 +287,9 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 
 		@Override
 		protected void processMessage(SystemMessage sm) {
-			messageHandler.processData(sm);
+			if (sm != null) {
+				messageHandler.processData(sm);
+			}
 		}
 	}
 

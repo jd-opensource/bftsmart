@@ -195,7 +195,7 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 
 			s = (String) configs.remove("system.totalordermulticast.timeout");
 			if (s == null) {
-				requestTimeout = 10000;
+				requestTimeout = 300000;
 			} else {
 				requestTimeout = Integer.parseInt(s);
 				if (requestTimeout < 0) {

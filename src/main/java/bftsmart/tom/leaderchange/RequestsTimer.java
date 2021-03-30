@@ -27,6 +27,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -63,6 +64,8 @@ public class RequestsTimer {
 
 	private ScheduledExecutorService requestsTimer = null;
 
+    private volatile ScheduledFuture<?> taskFuture;
+
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(RequestsTimer.class);
 
 	// private Storage st1 = new Storage(100000);
@@ -97,8 +100,11 @@ public class RequestsTimer {
 	}
 
 	public void startTimer() {
+	    if (taskFuture != null) {
+	        return;
+        }
 		requestsTimer = Executors.newSingleThreadScheduledExecutor();
-		requestsTimer.scheduleWithFixedDelay(new RequestsTimeoutTask(), 2000,
+		taskFuture = requestsTimer.scheduleWithFixedDelay(new RequestsTimeoutTask(), 4000,
 				this.timeout, TimeUnit.MILLISECONDS);
 	}
 
@@ -107,9 +113,26 @@ public class RequestsTimer {
 			requestsTimer.shutdownNow();
 		}
 		requestsTimer = null;
+		taskFuture = null;
 	}
 
-	private class RequestsTimeoutTask implements Runnable {
+    private synchronized void cancelTask() {
+        ScheduledFuture<?> future = taskFuture;
+        taskFuture = null;
+        if (future != null) {
+            future.cancel(true);
+
+            try {
+                requestsTimer.shutdown();
+            } catch (Exception e) {
+            }
+
+            LOGGER.debug("Quit the Requests Timeout check task! --[CurrentId={}]", tomLayer.getCurrentProcessId());
+        }
+    }
+
+
+    private class RequestsTimeoutTask implements Runnable {
 
         @Override
 		public void run() {
@@ -140,7 +163,9 @@ public class RequestsTimer {
 				forwardRequestsToTargets(pendingRequests);
 				if (tomLayer.isLeader()) {
 					tomLayer.heartBeatTimer.stopAll();
+					LOGGER.info("I am proc {}, tx timeout! set leader inactive!", tomLayer.controller.getStaticConf().getProcessId());
 					tomLayer.heartBeatTimer.setLeaderInactived();
+					cancelTask();
 				}
 			}
 		}// End of : public void run();
