@@ -776,9 +776,11 @@ public class Synchronizer {
 		// 重启心跳
 		tom.heartBeatTimer.restart();
 		// 重启业务消息超时定时器
-		requestsTimer.startTimer();
+		requestsTimer.startTimer(controller.getStaticConf().getRequestTimeout());
 
 		lcManager.setLcTimestampStatePair(new LCTimestampStatePair(System.currentTimeMillis(), LCState.LC_SYNC));
+
+		LOGGER.info("I am proc {}, node lc state become sync!", this.controller.getStaticConf().getProcessId());
 
 		// If I am not the leader, I have to send a STOPDATA message to the elected
 		// leader
@@ -1328,6 +1330,7 @@ public class Synchronizer {
 				// 对超出预期的，且个数满足f+1条件的最大regency进行处理
 				for (int outofregency = maxRegency.getId(); outofregency > lcManager.getNextReg(); outofregency--) {
 					if (maxRegencyOutOfContextSTOPs(outofregency) == lcManager.getBeginQuorum()) {
+						LOGGER.info("I am proc {}, process out of context msg for regency {}", this.controller.getStaticConf().getProcessId(), outofregency);
 						processOutOfContextSTOPs(outofregency);
 						lcManager.updateNextReg(outofregency);
 						// 生成本地的附议Stop消息

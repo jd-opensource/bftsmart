@@ -52,6 +52,7 @@ public class RequestsTimer {
 	private TOMLayer tomLayer; // TOM layer
 	private long timeout;
 	private long shortTimeout;
+	private long stoptimeout;
 	private TreeSet<TOMMessage> watched = new TreeSet<TOMMessage>();
 	private ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
 
@@ -81,10 +82,12 @@ public class RequestsTimer {
 		this.communication = communication;
 		this.controller = controller;
 
+		this.stoptimeout = this.controller.getStaticConf().getStopMsgTimeout();
 		this.timeout = this.controller.getStaticConf().getRequestTimeout();
 		this.shortTimeout = -1;
 
-		startTimer();
+		// 请求定时器初次启动时延迟设置为4秒
+		startTimer(4000);
 	}
 
 	public void setShortTimeout(long shortTimeout) {
@@ -99,12 +102,12 @@ public class RequestsTimer {
 		return timeout;
 	}
 
-	public void startTimer() {
+	public void startTimer(int delay) {
 	    if (taskFuture != null) {
 	        return;
         }
 		requestsTimer = Executors.newSingleThreadScheduledExecutor();
-		taskFuture = requestsTimer.scheduleWithFixedDelay(new RequestsTimeoutTask(), 4000,
+		taskFuture = requestsTimer.scheduleWithFixedDelay(new RequestsTimeoutTask(), delay,
 				this.timeout, TimeUnit.MILLISECONDS);
 	}
 
@@ -127,7 +130,7 @@ public class RequestsTimer {
             } catch (Exception e) {
             }
 
-            LOGGER.debug("Quit the Requests Timeout check task! --[CurrentId={}]", tomLayer.getCurrentProcessId());
+            LOGGER.debug("I am proc {}, quit the requests timeout check task!", tomLayer.getCurrentProcessId());
         }
     }
 
@@ -163,7 +166,7 @@ public class RequestsTimer {
 				forwardRequestsToTargets(pendingRequests);
 				if (tomLayer.isLeader()) {
 					tomLayer.heartBeatTimer.stopAll();
-					LOGGER.info("I am proc {}, tx timeout! set leader inactive!", tomLayer.controller.getStaticConf().getProcessId());
+					LOGGER.info("I am proc {}, tx requests timeout! Set leader inactive, wait for trigger lc!", tomLayer.getCurrentProcessId());
 					tomLayer.heartBeatTimer.setLeaderInactived();
 					cancelTask();
 				}
@@ -343,7 +346,7 @@ public class RequestsTimer {
 		SendStopTask stopTask = new SendStopTask(stop);
 		Timer stopTimer = new Timer("Stop message");
 
-		stopTimer.schedule(stopTask, timeout);
+		stopTimer.schedule(stopTask, stoptimeout);
 
 		stopTimers.put(regency, stopTimer);
 
@@ -410,7 +413,7 @@ public class RequestsTimer {
 		@Override
 		public void run() {
 
-			LOGGER.info("(SendStopTask.run) {} Re-transmitting STOP message to install regency {}",
+			LOGGER.info("(SendStopTask.run) I am proc {}; Re-transmitting STOP message to install regency {}",
 					controller.getStaticConf().getProcessId(), stop.getReg());
 			communication.send(controller.getCurrentViewOtherAcceptors(), this.stop);
 

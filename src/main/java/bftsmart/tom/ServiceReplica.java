@@ -108,34 +108,34 @@ public class ServiceReplica {
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceReplica.class);
 
 	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer) {
-		this(new ServerViewController(config, new MemoryBasedViewStorage()), executor, recoverer, null,
+		this(null, null, new ServerViewController(config, new MemoryBasedViewStorage()), executor, recoverer, null,
 				new DefaultReplier(), -1, "Default-Realm");
 	}
 
 	public ServiceReplica(TOMConfiguration config, String runtimeDir, Executable executor, Recoverable recoverer) {
-		this(new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))), executor,
+		this(null, null, new ServerViewController(config, new FileSystemViewStorage(null, new File(runtimeDir, "view"))), executor,
 				recoverer, null, new DefaultReplier(), -1, "Default-Realm");
 	}
 
 	public ServiceReplica(TOMConfiguration config, View initView, String runtimeDir, Executable executor,
 			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),
+		this(null, null, new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),
 				executor, recoverer, verifier, replier, -1, "Default-Realm");
 	}
 
 	public ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor, Recoverable recoverer,
 			RequestVerifier verifier, Replier replier) {
-		this(new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier, -1,
+		this(null, null, new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier, -1,
 				"Default-Realm");
 	}
 
-	public ServiceReplica(TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
+	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
 			View lastView, String realName) {
-		this(new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
+		this(messageHandler, cs, new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
 				new DefaultReplier(), lastCid, realName);
 	}
 
-	protected ServiceReplica(ServerViewController viewController, Executable executor, Recoverable recoverer,
+	protected ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, ServerViewController viewController, Executable executor, Recoverable recoverer,
 			RequestVerifier verifier, Replier replier, int lastCid, String realName) {
 		this.id = viewController.getStaticConf().getProcessId();
 		this.realmName = realName;
@@ -145,6 +145,8 @@ public class ServiceReplica {
 		this.replier = (replier != null ? replier : new DefaultReplier());
 		this.verifier = verifier;
 		this.recoverer.setRealName(realName);
+		this.messageHandler = messageHandler;
+		this.cs = cs;
 
 //		if (viewController.getStaticConf().isLoggingToDisk()) {
 //			this.lastCid = this.recoverer.getStateManager().getLastCID();
@@ -192,10 +194,17 @@ public class ServiceReplica {
 	// this method initializes the object
 	private ReplicaContext init() {
 		try {
-			messageHandler = new MessageHandler();
-			clientCommunication = ClientCommunicationFactory.createServerSide(serverViewController);
-			cs = new ServerCommunicationSystemImpl(clientCommunication, messageHandler, this.serverViewController,
-					this);
+			if (messageHandler == null) {
+				messageHandler = new MessageHandler();
+			}
+
+			if (cs == null) {
+				clientCommunication = ClientCommunicationFactory.createServerSide(serverViewController);
+				cs = new ServerCommunicationSystemImpl(clientCommunication, messageHandler, this.serverViewController,
+						realmName);
+			} else {
+				clientCommunication = cs.getClientCommunication();
+			}
 		} catch (Exception ex) {
 			throw new RuntimeException("Unable to build a communication system.", ex);
 		}
@@ -634,6 +643,9 @@ public class ServiceReplica {
 			byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts,
 					replyContextMessages);
 
+			if (toBatch.size() != asyncResponseLinkedList.size()) {
+				return;
+			}
 			// Send the replies back to the client
 			for (int index = 0; index < toBatch.size(); index++) {
 				TOMMessage request = toBatch.get(index);

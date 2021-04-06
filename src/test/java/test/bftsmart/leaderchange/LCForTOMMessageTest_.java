@@ -774,10 +774,10 @@ public class LCForTOMMessageTest_ {
 
         //start nodeSize node servers
         for (int i = 0; i < nodeSize ; i++) {
-            serverNodes[i] = new TestNodeServer(i);
+            serverNodes[i] = new TestNodeServer(i, null, null, null);
             TestNodeServer node = serverNodes[i];
             nodeStartPools.execute(() -> {
-                node.startNode();
+                node.startNode(null);
                 servers.countDown();
             });
         }

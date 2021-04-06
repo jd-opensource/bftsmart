@@ -50,6 +50,7 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 //	private volatile int n;
 	private volatile int f;
 	private int requestTimeout;
+	private int stopMsgTimeout;
 	private int clientDatasMonitorTimeout;
 	private int clientDatasMaxCount;
 	private long heartBeatTimeout;
@@ -200,6 +201,16 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 				requestTimeout = Integer.parseInt(s);
 				if (requestTimeout < 0) {
 					requestTimeout = 0;
+				}
+			}
+
+			s = (String) configs.remove("system.totalordermulticast.stopmsgtimeout");
+			if (s == null) {
+				stopMsgTimeout = 30000;
+			} else {
+				stopMsgTimeout = Integer.parseInt(s);
+				if (stopMsgTimeout < 0) {
+					stopMsgTimeout = 0;
 				}
 			}
 
@@ -607,6 +618,11 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	@Override
 	public int getRequestTimeout() {
 		return requestTimeout;
+	}
+
+	@Override
+	public int getStopMsgTimeout() {
+		return stopMsgTimeout;
 	}
 
 	@Override

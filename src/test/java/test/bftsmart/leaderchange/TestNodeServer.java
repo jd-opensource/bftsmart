@@ -11,16 +11,25 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
+import bftsmart.communication.MessageHandler;
+import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.communication.ServerCommunicationSystemImpl;
+import bftsmart.communication.client.ClientCommunicationFactory;
+import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.consensus.app.BatchAppResultImpl;
+import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.util.HostsConfig;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.MemoryBasedViewStorage;
+import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.MessageContext;
 import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
-import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.BytesUtils;
+import org.mockito.Mockito;
 
 /**
  * @Author: zhangshuang
@@ -33,26 +42,63 @@ public class TestNodeServer extends DefaultRecoverable {
 
     private int iterations = 0;
 
-    ServiceReplica replica = null;
+    private ServiceReplica replica = null;
 
     private int proId;
 
-    public TestNodeServer(int id) {
+    private View latestView;
+
+    private Properties systemConfig;
+
+    private HostsConfig hostsConfig;
+
+    public TestNodeServer(int id, View latestView, Properties systemConfig, HostsConfig hostsConfig) {
+
         this.proId = id;
-    }
-    
-    private TOMConfiguration initConfig() {
-    	throw new IllegalStateException("Not implemented!");
+
+        this.latestView = latestView;
+
+        this.systemConfig = systemConfig;
+
+        this.hostsConfig = hostsConfig;
     }
 
-    public ServiceReplica startNode() {
+    private TOMConfiguration initConfig() {
+        try {
+            Properties sysConfClone = (Properties) systemConfig.clone();
+            return new TOMConfiguration(proId, sysConfClone, hostsConfig);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IllegalArgumentException("Config file resolve error!");
+        }
+    }
+
+    public ServiceReplica startNode(String realmName) {
+
     	TOMConfiguration config  = initConfig();
-        replica = new ServiceReplica(config, new MemoryBasedViewStorage(), this, this, null, new DefaultReplier());
+
+    	try {
+            // mock messsageHandler and cs
+            MessageHandler messageHandler = new MessageHandler();
+            MessageHandler mockMessageHandler = Mockito.spy(messageHandler);
+
+            ClientCommunicationServerSide clientCommunication = ClientCommunicationFactory.createServerSide(new ServerViewController(config, new MemoryBasedViewStorage(latestView)));
+            ServerCommunicationSystem cs = new ServerCommunicationSystemImpl(clientCommunication, mockMessageHandler, new ServerViewController(config, new MemoryBasedViewStorage(latestView)),
+                    realmName);
+
+            ServerCommunicationSystem mockCs = Mockito.spy(cs);
+
+            replica = new ServiceReplica(mockMessageHandler, mockCs, config, this, this,
+                    (int) -1, latestView, realmName);
+        } catch (Exception e) {
+    	    e.printStackTrace();
+        }
+
         return replica;
     }
 
     public ServiceReplica getReplica() {
-        return this.replica;
+        return replica;
     }
 
     @Override
@@ -115,13 +161,13 @@ public class TestNodeServer extends DefaultRecoverable {
         }
     }
 
-    public static void main(String[] args){
-        if(args.length < 1) {
-            System.out.println("Use: java CounterServer <processId>");
-            System.exit(-1);
-        }
-        new TestNodeServer(Integer.parseInt(args[0]));
-    }
+//    public static void main(String[] args){
+//        if(args.length < 2) {
+//            System.out.println("Use: java CounterServer <processId>");
+//            System.exit(-1);
+//        }
+//        new TestNodeServer(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
+//    }
 
 
     @SuppressWarnings("unchecked")

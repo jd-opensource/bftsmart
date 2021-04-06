@@ -50,6 +50,8 @@ public interface ReplicaConfiguration {
 	
 	int getRequestTimeout();
 
+	int getStopMsgTimeout();
+
 	int getClientDatasMonitorTimeout();
 
 	int getClientDatasMaxCount();

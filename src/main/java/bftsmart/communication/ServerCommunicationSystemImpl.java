@@ -52,12 +52,12 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	 * Creates a new instance of ServerCommunicationSystem
 	 */
 	public ServerCommunicationSystemImpl(ClientCommunicationServerSide clientCommunication,
-			MessageHandler messageHandler, ServerViewController controller, ServiceReplica replica) throws Exception {
+			MessageHandler messageHandler, ServerViewController controller, String realmName) throws Exception {
 		this.clientCommunication = clientCommunication;
 		this.messageHandler = messageHandler;
 		this.controller = controller;
 		
-		this.serversCommunication = new SocketServerCommunicationLayer(replica.getRealmName(), controller);
+		this.serversCommunication = new SocketServerCommunicationLayer(realmName, controller);
 
 		// 创建消息处理器
 		// 遍历枚举类

@@ -39,6 +39,9 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 */
 	private final int MAX_MESSAGE_SIZE = 100 * 1024 * 1024;
 
+	// wait for receive thread quit timeout
+	private static final long RECEIVE_THREAD_QUIT_TIMEOUT = 4000;
+
 	private final int MAX_RETRY_COUNT;
 
 	protected final String REALM_NAME;
@@ -151,7 +154,8 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 			} catch (InterruptedException e) {
 			}
 			try {
-				receiverThread.join();
+				// 设置超时时间，防止调用线程阻塞
+				receiverThread.join(RECEIVE_THREAD_QUIT_TIMEOUT);
 			} catch (InterruptedException e) {
 			}
 

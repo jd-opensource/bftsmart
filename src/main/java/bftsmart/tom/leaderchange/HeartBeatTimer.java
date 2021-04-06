@@ -133,7 +133,7 @@ public class HeartBeatTimer {
 					tomLayer.getSynchronizer().sendSTOP(propose);
 					
 					//等待 10 秒；
-					Thread.sleep(10 *1000);
+//					Thread.sleep(10 *1000);
 				}
 			}
 		} catch (Exception e) {
@@ -168,6 +168,8 @@ public class HeartBeatTimer {
 
 	private void followerTimerStart(long delay) {
 		if (initialized && followerTimer == null) {
+			// 非领导者心跳定时器重新开启后，更新上次心跳消息接收时间
+			heartBeatting.time = System.currentTimeMillis();
 			followerTimer = Executors.newSingleThreadScheduledExecutor();
 			followerTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(), delay,
 					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
