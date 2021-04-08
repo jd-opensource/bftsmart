@@ -461,7 +461,9 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		return index;
 	}
 
-	private void initLog() {
+	private int initLog() {
+		int logLastConsensusId = -1;
+
 		if (log == null) {
 			checkpointPeriod = config.getCheckpointPeriod();
 			byte[] state = getSnapshot();
@@ -472,7 +474,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				boolean syncCkp = config.isToWriteSyncCkp();
 				log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
 
-				int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
+				logLastConsensusId = ((DiskStateLog) log).loadDurableState();
 
 				getStateManager().setLastCID(logLastConsensusId);
 
@@ -480,13 +482,17 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
 			}
 		}
+
+		return logLastConsensusId;
 	}
 
 	@Override
 	public void initContext(ReplicaContext replicaContext) {
 		this.controller = replicaContext.getSVController();
 		this.config = replicaContext.getStaticConfiguration();
-		initLog();
+		int logLastConsensusId = initLog();
+
+		replicaContext.getTOMLayer().setLastExec(logLastConsensusId);
 		
 		getStateManager().askCurrentConsensusId();
 	}
