@@ -266,8 +266,7 @@ public class ServiceProxy extends TOMSender {
 				}
 			} catch (ViewObsoleteException voe) {
 				throw voe;
-			}
-			catch (InterruptedException ex) {
+			} catch (Exception ex) {
 				ex.printStackTrace();
 			}
 
