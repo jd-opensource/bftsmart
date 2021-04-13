@@ -61,7 +61,7 @@ public class SocketServerCommunicationLayer extends AbstractCommunicationLayer {
 
 				doRequest(newSocket, remoteId);
 
-				LOGGER.info("I am {} establishConnection run!", this.topology.getStaticConf().getProcessId());
+				LOGGER.info("I am {} establishConnection run with {}!", this.topology.getStaticConf().getProcessId(), remoteId);
 			} catch (SocketTimeoutException ex) {
 				// timeout on the accept... do nothing
 			} catch (Exception ex) {
@@ -111,6 +111,7 @@ public class SocketServerCommunicationLayer extends AbstractCommunicationLayer {
 				}
 			}
 			conn.accept(newSocket);
+			conn.start();
 		}
 	}
 

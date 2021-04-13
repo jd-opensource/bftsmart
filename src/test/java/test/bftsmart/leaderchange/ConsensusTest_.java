@@ -457,6 +457,127 @@ public class ConsensusTest_ {
 		}
 	}
 
+	/**
+	 * 用例9：N = 7的场景
+	 * 1. 停6后，发送交易共识完成；
+	 * 2. 1~2分钟后，停5，发送交易，共识完成；
+	 * 3. 1~2分钟后，停4，发送交易，LC无法完成；
+	 * 4. 1~2分钟后，停3，发送交易，LC无法完成；
+	 * 5. 1~2分钟后，停2，发送交易，LC无法完成；
+	 * 6. 1~2分钟后，停1，发送交易，LC无法完成；
+	 * 7. 1~2分钟后，启动4，发送交易；
+	 * 8. 1~2分钟后，启动3，发送交易；
+	 * 9. 1~2分钟后，启动2，发送交易；
+	 * 10.1~2分钟后，启动1，发送交易;
+	 */
+	@Test
+	public void test7NodeStopStartAndTxsSend() throws InterruptedException {
+
+		// 启动7个节点；
+		createClient(7);
+		initNode(7);
+
+		System.out.println("will stop 6!");
+		stopConsensusNode(6);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(10000);
+
+		System.out.println("will stop 5!");
+		stopConsensusNode(5);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(10000);
+
+		System.out.println("will stop 4!");
+		stopConsensusNode(4);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(100000);
+
+		System.out.println("will stop 3!");
+		stopConsensusNode(3);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(10000);
+
+		System.out.println("will stop 2!");
+		stopConsensusNode(2);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(10000);
+
+		System.out.println("will stop 1!");
+		stopConsensusNode(1);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(10000);
+
+		System.out.println("will start 4!");
+		startConsensusNode(4);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(10000);
+
+		System.out.println("will start 3!");
+		startConsensusNode(3);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(100000);
+
+		System.out.println("will start 2!");
+		startConsensusNode(2);
+		Thread.sleep(2000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		Thread.sleep(100000);
+
+		System.out.println("will start 1!");
+		startConsensusNode(1);
+		Thread.sleep(10000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+
+		System.out.println("111111111");
+		Thread.sleep(10000);
+		clientThread.execute(() -> {
+			clientProxy.invokeOrdered(bytes);
+		});
+		try {
+			System.out.println("----------------- Succ Completed -----------------");
+			Thread.sleep(Integer.MAX_VALUE);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
+	}
 	private void mockMessageHandlerTest4Nodes(int nodeId) {
 
 	ServerCommunicationSystemImpl serverCommunicationSystem = (ServerCommunicationSystemImpl) serverNodes[nodeId].getReplica().getServerCommunicationSystem();

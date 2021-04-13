@@ -438,7 +438,12 @@ public class StandardStateManager extends BaseStateManager {
 
 	@Override
 	public void currentConsensusIdAsked(int sender, int viewId) {
-        LOGGER.info("I will handle currentConsensusIdAsked sender = {}!", sender);
+        LOGGER.info("I am proc {}, I will handle currentConsensusIdAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
+
+        if (!tomLayer.isLastCidSetOk()) {
+            LOGGER.info("I am proc {}, ignore request cid msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
+            return;
+        }
 
         if (viewId < this.topology.getCurrentView().getId()) {
             LOGGER.info("#######################################################################################################################################################");
@@ -447,7 +452,7 @@ public class StandardStateManager extends BaseStateManager {
         }
 		int me = topology.getStaticConf().getProcessId();
 		int lastConsensusId = tomLayer.getLastExec();
-		LOGGER.info("I wiil send consensusId = {} !", lastConsensusId);
+		LOGGER.info("I am proc {}, will send consensusId = {} !", tomLayer.getCurrentProcessId(), lastConsensusId);
 		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.topology.getCurrentView(), 0, 0);
 		tomLayer.getCommunication().send(new int[]{sender}, currentCID);
 	}

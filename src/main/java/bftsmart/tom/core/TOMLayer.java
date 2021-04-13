@@ -79,6 +79,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
 	private volatile boolean isConnectRemotesOK = false;
 
+	private volatile boolean isLastCidSetOk = false;
 	/**
 	 * Manage timers for pending requests
 	 */
@@ -430,6 +431,14 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		this.isConnectRemotesOK = false;
 	}
 
+
+	public boolean isLastCidSetOk() {
+		return isLastCidSetOk;
+	}
+
+	public void lastCidSetOk() {
+		this.isLastCidSetOk = true;
+	}
 	/**
 	 * leader对应ID
 	 * 

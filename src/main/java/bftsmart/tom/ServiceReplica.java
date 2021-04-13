@@ -165,8 +165,6 @@ public class ServiceReplica {
 		
 		this.replier.initContext(replicaCtx);
 		this.recoverer.initContext(replicaCtx);
-
-		getTomLayer().setLastExec(recoverer.getStateManager().getLastCID());
 		
 		startReplica(replicaCtx);
 	}

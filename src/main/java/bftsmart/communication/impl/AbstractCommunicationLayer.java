@@ -105,6 +105,13 @@ public abstract class AbstractCommunicationLayer implements CommunicationLayer {
 						conn.close();
 					}
 				}
+				// 对于新加入的节点进行连接更新
+				int[] newV = topology.getCurrentViewProcesses();
+				for (int i = 0; i < newV.length; i++) {
+					if (newV[i] != me) {
+						getConnection(newV[i]);
+					}
+				}
 			} else {
 				// 当前节点已经不属于当前视图，关闭全部连接；
 				for (MessageConnection conn : this.connections.values()) {
@@ -120,9 +127,12 @@ public abstract class AbstractCommunicationLayer implements CommunicationLayer {
 	private MessageConnection getConnection(int remoteId) {
 		MessageConnection ret = this.connections.get(remoteId);
 		if (ret == null) {
-			throw new IllegalStateException(
-					String.format("Connection has not been established! --[Current=%s][Remote=%s]",
-							topology.getCurrentProcessId(), remoteId));
+			MessageConnection messageConnection = ensureConnection(remoteId);
+			messageConnection.start();
+
+//			throw new IllegalStateException(
+//					String.format("Connection has not been established! --[Current=%s][Remote=%s]",
+//							topology.getCurrentProcessId(), remoteId));
 		}
 		return ret;
 	}

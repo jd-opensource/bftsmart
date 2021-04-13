@@ -493,6 +493,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		int logLastConsensusId = initLog();
 
 		replicaContext.getTOMLayer().setLastExec(logLastConsensusId);
+
+		replicaContext.getTOMLayer().lastCidSetOk();
 		
 		getStateManager().askCurrentConsensusId();
 	}
