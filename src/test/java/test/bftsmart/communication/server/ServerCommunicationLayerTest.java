@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.junit.Ignore;
+import bftsmart.communication.impl.netty.NettyServerCommunicationLayer;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,11 +63,13 @@ public class ServerCommunicationLayerTest {
 			counter.assertMessagesEquals(testMessages);
 			counter.clear();
 		}
+
+		closeServers(servers);
 	}
 
 	/**
 	 * 测试当个节点的对消息的发送和接收；
-	 * 
+	 *
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
@@ -95,7 +97,7 @@ public class ServerCommunicationLayerTest {
 		server0.send(msg_from_0, 0);
 		server1.send(msg_from_1, 1);
 
-		Thread.sleep(100);// 稍等待一下，避免接收线程未来得及处理；
+		Thread.sleep(1000);// 稍等待一下，避免接收线程未来得及处理；
 		counter0.assertMessagesEquals(msg_from_0);
 		counter1.assertMessagesEquals(msg_from_1);
 		counter0.clear();
@@ -114,11 +116,13 @@ public class ServerCommunicationLayerTest {
 		// 检测 ServerCommunicationLayer 是否接收到消息；
 		Thread.sleep(100);
 		counter1.assertMessagesEquals(msg_from_0);
+
+		closeServers(server0, server1);
 	}
 
 	/**
 	 * 测试一组节点构成网络的消息广播发送和接收；
-	 * 
+	 *
 	 * @throws InterruptedException
 	 */
 	@Test
@@ -145,7 +149,7 @@ public class ServerCommunicationLayerTest {
 		counters[2].clear();
 		counters[3].assertMessagesEquals(msg_from_0);
 		counters[3].clear();
-		
+
 		// 测试完整的广播发送和接收处理，验证整体的正确性；
 		servers[0].send(msg_from_0, viewProcessIds);
 		Thread.sleep(200);
@@ -162,11 +166,11 @@ public class ServerCommunicationLayerTest {
 			node.requestInboundPipeline(sender.getId()).write(messageBytes);
 		}
 	}
-	
+
 
 	/**
 	 * 测试当个节点的对消息的发送和接收；
-	 * 
+	 *
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
@@ -196,6 +200,8 @@ public class ServerCommunicationLayerTest {
 		counters[1].assertMessagesEquals(msg_from_1);
 		counters[0].clear();
 		counters[1].clear();
+
+		closeServers(servers);
 	}
 
 	@Test
@@ -226,11 +232,81 @@ public class ServerCommunicationLayerTest {
 			counter.assertMessagesEquals(testMessages);
 			counter.clear();
 		}
+
+		closeServers(servers);
+	}
+
+	@Test
+	public void testDoubleNettyNodes() throws InterruptedException {
+		final String realmName = "TEST-NET";
+		int[] viewProcessIds = { 0, 1};
+		int[] ports = { 14100, 14110};
+
+		CommunicationLayer[] servers = prepareNettyNodes(realmName, viewProcessIds, ports);
+		MessageCounter[] counters = prepareMessageCounters(servers);
+
+		for (CommunicationLayer server : servers) {
+			server.start();
+		}
+
+		// 生成待测试发送的消息；
+		ConsensusMessage msg_from_0 = createTestMessage(0);
+		ConsensusMessage msg_from_1 = createTestMessage(1);
+
+		// 测试自我发送的正确性；
+		servers[0].send(msg_from_0, 0);
+		servers[1].send(msg_from_1, 1);
+
+		Thread.sleep(1000);// 稍等待一下，避免接收线程未来得及处理；
+		counters[0].assertMessagesEquals(msg_from_0);
+		counters[1].assertMessagesEquals(msg_from_1);
+		counters[0].clear();
+		counters[1].clear();
+
+		closeServers(servers);
+	}
+
+	@Test
+	public void testNettyNodesNetwork() {
+		final String realmName = "TEST-NET";
+		int[] viewProcessIds = { 0, 1, 2, 3 };
+		int[] ports = { 15100, 15110, 15120, 15130 };
+
+		CommunicationLayer[] servers = prepareNettyNodes(realmName, viewProcessIds, ports);
+		MessageCounter[] counters = prepareMessageCounters(servers);
+
+		for (CommunicationLayer srv : servers) {
+			srv.start();
+		}
+
+		// 生成待发送的测试消息；
+		SystemMessage[] testMessages = prepareMessages(0, 1);
+
+		// 从 server0 广播给全部的节点，包括 server0 自己；
+		broadcast(servers[0], testMessages, viewProcessIds);
+
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+		}
+		// 验证所有节点都能完整地收到消息；
+		for (MessageCounter counter : counters) {
+			counter.assertMessagesEquals(testMessages);
+			counter.clear();
+		}
+
+		closeServers(servers);
 	}
 
 	private void startServers(CommunicationLayer... servers) {
 		for (CommunicationLayer server : servers) {
 			server.start();
+		}
+	}
+
+	private void closeServers(CommunicationLayer... servers) {
+		for (CommunicationLayer server : servers) {
+			server.close();
 		}
 	}
 
@@ -284,6 +360,18 @@ public class ServerCommunicationLayerTest {
 			ReplicaTopology topology = CommunicationtTestMocker.mockTopologyWithTCP(viewProcessIds[i], viewProcessIds,
 					ports);
 			CommunicationLayer comLayer = new SocketServerCommunicationLayer(realmName, topology);
+			comLayers[i] = comLayer;
+		}
+
+		return comLayers;
+	}
+
+	private CommunicationLayer[] prepareNettyNodes(String realmName, int[] viewProcessIds, int[] ports) {
+		CommunicationLayer[] comLayers = new CommunicationLayer[viewProcessIds.length];
+		for (int i = 0; i < comLayers.length; i++) {
+			ReplicaTopology topology = CommunicationtTestMocker.mockTopologyWithTCP(viewProcessIds[i], viewProcessIds,
+					ports);
+			CommunicationLayer comLayer = new NettyServerCommunicationLayer(realmName, topology);
 			comLayers[i] = comLayer;
 		}
 

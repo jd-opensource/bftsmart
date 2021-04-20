@@ -1,6 +1,5 @@
 package bftsmart.communication.impl.socket;
 
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
@@ -10,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.MessageQueue;
-import bftsmart.communication.impl.AbstractStreamConnection;
 import bftsmart.communication.impl.IOChannel;
 import bftsmart.communication.impl.SocketUtils;
 import bftsmart.reconfiguration.ViewTopology;

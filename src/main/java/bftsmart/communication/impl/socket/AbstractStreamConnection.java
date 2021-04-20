@@ -1,16 +1,20 @@
-package bftsmart.communication.impl;
+package bftsmart.communication.impl.socket;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import bftsmart.communication.impl.AsyncFuture;
+import bftsmart.communication.impl.CompletedCallback;
+import bftsmart.communication.impl.IOChannel;
+import bftsmart.communication.impl.MessageConnection;
+import bftsmart.communication.impl.MessageSendingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.IllegalMessageException;
 import bftsmart.communication.MacAuthenticationException;
-import bftsmart.communication.MacAuthenticator;
 import bftsmart.communication.MacKey;
 import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.MacMessageCodec;
@@ -193,7 +197,7 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	 */
 	@Override
 	public AsyncFuture<SystemMessage, Void> send(SystemMessage message, boolean retrySending,
-			CompletedCallback<SystemMessage, Void> callback) {
+												 CompletedCallback<SystemMessage, Void> callback) {
 		MessageSendingTask task = new MessageSendingTask(message, retrySending);
 		task.setCallback(callback);
 
@@ -535,25 +539,6 @@ public abstract class AbstractStreamConnection implements MessageConnection {
 	@Override
 	public String toString() {
 		return this.getClass().getName() + " To [" + REMOTE_ID + "]";
-	}
-
-	// ---------------------
-
-	/**
-	 * 消息发送任务；
-	 * 
-	 * @author huanghaiquan
-	 *
-	 */
-	private static class MessageSendingTask extends AsyncFutureTask<SystemMessage, Void> {
-
-		public final boolean RETRY;
-
-		public MessageSendingTask(SystemMessage message, boolean retry) {
-			super(message);
-			this.RETRY = retry;
-		}
-
 	}
 
 }

@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.communication;
 
+import bftsmart.communication.impl.netty.NettyServerCommunicationLayer;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
@@ -56,8 +57,8 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 		this.clientCommunication = clientCommunication;
 		this.messageHandler = messageHandler;
 		this.controller = controller;
-		
-		this.serversCommunication = new SocketServerCommunicationLayer(realmName, controller);
+
+		this.serversCommunication = new NettyServerCommunicationLayer(realmName, controller);
 
 		// 创建消息处理器
 		// 遍历枚举类

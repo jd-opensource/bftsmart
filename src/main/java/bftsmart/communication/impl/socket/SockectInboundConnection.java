@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.MessageQueue;
-import bftsmart.communication.impl.AbstractStreamConnection;
 import bftsmart.communication.impl.IOChannel;
 import bftsmart.reconfiguration.ViewTopology;
 

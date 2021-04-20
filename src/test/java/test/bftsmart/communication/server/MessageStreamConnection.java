@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import bftsmart.communication.MessageQueue;
-import bftsmart.communication.impl.AbstractStreamConnection;
+import bftsmart.communication.impl.socket.AbstractStreamConnection;
 import bftsmart.communication.impl.IOChannel;
 import bftsmart.reconfiguration.ViewTopology;
 

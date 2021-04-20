@@ -1,10 +1,14 @@
-package bftsmart.communication;
+package bftsmart.communication.impl.socket;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.PublicKey;
 
+import bftsmart.communication.DHPubKeyCertificate;
+import bftsmart.communication.MacAuthenticationException;
+import bftsmart.communication.MacKey;
+import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.impl.IOChannel;
 import utils.io.BytesUtils;
 
