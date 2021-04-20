@@ -642,6 +642,7 @@ public class ServiceReplica {
 					replyContextMessages);
 
 			if (toBatch.size() != asyncResponseLinkedList.size()) {
+				LOGGER.debug("(ServiceReplica.receiveMessages) toBatch.size() != asyncResponseLinkedList.size()");
 				return;
 			}
 			// Send the replies back to the client

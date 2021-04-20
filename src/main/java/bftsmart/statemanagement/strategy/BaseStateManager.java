@@ -63,7 +63,7 @@ public abstract class BaseStateManager implements StateManager {
 
     protected volatile boolean doWork = true;
 
-    protected int STATETRANSFER_RETRY_COUNT = 50;
+    protected int STATETRANSFER_RETRY_COUNT = 500;
 
     private HashMap<Integer, Integer> senderCIDs = null;
 

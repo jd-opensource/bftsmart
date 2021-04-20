@@ -1553,6 +1553,7 @@ public class Synchronizer {
 		// install proof of the last decided consensus
 		// 对上个共识的处理开始
 		cons = execManager.getConsensus(lastHighestCID.getCID());
+		Epoch latestEpoch = cons.getLastEpoch();
 		e = null;
 
 		Set<ConsensusMessage> consMsgs = lastHighestCID.getConsMessages();
@@ -1598,9 +1599,18 @@ public class Synchronizer {
 						"(Synchronizer.finalise) [{}] -> I am proc {}, I'm still at the CID before the most recent one!!! {}",
 						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 						lastHighestCID.getCID());
-				cons.decided(e, true);
+//				cons.decided(e, true);
+				// 回滚已经发生预计算但未提交的共识，LC的最后阶段会重新对该轮共识进行预计算
+				execManager.preComputeRollback(cons, latestEpoch);
+
+				tom.setInExec(lastHighestCID.getCID());
+
+				// 通过重新发送共识消息，触发落后节点的交易处理，不能简单的只进行cons.decided
+				recoveryConsensus(lastHighestCID.getCID(), e);
+
 			} else {
 				// 对于上个共识已经完成的，通过配置false, 控制不再进行写账本的操作
+				LOGGER.info("I am proc {}, no more deliver, last cid = {}", controller.getStaticConf().getProcessId(), tom.getLastExec());
 				cons.decided(e, false);
 			}
 
@@ -1745,7 +1755,9 @@ public class Synchronizer {
 			// resume normal operation
 			execManager.restart();
 			// leaderChanged = true;
-			tom.setInExec(currentCID);
+			if (tom.getInExec() == -1) {
+				tom.setInExec(currentCID);
+			}
 
 //            tom.heartBeatTimer.stopLeaderChange();
 
@@ -1756,20 +1768,8 @@ public class Synchronizer {
 			} // waik up the thread that propose values in normal operation
 
 			// send a WRITE/ACCEPT message to the other replicas
-			if (this.controller.getStaticConf().isBFT()) {
-				LOGGER.info(
-						"(Synchronizer.finalise) [{}] -> I am proc {} sending WRITE message for CID {}, timestamp {}, value {}",
-						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
-						currentCID, e.getTimestamp(), Arrays.toString(e.propValueHash));
-				// 有了propose值，各个节点从发送write消息开始，重新进行共识流程；
-				communication.send(this.controller.getCurrentViewOtherAcceptors(),
-						acceptor.getFactory().createWrite(currentCID, e.getTimestamp(), e.propValueHash));
-			} else {
-				LOGGER.info("(Synchronizer.finalise) sending ACCEPT message for CID {}, timestamp {}, value {}",
-						currentCID, e.getTimestamp(), Arrays.toString(e.propValueHash));
-				communication.send(this.controller.getCurrentViewOtherAcceptors(),
-						acceptor.getFactory().createAccept(currentCID, e.getTimestamp(), e.propValueHash));
-			}
+			recoveryConsensus(currentCID, e);
+
 			// all peers' inexecid is -1, and peer's pending request queue is null
 		} else if (batchSize == 0) {
 			LOGGER.info("(Synchronizer.finalise) [{}] -> I am proc {} batch size is 0",
@@ -1797,6 +1797,24 @@ public class Synchronizer {
 		} else {
 			LOGGER.info("(Synchronizer.finalise) [{}] -> I am proc {}, sync phase failed for regency {}",
 					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(), regency);
+		}
+	}
+
+	// 通过重新发送消息，使共识恢复
+	private void recoveryConsensus(int cid, Epoch e) {
+		if (this.controller.getStaticConf().isBFT()) {
+			LOGGER.info(
+					"(Synchronizer.finalise) [{}] -> I am proc {} sending WRITE message for CID {}, timestamp {}, value {}",
+					this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
+					cid, e.getTimestamp(), Arrays.toString(e.propValueHash));
+			// 有了propose值，各个节点从发送write消息开始，重新进行共识流程；
+			communication.send(this.controller.getCurrentViewOtherAcceptors(),
+					acceptor.getFactory().createWrite(cid, e.getTimestamp(), e.propValueHash));
+		} else {
+			LOGGER.info("(Synchronizer.finalise) sending ACCEPT message for CID {}, timestamp {}, value {}",
+					cid, e.getTimestamp(), Arrays.toString(e.propValueHash));
+			communication.send(this.controller.getCurrentViewOtherAcceptors(),
+					acceptor.getFactory().createAccept(cid, e.getTimestamp(), e.propValueHash));
 		}
 	}
 

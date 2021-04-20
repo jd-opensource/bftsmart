@@ -238,19 +238,22 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	}
 
 	private void saveState(byte[] snapshot, int lastCID) {
+		try {
 
-		StateLog thisLog = getLog();
+			StateLog thisLog = getLog();
 
-		logLock.lock();
+			logLock.lock();
 
-		LOGGER.debug("(TOMLayer.saveState) Saving state of CID {}", lastCID);
+			LOGGER.debug("(TOMLayer.saveState) Saving state of CID {}", lastCID);
 
-		thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
-		thisLog.setLastCID(lastCID);
-		thisLog.setLastCheckpointCID(lastCID);
+			thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
+			thisLog.setLastCID(lastCID);
+			thisLog.setLastCheckpointCID(lastCID);
 
-		logLock.unlock();
-		LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID {}", lastCID);
+			LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID {}", lastCID);
+		} finally {
+			logLock.unlock();
+		}
 	}
 
 	/**
@@ -266,51 +269,64 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 			LOGGER.error("----SIZE OF COMMANDS AND MESSAGE CONTEXTS IS DIFFERENT----");
 			LOGGER.error("----COMMANDS: {}, CONTEXTS: {} ----", commands.length, msgCtx.length);
 		}
-		logLock.lock();
 
-		int cid = msgCtx[0].getConsensusId();
-		int batchStart = 0;
-		for (int i = 0; i <= msgCtx.length; i++) {
-			if (i == msgCtx.length) { // the batch command contains only one command or it is the last position of the
-										// array
-				byte[][] batch = Arrays.copyOfRange(commands, batchStart, i);
-				MessageContext[] batchMsgCtx = Arrays.copyOfRange(msgCtx, batchStart, i);
-				log.addMessageBatch(batch, batchMsgCtx, cid);
-			} else {
-				if (msgCtx[i].getConsensusId() > cid) { // saves commands when the cid changes or when it is the last
-														// batch
+		try {
+			logLock.lock();
+
+			int cid = msgCtx[0].getConsensusId();
+			int batchStart = 0;
+			for (int i = 0; i <= msgCtx.length; i++) {
+				if (i == msgCtx.length) { // the batch command contains only one command or it is the last position of the
+											// array
 					byte[][] batch = Arrays.copyOfRange(commands, batchStart, i);
 					MessageContext[] batchMsgCtx = Arrays.copyOfRange(msgCtx, batchStart, i);
 					log.addMessageBatch(batch, batchMsgCtx, cid);
-					cid = msgCtx[i].getConsensusId();
-					batchStart = i;
+				} else {
+					if (msgCtx[i].getConsensusId() > cid) { // saves commands when the cid changes or when it is the last
+															// batch
+						byte[][] batch = Arrays.copyOfRange(commands, batchStart, i);
+						MessageContext[] batchMsgCtx = Arrays.copyOfRange(msgCtx, batchStart, i);
+						log.addMessageBatch(batch, batchMsgCtx, cid);
+						cid = msgCtx[i].getConsensusId();
+						batchStart = i;
+					}
 				}
 			}
+		} finally {
+			logLock.unlock();
 		}
-		logLock.unlock();
 	}
 
 	@Override
 	public ApplicationState getState(int cid, boolean sendState) {
-		logLock.lock();
-		ApplicationState ret = (cid > -1 ? getLog().getApplicationState(cid, sendState)
-				: new DefaultApplicationState());
 
-		// Only will send a state if I have a proof for the last logged
-		// decision/consensus
-		// TODO: I should always make sure to have a log with proofs, since this is a
-		// result
-		// of not storing anything after a checkpoint and before logging more requests
-		// 当cid==lastcheckpoint时，ret.getCertifiedDecision(this.controller) ==
-		// null成立，未考虑我想获得的状态正好是最近的检查点的情况
-//        if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
-		if (ret == null || (config.isBFT() && cid != ((DefaultApplicationState) ret).getLastCheckpointCID()
-				&& ret.getCertifiedDecision(this.controller) == null)) {
-			ret = new DefaultApplicationState();
+		try {
+
+			logLock.lock();
+			ApplicationState ret = (cid > -1 ? getLog().getApplicationState(cid, sendState)
+					: new DefaultApplicationState());
+
+			// Only will send a state if I have a proof for the last logged
+			// decision/consensus
+			// TODO: I should always make sure to have a log with proofs, since this is a
+			// result
+			// of not storing anything after a checkpoint and before logging more requests
+			// 当cid==lastcheckpoint时，ret.getCertifiedDecision(this.controller) ==
+			// null成立，未考虑我想获得的状态正好是最近的检查点的情况
+	//        if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
+			if (ret == null || (config.isBFT() && cid != ((DefaultApplicationState) ret).getLastCheckpointCID()
+					&& ret.getCertifiedDecision(this.controller) == null)) {
+				ret = new DefaultApplicationState();
+			}
+
+			return ret;
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new IllegalStateException("[DefaultRecoverable] getState exception!");
+
+		} finally {
+			logLock.unlock();
 		}
-
-		logLock.unlock();
-		return ret;
 	}
 
 	@Override

@@ -157,7 +157,14 @@ public class StandardStateManager extends BaseStateManager {
     
 	@Override
     public void SMRequestDeliver(SMMessage msg, boolean isBFT) {
+
         LOGGER.info("I will handle SMRequestDeliver !");
+
+        if (!tomLayer.isLastCidSetOk()) {
+            LOGGER.info("I am proc {}, ignore SMMessage msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
+            return;
+        }
+
         if (topology.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
         	StandardSMMessage stdMsg = (StandardSMMessage)msg;
 //            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
@@ -440,6 +447,7 @@ public class StandardStateManager extends BaseStateManager {
 	public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I am proc {}, I will handle currentConsensusIdAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
 
+        // 用来保证本地共识ID，以及tom config 文件配置完成
         if (!tomLayer.isLastCidSetOk()) {
             LOGGER.info("I am proc {}, ignore request cid msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
             return;

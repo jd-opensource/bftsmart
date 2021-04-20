@@ -163,7 +163,7 @@ public class RequestsTimer {
 			// 存在超时的交易请求
 			if (pendingRequests.size() !=0) {
 				// 向其他处理器转发消息，防止其他节点没有收到业务消息而无法触发超时
-				forwardRequestsToTargets(pendingRequests);
+//				forwardRequestsToTargets(pendingRequests);
 				if (tomLayer.isLeader()) {
 					tomLayer.heartBeatTimer.stopAll();
 					LOGGER.info("I am proc {}, tx requests timeout! Set leader inactive, wait for trigger lc!", tomLayer.getCurrentProcessId());

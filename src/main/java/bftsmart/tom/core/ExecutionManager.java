@@ -198,7 +198,9 @@ public final class ExecutionManager {
         //process stopped messages
         while (!stoppedMsgs.isEmpty()) {
             ConsensusMessage pm = stoppedMsgs.remove();
-            if (pm.getNumber() > tomLayer.getLastExec()) acceptor.processMessage(pm);
+            // 添加LC过程中收到的共识消息到超出预期消息队列，由该队列统一触发超预期消息的处理流程
+            addOutOfContextMessage(pm);
+//            if (pm.getNumber() > tomLayer.getLastExec()) acceptor.processMessage(pm);
         }
         stoppedMsgsLock.unlock();
         LOGGER.debug("(ExecutionManager.restart) Finished stopped messages processing");
@@ -247,7 +249,7 @@ public final class ExecutionManager {
             if (stopped) {//just an optimization to avoid calling the lock in normal case
                 stoppedMsgsLock.lock();
                 if (stopped) {
-                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, lastConsId, inExec);
+                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, is ready : {}, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, isReady, lastConsId, inExec);
 //                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped");
                     //the execution manager was stopped, the messages should be stored
                     //for later processing (when the consensus is restarted)
@@ -260,8 +262,8 @@ public final class ExecutionManager {
                         (inExec != -1 && inExec < msg.getNumber()) || 
                         (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus
 
-                    LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(),
-                            msg.getNumber(), lastConsId, inExec);
+                    LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}, isRetrievingState = {}, isReady = {}", topology.getStaticConf().getProcessId(),
+                            msg.getNumber(), lastConsId, inExec, isRetrievingState, isReady);
 
 
                     //System.out.println("(ExecutionManager.checkLimits) Message for consensus " + 
