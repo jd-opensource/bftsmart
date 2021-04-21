@@ -577,6 +577,7 @@ public final class ExecutionManager {
 					DefaultRecoverable defaultRecoverable = getAcceptor().getDefaultExecutor();
 					if (e != null) {
 						defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
+						cons.setPrecomputed(false);
 					}
 				}
     }
