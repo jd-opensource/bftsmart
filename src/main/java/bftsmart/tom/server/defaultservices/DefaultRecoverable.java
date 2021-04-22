@@ -374,6 +374,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 					if (commands == null || msgCtx == null || msgCtx[0].isNoOp()) {
 						continue;
 					}
+					LOGGER.info("I am proc {}, will do appExecuteBatch, cid = {}", controller.getStaticConf().getProcessId(), cid);
+
 					appExecuteBatch(commands, msgCtx, false);
 					// add replay message batch to disk file
 

@@ -441,6 +441,7 @@ public final class Acceptor {
 							epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
 						}
 
+						LOGGER.info("I am proc {}, start pre compute , cid = {}, epoch = {}", this.topology.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
 						BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid,
 								commands.toArray(new byte[commands.size()][]), epoch.getProposeTimestamp());
 

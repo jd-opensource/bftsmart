@@ -576,6 +576,7 @@ public final class ExecutionManager {
 
 					DefaultRecoverable defaultRecoverable = getAcceptor().getDefaultExecutor();
 					if (e != null) {
+					    LOGGER.info("I am proc {}, pre compute rollback occur!, cid = {}, epoch = {}", topology.getStaticConf().getProcessId(), cons.getId(), e.getTimestamp());
 						defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
 						cons.setPrecomputed(false);
 					}
