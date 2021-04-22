@@ -1553,7 +1553,7 @@ public class Synchronizer {
 		// install proof of the last decided consensus
 		// 对上个共识的处理开始
 		cons = execManager.getConsensus(lastHighestCID.getCID());
-		Epoch latestEpoch = cons.getLastEpoch();
+
 		e = null;
 
 		Set<ConsensusMessage> consMsgs = lastHighestCID.getConsMessages();
@@ -1601,7 +1601,7 @@ public class Synchronizer {
 						lastHighestCID.getCID());
 //				cons.decided(e, true);
 				// 回滚已经发生预计算但未提交的共识，LC的最后阶段会重新对该轮共识进行预计算
-				execManager.preComputeRollback(cons, latestEpoch);
+				execManager.preComputeRollback(cons);
 
 				tom.setInExec(lastHighestCID.getCID());
 
@@ -1666,7 +1666,7 @@ public class Synchronizer {
 			e = cons.getLastEpoch();
 
 			// 回滚已经发生预计算但未提交的共识，LC的最后阶段会重新对该轮共识进行预计算
-			execManager.preComputeRollback(cons, e);
+			execManager.preComputeRollback(cons);
 
 			int ets = cons.getEts();
 

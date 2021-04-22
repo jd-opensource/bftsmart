@@ -100,6 +100,13 @@ public class Consensus {
     }
 
     /**
+     * @return consensus's all epochs
+     */
+    public HashMap<Integer,Epoch> getEpochs() {
+        return epochs;
+    }
+
+    /**
      * Has there been a precompute commit happen?
      * @return false/true
      */

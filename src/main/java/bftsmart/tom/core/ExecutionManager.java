@@ -571,15 +571,19 @@ public final class ExecutionManager {
         return stoppedMsgs.toString();
     }
 
-    public void preComputeRollback(Consensus cons, Epoch e) {
+    // 避免重复预计算
+    public void preComputeRollback(Consensus cons) {
         if (cons != null && cons.getPrecomputed() && !cons.getPrecomputeCommited()) {
 
 					DefaultRecoverable defaultRecoverable = getAcceptor().getDefaultExecutor();
-					if (e != null) {
-					    LOGGER.info("I am proc {}, pre compute rollback occur!, cid = {}, epoch = {}", topology.getStaticConf().getProcessId(), cons.getId(), e.getTimestamp());
-						defaultRecoverable.preComputeRollback(cons.getId(), e.getBatchId());
-						cons.setPrecomputed(false);
-					}
+
+					for (Epoch epoch : cons.getEpochs().values()) {
+					    if (epoch != null && epoch.getBatchId() != null ) {
+                            LOGGER.info("I am proc {}, pre compute rollback occur!, cid = {}, epoch = {}", topology.getStaticConf().getProcessId(), cons.getId(), epoch.getTimestamp());
+                            defaultRecoverable.preComputeRollback(cons.getId(), epoch.getBatchId());
+                        }
+                    }
+                    cons.setPrecomputed(false);
 				}
     }
 }
