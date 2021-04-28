@@ -689,7 +689,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 			return;
 		}
 
-		for (int nextConsensus = getLastExec() + 1; execManager.receivedOutOfContextWriteAndAccept(nextConsensus);) {
+		// 对于一轮共识，如果propose消息未处理，则暂不处理write , accept消息；getInExec() == nextConsensus用来保证先处理propose类型消息
+		for (int nextConsensus = getLastExec() + 1; ((execManager.receivedOutOfContextWriteAndAccept(nextConsensus)) && (getInExec() == nextConsensus));nextConsensus = getLastExec() + 1) {
 			execManager.processOutOfContextWriteAndAccept(execManager.getConsensus(nextConsensus));
 		}
 	}

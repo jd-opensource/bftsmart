@@ -555,6 +555,9 @@ public final class Acceptor {
 			HashMap<Integer, byte[]> macVector = new HashMap<>();
 
 			for (int id : processes) {
+				if (id == me) {
+					continue;
+				}
 				int retrySize = 0;
 				try {
 //					SecretKey key = null;

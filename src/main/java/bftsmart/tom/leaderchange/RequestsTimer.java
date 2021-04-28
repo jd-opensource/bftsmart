@@ -162,22 +162,22 @@ public class RequestsTimer {
 
 			// 存在超时的交易请求
 			if (pendingRequests.size() !=0) {
-				// 向其他处理器转发消息，防止其他节点没有收到业务消息而无法触发超时
-//				forwardRequestsToTargets(pendingRequests);
 				if (tomLayer.isLeader()) {
 					tomLayer.heartBeatTimer.stopAll();
 					LOGGER.info("I am proc {}, tx requests timeout! Set leader inactive, wait for trigger lc!", tomLayer.getCurrentProcessId());
 					tomLayer.heartBeatTimer.setLeaderInactived();
 					cancelTask();
+				} else {
+					forwardRequestsToLeader(pendingRequests);
 				}
 			}
 		}// End of : public void run();
 	}//
 
-	private void forwardRequestsToTargets(LinkedList<TOMMessage> pendingRequests) {
+	private void forwardRequestsToLeader(LinkedList<TOMMessage> pendingRequests) {
 		for (ListIterator<TOMMessage> li = pendingRequests.listIterator(); li.hasNext(); ) {
                 TOMMessage request = li.next();
-                communication.send(this.controller.getCurrentViewOtherAcceptors(), new ForwardedMessage(this.controller.getStaticConf().getProcessId(), request));
+                communication.send(new ForwardedMessage(this.controller.getStaticConf().getProcessId(), request), this.tomLayer.execManager.getCurrentLeader());
 		}
 	}
 //    public void startTimer() {

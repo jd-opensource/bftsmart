@@ -1652,6 +1652,11 @@ public class Synchronizer {
 
 		lcManager.setLcTimestampStatePair(new LCTimestampStatePair(System.currentTimeMillis(), LCState.NORMAL));
 
+		cons = execManager.getConsensus(currentCID);
+
+        // 对于处于预计算未提交的共识需要先进行回滚的操作，避免后续重新进行当前共识时由于重复预计算而失败
+        execManager.preComputeRollback(cons);
+
 		if (tmpval != null) { // did I manage to get some value?
 
 			LOGGER.info("(Synchronizer.finalise) [{}] -> I am proc {} resuming normal phase",
@@ -1661,12 +1666,7 @@ public class Synchronizer {
 			// stop the re-transmission of the STOP message for all regencies up to this one
 			removeSTOPretransmissions(regency);
 
-			cons = execManager.getConsensus(currentCID);
-
 			e = cons.getLastEpoch();
-
-			// 回滚已经发生预计算但未提交的共识，LC的最后阶段会重新对该轮共识进行预计算
-			execManager.preComputeRollback(cons);
 
 			int ets = cons.getEts();
 
