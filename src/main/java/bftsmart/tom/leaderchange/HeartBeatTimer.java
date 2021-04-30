@@ -102,6 +102,25 @@ public class HeartBeatTimer {
 		start();
 	}
 
+	// 在领导者切换过程中触发的心跳重新启动，要与领导者确认过程解耦
+	public synchronized void restartformlc() {
+		stopAll();
+		if (leaderTimer == null) {
+			leaderTimer = Executors.newSingleThreadScheduledExecutor();
+			leaderTimer.scheduleWithFixedDelay(new LeaderHeartbeatBroadcastingTask(this), NORMAL_DELAY,
+					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
+		}
+
+		if (followerTimer == null) {
+			// 非领导者心跳定时器重新开启后，更新上次心跳消息接收时间
+			heartBeatting.time = System.currentTimeMillis();
+			followerTimer = Executors.newSingleThreadScheduledExecutor();
+			followerTimer.scheduleWithFixedDelay(new FollowerHeartbeatCheckingTask(), NORMAL_DELAY,
+					tomLayer.controller.getStaticConf().getHeartBeatPeriod(), TimeUnit.MILLISECONDS);
+		}
+
+	}
+
 	public synchronized void stopAll() {
 		innerStop();
 	}

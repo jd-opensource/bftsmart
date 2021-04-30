@@ -774,7 +774,7 @@ public class Synchronizer {
 		execManager.setNewLeader(electionResult.getRegency().getLeaderId());
 
 		// 重启心跳
-		tom.heartBeatTimer.restart();
+		tom.heartBeatTimer.restartformlc();
 		// 重启业务消息超时定时器
 		requestsTimer.startTimer(controller.getStaticConf().getRequestTimeout());
 
