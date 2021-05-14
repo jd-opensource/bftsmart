@@ -161,11 +161,13 @@ public final class Acceptor {
 
 		// 说明发生过领导者切换，本节点参与了领导者切换流程，并更新了本共识的时间戳，此时又收到老时间戳内的共识消息，对于这种共识消息不再处理
 		if (msgEpoch < latestEpoch) {
+			LOGGER.info("I am proc {}, checkSucc false, msgEpoch = {}, latestEpoch = {}", topology.getStaticConf().getProcessId(), msgEpoch, latestEpoch);
 			return false;
 		}
 
 		// 说明本节点因为网络原因没有参与到领导者切换的流程；网络恢复后，收到时间戳前进后的共识消息；本分支让没有参与到领导者切换过程的节点后续走状态传输的过程去进行本地的更新；
 		if ((tomLayer.getInExec() == consensus.getId()) && (msgEpoch > latestEpoch)) {
+			LOGGER.info("I am proc {}, checkSucc false, msgEpoch = {}, latestEpoch = {}", topology.getStaticConf().getProcessId(), msgEpoch, latestEpoch);
 			// 如果本轮共识已经处理完成并且提交了，不再处理该消息；
 			// 如果没有提交，但是已经进行了预计算，需要对预计算进行回滚；
 			// 如果本轮共识没有走到预计算的过程，对于新时间戳内的共识消息也不做处理
@@ -195,6 +197,7 @@ public final class Acceptor {
 		Consensus consensus = executionManager.getConsensus(msg.getNumber());
 		// 检查消息的epoch
 		if (!checkSucc(consensus, msg.getEpoch())) {
+			LOGGER.info("I am proc {}, processMessage checkSucc failed!", topology.getStaticConf().getProcessId());
 			return;
 		}
 

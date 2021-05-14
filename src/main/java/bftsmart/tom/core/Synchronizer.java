@@ -1575,7 +1575,6 @@ public class Synchronizer {
 			if (cm.getType() == MessageFactory.ACCEPT) {
 				e.setAccept(cm.getSender(), cm.getValue());
 			}
-
 			else if (cm.getType() == MessageFactory.WRITE) {
 				e.setWrite(cm.getSender(), cm.getValue());
 			}
@@ -1599,14 +1598,26 @@ public class Synchronizer {
 						"(Synchronizer.finalise) [{}] -> I am proc {}, I'm still at the CID before the most recent one!!! {}",
 						this.execManager.getTOMLayer().getRealName(), controller.getStaticConf().getProcessId(),
 						lastHighestCID.getCID());
-//				cons.decided(e, true);
+
+				// 以上都是对lastHighestCID共识未完成的旧Epoch的处理(后续可以优化掉)，现在开始处理新的Epoch
+				Epoch latestEpoch = cons.getLastEpoch();
+				latestEpoch.propValueHash = e.propValueHash;
+				latestEpoch.propValue = e.propValue;
+				latestEpoch.deserializedPropValue = e.deserializedPropValue;
+
 				// 回滚已经发生预计算但未提交的共识，LC的最后阶段会重新对该轮共识进行预计算
 				execManager.preComputeRollback(cons);
 
 				tom.setInExec(lastHighestCID.getCID());
 
-				// 通过重新发送共识消息，触发落后节点的交易处理，不能简单的只进行cons.decided
-				recoveryConsensus(lastHighestCID.getCID(), e);
+				for (ConsensusMessage cm : consMsgs) {
+					if (cm.getType() == MessageFactory.WRITE || cm.getType() == MessageFactory.ACCEPT) {
+						execManager.getStoppedMsgs().add(new ConsensusMessage(cm.getType(),cm.getNumber(),latestEpoch.getTimestamp(), cm.getSender(), cm.getValue()));
+					}
+				}
+
+				// 通过重新发送共识消息，触发落后节点的交易处理，不能简单的只进行cons.decided, 并且使用新的epoch时间戳，否则共识消息会因为时间戳不匹配被丢掉
+				recoveryConsensus(lastHighestCID.getCID(), latestEpoch);
 
 			} else {
 				// 对于上个共识已经完成的，通过配置false, 控制不再进行写账本的操作
