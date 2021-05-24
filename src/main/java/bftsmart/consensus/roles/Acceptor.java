@@ -574,7 +574,7 @@ public final class Acceptor {
 							LOGGER.error("(Acceptor.insertProof) I don't have yet a secret key with {} . Retrying.",
 									id);
 							retrySize++;
-							Thread.sleep(1000);
+							Thread.sleep(10);
 						} else {
 							break;
 						}
