@@ -56,7 +56,7 @@ public class FileRecoverer {
 	public CommandsInfo[] getLogState(int index, String logPath) {
 		RandomAccessFile log = null;
 
-		LOGGER.debug("GETTING LOG FROM {}", logPath);
+		LOGGER.info("GETTING LOG FROM {}", logPath);
 		if ((log = openLogFile(logPath)) != null) {
 
 			CommandsInfo[] logState = recoverLogState(log, index);
@@ -69,7 +69,7 @@ public class FileRecoverer {
 
 			return logState;
 		}
-
+		LOGGER.info("Open log file fail, return null!");
 		return null;
 	}
 
@@ -295,7 +295,7 @@ public class FileRecoverer {
 			ArrayList<CommandsInfo> state = new ArrayList<CommandsInfo>();
 			int recoveredBatches = 0;
 			boolean mayRead = true;
-			LOGGER.debug("filepointer: {}, loglength {}, endoffset {}", log.getFilePointer(), logLength, endOffset);
+			LOGGER.info("filepointer: {}, loglength {}, endoffset {}", log.getFilePointer(), logLength, endOffset);
 			while (mayRead) {
 				try {
 					if (log.getFilePointer() < logLength) {
@@ -310,25 +310,26 @@ public class FileRecoverer {
 										bis);
 								state.add((CommandsInfo) ois.readObject());
 								if (++recoveredBatches == endOffset) {
-									LOGGER.debug("read all {} log messages", endOffset);
+									LOGGER.info("read all {} log messages", endOffset);
 									return state.toArray(new CommandsInfo[state.size()]);
 								}
 							} else {
 								mayRead = false;
-								LOGGER.debug("STATE CLEAR");
+								LOGGER.info("STATE CLEAR");
 								state.clear();
 							}
 						} else {
 							logLastConsensusId = log.readInt();
-							LOGGER.debug("ELSE 1. Recovered batches: {}", recoveredBatches);
-							LOGGER.debug("logLastConsensusId: {}", logLastConsensusId);
+							LOGGER.info("ELSE 1. Recovered batches: {}", recoveredBatches);
+							LOGGER.info("logLastConsensusId: {}", logLastConsensusId);
 							return state.toArray(new CommandsInfo[state.size()]);
 						}
 					} else {
-						LOGGER.debug("ELSE 2 {}", recoveredBatches);
+						LOGGER.info("ELSE 2 {}", recoveredBatches);
 						mayRead = false;
 					}
 				} catch (Exception e) {
+					LOGGER.info("Will clear state!, error = {}", e.getMessage());
 					e.printStackTrace();
 					state.clear();
 					mayRead = false;
@@ -339,6 +340,7 @@ public class FileRecoverer {
 			LOGGER.error("State recover was aborted due to an unexpected exception");
 		}
 
+		LOGGER.info("Will not get here!");
 		return null;
 	}
 

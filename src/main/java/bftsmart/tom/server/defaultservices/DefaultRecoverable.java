@@ -363,6 +363,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 							cid);
 					if (state.getMessageBatch(cid) == null) {
 						LOGGER.error("[DefaultRecoverable.setState] {} NULO!!!", cid);
+						continue;
 					}
 
 					CommandsInfo cmdInfo = state.getMessageBatch(cid);
@@ -370,6 +371,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 					MessageContext[] msgCtx = cmdInfo.msgCtx;
 
 					log.addMessageBatch(commands, msgCtx, cid);
+					((StandardStateManager) this.getStateManager()).setLastCID(cid);
 
 					if (commands == null || msgCtx == null || msgCtx[0].isNoOp()) {
 						continue;
@@ -392,15 +394,17 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 								(state.getLastCID() - state.getLastCheckpointCID() + 1),
 								state.getMessageBatches().length);
 					}
+					break;
 				}
 
 			}
-			((StandardStateManager) this.getStateManager()).setLastCID(lastCID);
+//			((StandardStateManager) this.getStateManager()).setLastCID(lastCID);
 			stateLock.unlock();
 
 		}
 
-		return lastCID;
+		return ((StandardStateManager) this.getStateManager()).getLastCID();
+
 	}
 
 	/**

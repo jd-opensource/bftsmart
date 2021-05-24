@@ -238,9 +238,14 @@ public class DiskStateLog extends StateLog {
 			if (size > 0) {
 				CommandsInfo[] recoveredBatches = fr.getLogState(size, logPath);
 
-				batches = new CommandsInfo[size];
+				if (recoveredBatches == null || recoveredBatches.length == 0) {
+					LOGGER.info("recoveredBatches == null || recoveredBatches.length == 0");
+					return null;
+				}
+				batches = new CommandsInfo[recoveredBatches.length];
 
-				for (int i = 0; i < size; i++)
+
+				for (int i = 0; i < recoveredBatches.length; i++)
 					batches[i] = recoveredBatches[i];
 			}
 			
