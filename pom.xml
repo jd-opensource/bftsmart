@@ -9,7 +9,7 @@
 		<relativePath>../project/parent</relativePath>
 	</parent>
 	<artifactId>bft-smart</artifactId>
-	<version>0.6.7.RELEASE</version>
+	<version>0.7.0.RELEASE</version>
 
 	<dependencies>
 		<dependency>
