@@ -6,7 +6,7 @@
 		<groupId>com.jd.blockchain</groupId>
 		<artifactId>jdchain-parent</artifactId>
 		<version>1.1.5.RELEASE</version>
-		<relativePath>../project/parent</relativePath>
+		<relativePath>../../project/parent</relativePath>
 	</parent>
 	<artifactId>bft-smart</artifactId>
 	<version>0.7.0.RELEASE</version>
