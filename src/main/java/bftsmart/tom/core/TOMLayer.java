@@ -564,9 +564,12 @@ public class TOMLayer extends Thread implements RequestReceiver {
 				execManager.getProposer().startConsensus(consensus.getId(), value);
 			}
 
-			try {
-				sleep(50);
-			} catch (InterruptedException e) {
+			if(controller.getStaticConf().getEpochDelay() > 0) {
+				try {
+					sleep(controller.getStaticConf().getEpochDelay());
+				} catch (InterruptedException e) {
+					LOGGER.error("Epoch delay interrupted", e);
+				}
 			}
 		}
 	}

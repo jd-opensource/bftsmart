@@ -90,6 +90,8 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	private int numRepliers;
 	private int numNettyWorkers;
 	private HostsConfig outerHostConfig;
+	// epoch delay in millisecond, default value: 50
+	private int epochDelay;
 
 	public TOMConfiguration(int processId, Properties systemConfigs, HostsConfig hostsConfig) {
 		this.processId = processId;
@@ -478,6 +480,16 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 				numNettyWorkers = 0;
 			} else {
 				numNettyWorkers = Integer.parseInt(s);
+			}
+
+			s = (String) configs.remove("system.epoch.delay");
+			if (s == null) {
+				epochDelay = 50;
+			} else {
+				epochDelay = Integer.parseInt(s);
+				if (epochDelay < 0) {
+					epochDelay = 0;
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace(System.err);
@@ -904,4 +916,8 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 		this.hostsConfig.add(id, host, port, monitorPort);
 	}
 
+	@Override
+	public int getEpochDelay() {
+		return epochDelay;
+	}
 }
