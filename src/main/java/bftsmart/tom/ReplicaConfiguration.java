@@ -183,4 +183,5 @@ public interface ReplicaConfiguration {
 
 	void addHostInfo(int id, String host, int port, int monitorPort);
 
+	int getEpochDelay();
 }
