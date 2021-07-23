@@ -174,17 +174,24 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 
     @Override
     public ApplicationState getState(int cid, boolean sendState) {
-        logLock.lock();
-        ApplicationState ret = (cid > -1 ? getLog().getApplicationState(cid, sendState) : new DefaultApplicationState());
 
-        // Only will send a state if I have a proof for the last logged decision/consensus
-        //TODO: I should always make sure to have a log with proofs, since this is a result
-        // of not storing anything after a checkpoint and before logging more requests        
-        if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) ret = new DefaultApplicationState();
+        try {
+            logLock.lock();
+            ApplicationState ret = (cid > -1 ? getLog().getApplicationState(cid, sendState) : new DefaultApplicationState());
 
-        LOGGER.debug("Getting log until CID {}, null? {} ", cid, (ret == null));
-        logLock.unlock();
-        return ret;
+            // Only will send a state if I have a proof for the last logged decision/consensus
+            //TODO: I should always make sure to have a log with proofs, since this is a result
+            // of not storing anything after a checkpoint and before logging more requests
+            if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) ret = new DefaultApplicationState();
+
+            LOGGER.debug("Getting log until CID {}, null? {} ", cid, (ret == null));
+            return ret;
+        } catch (Exception e) {
+            LOGGER.error("[DefaultSingleRecoverable] getState exception, {}", e.getMessage());
+            throw new IllegalStateException("[DefaultSingleRecoverable] getState exception!");
+        } finally {
+            logLock.unlock();
+        }
     }
     
     @Override

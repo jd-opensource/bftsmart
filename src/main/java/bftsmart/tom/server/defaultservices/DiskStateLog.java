@@ -327,7 +327,7 @@ public class DiskStateLog extends StateLog {
 		if(lastCkpPath != null) {
 			try {
 				ckp = new RandomAccessFile(lastCkpPath, (syncCkp ? "rwd" : "rw"));
-				ckp.seek(log.length() - INT_BYTE_SIZE);
+				ckp.seek(ckp.length() - INT_BYTE_SIZE);
 				ckpLastConsensusId = ckp.readInt();
 			} catch (Exception e) {
 				e.printStackTrace();
