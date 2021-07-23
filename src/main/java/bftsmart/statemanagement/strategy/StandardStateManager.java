@@ -165,32 +165,36 @@ public class StandardStateManager extends BaseStateManager {
             return;
         }
 
-        if (topology.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
-        	StandardSMMessage stdMsg = (StandardSMMessage)msg;
-//            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
+        try {
+            if (topology.getStaticConf().isStateTransferEnabled() && dt.getRecoverer() != null) {
+                StandardSMMessage stdMsg = (StandardSMMessage)msg;
+    //            boolean sendState = stdMsg.getReplica() == SVController.getStaticConf().getProcessId();
 
-            // 目前都发送状态，防止被请求的节点恰好是区块落后，或者是重新启动的节点而没有状态；
-            boolean sendState = true;
-            
-            LOGGER.info("-- Should I send the state? {}", sendState);
-            
-            ApplicationState thisState = dt.getRecoverer().getState(msg.getCID(), sendState);
-            if (thisState == null) {
+                // 目前都发送状态，防止被请求的节点恰好是区块落后，或者是重新启动的节点而没有状态；
+                boolean sendState = true;
 
-                LOGGER.info("-- For some reason, I am sending a void state");
-              thisState = dt.getRecoverer().getState(-1, sendState);
+                LOGGER.info("-- Should I send the state? {}", sendState);
+
+                ApplicationState thisState = dt.getRecoverer().getState(msg.getCID(), sendState);
+                if (thisState == null) {
+
+                    LOGGER.info("-- For some reason, I am sending a void state");
+                  thisState = dt.getRecoverer().getState(-1, sendState);
+                }
+                else {
+                    LOGGER.info("-- Will I send the state? {}", thisState.getSerializedState() != null);
+                }
+                int[] targets = { msg.getSender() };
+                SMMessage smsg = new StandardSMMessage(topology.getStaticConf().getProcessId(),
+                        msg.getCID(), TOMUtil.SM_REPLY, -1, thisState, topology.getCurrentView(),
+                        tomLayer.getSynchronizer().getLCManager().getLastReg(), tomLayer.execManager.getCurrentLeader());
+
+                LOGGER.info("Sending state");
+                tomLayer.getCommunication().send(targets, smsg);
+                LOGGER.info("Sent");
             }
-            else {
-                LOGGER.info("-- Will I send the state? {}", thisState.getSerializedState() != null);
-            }
-            int[] targets = { msg.getSender() };
-            SMMessage smsg = new StandardSMMessage(topology.getStaticConf().getProcessId(),
-                    msg.getCID(), TOMUtil.SM_REPLY, -1, thisState, topology.getCurrentView(),
-                    tomLayer.getSynchronizer().getLCManager().getLastReg(), tomLayer.execManager.getCurrentLeader());
-            
-            LOGGER.info("Sending state");
-            tomLayer.getCommunication().send(targets, smsg);
-            LOGGER.info("Sent");
+        } catch (Exception e) {
+            LOGGER.error("[StandardStateManager] SMRequestDeliver exception! {}", e.getMessage());
         }
     }
 

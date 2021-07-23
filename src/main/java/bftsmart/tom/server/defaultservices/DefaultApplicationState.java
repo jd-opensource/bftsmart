@@ -21,6 +21,7 @@ import bftsmart.statemanagement.ApplicationState;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.util.BatchBuilder;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -47,6 +48,8 @@ public class DefaultApplicationState implements ApplicationState {
     private byte[] logHash;
     
     private int pid;
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DefaultApplicationState.class);
 
     /**
      * Constructs a TansferableState
@@ -122,28 +125,35 @@ public class DefaultApplicationState implements ApplicationState {
      */
     @Override
     public CertifiedDecision getCertifiedDecision(ViewTopology controller) {
-        CommandsInfo ci = getMessageBatch(getLastCID());
-        if (ci != null && ci.msgCtx[0].getProof() != null) { // do I have a proof for the consensus?
-            
-            Set<ConsensusMessage> proof = ci.msgCtx[0].getProof();
-            LinkedList<TOMMessage> requests = new LinkedList<>();
-            
-            //Recreate all TOMMessages ordered in the consensus
-            for (int i = 0; i < ci.commands.length; i++) {
-                
-                requests.add(ci.msgCtx[i].recreateTOMMessage(ci.commands[i]));
-                
-            }
-            
-            //Serialize the TOMMessages to re-create the proposed value
-            BatchBuilder bb = new BatchBuilder(0);
-            byte[] value = bb.makeBatch(requests, ci.msgCtx[0].getNumOfNonces(),
-                    ci.msgCtx[0].getSeed(), ci.msgCtx[0].getTimestamp(), controller);
-            
-            //Assemble and return the certified decision
-            return new CertifiedDecision(pid, getLastCID(), value, proof);
+
+        try {
+                CommandsInfo ci = getMessageBatch(getLastCID());
+                if (ci != null && ci.msgCtx[0].getProof() != null) { // do I have a proof for the consensus?
+
+                    Set<ConsensusMessage> proof = ci.msgCtx[0].getProof();
+                    LinkedList<TOMMessage> requests = new LinkedList<>();
+
+                    //Recreate all TOMMessages ordered in the consensus
+                    for (int i = 0; i < ci.commands.length; i++) {
+
+                        requests.add(ci.msgCtx[i].recreateTOMMessage(ci.commands[i]));
+
+                    }
+
+                    //Serialize the TOMMessages to re-create the proposed value
+                    BatchBuilder bb = new BatchBuilder(0);
+                    byte[] value = bb.makeBatch(requests, ci.msgCtx[0].getNumOfNonces(),
+                            ci.msgCtx[0].getSeed(), ci.msgCtx[0].getTimestamp(), controller);
+
+                    //Assemble and return the certified decision
+                    return new CertifiedDecision(pid, getLastCID(), value, proof);
+                }
+                else return null; // there was no proof for the consensus
+
+        } catch (Exception e) {
+            LOGGER.error("[DefaultApplicationState] getCertifiedDecision exception, {}", e.getMessage());
+            throw new IllegalStateException("[DefaultApplicationState] getCertifiedDecision exception!");
         }
-        else return null; // there was no proof for the consensus
     }
 
     /**
@@ -189,10 +199,15 @@ public class DefaultApplicationState implements ApplicationState {
      * @return The batch of messages associated with the batch correspondent consensus ID
      */
     public CommandsInfo getMessageBatch(int cid) {
-        if (messageBatches != null && cid >= lastCheckpointCID && cid <= lastCID) {
-            return messageBatches[cid - lastCheckpointCID - 1];
+        try {
+            if (messageBatches != null && cid >= lastCheckpointCID && cid <= lastCID) {
+                return messageBatches[cid - lastCheckpointCID - 1];
+            }
+            else return null;
+        } catch (Exception e) {
+            LOGGER.error("[DefaultApplicationState] getMessageBatch exception, {}", e.getMessage());
+            throw new IllegalStateException("[DefaultApplicationState] getMessageBatch exception!");
         }
-        else return null;
     }
 
     /**
