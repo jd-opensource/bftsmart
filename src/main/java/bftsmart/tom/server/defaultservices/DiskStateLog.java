@@ -195,8 +195,15 @@ public class DiskStateLog extends StateLog {
 	}
 
 	private void deleteLastCkp() {
-		if (lastCkpPath != null)
-			new File(lastCkpPath).delete();
+		try {
+			if (ckp != null)
+				ckp.close();
+			if (lastCkpPath != null) {
+				new File(lastCkpPath).delete();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void deleteLogFile() {

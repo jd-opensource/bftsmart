@@ -33,6 +33,7 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.TOMUtil;
+import utils.codec.Base58Utils;
 import utils.exception.ViewObsoleteException;
 
 /**
@@ -241,7 +242,7 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.info("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
+			LOGGER.info("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
 			// This instruction blocks the thread, until a response is obtained.
@@ -258,6 +259,7 @@ public class ServiceProxy extends TOMSender {
 						LOGGER.error("###################TIMEOUT#######################");
 						LOGGER.error("Reply timeout for reqId is {}", reqId);
 						LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
+						LOGGER.error("Reply timeout for request {}", Base58Utils.encode(request));
 						LOGGER.error("Replies received: {}", receivedReplies);
 						LOGGER.error("Replies quorum: {}", replyQuorum);
 						checkReplyNum(reqType, receivedReplies, replyQuorum);
@@ -277,7 +279,7 @@ public class ServiceProxy extends TOMSender {
 			if (response == null) {
 				// the response can be null if n-f replies are received but there isn't
 				// a replyQuorum of matching replies
-				LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {} !", request.length, reqType);
+				LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {}, request = {} !", request.length, reqType, Base58Utils.encode(request));
 
 //				if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 //					// invoke the operation again, whitout the read-only flag
