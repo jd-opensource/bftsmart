@@ -494,7 +494,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				boolean isToLog = config.isToLog();
 				boolean syncLog = config.isToWriteSyncLog();
 				boolean syncCkp = config.isToWriteSyncCkp();
-				log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName);
+				log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName, controller);
 
 				logLastConsensusId = ((DiskStateLog) log).loadDurableState();
 
