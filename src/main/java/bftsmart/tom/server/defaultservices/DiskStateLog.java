@@ -375,14 +375,15 @@ public class DiskStateLog extends StateLog {
 			}
 		}
 
-		LOGGER.info("[DiskStateLog] loadDurableState, procid = {}, logLastConsensusId = {}, ckpLastConsensusId = {}", id, logLastConsensusId, ckpLastConsensusId);
 		if(logLastConsensusId > ckpLastConsensusId) {
 			super.setLastCID(logLastConsensusId);
 		} else
 			super.setLastCID(ckpLastConsensusId);
 
 		prepareLastCheckpointCID(super.getLastCID());
-		
+
+		LOGGER.info("[DiskStateLog] loadDurableState, procid = {}, logLastConsensusId = {}, ckpLastConsensusId = {}", id, logLastConsensusId, ckpLastConsensusId);
+
 		return logLastConsensusId;
 	}
 }
