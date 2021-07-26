@@ -302,6 +302,10 @@ public abstract class BaseStateManager implements StateManager {
             for (int key : cids.keySet()) {
                 LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), topology.getQuorum());
                 if (cids.get(key) >= topology.getQuorum()) {
+
+                    // 根据提供状态同步节点的key，获得其检查点信息
+                    int checkPointFormOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (key / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
+
                     if (key == lastCID) {
                         LOGGER.info("-- {} replica state is up to date ! --", topology.getStaticConf().getProcessId());
                         dt.deliverLock();
@@ -314,7 +318,10 @@ public abstract class BaseStateManager implements StateManager {
                         dt.canDeliver();
                         dt.deliverUnlock();
                         break;
-                    } else if (lastCID < key){
+                    } else if (lastCID != -1 && lastCID <= checkPointFormOtherNode) {
+                        //该节点参与过共识，反哺过部分交易，且存在跨checkpoint,则暂不支持这种场景的状态传输
+                        LOGGER.info("When stride accross checkpoint, can not do state transfer, please renew this node!");
+                    } else if ((lastCID == -1) || ((lastCID > checkPointFormOtherNode) && (lastCID < key))){
                         //ask for state
                         LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
 //                        this.lastLogCid = lastCID;

@@ -334,6 +334,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		int lastCID = -1;
 		if (recvState instanceof DefaultApplicationState) {
 
+			// 该状态是多数节点认可的
 			DefaultApplicationState state = (DefaultApplicationState) recvState;
 
 			int lastCheckpointCID = state.getLastCheckpointCID();
@@ -357,6 +358,13 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 					"I am proc {}, my current log file cid {}, last checkpoint cid {}, from other nodes lastestcid {}",
 					controller.getStaticConf().getProcessId(), lastLogCid, lastCheckpointCID, lastCID);
 
+			// 表示本节点账本数据是从别的节点拷贝过来的,且没有记录相关共识信息到runtime下文件，别的节点在共识执行上已经跨了checkpoint；
+			if ((lastLogCid == -1) && lastCheckpointCID > -1) {
+				// 对落后节点设置新的lastLogCid
+				lastLogCid = lastCheckpointCID;
+			}
+
+			// 对于落后的交易进行反哺写入runtime下的tx.log
 			for (int cid = lastLogCid + 1; cid <= lastCID; cid++) {
 				try {
 					LOGGER.debug("[DefaultRecoverable.setState] interpreting and verifying batched requests for cid {}",
@@ -371,7 +379,13 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 					MessageContext[] msgCtx = cmdInfo.msgCtx;
 
 					log.addMessageBatch(commands, msgCtx, cid);
+
+					// 反哺交易的同时，修改状态，保持与其他节点的一致
 					((StandardStateManager) this.getStateManager()).setLastCID(cid);
+
+					((StandardStateManager) this.getStateManager()).getTomLayer().setLastExec(cid);
+
+					log.setLastCID(cid);
 
 					if (commands == null || msgCtx == null || msgCtx[0].isNoOp()) {
 						continue;
