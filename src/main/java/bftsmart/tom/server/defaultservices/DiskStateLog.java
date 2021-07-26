@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.tom.server.defaultservices;
 
+import bftsmart.reconfiguration.ViewTopology;
 import bftsmart.tom.MessageContext;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,7 @@ public class DiskStateLog extends StateLog {
 	private boolean syncCkp;
 	private boolean isToLog;
 	private String realName;
+	private ViewTopology controller;
 	private String logDefaultFile;
 	private String ckpDefaultFile;
 	private ReentrantLock checkpointLock = new ReentrantLock();
@@ -51,13 +53,14 @@ public class DiskStateLog extends StateLog {
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DiskStateLog.class);
 	
 	public DiskStateLog(int id, byte[] initialState, byte[] initialHash,
-			boolean isToLog, boolean syncLog, boolean syncCkp, String realName) {
+						boolean isToLog, boolean syncLog, boolean syncCkp, String realName, ViewTopology controller) {
 		super(id, initialState, initialHash);
 		this.id = id;
 		this.isToLog = isToLog;
 		this.syncLog = syncLog;
 		this.syncCkp = syncCkp;
 		this.realName = realName;
+		this.controller = controller;
 		this.logPointers = new HashMap<>();
 
 		if (DEFAULT_DIR.length() == 0) {
@@ -219,6 +222,25 @@ public class DiskStateLog extends StateLog {
 	}
 
 	/**
+	 * Prepare lastCheckpointCID by load runtime/tx.ckp file or according to lastCid to compute
+	 *
+	 * @param int lastCid
+	 * @return lastCheckpointCID
+	 */
+	private int prepareLastCheckpointCID(int lastCid) {
+
+		int lastCheckpointCID = getLastCheckpointCID();
+
+		int computeCheckPointCID = this.controller.getStaticConf().getCheckpointPeriod() * (lastCid / this.controller.getStaticConf().getCheckpointPeriod()) - 1;
+
+		if (lastCheckpointCID != computeCheckPointCID) {
+			lastCheckpointCID = computeCheckPointCID;
+			setLastCheckpointCID(lastCheckpointCID);
+		};
+		return lastCheckpointCID;
+	}
+
+	/**
 	 * Constructs a TransferableState using this log information
 	 * 
 	 * @param cid Consensus ID correspondent to desired state
@@ -230,8 +252,10 @@ public class DiskStateLog extends StateLog {
 //		readingState = true;
 		CommandsInfo[] batches = null;
 
-		int lastCheckpointCID = getLastCheckpointCID();
 		int lastCID = getLastCID();
+
+		int lastCheckpointCID = prepareLastCheckpointCID(lastCID);
+
 		LOGGER.info("I AM PROC {}, LAST CKP CID = {}", id, lastCheckpointCID);
 		LOGGER.info("I AM PROC {}, CID = {}", id, cid);
 		LOGGER.info("I AM PROC {}, LAST CID = {}", id, lastCID);
@@ -351,13 +375,15 @@ public class DiskStateLog extends StateLog {
 			}
 		}
 
-		LOGGER.info("[DiskStateLog] loadDurableState, procid = {}, logLastConsensusId = {}, ckpLastConsensusId = {}", id, logLastConsensusId, ckpLastConsensusId);
 		if(logLastConsensusId > ckpLastConsensusId) {
 			super.setLastCID(logLastConsensusId);
 		} else
 			super.setLastCID(ckpLastConsensusId);
-		super.setLastCheckpointCID(ckpLastConsensusId);
-		
+
+		prepareLastCheckpointCID(super.getLastCID());
+
+		LOGGER.info("[DiskStateLog] loadDurableState, procid = {}, logLastConsensusId = {}, ckpLastConsensusId = {}", id, logLastConsensusId, ckpLastConsensusId);
+
 		return logLastConsensusId;
 	}
 }
