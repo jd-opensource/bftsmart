@@ -1617,6 +1617,9 @@ public class Synchronizer {
 				}
 
 				// 通过重新发送共识消息，触发落后节点的交易处理，不能简单的只进行cons.decided, 并且使用新的epoch时间戳，否则共识消息会因为时间戳不匹配被丢掉
+				// 风险1：如果别的节点lastcid == lastHighestCID,  则不会走到这一步，也不会再发送共识ID为lastHighestCID的Write消息，那么在LC的最后阶段该节点也无法完成未完成的共识，后续该节点就落后了；
+				// 风险2：上一步放入stop消息队列的共识证据消息只包括Accept类型，没有Write阶段处理只能进入Accept阶段也会发生异常；
+				// 目前暂时通过放宽Accept类中对共识消息时间戳检测来解决该问题；
 				recoveryConsensus(lastHighestCID.getCID(), latestEpoch);
 
 			} else {

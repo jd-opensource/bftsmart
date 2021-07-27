@@ -195,11 +195,18 @@ public final class Acceptor {
 	 */
 	public final void processMessage(ConsensusMessage msg) {
 		Consensus consensus = executionManager.getConsensus(msg.getNumber());
+
+		// 该版本添加特殊处理，后续需要考虑优化掉该处理
+		if (msg.getType() != MessageFactory.PROPOSE && consensus.getLastEpoch() != null && consensus.getLastEpoch().getTimestamp() > msg.getEpoch()) {
+			msg = new ConsensusMessage(msg.getType(),msg.getNumber(),consensus.getLastEpoch().getTimestamp(), msg.getSender(), msg.getValue());
+		}
+
 		// 检查消息的epoch
 		if (!checkSucc(consensus, msg.getEpoch())) {
-			LOGGER.info("I am proc {}, processMessage checkSucc failed!", topology.getStaticConf().getProcessId());
+			LOGGER.info("I am proc {}, msg type = {}, processMessage checkSucc failed!", topology.getStaticConf().getProcessId(), msg.getType());
 			return;
 		}
+
 
 		// 收到的共识消息对应的时间戳
 		Epoch poch = consensus.getEpoch(msg.getEpoch(), topology);
