@@ -184,6 +184,9 @@ public class ServiceProxy extends TOMSender {
 		} catch (ViewObsoleteException voe) {
 		    close();
 			throw voe;
+		} catch (Exception e) {
+			LOGGER.error("[ServiceProxy] invokeOrdered exception!, error = {}", e.getMessage());
+			throw e;
 		}
 	}
 
@@ -225,6 +228,8 @@ public class ServiceProxy extends TOMSender {
 			replyServer = -1;
 			hashResponseController = null;
 
+			LOGGER.info("Before Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
+
 			if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 
 				replyServer = getRandomlyServerId();
@@ -242,7 +247,8 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.info("Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
+			LOGGER.info("After Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
+
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
 			// This instruction blocks the thread, until a response is obtained.
@@ -336,6 +342,10 @@ public class ServiceProxy extends TOMSender {
 				}
 			}
 			return ret;
+		} catch (Exception e) {
+			e.printStackTrace();
+			LOGGER.error("[ServiceProxy] invoke exception occur! error = {}", e.getMessage());
+			throw e;
 		} finally {
 			canSendLock.unlock();
 		}

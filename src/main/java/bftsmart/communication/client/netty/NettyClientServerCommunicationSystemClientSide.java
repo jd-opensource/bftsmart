@@ -331,7 +331,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     @Override
     public void send(boolean sign, int[] targets, TOMMessage sm) {
         listener.waitForChannels(targets.length); // wait for the previous transmission to complete
-        LOGGER.debug("Sending request from {} with sequence number {} to {}", sm.getSender(), sm.getSequence(), Arrays.toString(targets));
+        LOGGER.debug("[NettyClientServerCommunicationSystemClientSide] sending request from {} with sequence number {} to {}", sm.getSender(), sm.getSequence(), Arrays.toString(targets));
         if (sm.serializedMessage == null) {
             //serialize message
             DataOutputStream dos = null;
@@ -352,6 +352,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             }
         }
 
+        LOGGER.debug("[NettyClientServerCommunicationSystemClientSide] before sending request from {} with sequence number {} to {}", sm.getSender(), sm.getSequence(), Arrays.toString(targets));
         //LOGGER.debug("Sending message with "+sm.serializedMessage.length+" bytes of content.");
 
         //produce signature
@@ -386,10 +387,12 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         }
 
         if (targets.length > controller.getCurrentViewF() && sent < controller.getCurrentViewF() + 1) {
+            LOGGER.error("[NettyClientServerCommunicationSystemClientSide] Impossible to connect to servers!");
             //if less than f+1 servers are connected send an exception to the client
             throw new RuntimeException("Impossible to connect to servers!");
         }
         if(targets.length == 1 && sent == 0) {
+            LOGGER.error("[NettyClientServerCommunicationSystemClientSide] Server not connected!");
             throw new RuntimeException("Server not connected");
         }
     }
