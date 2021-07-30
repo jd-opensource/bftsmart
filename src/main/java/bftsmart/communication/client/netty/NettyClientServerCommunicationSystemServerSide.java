@@ -128,6 +128,8 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 
 		} catch (Throwable ex) {
 			ex.printStackTrace();
+			LOGGER.error("[NettyClientServerCommunicationSystemServerSide] start exception!");
+			throw new RuntimeException("[NettyClientServerCommunicationSystemServerSide] exception.", ex);
 		}
 	}
 

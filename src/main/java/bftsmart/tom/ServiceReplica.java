@@ -138,6 +138,7 @@ public class ServiceReplica {
 
 	protected ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, ServerViewController viewController, Executable executor, Recoverable recoverer,
 			RequestVerifier verifier, Replier replier, int lastCid, String realName) {
+
 		this.id = viewController.getStaticConf().getProcessId();
 		this.realmName = realName;
 		this.serverViewController = viewController;
@@ -154,20 +155,25 @@ public class ServiceReplica {
 //		} else {
 //			this.lastCid = lastCid;
 //		}
-		
-		this.replicaCtx = this.init();
-		
-		// 先启动通讯层，以便其它部分在启动后的通讯操作能够正常进行；
-		this.cs.start();
+
 		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
+			this.replicaCtx = this.init();
+
+			// 先启动通讯层，以便其它部分在启动后的通讯操作能够正常进行；
+			this.cs.start();
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+			}
+
+			this.replier.initContext(replicaCtx);
+			this.recoverer.initContext(replicaCtx);
+
+			startReplica(replicaCtx);
+		} catch (Throwable e) {
+		    LOGGER.error("[ServiceReplica] start exception!, error = {}", e.getMessage());
+			throw e;
 		}
-		
-		this.replier.initContext(replicaCtx);
-		this.recoverer.initContext(replicaCtx);
-		
-		startReplica(replicaCtx);
 	}
 
 	public void setReplyController(Replier replier) {
@@ -204,7 +210,7 @@ public class ServiceReplica {
 			} else {
 				clientCommunication = cs.getClientCommunication();
 			}
-		} catch (Exception ex) {
+		} catch (Throwable ex) {
 			throw new RuntimeException("Unable to build a communication system.", ex);
 		}
 
