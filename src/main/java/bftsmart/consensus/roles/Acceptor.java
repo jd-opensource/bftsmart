@@ -197,9 +197,9 @@ public final class Acceptor {
 		Consensus consensus = executionManager.getConsensus(msg.getNumber());
 
 		// 该版本添加特殊处理，后续需要考虑优化掉该处理
-		if (msg.getType() != MessageFactory.PROPOSE && consensus.getLastEpoch() != null && consensus.getLastEpoch().getTimestamp() > msg.getEpoch()) {
-			msg = new ConsensusMessage(msg.getType(),msg.getNumber(),consensus.getLastEpoch().getTimestamp(), msg.getSender(), msg.getValue());
-		}
+//		if (msg.getType() != MessageFactory.PROPOSE && consensus.getLastEpoch() != null && consensus.getLastEpoch().getTimestamp() > msg.getEpoch()) {
+//			msg = new ConsensusMessage(msg.getType(),msg.getNumber(),consensus.getLastEpoch().getTimestamp(), msg.getSender(), msg.getValue());
+//		}
 
 		// 检查消息的epoch
 		if (!checkSucc(consensus, msg.getEpoch())) {
