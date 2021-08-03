@@ -522,10 +522,28 @@ public final class ExecutionManager {
         
         //then we have to put the pending paxos messages
         List<ConsensusMessage> messages = outOfContext.remove(consensus.getId());
-        if (messages != null) {
-            LOGGER.debug("(ExecutionManager.processOutOfContext) {} Processing other {} out of context messages.", consensus.getId(), messages.size());
 
-            for (Iterator<ConsensusMessage> i = messages.iterator(); i.hasNext();) {
+        // 处于同一轮共识中的消息，保证write的处理先于accept;
+        // order start
+        List<ConsensusMessage> orderedMessages = new LinkedList<ConsensusMessage>();
+
+        for (ConsensusMessage consensusMessage : messages) {
+            if (consensusMessage.getType() == MessageFactory.WRITE) {
+                messages.remove(consensusMessage);
+                orderedMessages.add(consensusMessage);
+            }
+        }
+
+        for (ConsensusMessage consensusMessage : messages) {
+            orderedMessages.add(consensusMessage);
+        }
+
+        // order end
+
+        if (orderedMessages != null) {
+            LOGGER.debug("(ExecutionManager.processOutOfContext) {} Processing other {} out of context messages.", consensus.getId(), orderedMessages.size());
+
+            for (Iterator<ConsensusMessage> i = orderedMessages.iterator(); i.hasNext();) {
                 acceptor.processMessage(i.next());
                 if (consensus.isDecided()) {
                     LOGGER.debug("(ExecutionManager.processOutOfContext) consensus {} decided.", consensus.getId());
@@ -556,10 +574,19 @@ public final class ExecutionManager {
             if (messages == null) {
                 messages = new LinkedList<ConsensusMessage>();
                 outOfContext.put(m.getNumber(), messages);
+                LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding {}", m);
+                messages.add(m);
+            } else {
+                for (ConsensusMessage consensusMessage : messages) {
+                    // 过滤掉无效的消息：write ,accept消息，如果来自同一轮共识，且属于同一个节点来源，只保留时间戳最新的
+                    if ((m.getSender() == consensusMessage.getSender()) && m.getEpoch() >= consensusMessage.getEpoch()) {
+                        LOGGER.debug("(ExecutionManager.addOutOfContextMessage) removing {}", m);
+                        messages.remove(consensusMessage);
+                        LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding {}", m);
+                        messages.add(m);
+                    }
+                }
             }
-            LOGGER.debug("(ExecutionManager.addOutOfContextMessage) adding {}", m);
-            messages.add(m);
-
         }
 
         /******* END OUTOFCONTEXT CRITICAL SECTION *******/
