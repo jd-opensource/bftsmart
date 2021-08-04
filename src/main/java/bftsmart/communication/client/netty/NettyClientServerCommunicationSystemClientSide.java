@@ -552,7 +552,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             public void waitForChannels(int n) {
 
                 this.futureLock.lock();
-                if (this.remainingFutures > 0) {
+                if (this.remainingFutures >  (n -1)/3) {
 
                     LOGGER.debug("(SyncListener.waitForChannels)  There are still {} channel operations pending, waiting to complete", this.remainingFutures);
 
