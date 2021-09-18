@@ -110,50 +110,73 @@ public class ClientsManager {
         RequestList allReq = new RequestList();
 
         clientsLock.lock();
-        /******* BEGIN CLIENTS CRITICAL SECTION ******/
-        
-        Set<Entry<Integer, ClientData>> clientsEntrySet = clientsData.entrySet();
-        
-        for (int i = 0; true; i++) {
-            Iterator<Entry<Integer, ClientData>> it = clientsEntrySet.iterator();
-            int noMoreMessages = 0;
+        try {
+            /******* BEGIN CLIENTS CRITICAL SECTION ******/
 
-            while (it.hasNext()
-                    && allReq.size() < controller.getStaticConf().getMaxBatchSize()
-                    && noMoreMessages < clientsEntrySet.size()) {
-
-                ClientData clientData = it.next().getValue();
-                RequestList clientPendingRequests = clientData.getPendingRequests();
-
-                clientData.clientLock.lock();
-                /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
-                TOMMessage request = (clientPendingRequests.size() > i) ? clientPendingRequests.get(i) : null;
-
-                /******* END CLIENTDATA CRITICAL SECTION ******/
-                clientData.clientLock.unlock();
-
-                if (request != null) {
-                    if(!request.alreadyProposed) {
-                        //this client have pending message
-                        request.alreadyProposed = true;
-                        allReq.addLast(request);
+            // id为负的消息单独打包
+            Set<Integer> ids = clientsData.keySet();
+            for(Integer id : ids) {
+                if (id < 0) {
+                    ClientData clientData = clientsData.get(id);
+                    RequestList clientPendingRequests = clientData.getPendingRequests();
+                    clientData.clientLock.lock();
+                    TOMMessage request = clientPendingRequests.size() > 0 ? clientPendingRequests.get(0) : null;
+                    clientData.clientLock.unlock();
+                    if (request != null) {
+                        if (!request.alreadyProposed) {
+                            //this client have pending message
+                            request.alreadyProposed = true;
+                            allReq.addLast(request);
+                            return allReq;
+                        }
                     }
-                } else {
-                    //this client don't have more pending requests
-                    noMoreMessages++;
                 }
             }
-            
-            if(allReq.size() == controller.getStaticConf().getMaxBatchSize() ||
-                    noMoreMessages == clientsEntrySet.size()) {
-                
-                break;
+
+            Set<Entry<Integer, ClientData>> clientsEntrySet = clientsData.entrySet();
+
+            for (int i = 0; true; i++) {
+                Iterator<Entry<Integer, ClientData>> it = clientsEntrySet.iterator();
+                int noMoreMessages = 0;
+
+                while (it.hasNext()
+                        && allReq.size() < controller.getStaticConf().getMaxBatchSize()
+                        && noMoreMessages < clientsEntrySet.size()) {
+
+                    ClientData clientData = it.next().getValue();
+                    RequestList clientPendingRequests = clientData.getPendingRequests();
+
+                    clientData.clientLock.lock();
+                    /******* BEGIN CLIENTDATA CRITICAL SECTION ******/
+                    TOMMessage request = (clientPendingRequests.size() > i) ? clientPendingRequests.get(i) : null;
+
+                    /******* END CLIENTDATA CRITICAL SECTION ******/
+                    clientData.clientLock.unlock();
+
+                    if (request != null) {
+                        if (!request.alreadyProposed) {
+                            //this client have pending message
+                            request.alreadyProposed = true;
+                            allReq.addLast(request);
+                        }
+                    } else {
+                        //this client don't have more pending requests
+                        noMoreMessages++;
+                    }
+                }
+
+                if (allReq.size() == controller.getStaticConf().getMaxBatchSize() ||
+                        noMoreMessages == clientsEntrySet.size()) {
+
+                    break;
+                }
             }
+
+            return allReq;
+        } finally {
+            /******* END CLIENTS CRITICAL SECTION ******/
+            clientsLock.unlock();
         }
-        
-        /******* END CLIENTS CRITICAL SECTION ******/
-        clientsLock.unlock();
-        return allReq;
     }
 
     /**
