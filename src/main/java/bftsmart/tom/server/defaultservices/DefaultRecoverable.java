@@ -497,13 +497,12 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		return index;
 	}
 
-	private int initLog() {
-		int logLastConsensusId = -1;
-
+	private void initLog() {
 		if (log == null) {
 			checkpointPeriod = config.getCheckpointPeriod();
 			byte[] state = getSnapshot();
 			if (config.isToLog() && config.isLoggingToDisk()) {
+		        int logLastConsensusId = -1;
 				int replicaId = config.getProcessId();
 				boolean isToLog = config.isToLog();
 				boolean syncLog = config.isToWriteSyncLog();
@@ -515,20 +514,59 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				getStateManager().setLastCID(logLastConsensusId);
 
 			} else {
+				//Load partial consensus state into memory, which belongs to the same checkpoint period
+
+				int lastCheckpointCid = -1;
+
+				int lastCid = stateManager.getLastCID();
+
+				if (lastCid + 1 <= checkpointPeriod) {
+					lastCheckpointCid = -1;
+				} else {
+					lastCheckpointCid = (lastCid / checkpointPeriod) * checkpointPeriod -1;
+				}
+
 				log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
+				log.setLastCheckpointCID(lastCheckpointCid);
+				log.setLastCID(lastCid);
+
+				for (int cid = lastCheckpointCid + 1; cid <= lastCid; cid++) {
+
+					// 根据CID获取对应区块内的交易总数
+					int currCidCommandsNum = getCommandsNumByCid(cid);
+
+					byte[][] commands = new byte[currCidCommandsNum][];
+
+					commands = getCommandsByCid(cid, currCidCommandsNum);
+
+					MessageContext[] msgCtx = new MessageContext[currCidCommandsNum];
+
+					for (int i = 0; i < commands.length; i++) {
+						msgCtx[i] = new MessageContext(0, 0, null, 0, 0, 0, 0, null, 0, 0, 0, 0, 0, cid, null, null, false);
+					}
+
+					log.addMessageBatch(commands, msgCtx, cid);
+				}
 			}
 		}
-
-		return logLastConsensusId;
 	}
 
 	@Override
-	public void initContext(ReplicaContext replicaContext) {
+	public void initContext(ReplicaContext replicaContext, long lastCid) {
 		this.controller = replicaContext.getSVController();
 		this.config = replicaContext.getStaticConfiguration();
-		int logLastConsensusId = initLog();
 
-		replicaContext.getTOMLayer().setLastExec(logLastConsensusId);
+		replicaContext.getTOMLayer().setLastExec((int) lastCid);
+
+		getStateManager().setLastCID((int) lastCid);
+
+		((StandardStateManager)getStateManager()).getTomLayer().setLastExec((int) lastCid);
+
+		initLog();
+
+//		log.setLastCheckpointCID((int) (this.controller.getStaticConf().getCheckpointPeriod() * (lastCid / this.controller.getStaticConf().getCheckpointPeriod()) - 1));
+
+//		LOGGER.info("[DefaultRecoverable] initContext, procid = {}, lastCid = {}, lastCkpCid = {}", this.controller.getCurrentProcessId(), lastCid, log.getLastCheckpointCID());
 
 		replicaContext.getTOMLayer().lastCidSetOk();
 		
@@ -585,4 +623,9 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 			List<ReplyContextMessage> replyContextMessages);
 
 	public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
+
+	public abstract int getCommandsNumByCid(int cid);
+
+	public abstract byte[][] getCommandsByCid(int cid, int currCidCommandsNum);
+
 }

@@ -251,7 +251,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     }
 
     @Override
-    public void initContext(ReplicaContext replicaContext) {
+    public void initContext(ReplicaContext replicaContext, long lastCid) {
         this.replicaContext = replicaContext;
         this.config = replicaContext.getStaticConfiguration();
         this.controller = replicaContext.getSVController();

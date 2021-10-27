@@ -135,6 +135,16 @@ public class TestNodeServer extends DefaultRecoverable {
         }
     }
 
+    @Override
+    public int getCommandsNumByCid(int cid) {
+        return 0;
+    }
+
+    @Override
+    public byte[][] getCommandsByCid(int cid, int currCidCommandsNum) {
+        return new byte[0][];
+    }
+
     private byte[] executeSingle(byte[] command, MessageContext msgCtx) {
         iterations++;
         try {

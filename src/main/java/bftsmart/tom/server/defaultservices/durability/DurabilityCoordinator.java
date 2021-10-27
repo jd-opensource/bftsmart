@@ -373,7 +373,7 @@ public abstract class DurabilityCoordinator implements Recoverable, PreComputeBa
 	}
 
 	@Override
-	public void initContext(ReplicaContext replicaContext) {
+	public void initContext(ReplicaContext replicaContext, long lastCid) {
 		this.config = replicaContext.getStaticConfiguration();
 		if(log == null) {
 			globalCheckpointPeriod = config.getGlobalCheckpointPeriod();

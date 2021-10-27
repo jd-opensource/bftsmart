@@ -30,7 +30,7 @@ import bftsmart.tom.ReplicaContext;
  */
 public interface Recoverable {
 	
-	public void initContext(ReplicaContext replicaContext);
+	public void initContext(ReplicaContext replicaContext, long lastCid);
 
 	public void setRealName(String realName);
 

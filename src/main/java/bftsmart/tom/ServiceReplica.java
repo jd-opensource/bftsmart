@@ -98,7 +98,7 @@ public class ServiceReplica {
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
 	private final String realmName;
-	private int lastCid;
+	private long lastCid;
 	private ClientCommunicationServerSide clientCommunication;
 	private MessageHandler messageHandler;
 
@@ -130,14 +130,14 @@ public class ServiceReplica {
 				"Default-Realm");
 	}
 
-	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
+	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, long lastCid,
 			View lastView, String realName) {
 		this(messageHandler, cs, new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
 				new DefaultReplier(), lastCid, realName);
 	}
 
 	protected ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, ServerViewController viewController, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier, int lastCid, String realName) {
+			RequestVerifier verifier, Replier replier, long lastCid, String realName) {
 
 		this.id = viewController.getStaticConf().getProcessId();
 		this.realmName = realName;
@@ -149,6 +149,8 @@ public class ServiceReplica {
 		this.recoverer.setRealName(realName);
 		this.messageHandler = messageHandler;
 		this.cs = cs;
+		this.lastCid = lastCid;
+
 
 //		if (viewController.getStaticConf().isLoggingToDisk()) {
 //			this.lastCid = this.recoverer.getStateManager().getLastCID();
@@ -167,7 +169,7 @@ public class ServiceReplica {
 			}
 
 			this.replier.initContext(replicaCtx);
-			this.recoverer.initContext(replicaCtx);
+			this.recoverer.initContext(replicaCtx, lastCid);
 
 			startReplica(replicaCtx);
 		} catch (Throwable e) {
@@ -371,7 +373,7 @@ public class ServiceReplica {
 
 					init();
 
-					recoverer.initContext(replicaCtx);
+					recoverer.initContext(replicaCtx, lastCid);
 					replier.initContext(replicaCtx);
 
 					replicaCtx.start();
