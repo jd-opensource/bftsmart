@@ -58,7 +58,6 @@ import bftsmart.tom.server.SingleExecutable;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
-import utils.codec.Base58Utils;
 
 /**
  * This class receives messages from DeliveryThread and manages the execution
@@ -395,11 +394,6 @@ public class ServiceReplica {
 			int requestCount = 0;
 			noop = true;
 			for (TOMMessage request : requestsFromConsensus) {
-
-				LOGGER.debug(
-						"(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}, request = {}",
-						request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount], Base58Utils.encode(request.getContent()));
-
 				LOGGER.info(
 						"(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}",
 						request.getViewID(), serverViewController.getCurrentViewId(), request.getReqType());
