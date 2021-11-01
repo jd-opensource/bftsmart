@@ -15,19 +15,6 @@ limitations under the License.
 */
 package bftsmart.consensus.roles;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.security.PrivateKey;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bftsmart.communication.MacKey;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.consensus.Consensus;
@@ -46,6 +33,18 @@ import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.server.Replier;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.security.PrivateKey;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * This class represents the acceptor role in the consensus protocol. This class
@@ -442,11 +441,16 @@ public final class Acceptor {
 
 						for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
 							// 对于视图ID落后于当前节点视图ID的请求或者Reconfig请求不进行预计算处理
-							if (ViewIdBackWard(epoch.deserializedPropValue[i])
-									|| isReconfig(epoch.deserializedPropValue[i])) {
+//							if (ViewIdBackWard(epoch.deserializedPropValue[i])
+//									|| isReconfig(epoch.deserializedPropValue[i])) {
+//								continue;
+//							}
+
+							if (isReconfig(epoch.deserializedPropValue[i])) {
 								continue;
 							}
-							// 视图ID正常的请求才会继续进行后面的预计算过程
+
+							// Order类型的请求才会继续进行后面的预计算过程
 							commands.add(epoch.deserializedPropValue[i].getContent());
 							epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
 						}
@@ -772,11 +776,11 @@ public final class Acceptor {
 
 	}
 
-	// 视图ID落后的非Reconfig请求
-	private boolean ViewIdBackWard(TOMMessage tomMessage) {
-		return tomMessage.getViewID() < this.topology.getCurrentViewId()
-				&& tomMessage.getReqType() != TOMMessageType.RECONFIG;
-	}
+//	// 视图ID落后的非Reconfig请求
+//	private boolean ViewIdBackWard(TOMMessage tomMessage) {
+//		return tomMessage.getViewID() < this.topology.getCurrentViewId()
+//				&& tomMessage.getReqType() != TOMMessageType.RECONFIG;
+//	}
 
 	// Reconfig请求
 	private boolean isReconfig(TOMMessage tomMessage) {

@@ -15,21 +15,20 @@ limitations under the License.
 */
 package bftsmart.clientsmanagement;
 
+import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.reconfiguration.ViewTopology;
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.leaderchange.RequestsTimer;
+import bftsmart.tom.server.RequestVerifier;
+import org.slf4j.LoggerFactory;
+import utils.codec.Base58Utils;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
-
-import org.slf4j.LoggerFactory;
-
-import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.reconfiguration.ViewTopology;
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.leaderchange.RequestsTimer;
-import bftsmart.tom.server.RequestVerifier;
-import utils.codec.Base58Utils;
 
 
 /**
@@ -113,7 +112,7 @@ public class ClientsManager {
         try {
             /******* BEGIN CLIENTS CRITICAL SECTION ******/
 
-            // id为负的消息单独打包
+            // id为负的消息(Reconfig 消息类型)单独打包
             Set<Integer> ids = clientsData.keySet();
             for(Integer id : ids) {
                 if (id < 0) {

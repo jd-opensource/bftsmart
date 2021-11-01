@@ -24,11 +24,8 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.leaderchange.CertifiedDecision;
 import bftsmart.tom.server.Recoverable;
-import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchReader;
-
 import org.slf4j.Logger;
-//import bftsmart.tom.util.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -37,7 +34,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
+
+//import bftsmart.tom.util.Logger;
 
 /**
  * This class implements a thread which will deliver totally ordered requests to
@@ -64,7 +62,7 @@ public final class DeliveryThread extends Thread {
 	 * @param receiver Object that receives requests from clients
 	 */
 	public DeliveryThread(TOMLayer tomLayer, ServiceReplica receiver, Recoverable recoverer,
-			ServerViewController controller) {
+                          ServerViewController controller) {
 		super("Delivery Thread");
 		this.decided = new LinkedBlockingQueue<>();
 
@@ -331,7 +329,7 @@ public final class DeliveryThread extends Thread {
 	}
 
 	private void deliverMessages(int consId[], int regencies[], int leaders[], CertifiedDecision[] cDecs,
-			TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList) {
+                                 TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList) {
 		receiver.receiveMessages(consId, regencies, leaders, cDecs, requests, asyncResponseLinkedList);
 	}
 
@@ -342,7 +340,7 @@ public final class DeliveryThread extends Thread {
 		for (int i = 0; i < dests.length; i++) {
 			tomLayer.getCommunication().send(new int[] { dests[i].getSender() },
 					new TOMMessage(controller.getStaticConf().getProcessId(), dests[i].getSession(),
-							dests[i].getSequence(), dests[i].getOperationId(), response, controller.getCurrentViewId(),
+							dests[i].getSequence(), dests[i].getOperationId(), response, null, controller.getCurrentViewId(),
 							TOMMessageType.RECONFIG));
 		}
 		if (controller.getCurrentView().isMember(receiver.getId())) {

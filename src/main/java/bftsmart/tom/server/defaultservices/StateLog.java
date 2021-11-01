@@ -139,12 +139,20 @@ public class StateLog {
         return state;
     }
 
+    public void setState(byte[] state) {
+        this.state = state;
+    }
+
     /**
      * Retrieves the hash of the state associated with the last checkpoint
      * @return Hash of the state associated with the last checkpoint
      */
     public byte[] getStateHash() {
         return stateHash;
+    }
+
+    public void setStateHash(byte[] stateHash) {
+        this.stateHash = stateHash;
     }
 
     /**

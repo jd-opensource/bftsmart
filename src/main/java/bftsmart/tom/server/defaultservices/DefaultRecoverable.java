@@ -18,11 +18,10 @@
  */
 package bftsmart.tom.server.defaultservices;
 
-import bftsmart.consensus.app.*;
 import bftsmart.consensus.app.BatchAppResultImpl;
-import bftsmart.reconfiguration.ViewController;
+import bftsmart.consensus.app.PreComputeBatchExecutable;
+import bftsmart.consensus.app.SHA256Utils;
 import bftsmart.reconfiguration.ViewTopology;
-import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.StateManager;
 import bftsmart.statemanagement.strategy.StandardStateManager;
@@ -33,13 +32,10 @@ import bftsmart.tom.ReplyContextMessage;
 import bftsmart.tom.server.Recoverable;
 import org.slf4j.LoggerFactory;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 
 /**
  *
@@ -103,7 +99,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	}
 
 	private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, boolean noop,
-			List<ReplyContextMessage> replyContextMessages) {
+                                  List<ReplyContextMessage> replyContextMessages) {
 
 		int cid = msgCtxs[msgCtxs.length - 1].getConsensusId();
 
@@ -178,7 +174,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 			LOGGER.debug("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus {}", cid);
 			stateLock.lock();
-			byte[] snapshot = getSnapshot();
+			byte[] snapshot = getCheckPointSnapshot(cid);
 			stateLock.unlock();
 			saveState(snapshot, cid);
 
@@ -500,21 +496,26 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	private void initLog() {
 		if (log == null) {
 			checkpointPeriod = config.getCheckpointPeriod();
-			byte[] state = getSnapshot();
 			if (config.isToLog() && config.isLoggingToDisk()) {
 		        int logLastConsensusId = -1;
 				int replicaId = config.getProcessId();
 				boolean isToLog = config.isToLog();
 				boolean syncLog = config.isToWriteSyncLog();
 				boolean syncCkp = config.isToWriteSyncCkp();
-				log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName, controller);
+				log = new DiskStateLog(replicaId, null, null, isToLog, syncLog, syncCkp, this.realName, controller);
 
 				logLastConsensusId = ((DiskStateLog) log).loadDurableState();
+
+				byte[] state = getCheckPointSnapshot(log.getLastCheckpointCID());
+
+				log.setState(state);
+
+				log.setStateHash(computeHash(state));
 
 				getStateManager().setLastCID(logLastConsensusId);
 
 			} else {
-				//Load partial consensus state into memory, which belongs to the same checkpoint period
+				//Load latest checkpoint cycle txs into memory, to provide data sync for other backward nodes
 
 				int lastCheckpointCid = -1;
 
@@ -525,6 +526,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				} else {
 					lastCheckpointCid = (lastCid / checkpointPeriod) * checkpointPeriod -1;
 				}
+
+				byte[] state = getCheckPointSnapshot(lastCheckpointCid);
 
 				log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
 				log.setLastCheckpointCID(lastCheckpointCid);
@@ -566,7 +569,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 //		log.setLastCheckpointCID((int) (this.controller.getStaticConf().getCheckpointPeriod() * (lastCid / this.controller.getStaticConf().getCheckpointPeriod()) - 1));
 
-//		LOGGER.info("[DefaultRecoverable] initContext, procid = {}, lastCid = {}, lastCkpCid = {}", this.controller.getCurrentProcessId(), lastCid, log.getLastCheckpointCID());
+		LOGGER.info("[DefaultRecoverable] initContext, procid = {}, lastCid = {}, lastCkpCid = {}", this.controller.getCurrentProcessId(), log.getLastCID(), log.getLastCheckpointCID());
 
 		replicaContext.getTOMLayer().lastCidSetOk();
 		
@@ -606,7 +609,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 	public abstract void installSnapshot(byte[] state);
 
-	public abstract byte[] getSnapshot();
+	public abstract byte[] getCheckPointSnapshot(int cid);
 
 	public abstract BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands, long timestamp);
 
@@ -620,7 +623,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus);
 
 	public abstract byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus,
-			List<ReplyContextMessage> replyContextMessages);
+                                             List<ReplyContextMessage> replyContextMessages);
 
 	public abstract byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx);
 
