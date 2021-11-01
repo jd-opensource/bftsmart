@@ -299,8 +299,10 @@ public class ClientsManager {
      */
     public boolean requestReceived(TOMMessage request, boolean fromClient, ServerCommunicationSystem cs) {
 
-        LOGGER.debug("requestReceived: msg type = {}, msg from client = {}, req id = {}, request = {}", request.getReqType(), request.getSender(), request.getId(), Base58Utils.encode(request.getContent()));
-                
+        if(LOGGER.isDebugEnabled()) {
+            LOGGER.debug("requestReceived: msg type = {}, msg from client = {}, req id = {}, request = {}", request.getReqType(), request.getSender(), request.getId(), Base58Utils.encode(request.getContent()));
+        }
+
         // if the content of the request is invalid, ignore it
         if (controller.getStaticConf().isBFT() && !verifier.isValidRequest(request.getContent())) return false;
         
