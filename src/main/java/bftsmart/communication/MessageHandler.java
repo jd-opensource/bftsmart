@@ -21,6 +21,7 @@ import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 
+import bftsmart.statemanagement.TRMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,6 +173,21 @@ public class MessageHandler {
 						break;
 					}
 					/******************************************************************/
+				} else if (sm instanceof TRMessage) {
+
+					TRMessage trMessage = (TRMessage)sm;
+
+					switch (trMessage.getType()) {
+						case TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO:
+							tomLayer.getStateManager().transactionReplayAsked(trMessage.sender, trMessage.getTarget(), trMessage.getStartCid(), trMessage.getEndCid());
+							break;
+						case TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO:
+//							tomLayer.getStateManager().
+							break;
+						default:
+							break;
+
+					}
 				} else {
 					LOGGER.error("UNKNOWN MESSAGE TYPE: {}", sm);
 				}

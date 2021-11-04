@@ -45,7 +45,7 @@ public class Epoch implements Serializable {
 
     public byte[] propValue = null; // proposed value
     public TOMMessage[] deserializedPropValue = null; //utility var
-    public List<TOMMessage> deserializedPrecomputeValue = new ArrayList<>(); // 剔除掉视图ID小于当前节点视图ID的请求消息
+//    public List<TOMMessage> deserializedPrecomputeValue = new ArrayList<>(); // 剔除掉视图ID小于当前节点视图ID的请求消息
     public byte[] propValueHash = null; // proposed value hash
 
     public byte[] propAndAppValue = null; // proposed value and new app batch hash value content
@@ -65,6 +65,8 @@ public class Epoch implements Serializable {
     private View lastView = null;
 
     private ViewTopology controller;
+
+    private boolean isRollback = false;
 
     /**
      * Creates a new instance of Epoch for acceptors
@@ -505,5 +507,13 @@ public class Epoch implements Serializable {
         Arrays.fill((Object[]) accept, null);
         
         this.proof = new HashSet<ConsensusMessage>();
+    }
+
+    public void setRollback(boolean rollback) {
+        isRollback = rollback;
+    }
+
+    public boolean getRollback() {
+        return isRollback;
     }
 }

@@ -16,11 +16,14 @@
  */
 package bftsmart.statemanagement.strategy;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
+import bftsmart.statemanagement.TRMessage;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -69,6 +72,8 @@ public abstract class BaseStateManager implements StateManager {
 
     private HashMap<Integer, Integer> senderVIDs = null;
 
+    private List<Integer> validDataSenders = new ArrayList<>();
+
     public BaseStateManager() {
         senderStates = new HashMap<>();
         senderViews = new HashMap<>();
@@ -76,6 +81,8 @@ public abstract class BaseStateManager implements StateManager {
         senderLeaders = new HashMap<>();
         senderProofs = new HashMap<>();
     }
+
+    public List<Integer> getValidDataSenders() {return validDataSenders;}
 
     protected int getReplies() {
         return senderStates.size();
@@ -168,6 +175,7 @@ public abstract class BaseStateManager implements StateManager {
         senderRegencies.clear();
         senderViews.clear();
         senderProofs.clear();
+        validDataSenders.clear();
         state = null;
     }
 
@@ -236,7 +244,7 @@ public abstract class BaseStateManager implements StateManager {
             LOGGER.info("I will send StandardSMMessage[{}] to others !", TOMUtil.SM_ASK_INITIAL);
             tomLayer.getCommunication().send(target, currentCID);
             try {
-                Thread.sleep(1500);
+                Thread.sleep(5000);
                 if (++counter > STATETRANSFER_RETRY_COUNT) {
                     LOGGER.info("###############################################################################################################################################################");
                     LOGGER.info("################State Transfer No Replier, Maybe Requester View Is Obsolete, If Block Exist Diff, Please Copy Ledger Database And Restart!#####################");
@@ -280,7 +288,7 @@ public abstract class BaseStateManager implements StateManager {
         }
         senderVIDs.put(smsg.getSender(), smsg.getView().getId());
 
-        // Report if view is consistent
+        // Report if view is inconsistent
         checkViewInfo(this.topology.getCurrentView().getId(), senderVIDs);
 
         LOGGER.info("currentConsensusIdReceived ->sender[{}], CID = {} !", smsg.getSender(), smsg.getCID());
@@ -303,10 +311,11 @@ public abstract class BaseStateManager implements StateManager {
                 LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), topology.getQuorum());
                 if (cids.get(key) >= topology.getQuorum()) {
 
+                    saveValidDataSenders(senderCIDs, key);
                     // 根据提供状态同步节点的key，获得其检查点信息
                     int checkPointFormOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (key / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
 
-                    if (key == lastCID) {
+                    if (lastCID >= key) {
                         LOGGER.info("-- {} replica state is up to date ! --", topology.getStaticConf().getProcessId());
                         dt.deliverLock();
                         isInitializing = false;
@@ -318,11 +327,7 @@ public abstract class BaseStateManager implements StateManager {
                         dt.canDeliver();
                         dt.deliverUnlock();
                         break;
-                    } else if (lastCID != -1 && lastCID <= checkPointFormOtherNode) {
-                        //该节点参与过共识，反哺过部分交易，且存在跨checkpoint,则暂不支持这种场景的状态传输
-                        LOGGER.info("When stride accross checkpoint, can not do state transfer, please renew this node!");
-                    } else if ((lastCID == -1) || ((lastCID > checkPointFormOtherNode) && (lastCID < key))){
-                        //ask for state
+                    }  else {
                         LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
 //                        this.lastLogCid = lastCID;
                         lastCID = key + 1;
@@ -336,6 +341,14 @@ public abstract class BaseStateManager implements StateManager {
         }
     }
 
+    private void saveValidDataSenders(HashMap<Integer,Integer> senderCIDs, int key) {
+        for (int replicaId : senderCIDs.keySet()) {
+            if (senderCIDs.get(replicaId) == key) {
+                validDataSenders.add(new Integer(replicaId));
+            }
+        }
+    }
+
     private void checkViewInfo(int currViewId, HashMap<Integer, Integer> senderVids) {
         for (int sender : senderVids.keySet()) {
             if (currViewId < senderVids.get(sender)) {
@@ -345,6 +358,11 @@ public abstract class BaseStateManager implements StateManager {
                 break;
             }
         }
+    }
+
+    @Override
+    public void transactionReplayReceived(TRMessage msg) {
+
     }
 
     protected abstract void requestState();

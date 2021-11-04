@@ -23,8 +23,11 @@ import bftsmart.consensus.app.BatchAppResult;
 import bftsmart.consensus.app.ComputeCode;
 import bftsmart.consensus.messages.ConsensusMessage;
 import bftsmart.consensus.messages.MessageFactory;
+import bftsmart.reconfiguration.ReconfigureRequest;
 import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.views.NodeNetwork;
+import bftsmart.reconfiguration.views.View;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.ReplyManager;
 import bftsmart.tom.core.TOMLayer;
@@ -436,8 +439,8 @@ public final class Acceptor {
 					if (topology.getStaticConf().isBFT()) {
 
 						DefaultRecoverable defaultExecutor = getDefaultExecutor();
-//                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
-						List<byte[]> commands = new ArrayList<byte[]>();
+                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
+//						List<byte[]> commands = new ArrayList<byte[]>();
 
 						for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
 							// 对于视图ID落后于当前节点视图ID的请求或者Reconfig请求不进行预计算处理
@@ -446,18 +449,20 @@ public final class Acceptor {
 //								continue;
 //							}
 
-							if (isReconfig(epoch.deserializedPropValue[i])) {
-								continue;
+							TOMMessage message = epoch.deserializedPropValue[i];
+							if (isReconfig(message)) {
+								ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(message.getContent());
+								commands[i] = request.getExtendInfo();
+							} else {
+								commands[i] = message.getContent();
 							}
 
-							// Order类型的请求才会继续进行后面的预计算过程
-							commands.add(epoch.deserializedPropValue[i].getContent());
-							epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
+//							epoch.deserializedPrecomputeValue.add(msg);
+
 						}
 
 						LOGGER.info("I am proc {}, start pre compute , cid = {}, epoch = {}", this.topology.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
-						BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid,
-								commands.toArray(new byte[commands.size()][]), epoch.getProposeTimestamp());
+						BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid, commands, epoch.getProposeTimestamp());
 
 						byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
 						epoch.propAndAppValue = result;
@@ -636,24 +641,19 @@ public final class Acceptor {
 		computeAccept(cid, epoch, msg.getValue());
 	}
 
-	private void updateConsensusSetting(Epoch epoch) {
+//	private void updateConsensusSetting(Epoch epoch) {
 
-		TOMMessage[] requests = epoch.deserializedPropValue;
+//		TOMMessage[] requests = epoch.deserializedPropValue;
+//
+//		if (requests != null) {
+//			tomLayer.clientsManager.requestsPending(requests);
+//		}
 
-		if (requests == null) {
-			tomLayer.setLastExec(tomLayer.getInExec());
+//		tomLayer.setLastExec(tomLayer.getInExec());
+//
+//		tomLayer.setInExec(-1);
 
-			tomLayer.setInExec(-1);
-			return;
-		}
-
-		tomLayer.clientsManager.requestsPending(requests);
-
-		tomLayer.setLastExec(tomLayer.getInExec());
-
-		tomLayer.setInExec(-1);
-
-	}
+//	}
 
 //    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
 //
@@ -711,10 +711,11 @@ public final class Acceptor {
 						LOGGER.error("I am proc {} , flush storage fail, will rollback!",
 								topology.getStaticConf().getProcessId());
 						getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
-						updateConsensusSetting(epoch);
+//						updateConsensusSetting(epoch);
 						updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(),
-								epoch.commonHash, false);
+								epoch.commonHash, true);
 						epoch.setAsyncResponseLinkedList(updatedResp);
+						epoch.setRollback(true);
 						decide(epoch);
 					}
 				} else if (Arrays.equals(value, epoch.propAndAppValueHash)
@@ -722,7 +723,8 @@ public final class Acceptor {
 					LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback",
 							topology.getStaticConf().getProcessId(), cid);
 					getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
-					updateConsensusSetting(epoch);
+//					updateConsensusSetting(epoch);
+					epoch.setRollback(true);
 					decide(epoch);
 				} else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
 					// Leader does evil to me only, need to roll back
@@ -739,17 +741,17 @@ public final class Acceptor {
 					// This round of consensus has been rolled back, mark it
 					tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
-					updateConsensusSetting(epoch);
-
+//					updateConsensusSetting(epoch);
+					epoch.setRollback(true);
 					decide(epoch);
 
 					// Pause processing of new messages, Waiting for trigger state transfer
 //                tomLayer.requestsTimer.Enabled(false);
 //                tomLayer.requestsTimer.stopTimer();
 
-					if (!tomLayer.execManager.stopped()) {
-						tomLayer.execManager.stop();
-					}
+//					if (!tomLayer.execManager.stopped()) {
+//						tomLayer.execManager.stop();
+//					}
 				}
 				return;
 			}
@@ -763,11 +765,12 @@ public final class Acceptor {
 				LOGGER.error(
 						"Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
 				getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
-				updateConsensusSetting(epoch);
+//				updateConsensusSetting(epoch);
 
 				updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash,
-						true);
+						false);
 				epoch.setAsyncResponseLinkedList(updatedResp);
+				epoch.setRollback(true);
 				decide(epoch);
 			}
 		} catch (Throwable e) {
@@ -775,6 +778,76 @@ public final class Acceptor {
 		}
 
 	}
+
+	//  预计算回滚后，为了保持共识与区块高度的一致性，进行共识相关状态的清理工作，并发送响应给共识客户端
+//	private void CommandsRollbackPostProc(Epoch epoch) {
+//
+//		for (int index = 0; index < epoch.deserializedPropValue.length; index++) {
+//
+//			TOMMessage request = epoch.deserializedPropValue[index];
+//
+//			int procId = this.tomLayer.controller.getStaticConf().getProcessId();
+//
+//			ServerViewController serverViewController = this.tomLayer.controller;
+//
+//			// if request with backward viewid, reply msg will include view content
+//			if (request.getViewID() < serverViewController.getCurrentViewId()) {
+//
+//				View view = serverViewController.getCurrentView();
+//
+//				List<NodeNetwork> addressesTemp = new ArrayList<>();
+//
+//				for (int i = 0; i < view.getProcesses().length; i++) {
+//					int cpuId = view.getProcesses()[i];
+//					NodeNetwork inetSocketAddress = view.getAddress(cpuId);
+//
+//					if (inetSocketAddress.getHost().equals("0.0.0.0")) {
+//						// proc docker env
+//						String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+//
+//						NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
+//								-1);
+//						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+//								serverViewController.getStaticConf().getProcessId(), host);
+//						addressesTemp.add(tempSocketAddress);
+//					} else {
+//						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+//								serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+//						addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
+//								inetSocketAddress.getConsensusPort(), -1));
+//					}
+//				}
+//
+//				View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
+//						addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+//
+//				LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}",
+//						serverViewController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
+//
+//				request.reply = new TOMMessage(procId, request.getSession(), request.getSequence(),
+//						request.getOperationId(), epoch.getAsyncResponseLinkedList().get(index), TOMUtil.getBytes(replyView),
+//						serverViewController.getCurrentViewId(), request.getReqType());
+//			} else {
+//
+//				request.reply = new TOMMessage(procId, request.getSession(), request.getSequence(),
+//						request.getOperationId(), epoch.getAsyncResponseLinkedList().get(index), null,
+//						serverViewController.getCurrentViewId(), request.getReqType());
+//			}
+//
+//			if (serverViewController.getStaticConf().getNumRepliers() > 0) {
+//				LOGGER.debug(
+//						"(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {} via ReplyManager",
+//						request.getSender(), request.getSequence(), request.getOperationId());
+//				this.tomLayer.getDeliveryThread().getReceiver().getRepMan().send(request);
+//			} else {
+//				LOGGER.debug(
+//						"(ServiceReplica.receiveMessages) sending reply to {} with sequence number {} and operation ID {}",
+//						request.getSender(), request.getSequence(), request.getOperationId());
+//				this.tomLayer.getDeliveryThread().getReceiver().getReplier().manageReply(request, msgContexts[index]);
+//				// cs.send(new int[]{request.getSender()}, request.reply);
+//			}
+//		}
+//	}
 
 //	// 视图ID落后的非Reconfig请求
 //	private boolean ViewIdBackWard(TOMMessage tomMessage) {

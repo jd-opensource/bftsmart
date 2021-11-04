@@ -57,6 +57,14 @@ public class Reconfiguration {
         }
         request.setProperty(prop, value);
     }
+
+    public void addExtendInfo(byte[] extendInfo) {
+        if (request == null) {
+            throw new IllegalStateException("[Reconfiguration] addExtendInfo request is null exception!");
+        }
+        request.setExtendInfo(extendInfo);
+    }
+
     
     public ReconfigureReply execute(){
         byte[] signature = TOMUtil.signMessage(proxy.getViewManager().getStaticConf().getRSAPrivateKey(),

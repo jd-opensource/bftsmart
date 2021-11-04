@@ -93,10 +93,16 @@ public final class DeliveryThread extends Thread {
 //            LOGGER.debug("(DeliveryThread.delivery) Decision from consensus {} does not contain good reconfiguration", dec.getConsensusId());
 		// set this decision as the last one from this replica
 
-		tomLayer.setLastExec(dec.getConsensusId());
+		// 此轮共识是否发生过回滚
+		if (dec.getRollback()) {
+			this.tomLayer.getExecManager().removeSingleConsensus(dec.getConsensusId());
+			tomLayer.setInExec(-1);
+		} else {
+			tomLayer.setLastExec(dec.getConsensusId());
+			tomLayer.setInExec(-1);
+		}
 //            tomLayer.getExecManager().getConsensus(tomLayer.getLastExec()).setPrecomputeCommited(true);
 		// define that end of this execution
-		tomLayer.setInExec(-1);
 
 //        } //else if (tomLayer.controller.getStaticConf().getProcessId() == 0) System.exit(0);
 //        else {
@@ -256,7 +262,7 @@ public final class DeliveryThread extends Thread {
 
 					if (requests != null && requests.length > 0) {
 						deliverMessages(consensusIds, regenciesIds, leadersIds, cDecs, requests,
-								asyncResponseLinkedList);
+								asyncResponseLinkedList, lastDecision.getRollback());
 
 						// ******* EDUARDO BEGIN ***********//
 						if (controller.hasUpdates()) {
@@ -329,8 +335,8 @@ public final class DeliveryThread extends Thread {
 	}
 
 	private void deliverMessages(int consId[], int regencies[], int leaders[], CertifiedDecision[] cDecs,
-                                 TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList) {
-		receiver.receiveMessages(consId, regencies, leaders, cDecs, requests, asyncResponseLinkedList);
+                                 TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList, boolean isRollback) {
+		receiver.receiveMessages(consId, regencies, leaders, cDecs, requests, asyncResponseLinkedList, isRollback);
 	}
 
 	private void processReconfigMessages(int consId) {

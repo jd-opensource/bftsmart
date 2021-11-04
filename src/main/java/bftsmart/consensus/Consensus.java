@@ -396,6 +396,7 @@ public class Consensus {
             decided = true;
             decisionEpoch = epoch.getTimestamp();
             decision.setDecisionEpoch(epoch);
+            decision.setRollback(epoch.getRollback());
             if (deliver) {
                 LOGGER.debug("(Consensus.decided) Delivering decision from consensus {} to the TOMLayer/DeliveryThread", getId());
 //                System.out.println("(Consensus.decided) Delivering decision from consensus " + getId() + " to the TOMLayer/DeliveryThread, cid = "

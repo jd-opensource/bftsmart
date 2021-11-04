@@ -45,9 +45,16 @@ public interface StateManager {
     
     public void currentConsensusIdReceived(SMMessage msg);
     
+    public void askTransactionReplay(int startCid, int endCid, int target);
+
+    public void transactionReplayAsked(int sender, int target, int startCid, int endCid);
+
+    public void transactionReplayReceived(TRMessage msg);
+
     public void setLastCID(int lastCID);
-    
+
     public int getLastCID();
 
     public boolean isRetrievingState();
+
 }

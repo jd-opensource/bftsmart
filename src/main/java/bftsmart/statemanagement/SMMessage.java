@@ -53,7 +53,6 @@ public abstract class SMMessage extends SystemMessage {
         this.view = view;
         this.cid = cid;
         this.type = type;
-        this.sender = sender;
         this.regency = regency;
         this.leader = leader;
 
@@ -116,7 +115,6 @@ public abstract class SMMessage extends SystemMessage {
     @Override
     public void writeExternal(ObjectOutput out) throws IOException{
         super.writeExternal(out);
-        out.writeInt(sender);
         out.writeInt(cid);
         out.writeInt(type);
         out.writeInt(regency);
@@ -128,7 +126,6 @@ public abstract class SMMessage extends SystemMessage {
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException{
         super.readExternal(in);
-        sender = in.readInt();
         cid = in.readInt();
         type = in.readInt();
         regency = in.readInt();

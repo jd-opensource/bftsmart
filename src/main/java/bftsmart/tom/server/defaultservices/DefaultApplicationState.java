@@ -219,6 +219,9 @@ public class DefaultApplicationState implements ApplicationState {
         return lastCheckpointCID;
     }
 
+    public int getPid() {
+        return pid;
+    }
 
     @Override
     public boolean equals(Object obj) {

@@ -115,10 +115,10 @@ public class TestNodeServer extends DefaultRecoverable {
         return replies;
     }
 
-    @Override
-    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
-        return appExecuteBatch(commands, msgCtxs, fromConsensus);
-    }
+//    @Override
+//    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus) {
+//        return appExecuteBatch(commands, msgCtxs, fromConsensus);
+//    }
 
     @Override
     public byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx) {
