@@ -430,4 +430,14 @@ public class DurableStateManager extends BaseStateManager {
 		lockTimer.unlock();
 	}
 
+	@Override
+	public void askTransactionReplay(int startCid, int endCid, int target) {
+
+	}
+
+	@Override
+	public void transactionReplayAsked(int sender, int target, int startCid, int endCid) {
+
+	}
+
 }

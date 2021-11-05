@@ -453,65 +453,6 @@ public class StandardStateManager extends BaseStateManager {
     }
 
     @Override
-    public void askTransactionReplay(int startCid, int endCid, int target) {
-
-        int me = topology.getCurrentProcessId();
-        TRMessage trRequestMessage = new TRRequestMessage(me, target, startCid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
-        LOGGER.info("I will send TRMessage[{}] to target node !", TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
-        tomLayer.getCommunication().send(trRequestMessage, target);
-
-        // todo
-        //添加消息发送的安全保障
-    }
-
-    @Override
-    public void transactionReplayAsked(int sender, int target, int startCid, int endCid) {
-
-        LOGGER.info("I am proc {}, I will handle transactionReplayAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
-
-        TRMessage trReplyMessage;
-
-        // 用来保证本地共识ID，以及tom config 文件配置完成
-        if (!tomLayer.isLastCidSetOk()) {
-            LOGGER.info("I am proc {}, ignore request cid msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
-            return;
-        }
-
-        if (target != topology.getCurrentProcessId()) {
-            return;
-        }
-        int batchSize = 1000;
-        for (int cid = startCid; cid <= endCid;) {
-            // 交易重放批大小超过batchSize，则以batchSize为单位打包响应消息，否则根据实际大小打包
-            if (cid + batchSize -1 < endCid ) {
-                TransactionReplayState state = getReplayState(cid,  cid + batchSize - 1);
-                trReplyMessage = new TRReplyMessage(topology.getCurrentProcessId(), sender, state, cid, cid + batchSize - 1, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
-                tomLayer.getCommunication().send(trReplyMessage, sender);
-                cid = cid + batchSize;
-            } else {
-                TransactionReplayState state = getReplayState(cid,  endCid);
-                trReplyMessage = new TRReplyMessage(topology.getCurrentProcessId(), sender, state, cid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
-                tomLayer.getCommunication().send(trReplyMessage, sender);
-                break;
-            }
-        }
-
-    }
-
-    private TransactionReplayState getReplayState(int startCid, int endCid) {
-
-        CommandsInfo[] commandsInfos = new CommandsInfo[endCid - startCid + 1];
-
-        for (int i = 0, cid = startCid; (i <= endCid - startCid) && (cid <= endCid); i++, cid++) {
-
-            DefaultRecoverable recoverable = (DefaultRecoverable)(this.getTomLayer().getDeliveryThread().getRecoverer());
-            commandsInfos[i].commands = recoverable.getCommandsByCid(cid,  recoverable.getCommandsNumByCid(cid));
-        }
-
-        return new DefaultTransactionReplayState(commandsInfos, startCid, endCid, topology.getCurrentProcessId());
-    }
-
-    @Override
 	public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I am proc {}, I will handle currentConsensusIdAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
 

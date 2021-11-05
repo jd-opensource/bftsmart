@@ -42,6 +42,10 @@ public class TRReplyMessage extends TRMessage {
         this.state = state;
     }
 
+    public TransactionReplayState getState() {
+        return state;
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException{
         super.writeExternal(out);

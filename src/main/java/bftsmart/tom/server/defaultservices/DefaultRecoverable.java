@@ -330,37 +330,47 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	@Override
 	public int setState(ApplicationState recvState) {
 		int remoteLastCid = -1;
-		if (recvState instanceof DefaultApplicationState) {
+		DefaultApplicationState state = null;
 
-			// 该状态是多数节点认可的
-			DefaultApplicationState state = (DefaultApplicationState) recvState;
+		stateLock.lock();
+		try {
+			if (recvState instanceof DefaultApplicationState) {
 
-			int remoteCheckpointCid = state.getLastCheckpointCID();
-			remoteLastCid = state.getLastCID();
+				// 该状态是多数节点认可的
+				state = (DefaultApplicationState) recvState;
 
-			stateLock.lock();
-			if (state.getSerializedState() != null) {
-				initLog();
-				LOGGER.debug("The application state receive from remote is not null, update local app state!");
-				log.update(state);
-			}
+				int remoteCheckpointCid = state.getLastCheckpointCID();
+				remoteLastCid = state.getLastCID();
 
-			int localCid = ((StandardStateManager) this.getStateManager()).getTomLayer().getLastExec();
+				if (state.getSerializedState() != null) {
+					initLog();
+					LOGGER.debug("The application state receive from remote is not null, update local app state!");
+					log.update(state);
+				}
 
-			LOGGER.info(
-					"I am proc {}, my local cid = {}, remote checkpoint cid = {}, remote last cid = {}",
-					controller.getStaticConf().getProcessId(), localCid, remoteCheckpointCid, remoteLastCid);
+				int localCid = ((StandardStateManager) this.getStateManager()).getTomLayer().getLastExec();
 
-			// 对于跨checkpoint的落后节点，先通过与远端节点的消息交互进行交易重放,然后再进行后续操作
-			if (localCid < remoteCheckpointCid) {
-				((StandardStateManager)this.getStateManager()).askTransactionReplay(localCid + 1, remoteCheckpointCid, state.getPid());
-				// 等待结束操作
-				// todo
-				localCid = remoteCheckpointCid;
-			}
+				LOGGER.info(
+						"I am proc {}, my local cid = {}, remote checkpoint cid = {}, remote last cid = {}",
+						controller.getStaticConf().getProcessId(), localCid, remoteCheckpointCid, remoteLastCid);
 
-			for (int cid = localCid + 1; cid <= remoteLastCid; cid++) {
-				try {
+
+				// 对于跨checkpoint的落后节点，先通过与远端节点的消息交互进行交易重放,然后再进行后续操作
+				if (localCid < remoteCheckpointCid) {
+					// 启动交易重放过程
+					((StandardStateManager)this.getStateManager()).askTransactionReplay(localCid + 1, remoteCheckpointCid, state.getPid());
+					// 等待交易重放完成；
+					while (this.getStateManager().getLastCID() != remoteCheckpointCid) {
+						Thread.sleep(200);
+					}
+					((BaseStateManager)this.getStateManager()).getReplayStateHashMap().clear();
+					localCid = remoteCheckpointCid;
+
+				}
+
+				// 最新checkpoint的交易重放过程
+				for (int cid = localCid + 1; cid <= remoteLastCid; cid++) {
+
 					LOGGER.debug("[DefaultRecoverable.setState] interpreting and verifying batched requests for cid {}", cid);
 
 					CommandsInfo cmdInfo = state.getMessageBatch(cid);
@@ -372,26 +382,26 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 						appExecuteBatch(cmdInfo.commands, cmdInfo.msgCtx, false);
 
 						((StandardStateManager) this.getStateManager()).setLastCID(cid);
+						((StandardStateManager) this.getStateManager()).getTomLayer().setLastExec(cid);
 					}
-
-				} catch (Exception e) {
-					LOGGER.error(
-							"Error occurred while recovering the app state with cid[" + cid + "]! --" + e.getMessage(),
-							e);
-					if (e instanceof ArrayIndexOutOfBoundsException) {
-						LOGGER.error(
-								"CID do ultimo checkpoint: {}\r\n" + "CID do ultimo consenso: {}"
-										+ "numero de mensagens supostamente no batch: {}\r\n"
-										+ "numero de mensagens realmente no batch: {}",
-								state.getLastCheckpointCID(), state.getLastCID(),
-								(state.getLastCID() - state.getLastCheckpointCID() + 1),
-								state.getMessageBatches().length);
-					}
-					break;
 				}
 			}
+		} catch (Exception e) {
+			LOGGER.error(
+					"Error occurred while recovering the app state from remote! --" + e.getMessage(), e);
+			if (e instanceof ArrayIndexOutOfBoundsException) {
+				LOGGER.error(
+						"CID do ultimo checkpoint: {}\r\n" + "CID do ultimo consenso: {}"
+								+ "numero de mensagens supostamente no batch: {}\r\n"
+								+ "numero de mensagens realmente no batch: {}",
+						state.getLastCheckpointCID(), state.getLastCID(),
+						(state.getLastCID() - state.getLastCheckpointCID() + 1),
+						state.getMessageBatches().length);
+			}
+		} finally {
 			stateLock.unlock();
 		}
+
 		return ((StandardStateManager) this.getStateManager()).getLastCID();
 	}
 
@@ -615,7 +625,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 					MessageContext[] msgCtxs = new MessageContext[currCidCommandsNum];
 
-					// 注意：MessageContext也需要持久化到账本，启动时从账本加载，否则缺失共识相关的proof!!!!!!!!!!!!!, 待做
+					// 注意：MessageContext也需要持久化到账本，启动时从账本加载，否则缺失共识相关的proof!!!!!!!!!!!!!,暂不影响，待完善
 					for (int i = 0; i < commands.length; i++) {
 						msgCtxs[i] = new MessageContext(0, 0, null, 0, 0, 0, 0, null, 0, 0, 0, 0, 0, cid, null, null, false);
 					}

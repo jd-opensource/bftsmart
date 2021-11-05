@@ -22,8 +22,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 import bftsmart.statemanagement.TRMessage;
+import bftsmart.statemanagement.TransactionReplayState;
+import bftsmart.tom.server.defaultservices.CommandsInfo;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+import bftsmart.tom.server.defaultservices.DefaultTransactionReplayState;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -54,7 +59,6 @@ public abstract class BaseStateManager implements StateManager {
     protected HashMap<Integer, Integer> senderRegencies = null;
     protected HashMap<Integer, Integer> senderLeaders = null;
     protected HashMap<Integer, CertifiedDecision> senderProofs = null;
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BaseStateManager.class);
 
     protected boolean appStateOnly;
     protected volatile int waitingCID = -1;
@@ -74,15 +78,26 @@ public abstract class BaseStateManager implements StateManager {
 
     private List<Integer> validDataSenders = new ArrayList<>();
 
+    private HashMap<Integer, TransactionReplayState> replayStateHashMap = null;
+
+    public ReentrantLock replayReceivedLock = new ReentrantLock();
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BaseStateManager.class);
+
     public BaseStateManager() {
         senderStates = new HashMap<>();
         senderViews = new HashMap<>();
         senderRegencies = new HashMap<>();
         senderLeaders = new HashMap<>();
         senderProofs = new HashMap<>();
+        replayStateHashMap = new HashMap<>();
     }
 
     public List<Integer> getValidDataSenders() {return validDataSenders;}
+
+    public HashMap<Integer, TransactionReplayState> getReplayStateHashMap() {
+        return replayStateHashMap;
+    }
 
     protected int getReplies() {
         return senderStates.size();
@@ -176,6 +191,7 @@ public abstract class BaseStateManager implements StateManager {
         senderViews.clear();
         senderProofs.clear();
         validDataSenders.clear();
+        replayStateHashMap.clear();
         state = null;
     }
 
@@ -362,7 +378,87 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public void transactionReplayReceived(TRMessage msg) {
+        replayReceivedLock.lock();
 
+        try {
+            replayStateHashMap.put(msg.getStartCid(), ((TRReplyMessage) msg).getState());
+
+            int lastCid = this.tomLayer.getStateManager().getLastCID();
+            // 保证交易内容按顺序进行重放
+            while (replayStateHashMap.keySet().contains(lastCid + 1)) {
+
+                TransactionReplayState replayState = replayStateHashMap.get(lastCid + 1);
+
+                for (int i = 0, cid = replayState.getStartCid(); (i <= replayState.getEndCid() - replayState.getStartCid()) && (cid <= replayState.getEndCid()); i++,cid++ ) {
+                    byte[][] commands = ((DefaultTransactionReplayState) replayState).getMessageBatches()[i].commands;
+                    ((DefaultRecoverable) tomLayer.getDeliveryThread().getRecoverer()).appExecuteBatch(commands, null, false);
+                }
+                this.tomLayer.getStateManager().setLastCID(replayState.getEndCid());
+                this.tomLayer.setLastExec(replayState.getEndCid());
+                lastCid = replayState.getEndCid();
+            }
+        } finally {
+            replayReceivedLock.unlock();
+        }
+    }
+
+    @Override
+    public void askTransactionReplay(int startCid, int endCid, int target) {
+
+        int me = topology.getCurrentProcessId();
+        TRMessage trRequestMessage = new TRRequestMessage(me, target, startCid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
+        LOGGER.info("I will send TRMessage[{}] to target node !", TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
+        tomLayer.getCommunication().send(trRequestMessage, target);
+
+        // todo
+        //添加消息发送的安全保障
+    }
+
+    @Override
+    public void transactionReplayAsked(int sender, int target, int startCid, int endCid) {
+
+        LOGGER.info("I am proc {}, I will handle transactionReplayAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
+
+        TRMessage trReplyMessage;
+
+        // 用来保证本地共识ID，以及tom config 文件配置完成
+        if (!tomLayer.isLastCidSetOk()) {
+            LOGGER.info("I am proc {}, ignore request cid msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
+            return;
+        }
+
+        if (target != topology.getCurrentProcessId()) {
+            return;
+        }
+        int batchSize = 1000;
+        for (int cid = startCid; cid <= endCid;) {
+            // 交易重放批大小超过batchSize，则以batchSize为单位打包响应消息，否则根据实际大小打包
+            if (cid + batchSize -1 < endCid ) {
+                TransactionReplayState state = getReplayState(cid,  cid + batchSize - 1);
+                trReplyMessage = new TRReplyMessage(topology.getCurrentProcessId(), sender, state, cid, cid + batchSize - 1, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
+                tomLayer.getCommunication().send(trReplyMessage, sender);
+                cid = cid + batchSize;
+            } else {
+                TransactionReplayState state = getReplayState(cid,  endCid);
+                trReplyMessage = new TRReplyMessage(topology.getCurrentProcessId(), sender, state, cid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
+                tomLayer.getCommunication().send(trReplyMessage, sender);
+                break;
+            }
+        }
+
+    }
+
+    private TransactionReplayState getReplayState(int startCid, int endCid) {
+
+        CommandsInfo[] commandsInfos = new CommandsInfo[endCid - startCid + 1];
+
+        for (int i = 0, cid = startCid; (i <= endCid - startCid) && (cid <= endCid); i++, cid++) {
+
+            DefaultRecoverable recoverable = (DefaultRecoverable)(tomLayer.getDeliveryThread().getRecoverer());
+            commandsInfos[i].commands = recoverable.getCommandsByCid(cid,  recoverable.getCommandsNumByCid(cid));
+        }
+
+        return new DefaultTransactionReplayState(commandsInfos, startCid, endCid, topology.getCurrentProcessId());
     }
 
     protected abstract void requestState();
