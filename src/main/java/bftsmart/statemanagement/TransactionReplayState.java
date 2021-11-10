@@ -34,4 +34,10 @@ public interface TransactionReplayState extends Serializable {
 
     public int getPid();
 
+    @Override
+    public abstract boolean equals(Object obj);
+
+    @Override
+    public abstract int hashCode();
+
 }

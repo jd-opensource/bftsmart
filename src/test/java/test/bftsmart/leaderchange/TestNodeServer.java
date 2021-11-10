@@ -145,6 +145,11 @@ public class TestNodeServer extends DefaultRecoverable {
         return new byte[0][];
     }
 
+    @Override
+    public long getTimestampByCid(int cid) {
+        return 0;
+    }
+
     private byte[] executeSingle(byte[] command, MessageContext msgCtx) {
         iterations++;
         try {

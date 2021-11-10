@@ -101,122 +101,148 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		return executeBatch(commands, msgCtxs, false);
 	}
 
+	// 适用于commands中包含多轮共识批次消息的设计，需要时可用，目前设计中只包含一轮批次消息，故可以简化处理流程
+//	private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, boolean noop) {
+//
+//		int cid = msgCtxs[msgCtxs.length - 1].getConsensusId();
+//
+//		// As the delivery thread may deliver several consensus at once it is necessary
+//		// to find if a checkpoint might be taken in the middle of the batch execution
+//		int[] cids = consensusIds(msgCtxs);
+//		int checkpointIndex = findCheckpointPosition(cids);
+//
+//		byte[][] replies = new byte[commands.length][];
+//
+//		if (checkpointIndex == -1) {
+//
+////			if (!noop) {
+////
+////				stateLock.lock();
+////				if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
+////					replies = appExecuteBatch(commands, msgCtxs, true, replyContextMessages);
+////				} else {
+////					replies = appExecuteBatch(commands, msgCtxs, true);
+////				}
+////				stateLock.unlock();
+////
+////			}
+//
+//			saveCommands(commands, msgCtxs);
+//		} else {
+//			// there is a replica supposed to take the checkpoint. In this case, the
+//			// commands
+//			// must be executed in two steps. First the batch of commands containing
+//			// commands
+//			// until the checkpoint period is executed and the log saved or checkpoint taken
+//			// if this replica is the one supposed to take the checkpoint. After the
+//			// checkpoint
+//			// or log, the pointer in the log is updated and then the remaining portion of
+//			// the
+//			// commands is executed
+//			byte[][] firstHalf = new byte[checkpointIndex + 1][];
+//			MessageContext[] firstHalfMsgCtx = new MessageContext[firstHalf.length];
+//			byte[][] secondHalf = new byte[commands.length - (checkpointIndex + 1)][];
+//			MessageContext[] secondHalfMsgCtx = new MessageContext[secondHalf.length];
+//			System.arraycopy(commands, 0, firstHalf, 0, checkpointIndex + 1);
+//			System.arraycopy(msgCtxs, 0, firstHalfMsgCtx, 0, checkpointIndex + 1);
+//			if (secondHalf.length > 0) {
+//				System.arraycopy(commands, checkpointIndex + 1, secondHalf, 0, commands.length - (checkpointIndex + 1));
+//				System.arraycopy(msgCtxs, checkpointIndex + 1, secondHalfMsgCtx, 0,
+//						commands.length - (checkpointIndex + 1));
+//			} else {
+//				firstHalfMsgCtx = msgCtxs;
+//			}
+//
+////			byte[][] firstHalfReplies = new byte[firstHalf.length][];
+////			byte[][] secondHalfReplies = new byte[secondHalf.length][];
+//
+//			// execute the first half
+//			cid = msgCtxs[checkpointIndex].getConsensusId();
+//
+//			// add by zs
+////			List<ReplyContextMessage> firstHalfReply = new ArrayList<>();
+////			for (int i = 0, length = firstHalf.length; i < length; i++) {
+////				firstHalfReply.add(replyContextMessages.get(i));
+////			}
+//
+////			if (!noop) {
+////				stateLock.lock();
+////				if (firstHalfReply != null && !firstHalfReply.isEmpty()) {
+////					firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true, firstHalfReply);
+////				} else {
+////					firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true);
+////				}
+////				stateLock.unlock();
+////			}
+//
+//			saveCommands(commands, msgCtxs);
+//			LOGGER.debug("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus {}", cid);
+//			stateLock.lock();
+//			byte[] snapshot = getCheckPointSnapshot(cid);
+//			stateLock.unlock();
+//			saveState(snapshot, cid);
+//
+////            System.arraycopy(firstHalfReplies, 0, replies, 0, firstHalfReplies.length);
+//
+//			// execute the second half if it exists
+//			if (secondHalf.length > 0) {
+////	        	System.out.println("----THERE IS A SECOND HALF----");
+//				cid = msgCtxs[msgCtxs.length - 1].getConsensusId();
+//
+//				// add by zs
+////				List<ReplyContextMessage> secondHalfReply = new ArrayList<>();
+////				for (int i = firstHalf.length; i < replyContextMessages.size(); i++) {
+////					secondHalfReply.add(replyContextMessages.get(i));
+////				}
+//
+////				if (!noop) {
+////					stateLock.lock();
+////					if (secondHalfReply != null && !secondHalfReply.isEmpty()) {
+////						secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true, secondHalfReply);
+////					} else {
+////						secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true);
+////					}
+////					stateLock.unlock();
+////				}
+//
+//				LOGGER.debug(
+//						"(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus {}",
+//						cid);
+//				saveCommands(secondHalf, secondHalfMsgCtx);
+//
+////                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
+//			}
+//
+//		}
+//
+//		if (cids != null && cids.length > 0) {
+//			getStateManager().setLastCID(cids[cids.length - 1]);
+//		}
+//		return replies;
+//	}
+
+
+	// 目前的设计中commands只包含一轮共识批次的消息，故可以优化处理流程
 	private byte[][] executeBatch(byte[][] commands, MessageContext[] msgCtxs, boolean noop) {
 
-		int cid = msgCtxs[msgCtxs.length - 1].getConsensusId();
+		if (commands.length > 0 && msgCtxs.length > 0 && commands.length == msgCtxs.length) {
 
-		// As the delivery thread may deliver several consensus at once it is necessary
-		// to find if a checkpoint might be taken in the middle of the batch execution
-		int[] cids = consensusIds(msgCtxs);
-		int checkpointIndex = findCheckpointPosition(cids);
+			int cid = msgCtxs[0].getConsensusId();
 
-		byte[][] replies = new byte[commands.length][];
-
-		if (checkpointIndex == -1) {
-
-//			if (!noop) {
-//
-//				stateLock.lock();
-//				if (replyContextMessages != null && !replyContextMessages.isEmpty()) {
-//					replies = appExecuteBatch(commands, msgCtxs, true, replyContextMessages);
-//				} else {
-//					replies = appExecuteBatch(commands, msgCtxs, true);
-//				}
-//				stateLock.unlock();
-//
-//			}
+			// cid 正好为检查点， checkpointPeriod,  2*checkpointPeriod, 3*checkpointPeriod,......
+			if ((cid > 0) && (cid % checkpointPeriod == 0)) {
+				stateLock.lock();
+				byte[] snapshot = getCheckPointSnapshot(cid);
+				stateLock.unlock();
+				saveState(snapshot, cid);
+			}
 
 			saveCommands(commands, msgCtxs);
-		} else {
-			// there is a replica supposed to take the checkpoint. In this case, the
-			// commands
-			// must be executed in two steps. First the batch of commands containing
-			// commands
-			// until the checkpoint period is executed and the log saved or checkpoint taken
-			// if this replica is the one supposed to take the checkpoint. After the
-			// checkpoint
-			// or log, the pointer in the log is updated and then the remaining portion of
-			// the
-			// commands is executed
-			byte[][] firstHalf = new byte[checkpointIndex + 1][];
-			MessageContext[] firstHalfMsgCtx = new MessageContext[firstHalf.length];
-			byte[][] secondHalf = new byte[commands.length - (checkpointIndex + 1)][];
-			MessageContext[] secondHalfMsgCtx = new MessageContext[secondHalf.length];
-			System.arraycopy(commands, 0, firstHalf, 0, checkpointIndex + 1);
-			System.arraycopy(msgCtxs, 0, firstHalfMsgCtx, 0, checkpointIndex + 1);
-			if (secondHalf.length > 0) {
-				System.arraycopy(commands, checkpointIndex + 1, secondHalf, 0, commands.length - (checkpointIndex + 1));
-				System.arraycopy(msgCtxs, checkpointIndex + 1, secondHalfMsgCtx, 0,
-						commands.length - (checkpointIndex + 1));
-			} else {
-				firstHalfMsgCtx = msgCtxs;
-			}
 
-//			byte[][] firstHalfReplies = new byte[firstHalf.length][];
-//			byte[][] secondHalfReplies = new byte[secondHalf.length][];
-
-			// execute the first half
-			cid = msgCtxs[checkpointIndex].getConsensusId();
-
-			// add by zs
-//			List<ReplyContextMessage> firstHalfReply = new ArrayList<>();
-//			for (int i = 0, length = firstHalf.length; i < length; i++) {
-//				firstHalfReply.add(replyContextMessages.get(i));
-//			}
-
-//			if (!noop) {
-//				stateLock.lock();
-//				if (firstHalfReply != null && !firstHalfReply.isEmpty()) {
-//					firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true, firstHalfReply);
-//				} else {
-//					firstHalfReplies = appExecuteBatch(firstHalf, firstHalfMsgCtx, true);
-//				}
-//				stateLock.unlock();
-//			}
-
-			LOGGER.debug("(DefaultRecoverable.executeBatch) Performing checkpoint for consensus {}", cid);
-			stateLock.lock();
-			byte[] snapshot = getCheckPointSnapshot(cid);
-			stateLock.unlock();
-			saveState(snapshot, cid);
-
-//            System.arraycopy(firstHalfReplies, 0, replies, 0, firstHalfReplies.length);
-
-			// execute the second half if it exists
-			if (secondHalf.length > 0) {
-//	        	System.out.println("----THERE IS A SECOND HALF----");
-				cid = msgCtxs[msgCtxs.length - 1].getConsensusId();
-
-				// add by zs
-//				List<ReplyContextMessage> secondHalfReply = new ArrayList<>();
-//				for (int i = firstHalf.length; i < replyContextMessages.size(); i++) {
-//					secondHalfReply.add(replyContextMessages.get(i));
-//				}
-
-//				if (!noop) {
-//					stateLock.lock();
-//					if (secondHalfReply != null && !secondHalfReply.isEmpty()) {
-//						secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true, secondHalfReply);
-//					} else {
-//						secondHalfReplies = appExecuteBatch(secondHalf, secondHalfMsgCtx, true);
-//					}
-//					stateLock.unlock();
-//				}
-
-				LOGGER.debug(
-						"(DefaultRecoverable.executeBatch) Storing message batch in the state log for consensus {}",
-						cid);
-				saveCommands(secondHalf, secondHalfMsgCtx);
-
-//                System.arraycopy(secondHalfReplies, 0, replies, firstHalfReplies.length, secondHalfReplies.length);
-			}
-
+			getStateManager().setLastCID(cid);
 		}
 
-		if (cids != null && cids.length > 0) {
-			getStateManager().setLastCID(cids[cids.length - 1]);
-		}
-		return replies;
+		return null;
 	}
 
 	public final byte[] computeHash(byte[] data) {
@@ -246,7 +272,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 			thisLog.newCheckpoint(snapshot, computeHash(snapshot), lastCID);
 			thisLog.setLastCID(lastCID);
-			thisLog.setLastCheckpointCID(lastCID);
+			thisLog.setLastCheckpointCID(lastCID - 1);
 
 			LOGGER.debug("(TOMLayer.saveState) Finished saving state of CID {}", lastCID);
 		} finally {
@@ -309,14 +335,9 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 			// TODO: I should always make sure to have a log with proofs, since this is a
 			// result
 			// of not storing anything after a checkpoint and before logging more requests
-			// 当cid==lastcheckpoint时，ret.getCertifiedDecision(this.controller) ==
-			// null成立，未考虑我想获得的状态正好是最近的检查点的情况
-	//        if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
-			if (ret == null || (config.isBFT() && cid != ((DefaultApplicationState) ret).getLastCheckpointCID()
-					&& ret.getCertifiedDecision(this.controller) == null)) {
+			if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
 				ret = new DefaultApplicationState();
 			}
-
 			return ret;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -339,12 +360,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				// 该状态是多数节点认可的
 				state = (DefaultApplicationState) recvState;
 
-				int remoteCheckpointCid = state.getLastCheckpointCID();
 				remoteLastCid = state.getLastCID();
 
 				if (state.getSerializedState() != null) {
 					initLog();
-					LOGGER.debug("The application state receive from remote is not null, update local app state!");
+					LOGGER.info("The application state receive from remote is not null, update local app state!");
 					log.update(state);
 				}
 
@@ -352,23 +372,9 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 				LOGGER.info(
 						"I am proc {}, my local cid = {}, remote checkpoint cid = {}, remote last cid = {}",
-						controller.getStaticConf().getProcessId(), localCid, remoteCheckpointCid, remoteLastCid);
+						controller.getStaticConf().getProcessId(), localCid, state.getLastCheckpointCID(), remoteLastCid);
 
-
-				// 对于跨checkpoint的落后节点，先通过与远端节点的消息交互进行交易重放,然后再进行后续操作
-				if (localCid < remoteCheckpointCid) {
-					// 启动交易重放过程
-					((StandardStateManager)this.getStateManager()).askTransactionReplay(localCid + 1, remoteCheckpointCid, state.getPid());
-					// 等待交易重放完成；
-					while (this.getStateManager().getLastCID() != remoteCheckpointCid) {
-						Thread.sleep(200);
-					}
-					((BaseStateManager)this.getStateManager()).getReplayStateHashMap().clear();
-					localCid = remoteCheckpointCid;
-
-				}
-
-				// 最新checkpoint的交易重放过程
+				// 执行最新checkpoint的交易重放过程
 				for (int cid = localCid + 1; cid <= remoteLastCid; cid++) {
 
 					LOGGER.debug("[DefaultRecoverable.setState] interpreting and verifying batched requests for cid {}", cid);
@@ -404,99 +410,6 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 		return ((StandardStateManager) this.getStateManager()).getLastCID();
 	}
-
-//	@Override
-//	public int setState(ApplicationState recvState) {
-//		int lastCID = -1;
-//		if (recvState instanceof DefaultApplicationState) {
-//
-//			// 该状态是多数节点认可的
-//			DefaultApplicationState state = (DefaultApplicationState) recvState;
-//
-//			int lastCheckpointCID = state.getLastCheckpointCID();
-//			lastCID = state.getLastCID();
-//
-////            LOGGER.info("(DefaultRecoverable.setState) I'm going to update myself from CID {} to CID {}", lastCheckpointCID, lastCID);
-//
-//			stateLock.lock();
-//			if (state.getSerializedState() != null) {
-//				LOGGER.debug("The state is not null. Will install it");
-//				initLog();
-//				// 对于跨checkpoint的数据同步，此处需要处理；
-//				log.update(state);
-////				installSnapshot(state.getSerializedState());
-//			}
-//
-////            int currentCid = ((StandardStateManager)this.getStateManager()).getTomLayer().getLastExec();
-//
-//			int lastLogCid = ((StandardStateManager) this.getStateManager()).getTomLayer().getLastExec();
-//
-//			LOGGER.info(
-//					"I am proc {}, my current log file cid {}, last checkpoint cid {}, from other nodes lastestcid {}",
-//					controller.getStaticConf().getProcessId(), lastLogCid, lastCheckpointCID, lastCID);
-//
-//			// 表示本节点账本数据是从别的节点拷贝过来的,且没有记录相关共识信息到runtime下文件，别的节点在共识执行上已经跨了checkpoint；
-//			if ((lastLogCid == -1) && lastCheckpointCID > -1) {
-//				// 对落后节点设置新的lastLogCid
-//				lastLogCid = lastCheckpointCID;
-//			}
-//
-//			// 对于落后的交易进行反哺写入runtime下的tx.log
-//			for (int cid = lastLogCid + 1; cid <= lastCID; cid++) {
-//				try {
-//					LOGGER.debug("[DefaultRecoverable.setState] interpreting and verifying batched requests for cid {}",
-//							cid);
-//					if (state.getMessageBatch(cid) == null) {
-//						LOGGER.error("[DefaultRecoverable.setState] {} NULO!!!", cid);
-//						continue;
-//					}
-//
-//					CommandsInfo cmdInfo = state.getMessageBatch(cid);
-//					byte[][] commands = cmdInfo.commands; // take a batch
-//					MessageContext[] msgCtx = cmdInfo.msgCtx;
-//
-//					log.addMessageBatch(commands, msgCtx, cid);
-//
-//					// 反哺交易的同时，修改状态，保持与其他节点的一致
-//					((StandardStateManager) this.getStateManager()).setLastCID(cid);
-//
-//					((StandardStateManager) this.getStateManager()).getTomLayer().setLastExec(cid);
-//
-//					log.setLastCID(cid);
-//
-//					if (commands == null || msgCtx == null || msgCtx[0].isNoOp()) {
-//						continue;
-//					}
-//					LOGGER.info("I am proc {}, will do appExecuteBatch, cid = {}", controller.getStaticConf().getProcessId(), cid);
-//
-//					appExecuteBatch(commands, msgCtx, false);
-//					// add replay message batch to disk file
-//
-//				} catch (Exception e) {
-//					LOGGER.error(
-//							"Error occurred while recovering the app state with cid[" + cid + "]! --" + e.getMessage(),
-//							e);
-//					if (e instanceof ArrayIndexOutOfBoundsException) {
-//						LOGGER.error(
-//								"CID do ultimo checkpoint: {}\r\n" + "CID do ultimo consenso: {}"
-//										+ "numero de mensagens supostamente no batch: {}\r\n"
-//										+ "numero de mensagens realmente no batch: {}",
-//								state.getLastCheckpointCID(), state.getLastCID(),
-//								(state.getLastCID() - state.getLastCheckpointCID() + 1),
-//								state.getMessageBatches().length);
-//					}
-//					break;
-//				}
-//
-//			}
-////			((StandardStateManager) this.getStateManager()).setLastCID(lastCID);
-//			stateLock.unlock();
-//
-//		}
-//
-//		return ((StandardStateManager) this.getStateManager()).getLastCID();
-//
-//	}
 
 	/**
 	 * Iterates over the message context array and get the consensus id of each
@@ -597,12 +510,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 			} else {
 				//Load latest checkpoint cycle txs into memory, to provide data sync for other backward nodes
-
 				int lastCheckpointCid = -1;
 
 				int lastCid = stateManager.getLastCID();
 
-				if (lastCid + 1 <= checkpointPeriod) {
+				if (lastCid < checkpointPeriod) {
 					lastCheckpointCid = -1;
 				} else {
 					lastCheckpointCid = (lastCid / checkpointPeriod) * checkpointPeriod -1;
@@ -625,9 +537,11 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 					MessageContext[] msgCtxs = new MessageContext[currCidCommandsNum];
 
+					long blockTimeStamp = getTimestampByCid(cid);
+
 					// 注意：MessageContext也需要持久化到账本，启动时从账本加载，否则缺失共识相关的proof!!!!!!!!!!!!!,暂不影响，待完善
 					for (int i = 0; i < commands.length; i++) {
-						msgCtxs[i] = new MessageContext(0, 0, null, 0, 0, 0, 0, null, 0, 0, 0, 0, 0, cid, null, null, false);
+						msgCtxs[i] = new MessageContext(0, 0, null, 0, 0, 0, 0, null, blockTimeStamp, 0, 0, 0, 0, cid, null, null, false);
 					}
 
 					log.addMessageBatch(commands, msgCtxs, cid);
@@ -638,6 +552,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 	@Override
 	public void initContext(ReplicaContext replicaContext, long lastCid) {
+		
 		this.controller = replicaContext.getSVController();
 		this.config = replicaContext.getStaticConfiguration();
 
@@ -648,8 +563,6 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 		((StandardStateManager)getStateManager()).getTomLayer().setLastExec((int) lastCid);
 
 		initLog();
-
-//		log.setLastCheckpointCID((int) (this.controller.getStaticConf().getCheckpointPeriod() * (lastCid / this.controller.getStaticConf().getCheckpointPeriod()) - 1));
 
 		LOGGER.info("[DefaultRecoverable] initContext, procid = {}, lastCid = {}, lastCkpCid = {}", this.controller.getCurrentProcessId(), log.getLastCID(), log.getLastCheckpointCID());
 
@@ -709,5 +622,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	public abstract int getCommandsNumByCid(int cid);
 
 	public abstract byte[][] getCommandsByCid(int cid, int currCidCommandsNum);
+
+	public abstract long getTimestampByCid(int cid);
 
 }

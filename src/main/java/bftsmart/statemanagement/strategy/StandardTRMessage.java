@@ -13,9 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package bftsmart.statemanagement;
+package bftsmart.statemanagement.strategy;
 
 import bftsmart.communication.SystemMessage;
+import bftsmart.statemanagement.TransactionReplayState;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -26,12 +27,13 @@ import java.io.ObjectOutput;
  * 
  *
  */
-public abstract class TRMessage extends SystemMessage {
+public class StandardTRMessage extends SystemMessage {
 
     private int target;
     private int startCid;
     private int endCid;
     private int type;
+    private TransactionReplayState state;
 
     /**
      * Constructs a SMMessage
@@ -42,12 +44,17 @@ public abstract class TRMessage extends SystemMessage {
      * @param type Message type
      * @param
      */
-    public TRMessage(int sender, int target, int startCid, int endCid, int type) {
+    public StandardTRMessage(int sender, int target, TransactionReplayState state, int startCid, int endCid, int type) {
         super(sender);
         this.target = target;
         this.startCid = startCid;
         this.endCid = endCid;
         this.type = type;
+        this.state = state;
+    }
+
+    public StandardTRMessage() {
+        super();
     }
 
     public int getTarget() {
@@ -70,6 +77,10 @@ public abstract class TRMessage extends SystemMessage {
         return type;
     }
 
+    public TransactionReplayState getState() {
+        return state;
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException{
         super.writeExternal(out);
@@ -77,6 +88,7 @@ public abstract class TRMessage extends SystemMessage {
         out.writeInt(startCid);
         out.writeInt(endCid);
         out.writeInt(type);
+        out.writeObject(state);
     }
 
     @Override
@@ -86,5 +98,16 @@ public abstract class TRMessage extends SystemMessage {
         startCid = in.readInt();
         endCid = in.readInt();
         type = in.readInt();
+        state = (TransactionReplayState) in.readObject();
+    }
+
+    @Override
+    public String toString() {
+        return "StandardTRMessage{" +
+                "sender=" + getSender() + "," +
+                "startCid=" + getStartCid() + "," +
+                "type=" + getType() + "," +
+                "endCid=" + getEndCid() +
+                '}';
     }
 }

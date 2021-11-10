@@ -21,7 +21,7 @@ import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import bftsmart.statemanagement.TRMessage;
+import bftsmart.statemanagement.strategy.StandardTRMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,16 +173,19 @@ public class MessageHandler {
 						break;
 					}
 					/******************************************************************/
-				} else if (sm instanceof TRMessage) {
+				} else if (sm instanceof StandardTRMessage) {
 
-					TRMessage trMessage = (TRMessage)sm;
+					StandardTRMessage trMessage = (StandardTRMessage)sm;
+
+					LOGGER.info("I am {}, receive StandardTRMessage[{}], type = {} !",
+							tomLayer.controller.getStaticConf().getProcessId(), trMessage.getSender(), trMessage.getType());
 
 					switch (trMessage.getType()) {
 						case TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO:
 							tomLayer.getStateManager().transactionReplayAsked(trMessage.sender, trMessage.getTarget(), trMessage.getStartCid(), trMessage.getEndCid());
 							break;
 						case TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO:
-//							tomLayer.getStateManager().
+							tomLayer.getStateManager().transactionReplayReplyDeliver(trMessage);
 							break;
 						default:
 							break;

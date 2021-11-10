@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
-import bftsmart.statemanagement.TRMessage;
 import bftsmart.statemanagement.TransactionReplayState;
+import bftsmart.tom.MessageContext;
 import bftsmart.tom.server.defaultservices.CommandsInfo;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.server.defaultservices.DefaultTransactionReplayState;
@@ -63,7 +63,6 @@ public abstract class BaseStateManager implements StateManager {
     protected boolean appStateOnly;
     protected volatile int waitingCID = -1;
     protected int lastCID;
-    protected int lastLogCid;
     protected ApplicationState state;
 
     protected volatile boolean isInitializing = true;
@@ -72,15 +71,17 @@ public abstract class BaseStateManager implements StateManager {
 
     protected int STATETRANSFER_RETRY_COUNT = 500;
 
+    private int checkPointFormOtherNode = -1;
+
     private HashMap<Integer, Integer> senderCIDs = null;
 
     private HashMap<Integer, Integer> senderVIDs = null;
 
-    private List<Integer> validDataSenders = new ArrayList<>();
+    private HashMap<Integer, Integer> validDataSenders = null;
 
     private HashMap<Integer, TransactionReplayState> replayStateHashMap = null;
 
-    public ReentrantLock replayReceivedLock = new ReentrantLock();
+    private ReentrantLock replayReceivedLock = new ReentrantLock();
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BaseStateManager.class);
 
@@ -90,10 +91,9 @@ public abstract class BaseStateManager implements StateManager {
         senderRegencies = new HashMap<>();
         senderLeaders = new HashMap<>();
         senderProofs = new HashMap<>();
+        validDataSenders = new HashMap<>();
         replayStateHashMap = new HashMap<>();
     }
-
-    public List<Integer> getValidDataSenders() {return validDataSenders;}
 
     public HashMap<Integer, TransactionReplayState> getReplayStateHashMap() {
         return replayStateHashMap;
@@ -260,7 +260,7 @@ public abstract class BaseStateManager implements StateManager {
             LOGGER.info("I will send StandardSMMessage[{}] to others !", TOMUtil.SM_ASK_INITIAL);
             tomLayer.getCommunication().send(target, currentCID);
             try {
-                Thread.sleep(5000);
+                Thread.sleep(8000);
                 if (++counter > STATETRANSFER_RETRY_COUNT) {
                     LOGGER.info("###############################################################################################################################################################");
                     LOGGER.info("################State Transfer No Replier, Maybe Requester View Is Obsolete, If Block Exist Diff, Please Copy Ledger Database And Restart!#####################");
@@ -290,77 +290,201 @@ public abstract class BaseStateManager implements StateManager {
     @Override
     public synchronized void currentConsensusIdReceived(SMMessage smsg) {
         LOGGER.info("I will handle currentConsensusIdReceived!");
-        if (!isInitializing || waitingCID > -1) {
-            LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
-            return;
-        }
-        if (senderCIDs == null) {
-            senderCIDs = new HashMap<>();
-        }
-        senderCIDs.put(smsg.getSender(), smsg.getCID());
 
-        if (senderVIDs == null) {
-            senderVIDs = new HashMap<>();
-        }
-        senderVIDs.put(smsg.getSender(), smsg.getView().getId());
-
-        // Report if view is inconsistent
-        checkViewInfo(this.topology.getCurrentView().getId(), senderVIDs);
-
-        LOGGER.info("currentConsensusIdReceived ->sender[{}], CID = {} !", smsg.getSender(), smsg.getCID());
-        LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), topology.getQuorum());
-        if (senderCIDs.size() >= topology.getQuorum()) {
-
-            HashMap<Integer, Integer> cids = new HashMap<>();
-            for (int id : senderCIDs.keySet()) {
-                                
-                int value = senderCIDs.get(id);
-                
-                Integer count = cids.get(value);
-                if (count == null) {
-                    cids.put(value, 1);
-                } else {
-                    cids.put(value, count + 1);
-                }
+        try {
+            if (!isInitializing || waitingCID > -1) {
+                LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
+                return;
             }
-            for (int key : cids.keySet()) {
-                LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), topology.getQuorum());
-                if (cids.get(key) >= topology.getQuorum()) {
+            if (senderCIDs == null) {
+                senderCIDs = new HashMap<>();
+            }
+            senderCIDs.put(smsg.getSender(), smsg.getCID());
 
-                    saveValidDataSenders(senderCIDs, key);
-                    // 根据提供状态同步节点的key，获得其检查点信息
-                    int checkPointFormOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (key / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
+            if (senderVIDs == null) {
+                senderVIDs = new HashMap<>();
+            }
+            senderVIDs.put(smsg.getSender(), smsg.getView().getId());
 
-                    if (lastCID >= key) {
-                        LOGGER.info("-- {} replica state is up to date ! --", topology.getStaticConf().getProcessId());
-                        dt.deliverLock();
-                        isInitializing = false;
-                        tomLayer.setLastExec(key);
-                        // 如果有其他节点没有差异的话，会走此分支，此时将其连接设置为OK
-                        tomLayer.connectRemotesOK();
-                        // trigger out of context propose msg process
-                        tomLayer.processOutOfContext();
-                        dt.canDeliver();
-                        dt.deliverUnlock();
-                        break;
-                    }  else {
-                        LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
-//                        this.lastLogCid = lastCID;
-                        lastCID = key + 1;
-                        if (waitingCID == -1) {
-                            waitingCID = key;
-                            requestState();
+            // Report if view is inconsistent
+            checkViewInfo(this.topology.getCurrentView().getId(), senderVIDs);
+
+            LOGGER.info("currentConsensusIdReceived ->sender[{}], CID = {} !", smsg.getSender(), smsg.getCID());
+            LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), topology.getQuorum());
+            if (senderCIDs.size() >= topology.getQuorum()) {
+
+                HashMap<Integer, Integer> cids = new HashMap<>();
+                for (int id : senderCIDs.keySet()) {
+
+                    int value = senderCIDs.get(id);
+
+                    Integer count = cids.get(value);
+                    if (count == null) {
+                        cids.put(value, 1);
+                    } else {
+                        cids.put(value, count + 1);
+                    }
+                }
+                for (int key : cids.keySet()) {
+                    LOGGER.info("key = {}, cids.get(key) = {}, SVController.getQuorum() = {} !", key, cids.get(key), topology.getQuorum());
+                    if (cids.get(key) >= topology.getQuorum()) {
+
+                        // 保存数据完备节点信息
+                        saveValidDataSenders(senderCIDs, key);
+
+                        // 根据数据完备节点的key，计算其检查点值
+                        checkPointFormOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (key / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
+
+                        if (lastCID >= key) {
+                            LOGGER.info("-- {} replica state is up to date ! --", topology.getStaticConf().getProcessId());
+                            dt.deliverLock();
+                            isInitializing = false;
+                            tomLayer.setLastExec(key);
+                            // 如果有其他节点没有差异的话，会走此分支，此时将其连接设置为OK
+                            tomLayer.connectRemotesOK();
+                            // trigger out of context propose msg process
+                            tomLayer.processOutOfContext();
+                            dt.canDeliver();
+                            dt.deliverUnlock();
+                            break;
+                        }  else {
+                            LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
+                            // 对于跨checkpoint的落后节点，先通过与数据完备节点的消息交互进行checkpoint以内交易的重放，再执行最新checkpoint周期内交易的重放
+                            if (lastCID < checkPointFormOtherNode) {
+                                LOGGER.info("-- Backward node cross checkpoint, will start transactions replay process!");
+                                // 启动交易重放过程
+                                askTransactionReplay(lastCID + 1, checkPointFormOtherNode, (Integer) validDataSenders.keySet().toArray()[0]);
+                            } else {
+                                // 通用流程
+                                LOGGER.info("-- Backward node and remote node in the same latest checkpoint!");
+                                if (waitingCID == -1) {
+                                    waitingCID = key;
+                                    // 请求最新checkpoint周期内的交易并重放
+                                    requestState();
+                                }
+                            }
                         }
                     }
                 }
             }
+        } catch (Exception e) {
+            LOGGER.info("currentConsensusIdReceived occur exception!");
         }
+
+    }
+
+    @Override
+    public void transactionReplayReplyDeliver(StandardTRMessage msg) {
+        replayReceivedLock.lock();
+
+        LOGGER.info("I am proc {}, I will handle transactionReplayReceived!", tomLayer.getCurrentProcessId());
+        try {
+            replayStateHashMap.put(msg.getStartCid(), ((StandardTRMessage) msg).getState());
+
+            int lastCid = this.tomLayer.getStateManager().getLastCID();
+            // 保证交易内容按顺序进行重放
+            while (replayStateHashMap.keySet().contains(lastCid + 1)) {
+
+                TransactionReplayState replayState = replayStateHashMap.get(lastCid + 1);
+
+                for (int i = 0, cid = replayState.getStartCid(); (i <= replayState.getEndCid() - replayState.getStartCid()) && (cid <= replayState.getEndCid()); i++,cid++ ) {
+                    byte[][] commands = ((DefaultTransactionReplayState) replayState).getMessageBatches()[i].commands;
+                    MessageContext[] messageContexts =  ((DefaultTransactionReplayState) replayState).getMessageBatches()[i].msgCtx;
+                    LOGGER.info("I am proc {}, I will execute transactions replay!,replay cid = {}", tomLayer.getCurrentProcessId(), cid );
+                    ((DefaultRecoverable) tomLayer.getDeliveryThread().getRecoverer()).appExecuteBatch(commands, messageContexts, false);
+                }
+                this.tomLayer.getStateManager().setLastCID(replayState.getEndCid());
+                this.tomLayer.setLastExec(replayState.getEndCid());
+                lastCid = replayState.getEndCid();
+            }
+
+            if (lastCID == checkPointFormOtherNode) {
+                waitingCID = (Integer) validDataSenders.values().toArray()[0];
+                getReplayStateHashMap().clear();
+                requestState();
+            }
+        } finally {
+            replayReceivedLock.unlock();
+        }
+
+    }
+
+    @Override
+    public void askTransactionReplay(int startCid, int endCid, int target) {
+
+        int me = topology.getCurrentProcessId();
+        StandardTRMessage trRequestMessage = new StandardTRMessage(me, target, null, startCid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
+        LOGGER.info("I will send StandardTRMessage[{}] to target node {}, between cid {} --> {} !", TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO, target, startCid, endCid);
+        tomLayer.getCommunication().send(trRequestMessage, target);
+
+        // todo
+        //添加消息发送的安全保障
+    }
+
+    @Override
+    public void transactionReplayAsked(int sender, int target, int startCid, int endCid) {
+
+        LOGGER.info("I am proc {}, I will handle transactionReplayAsked from = {}!", tomLayer.getCurrentProcessId(), sender);
+
+        StandardTRMessage trReplyMessage;
+
+        // 用来保证本地共识ID，以及tom config 文件配置完成
+        if (!tomLayer.isLastCidSetOk()) {
+            LOGGER.info("I am proc {}, ignore request cid msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
+            return;
+        }
+
+        if (target != topology.getCurrentProcessId()) {
+            LOGGER.info("I am proc {}, I am not transactions replay reply target!", tomLayer.getCurrentProcessId());
+            return;
+        }
+        int batchSize = 1000;
+        for (int cid = startCid; cid <= endCid;) {
+            // 交易重放批大小超过batchSize，则以batchSize为单位打包响应消息，否则根据实际大小打包
+            if (cid + batchSize -1 < endCid ) {
+                TransactionReplayState state = getReplayState(cid,  cid + batchSize - 1);
+                trReplyMessage = new StandardTRMessage(topology.getCurrentProcessId(), sender, state, cid, cid + batchSize - 1, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
+                LOGGER.info("I am proc {}, I will send transactions replay reply, between cid {} --> {}", tomLayer.getCurrentProcessId(), cid, cid + batchSize -1);
+                tomLayer.getCommunication().send(trReplyMessage, sender);
+                cid = cid + batchSize;
+            } else {
+                TransactionReplayState state = getReplayState(cid,  endCid);
+                trReplyMessage = new StandardTRMessage(topology.getCurrentProcessId(), sender, state, cid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
+                LOGGER.info("I am proc {}, I will send transactions replay reply, between cid {} --> {}", tomLayer.getCurrentProcessId(), cid, endCid);
+                tomLayer.getCommunication().send(trReplyMessage, sender);
+                break;
+            }
+        }
+
+    }
+
+    private TransactionReplayState getReplayState(int startCid, int endCid) {
+
+        LOGGER.info("I am proc {}, I will getReplayState between cid {} --> {}!", tomLayer.getCurrentProcessId(), startCid, endCid);
+
+        CommandsInfo[] commandsInfos = new CommandsInfo[endCid - startCid + 1];
+
+        for (int i = 0, cid = startCid; (i <= endCid - startCid) && (cid <= endCid); i++, cid++) {
+
+            DefaultRecoverable recoverable = (DefaultRecoverable)(tomLayer.getDeliveryThread().getRecoverer());
+            commandsInfos[i] =  new CommandsInfo();
+            commandsInfos[i].commands = recoverable.getCommandsByCid(cid,  recoverable.getCommandsNumByCid(cid));
+
+            MessageContext[] msgCtxs = new MessageContext[commandsInfos[i].commands.length];
+
+            for (int index = 0; index < commandsInfos[i].commands.length; index++) {
+                msgCtxs[index] = new MessageContext(0, 0, null, 0, 0, 0, 0, null, recoverable.getTimestampByCid(cid), 0, 0, 0, 0, cid, null, null, false);
+            }
+            commandsInfos[i].msgCtx = msgCtxs;
+        }
+
+        return new DefaultTransactionReplayState(commandsInfos, startCid, endCid, topology.getCurrentProcessId());
     }
 
     private void saveValidDataSenders(HashMap<Integer,Integer> senderCIDs, int key) {
         for (int replicaId : senderCIDs.keySet()) {
             if (senderCIDs.get(replicaId) == key) {
-                validDataSenders.add(new Integer(replicaId));
+                validDataSenders.put(new Integer(replicaId) ,new Integer(key));
             }
         }
     }
@@ -374,91 +498,6 @@ public abstract class BaseStateManager implements StateManager {
                 break;
             }
         }
-    }
-
-    @Override
-    public void transactionReplayReceived(TRMessage msg) {
-        replayReceivedLock.lock();
-
-        try {
-            replayStateHashMap.put(msg.getStartCid(), ((TRReplyMessage) msg).getState());
-
-            int lastCid = this.tomLayer.getStateManager().getLastCID();
-            // 保证交易内容按顺序进行重放
-            while (replayStateHashMap.keySet().contains(lastCid + 1)) {
-
-                TransactionReplayState replayState = replayStateHashMap.get(lastCid + 1);
-
-                for (int i = 0, cid = replayState.getStartCid(); (i <= replayState.getEndCid() - replayState.getStartCid()) && (cid <= replayState.getEndCid()); i++,cid++ ) {
-                    byte[][] commands = ((DefaultTransactionReplayState) replayState).getMessageBatches()[i].commands;
-                    ((DefaultRecoverable) tomLayer.getDeliveryThread().getRecoverer()).appExecuteBatch(commands, null, false);
-                }
-                this.tomLayer.getStateManager().setLastCID(replayState.getEndCid());
-                this.tomLayer.setLastExec(replayState.getEndCid());
-                lastCid = replayState.getEndCid();
-            }
-        } finally {
-            replayReceivedLock.unlock();
-        }
-    }
-
-    @Override
-    public void askTransactionReplay(int startCid, int endCid, int target) {
-
-        int me = topology.getCurrentProcessId();
-        TRMessage trRequestMessage = new TRRequestMessage(me, target, startCid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
-        LOGGER.info("I will send TRMessage[{}] to target node !", TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
-        tomLayer.getCommunication().send(trRequestMessage, target);
-
-        // todo
-        //添加消息发送的安全保障
-    }
-
-    @Override
-    public void transactionReplayAsked(int sender, int target, int startCid, int endCid) {
-
-        LOGGER.info("I am proc {}, I will handle transactionReplayAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
-
-        TRMessage trReplyMessage;
-
-        // 用来保证本地共识ID，以及tom config 文件配置完成
-        if (!tomLayer.isLastCidSetOk()) {
-            LOGGER.info("I am proc {}, ignore request cid msg, wait tomlayer set last cid!", tomLayer.getCurrentProcessId());
-            return;
-        }
-
-        if (target != topology.getCurrentProcessId()) {
-            return;
-        }
-        int batchSize = 1000;
-        for (int cid = startCid; cid <= endCid;) {
-            // 交易重放批大小超过batchSize，则以batchSize为单位打包响应消息，否则根据实际大小打包
-            if (cid + batchSize -1 < endCid ) {
-                TransactionReplayState state = getReplayState(cid,  cid + batchSize - 1);
-                trReplyMessage = new TRReplyMessage(topology.getCurrentProcessId(), sender, state, cid, cid + batchSize - 1, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
-                tomLayer.getCommunication().send(trReplyMessage, sender);
-                cid = cid + batchSize;
-            } else {
-                TransactionReplayState state = getReplayState(cid,  endCid);
-                trReplyMessage = new TRReplyMessage(topology.getCurrentProcessId(), sender, state, cid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REPLY_INFO);
-                tomLayer.getCommunication().send(trReplyMessage, sender);
-                break;
-            }
-        }
-
-    }
-
-    private TransactionReplayState getReplayState(int startCid, int endCid) {
-
-        CommandsInfo[] commandsInfos = new CommandsInfo[endCid - startCid + 1];
-
-        for (int i = 0, cid = startCid; (i <= endCid - startCid) && (cid <= endCid); i++, cid++) {
-
-            DefaultRecoverable recoverable = (DefaultRecoverable)(tomLayer.getDeliveryThread().getRecoverer());
-            commandsInfos[i].commands = recoverable.getCommandsByCid(cid,  recoverable.getCommandsNumByCid(cid));
-        }
-
-        return new DefaultTransactionReplayState(commandsInfos, startCid, endCid, topology.getCurrentProcessId());
     }
 
     protected abstract void requestState();

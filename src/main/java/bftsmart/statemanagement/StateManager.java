@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.statemanagement;
 
+import bftsmart.statemanagement.strategy.StandardTRMessage;
 import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.TOMLayer;
 
@@ -49,7 +50,7 @@ public interface StateManager {
 
     public void transactionReplayAsked(int sender, int target, int startCid, int endCid);
 
-    public void transactionReplayReceived(TRMessage msg);
+    public void transactionReplayReplyDeliver(StandardTRMessage msg);
 
     public void setLastCID(int lastCID);
 

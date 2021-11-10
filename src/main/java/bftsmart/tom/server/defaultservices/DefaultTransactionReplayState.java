@@ -18,6 +18,8 @@ package bftsmart.tom.server.defaultservices;
 import bftsmart.statemanagement.TransactionReplayState;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+
 /**
  *数据源完备节点向落后节点提供需要进行重放的交易状态类
  * @param messageBatches 交易重放状态内容
@@ -73,4 +75,66 @@ public class DefaultTransactionReplayState implements TransactionReplayState {
     	this.messageBatches = messageBatches;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof DefaultTransactionReplayState) {
+            DefaultTransactionReplayState tState = (DefaultTransactionReplayState) obj;
+
+            if ((this.messageBatches != null && tState.messageBatches == null) ||
+                    (this.messageBatches == null && tState.messageBatches != null)) {
+                //System.out.println("[DefaultTransactionReplayState] returing FALSE1!");
+                return false;
+            }
+
+            if (this.messageBatches != null && tState.messageBatches != null) {
+
+                if (this.messageBatches.length != tState.messageBatches.length) {
+                    //System.out.println("[DefaultTransactionReplayState] returing FALSE2!");
+                    return false;
+                }
+
+                for (int i = 0; i < this.messageBatches.length; i++) {
+
+                    if (this.messageBatches[i] == null && tState.messageBatches[i] != null) {
+                        //System.out.println("[DefaultTransactionReplayState] returing FALSE3!");
+                        return false;
+                    }
+
+                    if (this.messageBatches[i] != null && tState.messageBatches[i] == null) {
+                        //System.out.println("[DefaultTransactionReplayState] returing FALSE4!");
+                        return false;
+                    }
+
+                    if (!(this.messageBatches[i] == null && tState.messageBatches[i] == null) &&
+                            (!this.messageBatches[i].equals(tState.messageBatches[i]))) {
+                        //System.out.println("[DefaultTransactionReplayState] returing FALSE5!" + (this.messageBatches[i] == null) + " " + (tState.messageBatches[i] == null));
+                        return false;
+                    }
+                }
+            }
+            return (tState.startCid == this.startCid && tState.endCid == this.endCid && tState.pid == this.pid);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 1;
+        hash = hash * 31 + this.startCid;
+        hash = hash * 31 + this.endCid;
+        hash = hash * 31 + this.pid;
+                
+        if (this.messageBatches != null) {
+            for (int i = 0; i < this.messageBatches.length; i++) {
+                if (this.messageBatches[i] != null) {
+                    hash = hash * 31 + this.messageBatches[i].hashCode();
+                } else {
+                    hash = hash * 31 + 0;
+                }
+            }
+        } else {
+            hash = hash * 31 + 0;
+        }
+        return hash;
+    }
 }

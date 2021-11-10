@@ -15,7 +15,6 @@ limitations under the License.
 */
 package bftsmart.statemanagement.strategy;
 
-import bftsmart.communication.SystemMessage;
 import bftsmart.consensus.Consensus;
 import bftsmart.consensus.Epoch;
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -24,15 +23,10 @@ import bftsmart.reconfiguration.views.NodeNetwork;
 import bftsmart.reconfiguration.views.View;
 import bftsmart.statemanagement.ApplicationState;
 import bftsmart.statemanagement.SMMessage;
-import bftsmart.statemanagement.TRMessage;
-import bftsmart.statemanagement.TransactionReplayState;
 import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
-import bftsmart.tom.server.defaultservices.CommandsInfo;
-import bftsmart.tom.server.defaultservices.DefaultRecoverable;
-import bftsmart.tom.server.defaultservices.DefaultTransactionReplayState;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
