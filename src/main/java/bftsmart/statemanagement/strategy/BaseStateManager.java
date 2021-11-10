@@ -168,14 +168,18 @@ public abstract class BaseStateManager implements StateManager {
     protected boolean enoughProofs(int cid, LCManager lc) {
         
         int counter = 0;
+        int nullCounter = 0;
+
         for (CertifiedDecision cDec : senderProofs.values()) {
                                     
             if (cDec != null && cid == proofIsConsistent(cDec.getConsMessages()) && lc.hasValidProof(cDec)) {
                 counter++;
+            } else if (cDec == null) {
+                nullCounter++;
             }
             
         }
-        boolean result = counter >= topology.getQuorum();
+        boolean result = (counter >= topology.getQuorum()) || (nullCounter >= topology.getQuorum());
         return result;
     }
     

@@ -335,7 +335,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 			// TODO: I should always make sure to have a log with proofs, since this is a
 			// result
 			// of not storing anything after a checkpoint and before logging more requests
-			if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
+//			if (ret == null || (config.isBFT() && ret.getCertifiedDecision(this.controller) == null)) {
+			if (ret == null) { // 暂时没有办法考虑证据，由于证据没有上链，在节点重启时只加载了交易集，无法加载交易达成共识的证据
 				ret = new DefaultApplicationState();
 			}
 			return ret;
