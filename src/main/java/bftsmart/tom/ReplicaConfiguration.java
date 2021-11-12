@@ -42,6 +42,8 @@ public interface ReplicaConfiguration {
 
 	int getMonitorPort(int id);
 
+	boolean isSecure(int id);
+
 	int getServerToServerPort(int id);
 
 	String getViewStoreClass();
@@ -181,7 +183,7 @@ public interface ReplicaConfiguration {
 
 	HostsConfig getOuterHostConfig();
 
-	void addHostInfo(int id, String host, int port, int monitorPort);
+	void addHostInfo(int id, String host, int port, int monitorPort, boolean secure);
 
 	int getEpochDelay();
 }

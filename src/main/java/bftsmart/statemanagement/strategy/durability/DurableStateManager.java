@@ -141,7 +141,7 @@ public class DurableStateManager extends BaseStateManager {
 			String myIp = address.getHost();
 			int myId = topology.getStaticConf().getProcessId();
 			int port = 4444 + myId;
-			address = new NodeNetwork(myIp, port, -1);
+			address = new NodeNetwork(myIp, port, -1, address.isSecure());
 			cstConfig.setAddress(address);
 			CSTSMMessage reply = new CSTSMMessage(myId, msg.getCID(), TOMUtil.SM_REPLY, cstConfig, null,
 					topology.getCurrentView(), tomLayer.getSynchronizer().getLCManager().getLastReg(),

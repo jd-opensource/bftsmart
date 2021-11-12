@@ -1508,10 +1508,10 @@ public class ConsensusTest_ {
 						try {
 							int monitorPort = Integer.valueOf(str.nextToken());
 							configList.add(new HostsConfig.Config(id, host, consensusPort, monitorPort));
-							addresses.add(new NodeNetwork(host, consensusPort, monitorPort));
+							addresses.add(new NodeNetwork(host, consensusPort, monitorPort, false));
 						} catch (Exception e) {
 							configList.add(id, new HostsConfig.Config(id, host, consensusPort, -1));
-							addresses.add(new NodeNetwork(host, consensusPort, -1));
+							addresses.add(new NodeNetwork(host, consensusPort, -1, false));
 						}
 					}
 				}

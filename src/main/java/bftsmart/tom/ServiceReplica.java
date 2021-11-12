@@ -297,7 +297,7 @@ public class ServiceReplica {
 						// proc docker env
 						String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 						NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
-								inetSocketAddress.getMonitorPort());
+								inetSocketAddress.getMonitorPort(), inetSocketAddress.isSecure());
 						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 								serverViewController.getStaticConf().getProcessId(), host);
 						addressesTemp.add(tempSocketAddress);
@@ -518,7 +518,7 @@ public class ServiceReplica {
 							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 
 							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
-									-1);
+									-1, inetSocketAddress.isSecure());
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 									serverViewController.getStaticConf().getProcessId(), host);
 							addressesTemp.add(tempSocketAddress);
@@ -526,7 +526,7 @@ public class ServiceReplica {
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 									serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
 							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
-									inetSocketAddress.getConsensusPort(), -1));
+									inetSocketAddress.getConsensusPort(), -1, inetSocketAddress.isSecure()));
 						}
 					}
 

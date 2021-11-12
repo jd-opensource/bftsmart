@@ -138,15 +138,16 @@ public class ServerViewController extends ViewController implements ReplicaTopol
 							jSet.add(id);
 							String host = str.nextToken();
 							int port = Integer.valueOf(str.nextToken());
+							boolean secure = Boolean.valueOf(str.nextToken());
 							try {
 								int monitorPort = Integer.valueOf(str.nextToken());
-								this.getStaticConf().addHostInfo(id, host, port, monitorPort);
-								this.getStaticConf().getOuterHostConfig().add(id, host, port, monitorPort);
+								this.getStaticConf().addHostInfo(id, host, port, monitorPort, secure);
+								this.getStaticConf().getOuterHostConfig().add(id, host, port, monitorPort, secure);
 							} catch (Exception e) {
-								this.getStaticConf().addHostInfo(id, host, port, -1);
+								this.getStaticConf().addHostInfo(id, host, port, -1, secure);
 
 							}
-							currentAddresses.put(id, new NodeNetwork(host, port, -1));
+							currentAddresses.put(id, new NodeNetwork(host, port, -1, secure));
 						}
 					}
 				} else if (key == REMOVE_SERVER) {
@@ -255,12 +256,12 @@ public class ServerViewController extends ViewController implements ReplicaTopol
 			if (nodeNetwork.getHost().equals("0.0.0.0")) {
 				// proc docker env
 				String host = this.getStaticConf().getOuterHostConfig().getHost(cpuId);
-				NodeNetwork nodeNetworkNew = new NodeNetwork(host, nodeNetwork.getConsensusPort(), -1);
+				NodeNetwork nodeNetworkNew = new NodeNetwork(host, nodeNetwork.getConsensusPort(), -1, nodeNetwork.isSecure());
 				LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 						this.getStaticConf().getProcessId(), host);
 				addressesTemp.add(nodeNetworkNew);
 			} else {
-				addressesTemp.add(new NodeNetwork(nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), -1));
+				addressesTemp.add(new NodeNetwork(nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), -1, nodeNetwork.isSecure()));
 			}
 		}
 
@@ -297,28 +298,6 @@ public class ServerViewController extends ViewController implements ReplicaTopol
 
 		}
 		return false;
-	}
-
-	public void processJoinResult(ReconfigureReply r) {
-		this.reconfigureTo(r.getView());
-
-		String[] s = r.getJoinSet();
-
-		this.lastJoinStet = new int[s.length];
-
-		for (int i = 0; i < s.length; i++) {
-			StringTokenizer str = new StringTokenizer(s[i], ":");
-			int id = Integer.parseInt(str.nextToken());
-			this.lastJoinStet[i] = id;
-			String host = str.nextToken();
-			int port = Integer.valueOf(str.nextToken());
-			try {
-				int monitorPort = Integer.valueOf(str.nextToken());
-				this.getStaticConf().addHostInfo(id, host, port, monitorPort);
-			} catch (Exception e) {
-				this.getStaticConf().addHostInfo(id, host, port, -1);
-			}
-		}
 	}
 
 	@Override
@@ -368,8 +347,8 @@ public class ServerViewController extends ViewController implements ReplicaTopol
 		return getStaticConf().isBFT() ? quorumBFT : quorumCFT;
 	}
 
-	public void addHostInfo(int procId, String host, int consensusPort, int monitorPort) {
-		staticConf.addHostInfo(procId, host, consensusPort, monitorPort);
+	public void addHostInfo(int procId, String host, int consensusPort, int monitorPort, boolean secure) {
+		staticConf.addHostInfo(procId, host, consensusPort, monitorPort, secure);
 		staticConf.getOuterHostConfig().add(procId, host, consensusPort, monitorPort);
 	}
 }

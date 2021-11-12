@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
+import bftsmart.reconfiguration.views.NodeNetwork;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.Serializable;
@@ -24,8 +26,6 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
 
-import bftsmart.reconfiguration.views.NodeNetwork;
-
 public class HostsConfig implements Serializable {
 
 	private static final long serialVersionUID = -5947185919560079460L;
@@ -34,37 +34,24 @@ public class HostsConfig implements Serializable {
 
 	public HostsConfig() {
 	}
-	
+
 	public HostsConfig(String hostsConfigFile) {
 		loadConfig(hostsConfigFile);
 	}
-	
+
     //create constructor according to consensus realm nodes
 	public HostsConfig(Config[] nodesConfig) {
 		for (Config node : nodesConfig) {
-			add(node.id, node.host, node.consensusPort, node.monitorPort);
+			add(node);
 		}
 	}
 
 //	private void loadConfig(String configHome, String fileName) {
 	private void loadConfig(String hostsConfigFile) {
 		try {
-//			String path = "";
-//			String sep = System.getProperty("file.separator");
-//			if (configHome.equals("")) {
-//				if (fileName.equals(""))
-//					path = "config" + sep + "hosts.config";
-//				else
-//					path = "config" + sep + fileName;
-//			} else {
-//				if (fileName.equals(""))
-//					path = configHome + sep + "hosts.config";
-//				else
-//					path = configHome + sep + fileName;
-//			}
 			FileReader fr = new FileReader(hostsConfigFile);
 			BufferedReader rd = new BufferedReader(fr);
-			String line = null;
+			String line;
 			while ((line = rd.readLine()) != null) {
 				if (!line.startsWith("#")) {
 					StringTokenizer str = new StringTokenizer(line, " ");
@@ -92,6 +79,14 @@ public class HostsConfig implements Serializable {
 		this.servers.put(id, new Config(id, host, consensusPort, monitorPort));
 	}
 
+	public void add(int id, String host, int consensusPort, int monitorPort, boolean secure) {
+		this.servers.put(id, new Config(id, host, consensusPort, monitorPort, secure));
+	}
+
+	public void add(Config config) {
+		this.servers.put(config.id, new Config(config.id, config.host, config.consensusPort, config.monitorPort, config.secure));
+	}
+
 	public void del(int id) {
 		this.servers.remove(id);
 	}
@@ -103,7 +98,7 @@ public class HostsConfig implements Serializable {
 	public NodeNetwork getRemoteAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort);
+			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort, c.secure);
 		}
 		return null;
 	}
@@ -111,7 +106,7 @@ public class HostsConfig implements Serializable {
 	public NodeNetwork getServerToServerRemoteAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new NodeNetwork(c.host, c.consensusPort + 1, c.monitorPort);
+			return new NodeNetwork(c.host, c.consensusPort + 1, c.monitorPort, c.secure);
 		}
 		return null;
 	}
@@ -130,6 +125,14 @@ public class HostsConfig implements Serializable {
 			return c.monitorPort;
 		}
 		return -1;
+	}
+
+	public boolean isSecure(int id) {
+		Config c = this.servers.get(id);
+		if (c != null) {
+			return c.secure;
+		}
+		return false;
 	}
 
 	public int getServerToServerPort(int id) {
@@ -163,7 +166,7 @@ public class HostsConfig implements Serializable {
 	public NodeNetwork getLocalAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort);
+			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort, c.secure);
 		}
 		return null;
 	}
@@ -175,12 +178,22 @@ public class HostsConfig implements Serializable {
 		private String host;
 		private int consensusPort;
 		private int monitorPort;
+		private boolean secure;
+
+		public Config(int id, String host, int consensusPort, int monitorPort, boolean secure) {
+			this.id = id;
+			this.host = host;
+			this.consensusPort = consensusPort;
+			this.monitorPort = monitorPort;
+			this.secure = secure;
+		}
 
 		public Config(int id, String host, int consensusPort, int monitorPort) {
 			this.id = id;
 			this.host = host;
 			this.consensusPort = consensusPort;
 			this.monitorPort = monitorPort;
+			this.secure = false;
 		}
 	}
 }

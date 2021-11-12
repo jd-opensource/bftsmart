@@ -1,6 +1,5 @@
 package bftsmart.reconfiguration.views;
 
-import bftsmart.tom.core.ViewSyncTimer;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
@@ -17,27 +16,33 @@ public class NodeNetwork implements Serializable {
      * 域名
      *
      */
-    private String host;
+    protected String host;
 
     /**
      * 共识端口
      *
      */
-    private int consensusPort;
+    protected int consensusPort;
 
     /**
      * 管理端口
      *
      */
-    private int monitorPort;
+    protected int monitorPort;
+
+    /**
+     * 是否开启安全连接
+     */
+    protected boolean secure;
 
     public NodeNetwork() {
     }
 
-    public NodeNetwork(String host, int consensusPort, int monitorPort) {
+    public NodeNetwork(String host, int consensusPort, int monitorPort, boolean secure) {
         this.host = host;
         this.consensusPort = consensusPort;
         this.monitorPort = monitorPort;
+        this.secure = secure;
     }
 
     public String getHost() {
@@ -66,15 +71,24 @@ public class NodeNetwork implements Serializable {
     }
 
     public String toUrl() {
-        return host + ":" + consensusPort + ":" + monitorPort;
+        return host + ":" + consensusPort + ":" + monitorPort + ":" + secure;
+    }
+
+    public boolean isSecure() {
+        return secure;
+    }
+
+    public void setSecure(boolean secure) {
+        this.secure = secure;
     }
 
     @Override
     public String toString() {
-        return "[" +
+        return "NodeNetwork{" +
                 "host='" + host + '\'' +
                 ", consensusPort=" + consensusPort +
                 ", monitorPort=" + monitorPort +
-                ']';
+                ", secure=" + secure +
+                '}';
     }
 }
