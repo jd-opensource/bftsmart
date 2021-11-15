@@ -29,6 +29,7 @@ import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
+import utils.net.SSLSecurity;
 
 /**
  * This class is used to multicast messages to replicas and receive replies.
@@ -69,13 +70,13 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 		return this.viewController;
 	}
 
-	public void init(TOMConfiguration config, ViewStorage viewStorage) {
+	public void init(TOMConfiguration config, ViewStorage viewStorage, SSLSecurity sslSecurity) {
 		this.viewController = new ClientViewController(config, viewStorage);
-		startsCS(viewController.getStaticConf().getProcessId());
+		startsCS(viewController.getStaticConf().getProcessId(), sslSecurity);
 	}
 
-	private void startsCS(int clientId) {
-		this.cs = CommunicationSystemClientSideFactory.getCommunicationSystemClientSide(clientId, this.viewController);
+	private void startsCS(int clientId, SSLSecurity sslSecurity) {
+		this.cs = CommunicationSystemClientSideFactory.getCommunicationSystemClientSide(clientId, this.viewController, sslSecurity);
 		this.cs.setReplyReceiver(this); // This object itself shall be a reply receiver
 		this.me = this.viewController.getStaticConf().getProcessId();
 		this.useSignatures = this.viewController.getStaticConf().isUseSignatures();

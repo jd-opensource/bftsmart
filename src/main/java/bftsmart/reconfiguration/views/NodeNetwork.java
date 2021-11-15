@@ -31,18 +31,24 @@ public class NodeNetwork implements Serializable {
     protected int monitorPort;
 
     /**
-     * 是否开启安全连接
+     * 共识服务是否开启安全连接
      */
-    protected boolean secure;
+    protected boolean consensusSecure;
+
+    /**
+     * 管理服务是否开启安全连接
+     */
+    protected boolean monitorSecure;
 
     public NodeNetwork() {
     }
 
-    public NodeNetwork(String host, int consensusPort, int monitorPort, boolean secure) {
+    public NodeNetwork(String host, int consensusPort, int monitorPort, boolean consensusSecure, boolean monitorSecure) {
         this.host = host;
         this.consensusPort = consensusPort;
         this.monitorPort = monitorPort;
-        this.secure = secure;
+        this.consensusSecure = consensusSecure;
+        this.monitorSecure = monitorSecure;
     }
 
     public String getHost() {
@@ -70,16 +76,20 @@ public class NodeNetwork implements Serializable {
         this.monitorPort = monitorPort;
     }
 
-    public String toUrl() {
-        return host + ":" + consensusPort + ":" + monitorPort + ":" + secure;
+    public boolean isMonitorSecure() {
+        return monitorSecure;
     }
 
-    public boolean isSecure() {
-        return secure;
+    public void setMonitorSecure(boolean monitorSecure) {
+        this.monitorSecure = monitorSecure;
     }
 
-    public void setSecure(boolean secure) {
-        this.secure = secure;
+    public boolean isConsensusSecure() {
+        return consensusSecure;
+    }
+
+    public void setConsensusSecure(boolean consensusSecure) {
+        this.consensusSecure = consensusSecure;
     }
 
     @Override
@@ -88,7 +98,8 @@ public class NodeNetwork implements Serializable {
                 "host='" + host + '\'' +
                 ", consensusPort=" + consensusPort +
                 ", monitorPort=" + monitorPort +
-                ", secure=" + secure +
+                ", consensusSecure=" + consensusSecure +
+                ", monitorSecure=" + monitorSecure +
                 '}';
     }
 }

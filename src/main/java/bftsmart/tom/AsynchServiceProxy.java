@@ -9,6 +9,7 @@ import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
+import utils.net.SSLSecurity;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -62,7 +63,11 @@ public class AsynchServiceProxy extends ServiceProxy {
 	 *            Configuration folder
 	 */
 	public AsynchServiceProxy(TOMConfiguration config, ViewStorage viewStorage) {
-		super(config, viewStorage, null, null);
+		this(config, viewStorage, new SSLSecurity());
+	}
+
+	public AsynchServiceProxy(TOMConfiguration config, ViewStorage viewStorage, SSLSecurity sslSecurity) {
+		super(config, viewStorage, null, null, sslSecurity);
 		init();
 	}
 

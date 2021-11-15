@@ -79,12 +79,12 @@ public class HostsConfig implements Serializable {
 		this.servers.put(id, new Config(id, host, consensusPort, monitorPort));
 	}
 
-	public void add(int id, String host, int consensusPort, int monitorPort, boolean secure) {
-		this.servers.put(id, new Config(id, host, consensusPort, monitorPort, secure));
+	public void add(int id, String host, int consensusPort, int monitorPort, boolean secure, boolean monitorSecure) {
+		this.servers.put(id, new Config(id, host, consensusPort, monitorPort, secure, monitorSecure));
 	}
 
 	public void add(Config config) {
-		this.servers.put(config.id, new Config(config.id, config.host, config.consensusPort, config.monitorPort, config.secure));
+		this.servers.put(config.id, new Config(config.id, config.host, config.consensusPort, config.monitorPort, config.consensusSecure, config.monitorSecure));
 	}
 
 	public void del(int id) {
@@ -98,7 +98,7 @@ public class HostsConfig implements Serializable {
 	public NodeNetwork getRemoteAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort, c.secure);
+			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort, c.consensusSecure, c.monitorSecure);
 		}
 		return null;
 	}
@@ -106,7 +106,7 @@ public class HostsConfig implements Serializable {
 	public NodeNetwork getServerToServerRemoteAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new NodeNetwork(c.host, c.consensusPort + 1, c.monitorPort, c.secure);
+			return new NodeNetwork(c.host, c.consensusPort + 1, c.monitorPort, c.consensusSecure, c.monitorSecure);
 		}
 		return null;
 	}
@@ -130,7 +130,15 @@ public class HostsConfig implements Serializable {
 	public boolean isSecure(int id) {
 		Config c = this.servers.get(id);
 		if (c != null) {
-			return c.secure;
+			return c.consensusSecure;
+		}
+		return false;
+	}
+
+	public boolean isMonitorSecure(int id) {
+		Config c = this.servers.get(id);
+		if (c != null) {
+			return c.monitorSecure;
 		}
 		return false;
 	}
@@ -166,7 +174,7 @@ public class HostsConfig implements Serializable {
 	public NodeNetwork getLocalAddress(int id) {
 		Config c = (Config) this.servers.get(id);
 		if (c != null) {
-			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort, c.secure);
+			return new NodeNetwork(c.host, c.consensusPort, c.monitorPort, c.consensusSecure, c.monitorSecure);
 		}
 		return null;
 	}
@@ -178,14 +186,16 @@ public class HostsConfig implements Serializable {
 		private String host;
 		private int consensusPort;
 		private int monitorPort;
-		private boolean secure;
+		private boolean consensusSecure;
+		private boolean monitorSecure;
 
-		public Config(int id, String host, int consensusPort, int monitorPort, boolean secure) {
+		public Config(int id, String host, int consensusPort, int monitorPort, boolean consensusSecure, boolean monitorSecure) {
 			this.id = id;
 			this.host = host;
 			this.consensusPort = consensusPort;
 			this.monitorPort = monitorPort;
-			this.secure = secure;
+			this.consensusSecure = consensusSecure;
+			this.monitorSecure = monitorSecure;
 		}
 
 		public Config(int id, String host, int consensusPort, int monitorPort) {
@@ -193,7 +203,6 @@ public class HostsConfig implements Serializable {
 			this.host = host;
 			this.consensusPort = consensusPort;
 			this.monitorPort = monitorPort;
-			this.secure = false;
 		}
 	}
 }

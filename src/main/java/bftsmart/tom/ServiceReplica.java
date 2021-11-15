@@ -58,6 +58,7 @@ import bftsmart.tom.server.SingleExecutable;
 import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
+import utils.net.SSLSecurity;
 
 /**
  * This class receives messages from DeliveryThread and manages the execution
@@ -100,6 +101,7 @@ public class ServiceReplica {
 	private int lastCid;
 	private ClientCommunicationServerSide clientCommunication;
 	private MessageHandler messageHandler;
+	private SSLSecurity sslSecurity;
 
 //	private Acceptor acceptor;
 
@@ -135,8 +137,19 @@ public class ServiceReplica {
 				new DefaultReplier(), lastCid, realName);
 	}
 
+	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
+						  View lastView, String realName, SSLSecurity sslSecurity) {
+		this(messageHandler, cs, new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
+				new DefaultReplier(), lastCid, realName, sslSecurity);
+	}
+
 	protected ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, ServerViewController viewController, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier, int lastCid, String realName) {
+							 RequestVerifier verifier, Replier replier, int lastCid, String realName) {
+		this(messageHandler, cs, viewController, executor, recoverer, verifier, replier, lastCid, realName, new SSLSecurity());
+	}
+
+	protected ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, ServerViewController viewController, Executable executor, Recoverable recoverer,
+			RequestVerifier verifier, Replier replier, int lastCid, String realName, SSLSecurity sslSecurity) {
 
 		this.id = viewController.getStaticConf().getProcessId();
 		this.realmName = realName;
@@ -148,6 +161,7 @@ public class ServiceReplica {
 		this.recoverer.setRealName(realName);
 		this.messageHandler = messageHandler;
 		this.cs = cs;
+		this.sslSecurity = sslSecurity;
 
 //		if (viewController.getStaticConf().isLoggingToDisk()) {
 //			this.lastCid = this.recoverer.getStateManager().getLastCID();
@@ -203,9 +217,9 @@ public class ServiceReplica {
 			}
 
 			if (cs == null) {
-				clientCommunication = ClientCommunicationFactory.createServerSide(serverViewController);
+				clientCommunication = ClientCommunicationFactory.createServerSide(serverViewController, sslSecurity);
 				cs = new ServerCommunicationSystemImpl(clientCommunication, messageHandler, this.serverViewController,
-						realmName);
+						realmName, sslSecurity);
 			} else {
 				clientCommunication = cs.getClientCommunication();
 			}
@@ -297,13 +311,13 @@ public class ServiceReplica {
 						// proc docker env
 						String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 						NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
-								inetSocketAddress.getMonitorPort(), inetSocketAddress.isSecure());
+								inetSocketAddress.getMonitorPort(), inetSocketAddress.isConsensusSecure(), inetSocketAddress.isMonitorSecure());
 						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 								serverViewController.getStaticConf().getProcessId(), host);
 						addressesTemp.add(tempSocketAddress);
 					} else {
 						LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
-								serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+								serverViewController.getStaticConf().getProcessId(), inetSocketAddress);
 						addressesTemp.add(inetSocketAddress);
 					}
 				}
@@ -518,15 +532,15 @@ public class ServiceReplica {
 							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 
 							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
-									-1, inetSocketAddress.isSecure());
+									-1, inetSocketAddress.isConsensusSecure(), false);
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 									serverViewController.getStaticConf().getProcessId(), host);
 							addressesTemp.add(tempSocketAddress);
 						} else {
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
-									serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+									serverViewController.getStaticConf().getProcessId(), inetSocketAddress);
 							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
-									inetSocketAddress.getConsensusPort(), -1, inetSocketAddress.isSecure()));
+									inetSocketAddress.getConsensusPort(), -1, inetSocketAddress.isConsensusSecure(), false));
 						}
 					}
 

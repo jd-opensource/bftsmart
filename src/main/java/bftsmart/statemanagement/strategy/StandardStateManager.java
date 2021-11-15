@@ -27,7 +27,6 @@ import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.ExecutionManager;
 import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.leaderchange.CertifiedDecision;
-import bftsmart.tom.leaderchange.LeaderRegency;
 import bftsmart.tom.util.TOMUtil;
 import org.slf4j.LoggerFactory;
 
@@ -405,7 +404,7 @@ public class StandardStateManager extends BaseStateManager {
         for (int procId : currentView.getProcesses()) {
             NodeNetwork nodeNetwork = currentView.getAddress(procId);
             if (nodeNetwork != null) {
-            	this.topology.addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort(), nodeNetwork.isSecure());
+            	this.topology.addHostInfo(procId, nodeNetwork.getHost(), nodeNetwork.getConsensusPort(), nodeNetwork.getMonitorPort(), nodeNetwork.isConsensusSecure(), nodeNetwork.isMonitorSecure());
             } else {
                 LOGGER.info("updateHostConfig, find node network is null!");
             }

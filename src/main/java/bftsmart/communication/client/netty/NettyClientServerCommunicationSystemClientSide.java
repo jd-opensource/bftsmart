@@ -40,7 +40,10 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+import javax.net.ssl.SSLEngine;
 
+import bftsmart.util.SSLContextFactory;
+import io.netty.handler.ssl.SslHandler;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.CommunicationSystemClientSide;
@@ -62,6 +65,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.GenericFutureListener;
+import utils.net.SSLMode;
+import utils.net.SSLSecurity;
 
 /**
  *
@@ -92,11 +97,13 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
     private SyncListener listener;
 
+    private SSLSecurity sslSecurity;
+
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(NettyClientServerCommunicationSystemClientSide.class);
 
-    public NettyClientServerCommunicationSystemClientSide(int clientId, ViewTopology controller) {
+    public NettyClientServerCommunicationSystemClientSide(int clientId, ViewTopology controller, SSLSecurity sslSecurity) {
         super();
-
+        this.sslSecurity = sslSecurity;
         this.clientId = clientId;
         // 使用单线程即可，因为对于每个连接具有时序性的要求
         this.workerGroup = new NioEventLoopGroup(DEFAULT_THREAD_SIZE);
@@ -130,7 +137,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     b.option(ChannelOption.TCP_NODELAY, true);
                     b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIME_OUT);
 
-                    b.handler(getChannelInitializer());
+                    b.handler(getChannelInitializer(controller.getRemoteAddress(currV[i]).isConsensusSecure()));
 
                     // Start the client.
                     future = b.connect(controller.getRemoteSocketAddress(currV[i]));
@@ -197,7 +204,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         b.option(ChannelOption.TCP_NODELAY, true);
                         b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIME_OUT);
 
-                        b.handler(getChannelInitializer());
+                        b.handler(getChannelInitializer(controller.getRemoteAddress(currV[i]).isConsensusSecure()));
 
                         // Start the client.
 
@@ -293,8 +300,8 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         b.option(ChannelOption.TCP_NODELAY, true);
                         b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIME_OUT);
 
-                        b.handler(getChannelInitializer());
                         if (controller.getRemoteAddress(ncss.getReplicaId()) != null) {
+                            b.handler(getChannelInitializer(controller.getRemoteAddress(ncss.getReplicaId()).isConsensusSecure()));
                             ChannelFuture future = b.connect(controller.getRemoteSocketAddress(ncss.getReplicaId()));
                             //creates MAC stuff
                             Mac macSend = ncss.getMacSend();
@@ -459,7 +466,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         }
     }
 
-    private ChannelInitializer getChannelInitializer() throws NoSuchAlgorithmException{
+    private ChannelInitializer getChannelInitializer(boolean secure) throws NoSuchAlgorithmException{
 
         Mac macDummy = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
 
@@ -469,6 +476,11 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         ChannelInitializer channelInitializer = new ChannelInitializer<SocketChannel>() {
             @Override
             public void initChannel(SocketChannel ch) throws Exception {
+                if(secure) {
+                    SSLEngine sslEngine = SSLContextFactory.getSSLContext(true, sslSecurity).createSSLEngine();
+                    sslEngine.setUseClientMode(true);
+                    ch.pipeline().addFirst(new SslHandler(sslEngine));
+                }
                 ch.pipeline().addLast(nettyClientPipelineFactory.getDecoder());
                 ch.pipeline().addLast(nettyClientPipelineFactory.getEncoder());
                 ch.pipeline().addLast(nettyClientPipelineFactory.getHandler());

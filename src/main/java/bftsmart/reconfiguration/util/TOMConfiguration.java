@@ -597,6 +597,11 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	}
 
 	@Override
+	public boolean isMonitorSecure(int id) {
+		return hostsConfig.isMonitorSecure(id);
+	}
+
+	@Override
 	public int getServerToServerPort(int id) {
 		return hostsConfig.getServerToServerPort(id);
 	}
@@ -917,8 +922,8 @@ public class TOMConfiguration implements Serializable, ReplicaConfiguration {
 	}
 
 	@Override
-	public void addHostInfo(int id, String host, int port, int monitorPort, boolean secure) {
-		this.hostsConfig.add(id, host, port, monitorPort, secure);
+	public void addHostInfo(int id, String host, int port, int monitorPort, boolean secure, boolean monitorSecure) {
+		this.hostsConfig.add(id, host, port, monitorPort, secure, monitorSecure);
 	}
 
 	@Override

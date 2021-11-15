@@ -9,6 +9,7 @@ public class NullNodeNetwork extends NodeNetwork {
         this.host = null;
         this.consensusPort = -1;
         this.monitorPort = -1;
-        this.secure = false;
+        this.consensusSecure = false;
+        this.monitorSecure = false;
     }
 }

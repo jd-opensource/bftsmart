@@ -5,6 +5,7 @@ import bftsmart.communication.MacKey;
 import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.MessageQueue;
 import bftsmart.reconfiguration.ViewTopology;
+import bftsmart.util.SSLContextFactory;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -18,12 +19,16 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import utils.io.BytesUtils;
+import utils.net.SSLMode;
+import utils.net.SSLSecurity;
 
+import javax.net.ssl.SSLEngine;
 import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
 
@@ -38,11 +43,13 @@ public class NettyOutboundConnection extends AbstractNettyConnection {
 
     private NettyClient communicationClient;
     private MacKeyGenerator macKeyGen;
+    private SSLSecurity sslSecurity;
 
-    public NettyOutboundConnection(String realmName, ViewTopology viewTopology, int remoteId, MessageQueue messageInQueue) {
+    public NettyOutboundConnection(String realmName, ViewTopology viewTopology, int remoteId, MessageQueue messageInQueue, SSLSecurity sslSecurity) {
         super(realmName, viewTopology, remoteId, messageInQueue);
+        this.sslSecurity = sslSecurity;
         this.communicationClient = new NettyClient(viewTopology.getStaticConf().getHost(REMOTE_ID),
-                viewTopology.getStaticConf().getServerToServerPort(REMOTE_ID));
+                viewTopology.getStaticConf().getServerToServerPort(REMOTE_ID), viewTopology.getStaticConf().isSecure(REMOTE_ID));
         this.macKeyGen = new MacKeyGenerator(viewTopology.getStaticConf().getRSAPublicKey(),
                 viewTopology.getStaticConf().getRSAPrivateKey(), viewTopology.getStaticConf().getDHG(),
                 viewTopology.getStaticConf().getDHP());
@@ -67,14 +74,16 @@ public class NettyOutboundConnection extends AbstractNettyConnection {
 
         private String host;
         private int port;
+        private boolean secure;
         private Bootstrap bootstrap;
         private NioEventLoopGroup workerGroup;
         private ChannelFuture future;
         private volatile boolean authorized = false;
 
-        public NettyClient(String host, int port) {
+        public NettyClient(String host, int port, boolean secure) {
             this.host = host;
             this.port = port;
+            this.secure = secure;
 
             workerGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors() * 2);
 
@@ -126,12 +135,23 @@ public class NettyOutboundConnection extends AbstractNettyConnection {
         }
 
         @Override
-        public void initChannel(SocketChannel channel) {
-            channel.pipeline().addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
-                    .addLast("msg decoder", new BytesDecoder())
-                    .addLast(new LengthFieldPrepender(4, 0, false))
-                    .addLast("msg encoder", new BytesEncoder())
-                    .addLast(new NettyInboundHandlerAdapter(this));
+        public void initChannel(SocketChannel channel) throws Exception {
+            if(secure) {
+                SSLEngine sslEngine = SSLContextFactory.getSSLContext(true, sslSecurity).createSSLEngine();
+                sslEngine.setUseClientMode(true);
+                channel.pipeline().addFirst(new SslHandler(sslEngine))
+                        .addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
+                        .addLast("msg decoder", new BytesDecoder())
+                        .addLast(new LengthFieldPrepender(4, 0, false))
+                        .addLast("msg encoder", new BytesEncoder())
+                        .addLast(new NettyInboundHandlerAdapter(this));
+            } else {
+                channel.pipeline().addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
+                        .addLast("msg decoder", new BytesDecoder())
+                        .addLast(new LengthFieldPrepender(4, 0, false))
+                        .addLast("msg encoder", new BytesEncoder())
+                        .addLast(new NettyInboundHandlerAdapter(this));
+            }
         }
 
         @Override

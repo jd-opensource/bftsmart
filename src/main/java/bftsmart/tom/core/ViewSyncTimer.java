@@ -93,27 +93,27 @@ public class ViewSyncTimer {
                     NodeNetwork nodeNetwork = entry.getValue();
                     if (checkNodeNetwork(nodeNetwork)) {
                         if (nodeId == remoteId) {
-                            LOGGER.info("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
+                            LOGGER.info("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork);
                             // 是远端节点的配置信息，则更新本地
                             localViewAddresses.put(nodeId, nodeNetwork);
                         } else if (nodeId != processId) {
                             // 非本地节点，则需要进行判断
                             NodeNetwork localNodeNetwork = localViewAddresses.get(nodeId);
                             if (localNodeNetwork == null) {
-                                LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is NULL !", remoteId, nodeId, nodeNetwork.toUrl());
+                                LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is NULL !", remoteId, nodeId, nodeNetwork);
                                 // 若本地不存在该配置，则更新
                                 localViewAddresses.put(nodeId, nodeNetwork);
                             } else {
                                 // 判断本地配置是否合法
                                 if (!checkNodeNetwork(localNodeNetwork)) {
-                                    LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is illegal !", remoteId, nodeId, nodeNetwork.toUrl());
+                                    LOGGER.info("Receive remote[{}]'s view message, update node[{}]'s network = [{}] because local is illegal !", remoteId, nodeId, nodeNetwork);
                                     // 本地不合法，表示本地配置信息不合法，可以更新
                                     localViewAddresses.put(nodeId, nodeNetwork);
                                 }
                             }
                         }
                     } else {
-                        LOGGER.warn("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork.toUrl());
+                        LOGGER.warn("Receive remote[{}]'s view message, node[{}]'s network = [{}] !", remoteId, nodeId, nodeNetwork);
                     }
                 }
 

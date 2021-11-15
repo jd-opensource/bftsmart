@@ -35,6 +35,7 @@ import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.TOMUtil;
 import utils.codec.Base58Utils;
 import utils.exception.ViewObsoleteException;
+import utils.net.SSLSecurity;
 
 /**
  * This class implements a TOMSender and represents a proxy to be used on the
@@ -64,72 +65,8 @@ public class ServiceProxy extends TOMSender {
 	private boolean viewObsolete = false;
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ServiceProxy.class);
 
-//	/**
-//	 * Constructor
-//	 *
-//	 * @see bellow
-//	 */
-//	public ServiceProxy(int processId) {
-//		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
-//	}
-//
-//	/**
-//	 * Constructor
-//	 *
-//	 * @see bellow
-//	 */
-//	public ServiceProxy(int processId, String configHome) {
-//		this(processId, "config/system.config", "config/hosts.config", "config", null, null);
-//	}
-
-	/**
-	 * Constructor
-	 *
-	 * @param processId
-	 *            Process id for this client (should be different from replicas)
-	 * @param configHome
-	 *            Configuration directory for BFT-SMART
-	 * @param replyComparator
-	 *            used for comparing replies from different servers to extract one
-	 *            returned by f+1
-	 * @param replyExtractor
-	 *            used for extracting the response from the matching quorum of
-	 *            replies
-	 */
-//	public ServiceProxy(int processId, String systemConfigFile, String hostsConfigFile, String keystoreHome, Comparator<byte[]> replyComparator,
-//			Extractor replyExtractor) {
-//		this(new TOMConfiguration(processId,systemConfigFile, hostsConfigFile, keystoreHome), replyComparator, replyExtractor);
-//		
-////		if (configHome == null) {
-////			init(processId);
-////		} else {
-////			init(processId, configHome);
-////		}
-////
-////		replies = new TOMMessage[getViewManager().getCurrentViewN()];
-////
-////		comparator = (replyComparator != null) ? replyComparator : new Comparator<byte[]>() {
-////			@Override
-////			public int compare(byte[] o1, byte[] o2) {
-////				return Arrays.equals(o1, o2) ? 0 : -1;
-////			}
-////		};
-////
-////		extractor = (replyExtractor != null) ? replyExtractor : new Extractor() {
-////
-////			@Override
-////			public TOMMessage extractResponse(TOMMessage[] replies, int sameContent, int lastReceived) {
-////				return replies[lastReceived];
-////			}
-////		};
-//	}
-	
-	public ServiceProxy(TOMConfiguration config, Comparator<byte[]> replyComparator, Extractor replyExtractor) {
-		this(config, null, replyComparator, replyExtractor);
-	}
-
-	public ServiceProxy(TOMConfiguration config, ViewStorage viewStorage, Comparator<byte[]> replyComparator, Extractor replyExtractor) {
-		init(config, viewStorage);
+	public ServiceProxy(TOMConfiguration config, ViewStorage viewStorage, Comparator<byte[]> replyComparator, Extractor replyExtractor, SSLSecurity sslSecurity) {
+		init(config, viewStorage, sslSecurity);
 
 		replies = new TOMMessage[getViewManager().getCurrentViewN()];
 

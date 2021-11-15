@@ -10,7 +10,7 @@ public interface NettyChannelHandler {
      *
      * @param channel
      */
-    void initChannel(SocketChannel channel);
+    void initChannel(SocketChannel channel) throws Exception ;
 
     /**
      * 连接成功

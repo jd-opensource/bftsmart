@@ -31,7 +31,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 
 import javax.crypto.Mac;
+import javax.net.ssl.SSLEngine;
 
+import bftsmart.tom.ReplicaConfiguration;
+import bftsmart.util.SSLContextFactory;
+import io.netty.handler.ssl.SslHandler;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
@@ -51,6 +55,8 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import utils.net.SSLMode;
+import utils.net.SSLSecurity;
 
 /**
  *
@@ -75,13 +81,19 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			.getLogger(NettyClientServerCommunicationSystemServerSide.class);
 
 	public NettyClientServerCommunicationSystemServerSide(ViewTopology controller) {
+		this(controller, new SSLSecurity());
+	}
+
+	public NettyClientServerCommunicationSystemServerSide(ViewTopology controller, SSLSecurity sslSecurity) {
 		try {
 			this.controller = controller;
 			sessionTable = new ConcurrentHashMap<>();
 			rl = new ReentrantReadWriteLock();
+			ReplicaConfiguration staticConf = controller.getStaticConf();
+			int processId = staticConf.getProcessId();
 
 			// Configure the server.
-			Mac macDummy = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
+			Mac macDummy = Mac.getInstance(staticConf.getHmacAlgorithm());
 
 			serverPipelineFactory = new NettyServerPipelineFactory(this, sessionTable, macDummy.getMacLength(),
 					controller, rl, TOMUtil.getSignatureSize(controller));
@@ -96,40 +108,55 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 
 			ServerBootstrap b = new ServerBootstrap();
 			b.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-					.childHandler(new ChannelInitializer<SocketChannel>() {
-						@Override
-						public void initChannel(SocketChannel ch) throws Exception {
-							ch.pipeline().addLast(serverPipelineFactory.getDecoder());
-							ch.pipeline().addLast(serverPipelineFactory.getEncoder());
-							ch.pipeline().addLast(serverPipelineFactory.getHandler());
-						}
-					}).childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.SO_REUSEADDR, true)
+					.childHandler(new ServerChannelInitializer(staticConf.isSecure(processId), sslSecurity))
+					.childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.SO_REUSEADDR, true)
 					.childOption(ChannelOption.TCP_NODELAY, true);
-
 			// Bind and start to accept incoming connections.
 			ChannelFuture f = b.bind(
-					new InetSocketAddress(controller.getStaticConf().getHost(controller.getStaticConf().getProcessId()),
-							controller.getStaticConf().getPort(controller.getStaticConf().getProcessId())))
-					.sync();
+					new InetSocketAddress(staticConf.getHost(processId), staticConf.getPort(processId))).sync();
 
-			LOGGER.info("-- ID = {}", controller.getStaticConf().getProcessId());
+			LOGGER.info("-- secure = {}", staticConf.isSecure(processId));
+			LOGGER.info("-- ID = {}", processId);
 			LOGGER.info("-- N = {}", controller.getCurrentViewN());
 			LOGGER.info("-- F = {}", controller.getCurrentViewF());
-			LOGGER.info("-- Port = {}", controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
-			LOGGER.info("-- requestTimeout = {}", controller.getStaticConf().getRequestTimeout());
-			LOGGER.info("-- maxBatch = {}", controller.getStaticConf().getMaxBatchSize());
-			if (controller.getStaticConf().isUseMACs())
+			LOGGER.info("-- Port = {}", staticConf.getPort(processId));
+			LOGGER.info("-- requestTimeout = {}", staticConf.getRequestTimeout());
+			LOGGER.info("-- maxBatch = {}", staticConf.getMaxBatchSize());
+			if (staticConf.isUseMACs())
 				LOGGER.info("-- Using MACs");
-			if (controller.getStaticConf().isUseSignatures())
+			if (staticConf.isUseSignatures())
 				LOGGER.info("-- Using Signatures");
 			// ******* EDUARDO END **************//
 
 			mainChannel = f.channel();
 
 		} catch (Throwable ex) {
-			ex.printStackTrace();
-			LOGGER.error("[NettyClientServerCommunicationSystemServerSide] start exception!");
+			LOGGER.error("[NettyClientServerCommunicationSystemServerSide] start exception!", ex);
 			throw new RuntimeException("[NettyClientServerCommunicationSystemServerSide] exception.", ex);
+		}
+	}
+
+	private class ServerChannelInitializer extends ChannelInitializer<SocketChannel> {
+
+		private boolean secure;
+		private SSLSecurity sslSecurity;
+
+		public ServerChannelInitializer(boolean secure, SSLSecurity sslSecurity) {
+			this.secure = secure;
+			this.sslSecurity = sslSecurity;
+		}
+
+		@Override
+		protected void initChannel(SocketChannel ch) throws Exception {
+			if(secure) {
+				SSLEngine sslEngine = SSLContextFactory.getSSLContext(false, sslSecurity).createSSLEngine();
+				sslEngine.setUseClientMode(false);
+				sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
+				ch.pipeline().addFirst(new SslHandler(sslEngine));
+			}
+			ch.pipeline().addLast(serverPipelineFactory.getDecoder());
+			ch.pipeline().addLast(serverPipelineFactory.getEncoder());
+			ch.pipeline().addLast(serverPipelineFactory.getHandler());
 		}
 	}
 
@@ -176,7 +203,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 		else if (cause instanceof ConnectException) {
 			LOGGER.error("Impossible to connect to client.");
 		} else {
-			cause.printStackTrace(System.err);
+			LOGGER.error("exceptionCaught", cause);
 		}
 	}
 

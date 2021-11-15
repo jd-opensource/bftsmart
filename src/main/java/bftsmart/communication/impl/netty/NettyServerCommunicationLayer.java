@@ -6,6 +6,7 @@ import bftsmart.communication.MacKeyGenerator;
 import bftsmart.communication.impl.AbstractCommunicationLayer;
 import bftsmart.communication.impl.MessageConnection;
 import bftsmart.reconfiguration.ViewTopology;
+import bftsmart.util.SSLContextFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -18,12 +19,16 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import utils.io.BytesUtils;
+import utils.net.SSLMode;
+import utils.net.SSLSecurity;
 
+import javax.net.ssl.SSLEngine;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
@@ -42,9 +47,15 @@ public class NettyServerCommunicationLayer extends AbstractCommunicationLayer {
     private Map<String, Integer> connectionAddresses = new HashMap<>();
     private Map<Integer, NettyInboundConnection> inboundConnections = new HashMap<>();
     private MacKeyGenerator macKeyGen;
+    private SSLSecurity sslSecurity;
 
     public NettyServerCommunicationLayer(String realmName, ViewTopology topology) {
+        this(realmName, topology, new SSLSecurity());
+    }
+
+    public NettyServerCommunicationLayer(String realmName, ViewTopology topology, SSLSecurity sslSecurity) {
         super(realmName, topology);
+        this.sslSecurity = sslSecurity;
         this.macKeyGen = new MacKeyGenerator(topology.getStaticConf().getRSAPublicKey(),
                 topology.getStaticConf().getRSAPrivateKey(), topology.getStaticConf().getDHG(),
                 topology.getStaticConf().getDHP());
@@ -70,7 +81,7 @@ public class NettyServerCommunicationLayer extends AbstractCommunicationLayer {
 
     @Override
     protected MessageConnection connectOutbound(int remoteId) {
-        return new NettyOutboundConnection(realmName, topology, remoteId, messageInQueue);
+        return new NettyOutboundConnection(realmName, topology, remoteId, messageInQueue, sslSecurity);
     }
 
     @Override
@@ -134,12 +145,24 @@ public class NettyServerCommunicationLayer extends AbstractCommunicationLayer {
         }
 
         @Override
-        public void initChannel(SocketChannel channel) {
-            channel.pipeline().addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
-                    .addLast("msg decoder", new BytesDecoder())
-                    .addLast(new LengthFieldPrepender(4, 0, false))
-                    .addLast("msg encoder", new BytesEncoder())
-                    .addLast(new NettyInboundHandlerAdapter(this));
+        public void initChannel(SocketChannel channel) throws Exception {
+            if(topology.getStaticConf().isSecure(me)) {
+                SSLEngine sslEngine = SSLContextFactory.getSSLContext(false, sslSecurity).createSSLEngine();
+                sslEngine.setUseClientMode(false);
+                sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
+                channel.pipeline().addFirst(new SslHandler(sslEngine))
+                        .addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
+                        .addLast("msg decoder", new BytesDecoder())
+                        .addLast(new LengthFieldPrepender(4, 0, false))
+                        .addLast("msg encoder", new BytesEncoder())
+                        .addLast(new NettyInboundHandlerAdapter(this));
+            } else {
+                channel.pipeline().addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
+                        .addLast("msg decoder", new BytesDecoder())
+                        .addLast(new LengthFieldPrepender(4, 0, false))
+                        .addLast("msg encoder", new BytesEncoder())
+                        .addLast(new NettyInboundHandlerAdapter(this));
+            }
         }
 
         @Override

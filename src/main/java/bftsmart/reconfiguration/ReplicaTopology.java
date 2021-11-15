@@ -12,7 +12,7 @@ public interface ReplicaTopology extends ViewTopology{
 
 	
 	@Deprecated
-	void addHostInfo(int procId, String host, int consensusPort, int monitorPort, boolean secure);
+	void addHostInfo(int procId, String host, int consensusPort, int monitorPort, boolean secure, boolean monitorSecure);
 
 	@Deprecated
 	void reconfigureTo(View currentView);

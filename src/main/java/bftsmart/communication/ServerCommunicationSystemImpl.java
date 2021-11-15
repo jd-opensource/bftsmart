@@ -20,10 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.ClientCommunicationServerSide;
 import bftsmart.communication.impl.MessageListener;
-import bftsmart.communication.impl.socket.SocketServerCommunicationLayer;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.ViewTopology;
-import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.ViewMessage;
 import bftsmart.tom.leaderchange.HeartBeatMessage;
@@ -33,6 +31,7 @@ import bftsmart.tom.leaderchange.LeaderResponseMessage;
 import bftsmart.tom.leaderchange.LeaderStatusRequestMessage;
 import utils.concurrent.AsyncFuture;
 import utils.concurrent.CompletableAsyncFuture;
+import utils.net.SSLSecurity;
 
 /**
  *
@@ -53,12 +52,17 @@ public class ServerCommunicationSystemImpl implements ServerCommunicationSystem 
 	 * Creates a new instance of ServerCommunicationSystem
 	 */
 	public ServerCommunicationSystemImpl(ClientCommunicationServerSide clientCommunication,
-			MessageHandler messageHandler, ServerViewController controller, String realmName) throws Exception {
+										 MessageHandler messageHandler, ServerViewController controller, String realmName) {
+		this(clientCommunication, messageHandler, controller, realmName, new SSLSecurity());
+	}
+
+	public ServerCommunicationSystemImpl(ClientCommunicationServerSide clientCommunication,
+										 MessageHandler messageHandler, ServerViewController controller, String realmName, SSLSecurity sslSecurity) {
 		this.clientCommunication = clientCommunication;
 		this.messageHandler = messageHandler;
 		this.controller = controller;
 
-		this.serversCommunication = new NettyServerCommunicationLayer(realmName, controller);
+		this.serversCommunication = new NettyServerCommunicationLayer(realmName, controller, sslSecurity);
 
 		// 创建消息处理器
 		// 遍历枚举类

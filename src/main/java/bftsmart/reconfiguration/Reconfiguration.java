@@ -19,6 +19,7 @@ import bftsmart.tom.ServiceProxy;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.BytesUtils;
 import bftsmart.tom.util.TOMUtil;
+import utils.net.NetworkAddress;
 
 /**
  *
@@ -35,9 +36,8 @@ public class Reconfiguration {
         this.proxy = serviceProxy;
     }
     
-    
-    public void addServer(int id, String ip, int port){
-        this.setReconfiguration(ServerViewController.ADD_SERVER, id + ":" + ip + ":" + port);
+    public void addServer(int id, NetworkAddress address){
+        this.setReconfiguration(ServerViewController.ADD_SERVER, id + ":" + address.getHost() + ":" + address.getPort() + ":" + address.isSecure());
     }
     
     public void removeServer(int id){

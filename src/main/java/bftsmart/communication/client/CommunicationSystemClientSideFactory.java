@@ -17,6 +17,7 @@ package bftsmart.communication.client;
 
 import bftsmart.communication.client.netty.NettyClientServerCommunicationSystemClientSide;
 import bftsmart.reconfiguration.ClientViewController;
+import utils.net.SSLSecurity;
 
 /**
  *
@@ -24,7 +25,7 @@ import bftsmart.reconfiguration.ClientViewController;
  */
 public class CommunicationSystemClientSideFactory {
 
-    public static CommunicationSystemClientSide getCommunicationSystemClientSide(int clientId, ClientViewController controller) {
-        return new NettyClientServerCommunicationSystemClientSide(clientId, controller);
+    public static CommunicationSystemClientSide getCommunicationSystemClientSide(int clientId, ClientViewController controller, SSLSecurity sslSecurity) {
+        return new NettyClientServerCommunicationSystemClientSide(clientId, controller, sslSecurity);
     }
 }
