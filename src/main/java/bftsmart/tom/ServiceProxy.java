@@ -212,7 +212,7 @@ public class ServiceProxy extends TOMSender {
 			} catch (ViewObsoleteException voe) {
 				throw voe;
 			} catch (Exception ex) {
-				ex.printStackTrace();
+				LOGGER.error("exception", ex);
 			}
 
 			LOGGER.debug("Response extracted {}", response);
@@ -280,8 +280,7 @@ public class ServiceProxy extends TOMSender {
 			}
 			return ret;
 		} catch (Exception e) {
-			e.printStackTrace();
-			LOGGER.error("[ServiceProxy] invoke exception occur! error = {}", e.getMessage());
+			LOGGER.error("[ServiceProxy] invoke exception occur!", e);
 			throw e;
 		} finally {
 			canSendLock.unlock();
@@ -421,8 +420,7 @@ public class ServiceProxy extends TOMSender {
 				LOGGER.info("Ignoring reply from {} with reqId {}. Currently wait reqId {}", reply.getSender(), reply.getSequence(), reqId);
 			}
 		} catch (Exception ex) {
-			LOGGER.error("Problem at ServiceProxy.ReplyReceived()");
-			ex.printStackTrace();
+			LOGGER.error("Problem at ServiceProxy.ReplyReceived()", ex);
 		} finally {
 			canReceiveLock.unlock();
 		}
@@ -468,7 +466,7 @@ public class ServiceProxy extends TOMSender {
 				try {
 					hashReplies[pos] = TOMUtil.computeHash(tomMessage.getContent());
 				} catch (NoSuchAlgorithmException e) {
-					e.printStackTrace();
+					LOGGER.error("hash exception", e);
 				}
 			} else {
 				hashReplies[pos] = tomMessage.getContent();
