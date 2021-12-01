@@ -397,8 +397,8 @@ public class ServiceReplica {
 			for (TOMMessage request : requestsFromConsensus) {
 
 				LOGGER.debug(
-						"(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}, request = {}",
-						request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount], Base58Utils.encode(request.getContent()));
+						"(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}",
+						request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount]);
 
 				LOGGER.info(
 						"(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}",

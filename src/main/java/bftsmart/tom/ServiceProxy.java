@@ -228,7 +228,7 @@ public class ServiceProxy extends TOMSender {
 			replyServer = -1;
 			hashResponseController = null;
 
-			LOGGER.info("Before Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
+//			LOGGER.info("Before Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
 
 			if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 
@@ -247,7 +247,7 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.info("After Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
+//			LOGGER.info("After Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}, request = {}", reqType, reqId, operationId, getProcessId(), this.hashCode(), Base58Utils.encode(request));
 
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
@@ -265,7 +265,7 @@ public class ServiceProxy extends TOMSender {
 						LOGGER.error("###################TIMEOUT#######################");
 						LOGGER.error("Reply timeout for reqId is {}", reqId);
 						LOGGER.error("Process id {} // req id {} // TIMEOUT // ", getProcessId(), reqId);
-						LOGGER.error("Reply timeout for request {}", Base58Utils.encode(request));
+//						LOGGER.error("Reply timeout for request {}", Base58Utils.encode(request));
 						LOGGER.error("Replies received: {}", receivedReplies);
 						LOGGER.error("Replies quorum: {}", replyQuorum);
 						checkReplyNum(reqType, receivedReplies, replyQuorum);
@@ -285,7 +285,7 @@ public class ServiceProxy extends TOMSender {
 			if (response == null) {
 				// the response can be null if n-f replies are received but there isn't
 				// a replyQuorum of matching replies
-				LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {}, request = {} !", request.length, reqType, Base58Utils.encode(request));
+				LOGGER.error("Received n-f replies and no response could be extracted. request.length = {}, type = {} !", request.length, reqType);
 
 //				if (reqType == TOMMessageType.UNORDERED_REQUEST || reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 //					// invoke the operation again, whitout the read-only flag
