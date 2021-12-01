@@ -54,7 +54,6 @@ import bftsmart.tom.server.RequestVerifier;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BatchBuilder;
 import bftsmart.tom.util.BatchReader;
-import utils.codec.Base58Utils;
 
 /**
  * This class implements the state machine replication protocol described in
@@ -335,8 +334,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		} else {
 			if(LOGGER.isDebugEnabled()) {
 				LOGGER.debug(
-						"(TOMLayer.requestReceived) Received TOMMessage from client {} with sequence number {} for session {}, request = {}",
-						msg.getSender(), msg.getSequence(), msg.getSession(), Base58Utils.encode(msg.getContent()));
+						"(TOMLayer.requestReceived) Received TOMMessage from client {} with sequence number {} for session {}",
+						msg.getSender(), msg.getSequence(), msg.getSession());
 			}
 			if (clientsManager.requestReceived(msg, true, communication)) {
 				haveMessages();
