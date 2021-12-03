@@ -136,7 +136,7 @@ public class ServiceReplica {
 	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, long lastCid,
                           View lastView, String realName) {
 		this(messageHandler, cs, new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
-				new DefaultReplier(), lastCid, realName);
+				new DefaultReplier(), (int) lastCid, realName, null);
 	}
 
 	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
@@ -697,7 +697,7 @@ public class ServiceReplica {
 							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
 
 							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
-									-1);
+									-1, inetSocketAddress.isConsensusSecure(), false);
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 									serverViewController.getStaticConf().getProcessId(), host);
 							addressesTemp.add(tempSocketAddress);
@@ -705,7 +705,7 @@ public class ServiceReplica {
 							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
 									serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toString());
 							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
-									inetSocketAddress.getConsensusPort(), -1));
+									inetSocketAddress.getConsensusPort(), -1, inetSocketAddress.isConsensusSecure(), false));
 						}
 					}
 
