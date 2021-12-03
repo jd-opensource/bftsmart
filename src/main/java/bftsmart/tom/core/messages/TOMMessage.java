@@ -18,7 +18,14 @@ package bftsmart.tom.core.messages;
 import bftsmart.communication.SystemMessage;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.Externalizable;
+import java.io.IOException;
 
 /**
  * This class represents a total ordered message
@@ -39,6 +46,8 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 	private int operationId; // Sequence number defined by the client
 
 	private byte[] content = null; // Content of the message
+
+	private byte[] viewContent = null; // Content of the view
 
 	//the fields bellow are not serialized!!!
 	private transient int id; // ID for this message. It should be unique
@@ -104,7 +113,7 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 	 * @param view The view in which the message was sent
 	 * @param type Ordered or Unordered request
 	 */
-	public TOMMessage(int sender, int session, int sequence, int operationId, byte[] content, int view, TOMMessageType type) {
+	public TOMMessage(int sender, int session, int sequence, int operationId, byte[] content, byte[] viewContent, int view, TOMMessageType type) {
 		super(sender);
 		this.session = session;
 		this.sequence = sequence;
@@ -112,6 +121,7 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 		this.viewID = view;
 		buildId();
 		this.content = content;
+		this.viewContent = viewContent;
 		this.type = type;
 	}
 
@@ -159,6 +169,10 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 	 */
 	public byte[] getContent() {
 		return content;
+	}
+
+	public byte[] getViewContent() {
+		return viewContent;
 	}
 
 	/**
@@ -212,6 +226,12 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 			out.writeInt(content.length);
 			out.write(content);
 		}
+		if (viewContent == null) {
+			out.writeInt(-1);
+		} else {
+			out.writeInt(viewContent.length);
+			out.write(viewContent);
+		}
 	}
 
 	public void rExternal(DataInput in) throws IOException, ClassNotFoundException {
@@ -227,6 +247,12 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 		if (toRead != -1) {
 			content = new byte[toRead];
 			in.readFully(content);
+		}
+
+		int toReadView = in.readInt();
+		if (toReadView != -1) {
+			viewContent = new byte[toReadView];
+			in.readFully(viewContent);
 		}
 
 		buildId();

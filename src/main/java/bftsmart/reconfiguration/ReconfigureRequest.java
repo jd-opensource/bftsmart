@@ -30,6 +30,7 @@ public class ReconfigureRequest implements Externalizable{
 
     private int sender;
     private Hashtable<Integer,String> properties = new Hashtable<Integer,String>();
+    private byte[] extendInfo;
     private byte[] signature;
     
     
@@ -46,6 +47,14 @@ public class ReconfigureRequest implements Externalizable{
 
     public byte[] getSignature() {
         return signature;
+    }
+
+    public void setExtendInfo(byte[] extendInfo) {
+        this.extendInfo = extendInfo;
+    }
+
+    public byte[] getExtendInfo() {
+        return extendInfo;
     }
 
     public Hashtable<Integer, String> getProperties() {
@@ -78,10 +87,19 @@ public class ReconfigureRequest implements Externalizable{
             out.writeUTF(value);
         }
         
-        
-        out.writeInt(signature.length);
-        out.write(signature);
-       
+        if (signature == null) {
+            out.writeInt(-1);
+        } else {
+            out.writeInt(signature.length);
+            out.write(signature);
+        }
+
+        if (extendInfo == null) {
+            out.writeInt(-1);
+        } else {
+            out.writeInt(extendInfo.length);
+            out.write(extendInfo);
+        }
     }
 
      
@@ -96,10 +114,18 @@ public class ReconfigureRequest implements Externalizable{
             String value = in.readUTF();
             properties.put(key, value);
         }
-        
-        this.signature = new byte[in.readInt()];
-        in.read(this.signature);
-        
+
+        int signatureLen = in.readInt();
+        if (signatureLen != -1) {
+            this.signature = new byte[signatureLen];
+            in.read(this.signature);
+        }
+        int extendInfoLen = in.readInt();
+        if (extendInfoLen != -1) {
+            this.extendInfo = new byte[extendInfoLen];
+            in.read(this.extendInfo);
+        }
+
     }
     
     

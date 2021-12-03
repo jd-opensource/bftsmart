@@ -83,9 +83,9 @@ public class MessageContext implements Serializable {
      * @param noOp 
      */
     public MessageContext(int sender, int viewID, TOMMessageType type,
-            int session, int sequence, int operationId, int replyServer, byte[] signature,
-            long timestamp, int numOfNonces, long seed, int regency, int leader, int consensusId,
-            Set<ConsensusMessage> proof, TOMMessage firstInBatch, boolean noOp) {
+                          int session, int sequence, int operationId, int replyServer, byte[] signature,
+                          long timestamp, int numOfNonces, long seed, int regency, int leader, int consensusId,
+                          Set<ConsensusMessage> proof, TOMMessage firstInBatch, boolean noOp) {
         
         this.nonces = null;
                
@@ -239,7 +239,7 @@ public class MessageContext implements Serializable {
      */
     public TOMMessage recreateTOMMessage(byte[] content) {
 
-        TOMMessage ret = new TOMMessage(sender, session, sequence, operationId, content, viewID, type);
+        TOMMessage ret = new TOMMessage(sender, session, sequence, operationId, content, null, viewID, type);
         ret.setReplyServer(replyServer);
         ret.serializedMessageSignature = signature;
         ret.serializedMessage = TOMMessage.messageToBytes(ret);

@@ -446,7 +446,7 @@ public class StandardStateManager extends BaseStateManager {
         return match;
     }
 
-	@Override
+    @Override
 	public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I am proc {}, I will handle currentConsensusIdAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
 
@@ -461,7 +461,7 @@ public class StandardStateManager extends BaseStateManager {
             LOGGER.info("################State Transfer Requester View Is Obsolete, If Block Exist Diff, Please Requester Copy Ledger Database And Restart!#####################");
             LOGGER.info("#######################################################################################################################################################");
         }
-		int me = topology.getStaticConf().getProcessId();
+		int me = topology.getCurrentProcessId();
 		int lastConsensusId = tomLayer.getLastExec();
 		LOGGER.info("I am proc {}, will send consensusId = {} !", tomLayer.getCurrentProcessId(), lastConsensusId);
 		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.topology.getCurrentView(), 0, 0);

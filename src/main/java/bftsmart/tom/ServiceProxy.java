@@ -15,16 +15,6 @@ limitations under the License.
  */
 package bftsmart.tom;
 
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Random;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
-
-import org.slf4j.LoggerFactory;
-
 import bftsmart.reconfiguration.ReconfigureReply;
 import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.reconfiguration.views.View;
@@ -33,9 +23,18 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import bftsmart.tom.util.Extractor;
 import bftsmart.tom.util.TOMUtil;
+import org.slf4j.LoggerFactory;
 import utils.codec.Base58Utils;
 import utils.exception.ViewObsoleteException;
 import utils.net.SSLSecurity;
+
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Random;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class implements a TOMSender and represents a proxy to be used on the
@@ -175,7 +174,7 @@ public class ServiceProxy extends TOMSender {
 				hashResponseController = new HashResponseController(getViewManager().getCurrentViewPos(replyServer),
 						getViewManager().getCurrentViewProcesses().length);
 
-				TOMMessage sm = new TOMMessage(getProcessId(), getSession(), reqId, operationId, request,
+				TOMMessage sm = new TOMMessage(getProcessId(), getSession(), reqId, operationId, request, null,
 						getViewManager().getCurrentViewId(), requestType);
 				sm.setReplyServer(replyServer);
 
@@ -241,11 +240,16 @@ public class ServiceProxy extends TOMSender {
 					if (response.getViewID() == getViewManager().getCurrentViewId()) {
 						ret = response.getContent(); // return the response
 					} else {// if(response.getViewID() > getViewManager().getCurrentViewId())
-						// updated view received
-						reconfigureTo((View) TOMUtil.getObject(response.getContent()));
+						// Request with backward viewid, still up chain by server node, but proxy client need update local view according to response view
+						LOGGER.warn("Service proxy view id little than service replica view id, will update local view!");
+						if (response.getViewContent() != null) {
+							reconfigureTo((View) TOMUtil.getObject(response.getViewContent()));
+						}
+						ret = response.getContent();
 
-						LOGGER.warn("Service proxy view id little than service replica view id, will re invoke request!");
-						return invoke(request, reqType);
+//						LOGGER.warn("Service proxy view id little than service replica view id, will re invoke request!");
+//						return invoke(request, reqType);
+
 					}
 				} else if (reqType == TOMMessageType.UNORDERED_REQUEST
 						|| reqType == TOMMessageType.UNORDERED_HASHED_REQUEST) {

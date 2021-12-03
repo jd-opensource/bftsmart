@@ -27,13 +27,10 @@ import bftsmart.tom.server.Recoverable;
 import bftsmart.tom.server.SingleExecutable;
 import org.slf4j.LoggerFactory;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 
 /**
  * This class provides a basic state transfer protocol using the interface
@@ -96,7 +93,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 	        if ((cid > 0) && ((cid % checkpointPeriod) == 0)) {
 	           LOGGER.debug("(DefaultSingleRecoverable.executeOrdered) Performing checkpoint for consensus {}", cid);
 	            stateLock.lock();
-	            byte[] snapshot = getSnapshot();
+	            byte[] snapshot = getCheckPointSnapshot(cid);
 	            stateLock.unlock();
 	            saveState(snapshot, cid);
 	        } else {
@@ -222,7 +219,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
                 try {
                     LOGGER.debug("(DurabilityCoordinator.setState) interpreting and verifying batched requests for CID {}", cid);
 
-                    CommandsInfo cmdInfo = state.getMessageBatch(cid); 
+                    CommandsInfo cmdInfo = state.getMessageBatch(cid);
                     byte[][] cmds = cmdInfo.commands; // take a batch
                     MessageContext[] msgCtxs = cmdInfo.msgCtx;
                     
@@ -251,28 +248,29 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     }
 
     @Override
-    public void initContext(ReplicaContext replicaContext) {
+    public void initContext(ReplicaContext replicaContext, long lastCid) {
         this.replicaContext = replicaContext;
         this.config = replicaContext.getStaticConfiguration();
         this.controller = replicaContext.getSVController();
 
         if (log == null) {
             checkpointPeriod = config.getCheckpointPeriod();
-            byte[] state = getSnapshot();
             if (config.isToLog() && config.isLoggingToDisk()) {
                 int replicaId = config.getProcessId();
                 boolean isToLog = config.isToLog();
                 boolean syncLog = config.isToWriteSyncLog();
                 boolean syncCkp = config.isToWriteSyncCkp();
-                log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName, controller);
-
+                log = new DiskStateLog(replicaId, null,null, isToLog, syncLog, syncCkp, this.realName, controller);
                 int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
+
+                byte[] state = getCheckPointSnapshot(log.getLastCheckpointCID());
+
                 if (logLastConsensusId > 0) {
 //                    setState(storedState);
                     getStateManager().setLastCID(logLastConsensusId);
                 }
             } else {
-                log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
+                log = new StateLog(this.config.getProcessId(), checkpointPeriod, null, null);
             }
         }
         getStateManager().askCurrentConsensusId();
@@ -293,15 +291,18 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
     private void initLog() {
     	if(log == null) {
     		checkpointPeriod = config.getCheckpointPeriod();
-            byte[] state = getSnapshot();
             if(config.isToLog() && config.isLoggingToDisk()) {
             	int replicaId = config.getProcessId();
             	boolean isToLog = config.isToLog();
             	boolean syncLog = config.isToWriteSyncLog();
             	boolean syncCkp = config.isToWriteSyncCkp();
-            	log = new DiskStateLog(replicaId, state, computeHash(state), isToLog, syncLog, syncCkp, this.realName, controller);
+            	log = new DiskStateLog(replicaId, null, null, isToLog, syncLog, syncCkp, this.realName, controller);
+            	((DiskStateLog) log).loadDurableState();
+                byte[] state = getCheckPointSnapshot(log.getLastCheckpointCID());
+                log.setState(state);
+                log.setStateHash(computeHash(state));
             } else
-            	log = new StateLog(controller.getStaticConf().getProcessId(), checkpointPeriod, state, computeHash(state));
+            	log = new StateLog(controller.getStaticConf().getProcessId(), checkpointPeriod, null, null);
     	}
     }
     
@@ -332,7 +333,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 
     public abstract void installSnapshot(byte[] state);
     
-    public abstract byte[] getSnapshot();
+    public abstract byte[] getCheckPointSnapshot(int cid);
     
     public abstract byte[] appExecuteOrdered(byte[] command, MessageContext msgCtx);
     

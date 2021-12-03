@@ -15,12 +15,6 @@ limitations under the License.
 */
 package bftsmart.tom;
 
-import java.io.Closeable;
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 import bftsmart.communication.client.CommunicationSystemClientSide;
 import bftsmart.communication.client.CommunicationSystemClientSideFactory;
 import bftsmart.communication.client.ReplyReceiver;
@@ -30,6 +24,12 @@ import bftsmart.reconfiguration.views.ViewStorage;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.core.messages.TOMMessageType;
 import utils.net.SSLSecurity;
+
+import java.io.Closeable;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class is used to multicast messages to replicas and receive replies.
@@ -112,7 +112,7 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 
 	public void TOMulticast(byte[] m, int reqId, int operationId, TOMMessageType reqType) {
 		cs.send(useSignatures, viewController.getCurrentViewProcesses(),
-				new TOMMessage(me, session, reqId, operationId, m, viewController.getCurrentViewId(),
+				new TOMMessage(me, session, reqId, operationId, m, null, viewController.getCurrentViewId(),
 						reqType));
 	}
 
@@ -123,7 +123,7 @@ public abstract class TOMSender implements ReplyReceiver, Closeable, AutoCloseab
 //			type = TOMMessageType.ASK_STATUS;
 //		}
 		cs.send(useSignatures, targets,
-				new TOMMessage(me, session, reqId, operationId, m, viewController.getCurrentViewId(), type));
+				new TOMMessage(me, session, reqId, operationId, m, null, viewController.getCurrentViewId(), type));
 	}
 
 	public int getSession(){
