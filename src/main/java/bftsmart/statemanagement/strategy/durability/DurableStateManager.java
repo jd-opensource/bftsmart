@@ -432,7 +432,7 @@ public class DurableStateManager extends BaseStateManager {
 	}
 
 	@Override
-	public void askTransactionReplay(int startCid, int endCid, int target) {
+	public void askTransactionReplay(int startCid, int endCid) {
 
 	}
 

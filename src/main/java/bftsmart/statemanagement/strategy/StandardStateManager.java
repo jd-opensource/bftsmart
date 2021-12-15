@@ -43,9 +43,7 @@ public class StandardStateManager extends BaseStateManager {
     private int replica;
     private ReentrantLock lockTimer = new ReentrantLock();
     private Timer stateTimer = null;
-    private final static long INIT_TIMEOUT = 40000;
-    private long timeout = INIT_TIMEOUT;
-    
+
     //private LCManager lcManager;
     private ExecutionManager execManager;
 
@@ -151,6 +149,9 @@ public class StandardStateManager extends BaseStateManager {
         isInitializing = true;
         if (stateTimer != null) {
             stateTimer.cancel();
+        }
+        if (replayTimer != null) {
+            replayTimer.cancel();
         }
     }
     

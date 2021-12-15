@@ -184,6 +184,8 @@ public class ServiceReplica {
 			this.replier.initContext(replicaCtx);
 			this.recoverer.initContext(replicaCtx, lastCid);
 
+			LOGGER.info("I am proc {}, will start replica", this.serverViewController.getStaticConf().getProcessId());
+
 			startReplica(replicaCtx);
 		} catch (Throwable e) {
 		    LOGGER.error("[ServiceReplica] start exception!, error = {}", e.getMessage());

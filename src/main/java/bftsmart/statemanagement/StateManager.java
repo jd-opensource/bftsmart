@@ -46,7 +46,7 @@ public interface StateManager {
     
     public void currentConsensusIdReceived(SMMessage msg);
     
-    public void askTransactionReplay(int startCid, int endCid, int target);
+    public void askTransactionReplay(int startCid, int endCid);
 
     public void transactionReplayAsked(int sender, int target, int startCid, int endCid);
 

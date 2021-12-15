@@ -21,7 +21,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantLock;
 
 import bftsmart.statemanagement.TransactionReplayState;
@@ -71,7 +74,7 @@ public abstract class BaseStateManager implements StateManager {
 
     protected int STATETRANSFER_RETRY_COUNT = 500;
 
-    private int checkPointFormOtherNode = -1;
+//    private int checkPointFormOtherNode = -1;
 
     private HashMap<Integer, Integer> senderCIDs = null;
 
@@ -224,15 +227,27 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public void analyzeState(int cid) {
-       LOGGER.info("(TOMLayer.analyzeState) The state transfer protocol is enabled");
+       LOGGER.info("BaseStateManager.running.analyzeState: The state transfer protocol is enabled");
         if (waitingCID == -1) {
-           LOGGER.info("(TOMLayer.analyzeState) I'm not waiting for any state, so I will keep record of this message");
+           LOGGER.info("BaseStateManager.running.analyzeState: I'm not waiting for any state, so I will keep record of this message");
             if (tomLayer.execManager.isDecidable(cid)) {
-                LOGGER.info("BaseStateManager.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", topology.getCurrentViewF(), cid, lastCID);
-                lastCID = cid;
-                waitingCID = cid - 1;
+                LOGGER.info("BaseStateManager.running.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", topology.getCurrentViewF(), cid, lastCID);
+
+                waitingCID = cid;
                 LOGGER.info("analyzeState {}", waitingCID);
-                requestState();
+
+                int checkPointFromOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (cid / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
+
+                if (lastCID < checkPointFromOtherNode) {
+                    LOGGER.info("BaseStateManager.running.analyzeState: Backward node cross checkpoint, will start transactions replay process!");
+                    // 启动交易重放过程,随机选择data sender
+                    askTransactionReplay(lastCID + 1, checkPointFromOtherNode);
+                } else {
+                    // 通用流程
+                    LOGGER.info("BaseStateManager.running.analyzeState: Backward node and remote node in the same latest checkpoint!");
+                    // 请求最新checkpoint周期内的交易并重放
+                    requestState();
+                }
             }
         }
     }
@@ -293,13 +308,18 @@ public abstract class BaseStateManager implements StateManager {
 
     @Override
     public synchronized void currentConsensusIdReceived(SMMessage smsg) {
-        LOGGER.info("I will handle currentConsensusIdReceived!");
+        LOGGER.info("I am proc {}, I will handle currentConsensusIdReceived!", topology.getStaticConf().getProcessId());
 
         try {
-            if (!isInitializing || waitingCID > -1) {
-                LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
-                return;
+//            if (!isInitializing || waitingCID > -1) {
+//                LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
+//                return;
+//            }
+
+            if (!isInitializing && waitingCID == -1) {
+                LOGGER.info("Now not in state transfer initializing phase!");
             }
+
             if (senderCIDs == null) {
                 senderCIDs = new HashMap<>();
             }
@@ -313,8 +333,8 @@ public abstract class BaseStateManager implements StateManager {
             // Report if view is inconsistent
             checkViewInfo(this.topology.getCurrentView().getId(), senderVIDs);
 
-            LOGGER.info("currentConsensusIdReceived ->sender[{}], CID = {} !", smsg.getSender(), smsg.getCID());
-            LOGGER.info("senderCIDs.size() = {}, and SVController.getQuorum()= {} !", senderCIDs.size(), topology.getQuorum());
+            LOGGER.info("I am proc {}, currentConsensusIdReceived ->sender[{}], CID = {} !", topology.getStaticConf().getProcessId(), smsg.getSender(), smsg.getCID());
+            LOGGER.info("I am proc {}, senderCIDs.size() = {}, and SVController.getQuorum()= {} !", topology.getStaticConf().getProcessId(), senderCIDs.size(), topology.getQuorum());
             if (senderCIDs.size() >= topology.getQuorum()) {
 
                 HashMap<Integer, Integer> cids = new HashMap<>();
@@ -337,10 +357,10 @@ public abstract class BaseStateManager implements StateManager {
                         saveValidDataSenders(senderCIDs, key);
 
                         // 根据数据完备节点的key，计算其检查点值
-                        checkPointFormOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (key / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
+                        int checkPointFromOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (key / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
 
                         if (lastCID >= key) {
-                            LOGGER.info("-- {} replica state is up to date ! --", topology.getStaticConf().getProcessId());
+                            LOGGER.info("-- {}  replica state is up to date ! --", topology.getStaticConf().getProcessId());
                             dt.deliverLock();
                             isInitializing = false;
                             tomLayer.setLastExec(key);
@@ -352,20 +372,19 @@ public abstract class BaseStateManager implements StateManager {
                             dt.deliverUnlock();
                             break;
                         }  else {
-                            LOGGER.info("-- Requesting state from other replicas, key = {}, lastCid = {}", key, lastCID);
+                            waitingCID = key;
+                            LOGGER.info("-- Requesting state from other replicas, remote node cid = {}, local node lastCid = {}", key, lastCID);
                             // 对于跨checkpoint的落后节点，先通过与数据完备节点的消息交互进行checkpoint以内交易的重放，再执行最新checkpoint周期内交易的重放
-                            if (lastCID < checkPointFormOtherNode) {
+                            if (lastCID < checkPointFromOtherNode) {
                                 LOGGER.info("-- Backward node cross checkpoint, will start transactions replay process!");
-                                // 启动交易重放过程
-                                askTransactionReplay(lastCID + 1, checkPointFormOtherNode, (Integer) validDataSenders.keySet().toArray()[0]);
+                                // 启动交易重放过程,随机选择目标节点
+                                getReplayStateHashMap().clear();
+                                askTransactionReplay(lastCID + 1, checkPointFromOtherNode);
                             } else {
                                 // 通用流程
                                 LOGGER.info("-- Backward node and remote node in the same latest checkpoint!");
-                                if (waitingCID == -1) {
-                                    waitingCID = key;
-                                    // 请求最新checkpoint周期内的交易并重放
-                                    requestState();
-                                }
+                                // 请求最新checkpoint周期内的交易并重放
+                                requestState();
                             }
                         }
                     }
@@ -380,6 +399,8 @@ public abstract class BaseStateManager implements StateManager {
     @Override
     public void transactionReplayReplyDeliver(StandardTRMessage msg) {
         replayReceivedLock.lock();
+
+        int checkPointFromOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (waitingCID / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;
 
         LOGGER.info("I am proc {}, I will handle transactionReplayReceived!", tomLayer.getCurrentProcessId());
         try {
@@ -402,27 +423,63 @@ public abstract class BaseStateManager implements StateManager {
                 lastCid = replayState.getEndCid();
             }
 
-            if (lastCID == checkPointFormOtherNode) {
-                waitingCID = (Integer) validDataSenders.values().toArray()[0];
+            if (lastCID == checkPointFromOtherNode) {
+                if (replayTimer != null) replayTimer.cancel();
                 getReplayStateHashMap().clear();
                 requestState();
             }
         } finally {
             replayReceivedLock.unlock();
         }
-
     }
 
+    protected Timer replayTimer = null;
+    protected final static long INIT_TIMEOUT = 20000;
+    protected long timeout = INIT_TIMEOUT;
+
     @Override
-    public void askTransactionReplay(int startCid, int endCid, int target) {
+    public void askTransactionReplay(int startCid, int endCid) {
+
+        int target = (Integer) validDataSenders.keySet().toArray()[0];
 
         int me = topology.getCurrentProcessId();
         StandardTRMessage trRequestMessage = new StandardTRMessage(me, target, null, startCid, endCid, TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO);
         LOGGER.info("I will send StandardTRMessage[{}] to target node {}, between cid {} --> {} !", TOMUtil.SM_TRANSACTION_REPLAY_REQUEST_INFO, target, startCid, endCid);
         tomLayer.getCommunication().send(trRequestMessage, target);
 
-        // todo
-        //添加消息发送的安全保障
+        // 交易重放消息的安全保障
+        TimerTask replayTask =  new TimerTask() {
+            public void run() {
+                if (!doWork) {
+                    return;
+                }
+                LOGGER.info("Change valid peer node, Resend timeout transaction replay");
+                int newTarget= changeValidDataSender();
+                tomLayer.getCommunication().send(trRequestMessage, newTarget);
+            }
+        };
+
+        replayTimer = new Timer("tx replay timer");
+        timeout = timeout * 2;
+        replayTimer.schedule(replayTask,timeout);
+    }
+
+    private int changeValidDataSender() {
+
+        Object[] processes = validDataSenders.keySet().toArray();
+
+        int target = -1;
+
+        Random r = new Random();
+
+        int pos;
+
+        if (processes != null && processes.length != 0) {
+            pos = r.nextInt(processes.length);
+            target = (Integer) processes[pos];
+        }
+
+        return target;
     }
 
     @Override

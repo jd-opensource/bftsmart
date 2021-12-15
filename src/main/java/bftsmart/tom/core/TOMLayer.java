@@ -80,6 +80,8 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	private volatile boolean isConnectRemotesOK = false;
 
 	private volatile boolean isLastCidSetOk = false;
+
+	private volatile boolean isLeaderConfirmComplete = false;
 	/**
 	 * Manage timers for pending requests
 	 */
@@ -440,6 +442,14 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	public void lastCidSetOk() {
 		this.isLastCidSetOk = true;
 	}
+
+	public boolean isLeaderConfirmOk() {
+		return isLeaderConfirmComplete;
+	}
+
+	public void setLeaderConfirmOk() {
+		this.isLeaderConfirmComplete = true;
+	}
 	/**
 	 * leader对应ID
 	 * 
@@ -462,7 +472,9 @@ public class TOMLayer extends Thread implements RequestReceiver {
 			this.viewSyncTimer.start();
 			while (doWork) {
 				try {
-					doEpoch();
+//					if (isLeaderConfirmComplete) {
+						doEpoch();
+//					}
 				} catch (Exception e) {
 					LOGGER.error("Error occurred while doing epoch! --[CurrentProcessId=" + this.getCurrentProcessId()
 							+ "] " + e.getMessage(), e);

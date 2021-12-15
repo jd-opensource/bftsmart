@@ -282,7 +282,7 @@ public final class ExecutionManager {
                 (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
                 (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
-            LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, start state transfer, last cid is {}, recv msg cid is {}, in cid is {}", topology.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
+            LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, start running state transfer, local lastCid is {}, recv msg cid is {}, in cid is {}", topology.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
             LOGGER.info("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", topology.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
             //Start state transfer
             /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
@@ -290,7 +290,8 @@ public final class ExecutionManager {
             addOutOfContextMessage(msg);
 
             if (topology.getStaticConf().isStateTransferEnabled()) {
-                //Logger.debug = true;
+                // free old consensus message
+                freeOutOfContextMessage(lastConsId, msg.getNumber());
                 tomLayer.getStateManager().analyzeState(msg.getNumber());
             }
             else {
@@ -609,6 +610,19 @@ public final class ExecutionManager {
         } catch (Exception e) {
             LOGGER.error("(ExecutionManager.addOutOfContextMessage) exception, e = {}!", e.getMessage());
             throw e;
+        } finally {
+            outOfContextLock.unlock();
+        }
+    }
+
+    public void freeOutOfContextMessage(int fromCid, int toCid) {
+        try {
+            outOfContextLock.lock();
+
+            for (int cid = fromCid; cid < toCid; cid++) {
+                outOfContext.remove(cid);
+                outOfContextProposes.remove(cid);
+            }
         } finally {
             outOfContextLock.unlock();
         }
