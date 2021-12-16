@@ -139,6 +139,12 @@ public class NettyOutboundConnection extends AbstractNettyConnection {
             if(secure) {
                 SSLEngine sslEngine = SSLContextFactory.getSSLContext(true, sslSecurity).createSSLEngine();
                 sslEngine.setUseClientMode(true);
+                if(null != sslSecurity.getEnabledProtocols() && sslSecurity.getEnabledProtocols().length > 0) {
+                    sslEngine.setEnabledProtocols(sslSecurity.getEnabledProtocols());
+                }
+                if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
+                    sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
+                }
                 channel.pipeline().addFirst(new SslHandler(sslEngine))
                         .addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
                         .addLast("msg decoder", new BytesDecoder())
