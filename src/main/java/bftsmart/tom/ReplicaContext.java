@@ -86,7 +86,6 @@ public class ReplicaContext {
 	}
 
 	public void start() {
-		LOGGER.info("Communication will start");
 		tomLayer.getCommunication().start();
 //		tomLayer.getCommunication().getAcceptor().start();
 	}

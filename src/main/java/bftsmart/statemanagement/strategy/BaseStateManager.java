@@ -276,10 +276,10 @@ public abstract class BaseStateManager implements StateManager {
         target = topology.getCurrentViewOtherAcceptors();
 
         while (isInitializing && doWork) {
-            LOGGER.info("I will send StandardSMMessage[{}] to others !", TOMUtil.SM_ASK_INITIAL);
+            LOGGER.info("I am proc {}, I will send StandardSMMessage[{}] to others !", topology.getStaticConf().getProcessId(), TOMUtil.SM_ASK_INITIAL);
             tomLayer.getCommunication().send(target, currentCID);
             try {
-                Thread.sleep(8000);
+                Thread.sleep(1500);
                 if (++counter > STATETRANSFER_RETRY_COUNT) {
                     LOGGER.info("###############################################################################################################################################################");
                     LOGGER.info("################State Transfer No Replier, Maybe Requester View Is Obsolete, If Block Exist Diff, Please Copy Ledger Database And Restart!#####################");
@@ -318,6 +318,7 @@ public abstract class BaseStateManager implements StateManager {
 
             if (!isInitializing && waitingCID == -1) {
                 LOGGER.info("Now not in state transfer initializing phase!");
+                return;
             }
 
             if (senderCIDs == null) {

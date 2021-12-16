@@ -472,9 +472,9 @@ public class TOMLayer extends Thread implements RequestReceiver {
 			this.viewSyncTimer.start();
 			while (doWork) {
 				try {
-//					if (isLeaderConfirmComplete) {
+					if (isLeaderConfirmComplete) {
 						doEpoch();
-//					}
+					}
 				} catch (Exception e) {
 					LOGGER.error("Error occurred while doing epoch! --[CurrentProcessId=" + this.getCurrentProcessId()
 							+ "] " + e.getMessage(), e);
