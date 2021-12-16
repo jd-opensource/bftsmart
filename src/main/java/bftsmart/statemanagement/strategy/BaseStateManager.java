@@ -311,13 +311,8 @@ public abstract class BaseStateManager implements StateManager {
         LOGGER.info("I am proc {}, I will handle currentConsensusIdReceived!", topology.getStaticConf().getProcessId());
 
         try {
-//            if (!isInitializing || waitingCID > -1) {
-//                LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
-//                return;
-//            }
-
-            if (!isInitializing && waitingCID == -1) {
-                LOGGER.info("Now not in state transfer initializing phase!");
+            if (!isInitializing || waitingCID > -1) {
+                LOGGER.info("isInitializing = {}, and waitingCID= {} !", isInitializing, waitingCID);
                 return;
             }
 

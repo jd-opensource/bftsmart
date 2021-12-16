@@ -423,7 +423,7 @@ public class ServiceReplica {
 				if (request.getViewID() <= serverViewController.getCurrentViewId()) {
 //						|| request.getReqType() == TOMMessageType.RECONFIG) {
 
-					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST) {
+					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST || request.getReqType() == TOMMessageType.RECONFIG) {
 						noop = false;
 						numRequests++;
 						MessageContext msgCtx = new MessageContext(request.getSender(), request.getViewID(),
@@ -449,12 +449,15 @@ public class ServiceReplica {
 							// and
 							// store the proof associated with decisions (which are needed by replicas
 							// that are asking for a state transfer).
-							if (this.recoverer != null)
-								this.recoverer.Op(msgCtx.getConsensusId(), request.getContent(), msgCtx);
+//							if (this.recoverer != null)
+//								this.recoverer.Op(msgCtx.getConsensusId(), request.getContent(), msgCtx);
 
 							// deliver requests and contexts to the executor later
 							msgCtxts.add(msgCtx);
 							toBatch.add(request);
+							if (request.getReqType() == TOMMessageType.RECONFIG) {
+								serverViewController.enqueueUpdate(request);
+							}
 						} else if (executor instanceof FIFOExecutable) {
 
 							LOGGER.debug(
@@ -514,11 +517,13 @@ public class ServiceReplica {
 						} else {
 							throw new UnsupportedOperationException("Non-existent interface");
 						}
-					} else if (request.getReqType() == TOMMessageType.RECONFIG) {
-						noop = false;
-						numRequests++;
-						serverViewController.enqueueUpdate(request);
-					} else {
+					}
+// 						else if (request.getReqType() == TOMMessageType.RECONFIG) {
+//						noop = false;
+//						numRequests++;
+//						serverViewController.enqueueUpdate(request);
+//					}
+ 					else {
 						throw new RuntimeException("Should never reach here!");
 					}
 				}
