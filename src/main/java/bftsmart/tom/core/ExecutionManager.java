@@ -291,7 +291,7 @@ public final class ExecutionManager {
 
             if (topology.getStaticConf().isStateTransferEnabled()) {
                 // free old consensus message
-                freeOutOfContextMessage(lastConsId, msg.getNumber());
+                freeOutOfContextMessage(lastConsId, msg.getNumber() - 1);
                 tomLayer.getStateManager().analyzeState(msg.getNumber());
             }
             else {

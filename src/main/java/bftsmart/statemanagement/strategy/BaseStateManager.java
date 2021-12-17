@@ -197,7 +197,6 @@ public abstract class BaseStateManager implements StateManager {
         senderRegencies.clear();
         senderViews.clear();
         senderProofs.clear();
-        validDataSenders.clear();
         replayStateHashMap.clear();
         state = null;
     }
@@ -233,7 +232,7 @@ public abstract class BaseStateManager implements StateManager {
             if (tomLayer.execManager.isDecidable(cid)) {
                 LOGGER.info("BaseStateManager.running.analyzeState: I have now more than {} messages for CID {} which are beyond CID {}", topology.getCurrentViewF(), cid, lastCID);
 
-                waitingCID = cid;
+                waitingCID = cid - 1; // 设置为cid - 1, 是为了避免数据源节点lastcid 还没有更新完成
                 LOGGER.info("analyzeState {}", waitingCID);
 
                 int checkPointFromOtherNode = this.tomLayer.controller.getStaticConf().getCheckpointPeriod() * (cid / this.tomLayer.controller.getStaticConf().getCheckpointPeriod()) - 1;

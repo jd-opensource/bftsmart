@@ -389,7 +389,9 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 						appExecuteBatch(cmdInfo.commands, cmdInfo.msgCtx, false);
 
 						((StandardStateManager) this.getStateManager()).setLastCID(cid);
+						//更新上次执行的共识ID，同时把正在进行中的共识设置为-1
 						((StandardStateManager) this.getStateManager()).getTomLayer().setLastExec(cid);
+						((StandardStateManager) this.getStateManager()).getTomLayer().setInExec(-1);
 					}
 				}
 			}
