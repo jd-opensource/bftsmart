@@ -22,7 +22,7 @@ import java.security.cert.X509Certificate;
 public class SSLContextFactory {
 
     public static SSLContext getSSLContext(boolean isClient, SSLSecurity sslSecurity) throws Exception {
-        SSLContext context = SSLContext.getInstance("TLS");
+        SSLContext context = SSLContext.getInstance(sslSecurity.getProtocol());
         TrustManagerFactory tmf;
         KeyStore trustStore;
         TrustManager[] tms;
@@ -47,7 +47,7 @@ public class SSLContextFactory {
                 break;
             case ONE_WAY:
                 tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustStore = KeyStore.getInstance("JKS");
+                trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
                 trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
                 tmf.init(trustStore);
                 tms = tmf.getTrustManagers();
@@ -56,7 +56,7 @@ public class SSLContextFactory {
             case TWO_WAY:
                 KeyManager[] kms = null;
                 if (!StringUtils.isEmpty(sslSecurity.getKeyStore())) {
-                    KeyStore clientStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
+                    KeyStore clientStore = KeyStore.getInstance(sslSecurity.getKeyStoreType());
                     clientStore.load(new FileInputStream(sslSecurity.getKeyStore()), sslSecurity.getKeyStorePassword().toCharArray());
                     KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                     kmf.init(clientStore, sslSecurity.getKeyStorePassword().toCharArray());

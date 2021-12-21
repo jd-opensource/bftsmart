@@ -149,6 +149,12 @@ public class NettyServerCommunicationLayer extends AbstractCommunicationLayer {
             if(topology.getStaticConf().isSecure(me)) {
                 SSLEngine sslEngine = SSLContextFactory.getSSLContext(false, sslSecurity).createSSLEngine();
                 sslEngine.setUseClientMode(false);
+                if(null != sslSecurity.getEnabledProtocols() && sslSecurity.getEnabledProtocols().length > 0) {
+                    sslEngine.setEnabledProtocols(sslSecurity.getEnabledProtocols());
+                }
+                if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
+                    sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
+                }
                 sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
                 channel.pipeline().addFirst(new SslHandler(sslEngine))
                         .addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))

@@ -151,6 +151,12 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			if(secure) {
 				SSLEngine sslEngine = SSLContextFactory.getSSLContext(false, sslSecurity).createSSLEngine();
 				sslEngine.setUseClientMode(false);
+				if(null != sslSecurity.getEnabledProtocols() && sslSecurity.getEnabledProtocols().length > 0) {
+					sslEngine.setEnabledProtocols(sslSecurity.getEnabledProtocols());
+				}
+				if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
+					sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
+				}
 				sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
 				ch.pipeline().addFirst(new SslHandler(sslEngine));
 			}

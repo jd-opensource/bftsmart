@@ -477,6 +477,12 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             public void initChannel(SocketChannel ch) throws Exception {
                 if(secure) {
                     SSLEngine sslEngine = SSLContextFactory.getSSLContext(true, sslSecurity).createSSLEngine();
+                    if(null != sslSecurity.getEnabledProtocols() && sslSecurity.getEnabledProtocols().length > 0) {
+                        sslEngine.setEnabledProtocols(sslSecurity.getEnabledProtocols());
+                    }
+                    if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
+                        sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
+                    }
                     sslEngine.setUseClientMode(true);
                     ch.pipeline().addFirst(new SslHandler(sslEngine));
                 }
