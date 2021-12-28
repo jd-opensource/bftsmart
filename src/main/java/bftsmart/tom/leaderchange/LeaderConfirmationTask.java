@@ -294,7 +294,7 @@ public class LeaderConfirmationTask {
 			LOGGER.debug("Quit the leader confirm task! --[CurrentId={}][ExecLeaderId={}][Sequence={}]",
 					tomLayer.getCurrentProcessId(), tomLayer.getExecManager().getCurrentLeader(), startTimestamp);
 
-			tomLayer.setLeaderConfirmOk();
+			tomLayer.setLeaderConfirmed(true);
 
 			onCompleted();
 		}

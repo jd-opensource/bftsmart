@@ -81,8 +81,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 
 	private volatile boolean isLastCidSetOk = false;
 
-	private volatile boolean isLeaderConfirmComplete = false;
-
+	private volatile boolean isLeaderConfirmed = false;
 	/**
 	 * Manage timers for pending requests
 	 */
@@ -444,12 +443,12 @@ public class TOMLayer extends Thread implements RequestReceiver {
 		this.isLastCidSetOk = true;
 	}
 
-	public boolean isLeaderConfirmOk() {
-		return isLeaderConfirmComplete;
+	public boolean isLeaderConfirmed() {
+		return isLeaderConfirmed;
 	}
 
-	public void setLeaderConfirmOk() {
-		this.isLeaderConfirmComplete = true;
+	public void setLeaderConfirmed(boolean leaderConfirmed) {
+		isLeaderConfirmed = leaderConfirmed;
 	}
 
 	/**
@@ -474,7 +473,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 			this.viewSyncTimer.start();
 			while (doWork) {
 				try {
-					if (isLeaderConfirmComplete) {
+					if (isLeaderConfirmed()) {
 						doEpoch();
 					}
 				} catch (Exception e) {
