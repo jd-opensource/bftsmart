@@ -1,5 +1,6 @@
 package bftsmart.util;
 
+import utils.GmSSLProvider;
 import utils.StringUtils;
 import utils.net.SSLSecurity;
 
@@ -25,7 +26,7 @@ public class SSLContextFactory {
         SSLContext context = SSLContext.getInstance(sslSecurity.getProtocol());
         TrustManagerFactory tmf;
         KeyStore trustStore;
-        TrustManager[] tms;
+        KeyManagerFactory kmf;
         switch (sslSecurity.getSslMode(isClient)) {
             case OFF:
                 context.init(null, new TrustManager[]{new X509TrustManager() {
@@ -46,29 +47,47 @@ public class SSLContextFactory {
                 }}, null);
                 break;
             case ONE_WAY:
-                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
-                trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
-                tmf.init(trustStore);
-                tms = tmf.getTrustManagers();
-                context.init(null, tms, new SecureRandom());
-                break;
+//                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+//                trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
+//                trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
+//                tmf.init(trustStore);
+//                tms = tmf.getTrustManagers();
+//                context.init(null, tms, new SecureRandom());
+//                break;
             case TWO_WAY:
                 KeyManager[] kms = null;
+                TrustManager[] tms = null;
                 if (!StringUtils.isEmpty(sslSecurity.getKeyStore())) {
                     KeyStore clientStore = KeyStore.getInstance(sslSecurity.getKeyStoreType());
                     clientStore.load(new FileInputStream(sslSecurity.getKeyStore()), sslSecurity.getKeyStorePassword().toCharArray());
-                    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    if(GmSSLProvider.isGMSSL(sslSecurity.getProtocol())){
+                        kmf = KeyManagerFactory.getInstance("SunX509", GmSSLProvider.GM_PROVIDER);
+                    }else{
+                        kmf = KeyManagerFactory.getInstance("SunX509");
+                    }
+
                     kmf.init(clientStore, sslSecurity.getKeyStorePassword().toCharArray());
                     kms = kmf.getKeyManagers();
                 }
-                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
-                trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
-                tmf.init(trustStore);
-                tms = tmf.getTrustManagers();
+
+                if(!StringUtils.isEmpty(sslSecurity.getTrustStore())){
+                    tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                    trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
+                    trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
+                    tmf.init(trustStore);
+                    tms = tmf.getTrustManagers();
+                }
+
                 context.init(kms, tms, new SecureRandom());
                 break;
+        }
+
+        if(!isClient){
+            context.getServerSessionContext().setSessionCacheSize(8192);
+            context.getServerSessionContext().setSessionTimeout(3600);
+        }else{
+            context.getClientSessionContext().setSessionCacheSize(8192);
+            context.getClientSessionContext().setSessionTimeout(3600);
         }
 
         return context;
