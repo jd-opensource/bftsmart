@@ -55,6 +55,8 @@ public final class BatchReader {
         }
         else numberOfNonces = 0; // make sure the value is correct
 
+        int leaderViewId = proposalBuffer.getInt();
+
         int numberOfMessages = proposalBuffer.getInt();
 
         TOMMessage[] requests = new TOMMessage[numberOfMessages];
@@ -86,6 +88,7 @@ public final class BatchReader {
                 tm.numOfNonces = numberOfNonces;
                 tm.seed = seed;
                 tm.timestamp = timestamp;
+                tm.leaderViewId = leaderViewId;
                 requests[i] = tm;
 
             } catch (Exception e) {

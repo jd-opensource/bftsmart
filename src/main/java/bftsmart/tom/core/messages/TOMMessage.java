@@ -47,7 +47,9 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 
 	public transient long seed = 0; // seed for the nonces
 	public transient int numOfNonces = 0; // number of nonces
-        
+
+	public int leaderViewId; // In order to unify the parameter of comparison
+
 	public transient int destination = -1; // message destination
 	public transient boolean signed = false; // is this message signed?
 
@@ -139,6 +141,10 @@ public class TOMMessage extends SystemMessage implements Externalizable, Compara
 
 	public int getViewID() {
 		return viewID;
+	}
+
+	public int getLeaderViewId() {
+		return leaderViewId;
 	}
 
 	public TOMMessageType getReqType() {

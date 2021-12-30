@@ -413,7 +413,7 @@ public class ServiceReplica {
 						request.getViewID(), serverViewController.getCurrentViewId(), request.getReqType());
 
 				// 暂时没有节点间的视图ID同步过程，在处理RECONFIG这类更新视图的操作时先不考虑视图ID落后的情况
-				if (request.getViewID() == serverViewController.getCurrentViewId()
+				if (request.getViewID() == request.getLeaderViewId()
 						|| request.getReqType() == TOMMessageType.RECONFIG) {
 
 					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST) {
@@ -514,11 +514,20 @@ public class ServiceReplica {
 					} else {
 						throw new RuntimeException("Should never reach here!");
 					}
-				} else if (request.getViewID() < serverViewController.getCurrentViewId()) { // message sender had an old
+				} else if (request.getViewID() < request.getLeaderViewId()) { // message sender had an old
 																							// view,
 					// resend the message to
 					// him (but only if it came from
 					// consensus an not state transfer)
+
+					if (serverViewController.getCurrentView().getId() < request.getLeaderViewId()) {
+						try {
+							Thread.sleep(1500); // 各个节点处理完reconfig消息后，由于试图的更新时间不完全一致，可能会造成试图短暂的不同，需要等待片刻
+						} catch (Exception e) {
+							// do nothing
+						}
+					}
+
 					View view = serverViewController.getCurrentView();
 
 					List<NodeNetwork> addressesTemp = new ArrayList<>();

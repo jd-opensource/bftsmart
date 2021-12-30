@@ -60,6 +60,8 @@ public final class BatchBuilder {
 			proposalBuffer.putLong(seed);
 		}
 
+		proposalBuffer.putInt(controller.getCurrentViewId());
+
 		proposalBuffer.putInt(numberOfMessages);
 
 		for (int i = 0; i < numberOfMessages; i++) {

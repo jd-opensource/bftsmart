@@ -774,7 +774,7 @@ public final class Acceptor {
 
 	// 视图ID落后的非Reconfig请求
 	private boolean ViewIdBackWard(TOMMessage tomMessage) {
-		return tomMessage.getViewID() < this.topology.getCurrentViewId()
+		return tomMessage.getViewID() < tomMessage.getLeaderViewId()
 				&& tomMessage.getReqType() != TOMMessageType.RECONFIG;
 	}
 
