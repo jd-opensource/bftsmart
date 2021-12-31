@@ -5,23 +5,23 @@
 	<parent>
 		<groupId>com.jd.blockchain</groupId>
 		<artifactId>jdchain-parent</artifactId>
-		<version>1.1.6.RELEASE</version>
+		<version>1.1.7.RELEASE</version>
 		<relativePath>../../project/parent</relativePath>
 	</parent>
 	<artifactId>bft-smart</artifactId>
-	<version>0.7.3.RELEASE</version>
+	<version>0.7.4.RELEASE</version>
 
 	<dependencies>
 		<dependency>
 			<groupId>com.jd.utils</groupId>
 			<artifactId>utils-common</artifactId>
-			<version>2.2.0.RELEASE</version>
+			<version>2.2.1.RELEASE</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.jd.utils</groupId>
 			<artifactId>utils-serialize</artifactId>
-			<version>2.2.0.RELEASE</version>
+			<version>2.2.1.RELEASE</version>
 		</dependency>
 		
 		<dependency>
