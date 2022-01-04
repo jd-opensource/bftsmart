@@ -186,7 +186,7 @@ public class ServiceReplica {
 
 			startReplica(replicaCtx);
 		} catch (Throwable e) {
-		    LOGGER.error("[ServiceReplica] start exception!, error = {}", e.getMessage());
+		    LOGGER.error("[ServiceReplica] start exception!, error = {}", e);
 			throw e;
 		}
 	}

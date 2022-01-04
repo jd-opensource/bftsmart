@@ -24,6 +24,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.GmSSLProvider;
 import utils.io.BytesUtils;
 import utils.net.SSLMode;
 import utils.net.SSLSecurity;
@@ -149,7 +150,23 @@ public class NettyServerCommunicationLayer extends AbstractCommunicationLayer {
             if(topology.getStaticConf().isSecure(me)) {
                 SSLEngine sslEngine = SSLContextFactory.getSSLContext(false, sslSecurity).createSSLEngine();
                 sslEngine.setUseClientMode(false);
+                if(null != sslSecurity.getEnabledProtocols() && sslSecurity.getEnabledProtocols().length > 0) {
+                    sslEngine.setEnabledProtocols(sslSecurity.getEnabledProtocols());
+                }
+                if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
+                    sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
+                }
+
+                if(GmSSLProvider.isGMSSL(sslSecurity.getProtocol())){
+                    sslEngine.setEnabledProtocols(GmSSLProvider.ENABLE_PROTOCOLS);
+                    sslEngine.setEnabledCipherSuites(GmSSLProvider.ENABLE_CIPHERS);
+                    sslEngine.setNeedClientAuth(false);
+                }else{
+                    sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
+                }
+
                 sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
+
                 channel.pipeline().addFirst(new SslHandler(sslEngine))
                         .addLast(new LengthFieldBasedFrameDecoder(MAX_MESSAGE_SIZE, 0, 4, 0, 4))
                         .addLast("msg decoder", new BytesDecoder())

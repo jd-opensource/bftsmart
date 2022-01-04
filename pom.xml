@@ -11,19 +11,29 @@
 	<artifactId>bft-smart</artifactId>
 	<version>0.7.3.RELEASE</version>
 
+	<properties>
+		<util.version>2.2.0.RELEASE</util.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.jd.utils</groupId>
 			<artifactId>utils-common</artifactId>
-			<version>2.2.0.RELEASE</version>
+			<version>${util.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.jd.utils</groupId>
 			<artifactId>utils-serialize</artifactId>
-			<version>2.2.0.RELEASE</version>
+			<version>${util.version}</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>com.jd.utils</groupId>
+			<artifactId>utils-sm-tls</artifactId>
+			<version>${util.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>

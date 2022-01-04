@@ -65,6 +65,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.GenericFutureListener;
+import utils.GmSSLProvider;
 import utils.net.SSLMode;
 import utils.net.SSLSecurity;
 
@@ -477,6 +478,19 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
             public void initChannel(SocketChannel ch) throws Exception {
                 if(secure) {
                     SSLEngine sslEngine = SSLContextFactory.getSSLContext(true, sslSecurity).createSSLEngine();
+                    if(null != sslSecurity.getEnabledProtocols() && sslSecurity.getEnabledProtocols().length > 0) {
+                        sslEngine.setEnabledProtocols(sslSecurity.getEnabledProtocols());
+                    }
+                    if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
+                        sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
+                    }
+
+                    if(GmSSLProvider.isGMSSL(sslSecurity.getProtocol())){
+                        sslEngine.setEnabledProtocols(GmSSLProvider.ENABLE_PROTOCOLS);
+                        sslEngine.setEnabledCipherSuites(GmSSLProvider.ENABLE_CIPHERS);
+                        sslEngine.setNeedClientAuth(false);
+                    }
+
                     sslEngine.setUseClientMode(true);
                     ch.pipeline().addFirst(new SslHandler(sslEngine));
                 }
