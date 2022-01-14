@@ -46,27 +46,46 @@ public class SSLContextFactory {
                 }}, null);
                 break;
             case ONE_WAY:
-                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustStore = KeyStore.getInstance("JKS");
-                trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
-                tmf.init(trustStore);
-                tms = tmf.getTrustManagers();
-                context.init(null, tms, new SecureRandom());
-                break;
             case TWO_WAY:
+
+                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                if(sslSecurity.getTrustStore() != null){
+                    trustStore = KeyStore.getInstance("JKS");
+                    trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
+                    tmf.init(trustStore);
+                    tms = tmf.getTrustManagers();
+                }else{
+                    tms = new TrustManager[]{new X509TrustManager() {
+
+                        @Override
+                        public void checkClientTrusted(X509Certificate[] ax509certificate, String s) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(X509Certificate[] ax509certificate, String s) {
+                        }
+
+                        @Override
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
+
+                    }};
+                }
+
                 KeyManager[] kms = null;
                 if (!StringUtils.isEmpty(sslSecurity.getKeyStore())) {
-                    KeyStore clientStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
+                    KeyStore clientStore = KeyStore.getInstance(sslSecurity.getKeyStoreType());
                     clientStore.load(new FileInputStream(sslSecurity.getKeyStore()), sslSecurity.getKeyStorePassword().toCharArray());
                     KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                     kmf.init(clientStore, sslSecurity.getKeyStorePassword().toCharArray());
                     kms = kmf.getKeyManagers();
                 }
-                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
-                trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
-                tmf.init(trustStore);
-                tms = tmf.getTrustManagers();
+//                tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+//                trustStore = KeyStore.getInstance(sslSecurity.getTrustStoreType());
+//                trustStore.load(new FileInputStream(sslSecurity.getTrustStore()), sslSecurity.getTrustStorePassword().toCharArray());
+//                tmf.init(trustStore);
+//                tms = tmf.getTrustManagers();
                 context.init(kms, tms, new SecureRandom());
                 break;
         }
