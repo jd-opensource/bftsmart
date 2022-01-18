@@ -41,7 +41,7 @@ import java.util.Map;
 public class NettyServerCommunicationLayer extends AbstractCommunicationLayer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NettyServerCommunicationLayer.class);
-    private final int MAX_MESSAGE_SIZE = 100 * 1024 * 1024;
+    private final int MAX_MESSAGE_SIZE = 500 * 1024 * 1024;
 
     private NettyServer communicationServer;
     private Object addressLock = new Object();

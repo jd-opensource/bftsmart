@@ -24,7 +24,7 @@ public abstract class AbstractNettyConnection implements MessageConnection {
     protected final int ME;
     protected final int REMOTE_ID;
     // 最大消息尺寸 100MB；
-    protected final int MAX_MESSAGE_SIZE = 100 * 1024 * 1024;
+    protected final int MAX_MESSAGE_SIZE = 500 * 1024 * 1024;
     private final int MAX_RETRY_COUNT;
     protected ViewTopology viewTopology;
     protected ChannelHandlerContext context;
