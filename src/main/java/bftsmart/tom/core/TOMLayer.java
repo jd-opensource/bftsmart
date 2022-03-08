@@ -82,6 +82,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 	private volatile boolean isLastCidSetOk = false;
 
 	private volatile boolean isLeaderConfirmed = false;
+
 	/**
 	 * Manage timers for pending requests
 	 */

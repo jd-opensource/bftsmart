@@ -16,16 +16,6 @@
  */
 package bftsmart.tom;
 
-import java.io.File;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-
-import org.slf4j.LoggerFactory;
-
 import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.ServerCommunicationSystemImpl;
@@ -35,6 +25,7 @@ import bftsmart.consensus.app.PreComputeBatchExecutable;
 import bftsmart.consensus.messages.MessageFactory;
 import bftsmart.consensus.roles.Acceptor;
 import bftsmart.consensus.roles.Proposer;
+import bftsmart.reconfiguration.ReconfigureRequest;
 import bftsmart.reconfiguration.ReplicaTopology;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.util.TOMConfiguration;
@@ -59,6 +50,17 @@ import bftsmart.tom.server.defaultservices.DefaultReplier;
 import bftsmart.tom.util.ShutdownHookThread;
 import bftsmart.tom.util.TOMUtil;
 import utils.net.SSLSecurity;
+import org.slf4j.LoggerFactory;
+import utils.codec.Base58Utils;
+
+import java.io.File;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
 
 /**
  * This class receives messages from DeliveryThread and manages the execution
@@ -98,7 +100,7 @@ public class ServiceReplica {
 	private Replier replier = null;
 	private RequestVerifier verifier = null;
 	private final String realmName;
-	private int lastCid;
+	private long lastCid;
 	private ClientCommunicationServerSide clientCommunication;
 	private MessageHandler messageHandler;
 	private SSLSecurity sslSecurity;
@@ -120,21 +122,21 @@ public class ServiceReplica {
 	}
 
 	public ServiceReplica(TOMConfiguration config, View initView, String runtimeDir, Executable executor,
-			Recoverable recoverer, RequestVerifier verifier, Replier replier) {
+                          Recoverable recoverer, RequestVerifier verifier, Replier replier) {
 		this(null, null, new ServerViewController(config, new FileSystemViewStorage(initView, new File(runtimeDir, "view"))),
 				executor, recoverer, verifier, replier, -1, "Default-Realm");
 	}
 
 	public ServiceReplica(TOMConfiguration config, ViewStorage viewStorage, Executable executor, Recoverable recoverer,
-			RequestVerifier verifier, Replier replier) {
+                          RequestVerifier verifier, Replier replier) {
 		this(null, null, new ServerViewController(config, viewStorage), executor, recoverer, verifier, replier, -1,
 				"Default-Realm");
 	}
 
-	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
-			View lastView, String realName) {
+	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, long lastCid,
+                          View lastView, String realName) {
 		this(messageHandler, cs, new ServerViewController(config, new MemoryBasedViewStorage(lastView)), executor, recoverer, null,
-				new DefaultReplier(), lastCid, realName);
+				new DefaultReplier(), (int) lastCid, realName, null);
 	}
 
 	public ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, TOMConfiguration config, Executable executor, Recoverable recoverer, int lastCid,
@@ -150,7 +152,6 @@ public class ServiceReplica {
 
 	protected ServiceReplica(MessageHandler messageHandler, ServerCommunicationSystem cs, ServerViewController viewController, Executable executor, Recoverable recoverer,
 			RequestVerifier verifier, Replier replier, int lastCid, String realName, SSLSecurity sslSecurity) {
-
 		this.id = viewController.getStaticConf().getProcessId();
 		this.realmName = realName;
 		this.serverViewController = viewController;
@@ -161,6 +162,7 @@ public class ServiceReplica {
 		this.recoverer.setRealName(realName);
 		this.messageHandler = messageHandler;
 		this.cs = cs;
+        this.lastCid = lastCid;
 		this.sslSecurity = sslSecurity;
 
 //		if (viewController.getStaticConf().isLoggingToDisk()) {
@@ -180,7 +182,7 @@ public class ServiceReplica {
 			}
 
 			this.replier.initContext(replicaCtx);
-			this.recoverer.initContext(replicaCtx);
+			this.recoverer.initContext(replicaCtx, lastCid);
 
 			startReplica(replicaCtx);
 		} catch (Throwable e) {
@@ -338,7 +340,7 @@ public class ServiceReplica {
 
 		// Generate the messages to send back to the clients
 		message.reply = new TOMMessage(id, message.getSession(), message.getSequence(), message.getOperationId(),
-				response, serverViewController.getCurrentViewId(), message.getReqType());
+				response, null, serverViewController.getCurrentViewId(), message.getReqType());
 
 		if (serverViewController.getStaticConf().getNumRepliers() > 0) {
 			repMan.send(message);
@@ -384,7 +386,7 @@ public class ServiceReplica {
 
 					init();
 
-					recoverer.initContext(replicaCtx);
+					recoverer.initContext(replicaCtx, lastCid);
 					replier.initContext(replicaCtx);
 
 					replicaCtx.start();
@@ -395,7 +397,7 @@ public class ServiceReplica {
 	}
 
 	public void receiveMessages(int consId[], int regencies[], int leaders[], CertifiedDecision[] cDecs,
-			TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList) {
+                                TOMMessage[][] requests, List<byte[]> asyncResponseLinkedList, boolean isRollback) {
 		int numRequests = 0;
 		int consensusCount = 0;
 		List<TOMMessage> toBatch = new ArrayList<>();
@@ -408,18 +410,21 @@ public class ServiceReplica {
 			int requestCount = 0;
 			noop = true;
 			for (TOMMessage request : requestsFromConsensus) {
+
+				LOGGER.debug(
+						"(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}, request = {}",
+						request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount], Base58Utils.encode(request.getContent()));
+
 				LOGGER.info(
 						"(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}",
 						request.getViewID(), serverViewController.getCurrentViewId(), request.getReqType());
 
 				// 暂时没有节点间的视图ID同步过程，在处理RECONFIG这类更新视图的操作时先不考虑视图ID落后的情况
-				if (request.getViewID() == request.getLeaderViewId()
-						|| request.getReqType() == TOMMessageType.RECONFIG) {
+				if (request.getViewID() <= serverViewController.getCurrentViewId()) {
+//						|| request.getReqType() == TOMMessageType.RECONFIG) {
 
-					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST) {
-
+					if (request.getReqType() == TOMMessageType.ORDERED_REQUEST || request.getReqType() == TOMMessageType.RECONFIG) {
 						noop = false;
-
 						numRequests++;
 						MessageContext msgCtx = new MessageContext(request.getSender(), request.getViewID(),
 								request.getReqType(), request.getSession(), request.getSequence(),
@@ -444,12 +449,15 @@ public class ServiceReplica {
 							// and
 							// store the proof associated with decisions (which are needed by replicas
 							// that are asking for a state transfer).
-							if (this.recoverer != null)
-								this.recoverer.Op(msgCtx.getConsensusId(), request.getContent(), msgCtx);
+//							if (this.recoverer != null)
+//								this.recoverer.Op(msgCtx.getConsensusId(), request.getContent(), msgCtx);
 
 							// deliver requests and contexts to the executor later
 							msgCtxts.add(msgCtx);
 							toBatch.add(request);
+							if (request.getReqType() == TOMMessageType.RECONFIG) {
+								serverViewController.enqueueUpdate(request);
+							}
 						} else if (executor instanceof FIFOExecutable) {
 
 							LOGGER.debug(
@@ -474,7 +482,7 @@ public class ServiceReplica {
 
 							// Generate the messages to send back to the clients
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-									request.getOperationId(), response, serverViewController.getCurrentViewId(),
+									request.getOperationId(), response, null, serverViewController.getCurrentViewId(),
 									request.getReqType());
 							LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {}", request.getSender());
 							replier.manageReply(request, msgCtx);
@@ -502,67 +510,63 @@ public class ServiceReplica {
 
 							// Generate the messages to send back to the clients
 							request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-									request.getOperationId(), response, serverViewController.getCurrentViewId(),
+									request.getOperationId(), response, null, serverViewController.getCurrentViewId(),
 									request.getReqType());
 							LOGGER.debug("(ServiceReplica.receiveMessages) sending reply to {}", request.getSender());
 							replier.manageReply(request, msgCtx);
 						} else {
 							throw new UnsupportedOperationException("Non-existent interface");
 						}
-					} else if (request.getReqType() == TOMMessageType.RECONFIG) {
-						serverViewController.enqueueUpdate(request);
-					} else {
+					}
+// 						else if (request.getReqType() == TOMMessageType.RECONFIG) {
+//						noop = false;
+//						numRequests++;
+//						serverViewController.enqueueUpdate(request);
+//					}
+ 					else {
 						throw new RuntimeException("Should never reach here!");
 					}
-				} else if (request.getViewID() < request.getLeaderViewId()) { // message sender had an old
-																							// view,
-					// resend the message to
-					// him (but only if it came from
-					// consensus an not state transfer)
-
-					if (serverViewController.getCurrentView().getId() < request.getLeaderViewId()) {
-						try {
-							Thread.sleep(1500); // 各个节点处理完reconfig消息后，由于试图的更新时间不完全一致，可能会造成试图短暂的不同，需要等待片刻
-						} catch (Exception e) {
-							// do nothing
-						}
-					}
-
-					View view = serverViewController.getCurrentView();
-
-					List<NodeNetwork> addressesTemp = new ArrayList<>();
-
-					for (int i = 0; i < view.getProcesses().length; i++) {
-						int cpuId = view.getProcesses()[i];
-						NodeNetwork inetSocketAddress = view.getAddress(cpuId);
-
-						if (inetSocketAddress.getHost().equals("0.0.0.0")) {
-							// proc docker env
-							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
-
-							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
-									-1, inetSocketAddress.isConsensusSecure(), false);
-							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
-									serverViewController.getStaticConf().getProcessId(), host);
-							addressesTemp.add(tempSocketAddress);
-						} else {
-							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
-									serverViewController.getStaticConf().getProcessId(), inetSocketAddress);
-							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
-									inetSocketAddress.getConsensusPort(), -1, inetSocketAddress.isConsensusSecure(), false));
-						}
-					}
-
-					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
-							addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
-					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}",
-							this.serverViewController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
-
-					getTomLayer().getCommunication().send(new int[] { request.getSender() },
-							new TOMMessage(serverViewController.getStaticConf().getProcessId(), request.getSession(),
-									request.getSequence(), request.getOperationId(), TOMUtil.getBytes(replyView),
-									serverViewController.getCurrentViewId(), request.getReqType()));
 				}
+//				else if (request.getViewID() < serverViewController.getCurrentViewId()) { // message sender had an old
+//																							// view,
+//					// resend the message to
+//					// him (but only if it came from
+//					// consensus an not state transfer)
+//					View view = serverViewController.getCurrentView();
+//
+//					List<NodeNetwork> addressesTemp = new ArrayList<>();
+//
+//					for (int i = 0; i < view.getProcesses().length; i++) {
+//						int cpuId = view.getProcesses()[i];
+//						NodeNetwork inetSocketAddress = view.getAddress(cpuId);
+//
+//						if (inetSocketAddress.getHost().equals("0.0.0.0")) {
+//							// proc docker env
+//							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+//
+//							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
+//									-1);
+//							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+//									serverViewController.getStaticConf().getProcessId(), host);
+//							addressesTemp.add(tempSocketAddress);
+//						} else {
+//							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+//									serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toUrl());
+//							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
+//									inetSocketAddress.getConsensusPort(), -1));
+//						}
+//					}
+//
+//					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
+//							addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+//					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}",
+//							this.serverViewController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
+//
+//					getTomLayer().getCommunication().send(new int[] { request.getSender() },
+//							new TOMMessage(serverViewController.getStaticConf().getProcessId(), request.getSession(),
+//									request.getSequence(), request.getOperationId(), TOMUtil.getBytes(replyView),
+//									serverViewController.getCurrentViewId(), request.getReqType()));
+//				}
 				requestCount++;
 			} // End of : for (TOMMessage request : requestsFromConsensus);
 
@@ -643,18 +647,24 @@ public class ServiceReplica {
 			// Make new batch to deliver
 			byte[][] batch = new byte[numRequests][];
 
-			ReplyContext replyContext = new ReplyContext().buildId(id)
-					.buildCurrentViewId(serverViewController.getCurrentViewId())
-					.buildNumRepliers(serverViewController.getStaticConf().getNumRepliers()).buildRepMan(repMan)
-					.buildReplier(replier);
+//			ReplyContext replyContext = new ReplyContext().buildId(id)
+//					.buildCurrentViewId(serverViewController.getCurrentViewId())
+//					.buildNumRepliers(serverViewController.getStaticConf().getNumRepliers()).buildRepMan(repMan)
+//					.buildReplier(replier);
 
-			List<ReplyContextMessage> replyContextMessages = new ArrayList<>();
+//			List<ReplyContextMessage> replyContextMessages = new ArrayList<>();
 
 			// Put messages in the batch
 			int line = 0;
 			for (TOMMessage m : toBatch) {
-				replyContextMessages.add(new ReplyContextMessage(replyContext, m));
-				batch[line] = m.getContent();
+//				replyContextMessages.add(new ReplyContextMessage(replyContext, m));
+
+				if (m.getReqType() == TOMMessageType.RECONFIG) {
+					// 对于reconfig类型的消息，扩展消息才是交易本身
+					batch[line] = ((ReconfigureRequest) TOMUtil.getObject(m.getContent())).getExtendInfo();
+				} else {
+					batch[line] = m.getContent();
+				}
 				line++;
 			}
 
@@ -662,8 +672,9 @@ public class ServiceReplica {
 			msgContexts = msgCtxts.toArray(msgContexts);
 
 			// Deliver the batch and wait for replies
-			byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts,
-					replyContextMessages);
+			if (isRollback == false) {
+				byte[][] replies = ((PreComputeBatchExecutable) executor).executeBatch(batch, msgContexts);
+			}
 
 			if (toBatch.size() != asyncResponseLinkedList.size()) {
 				LOGGER.debug("(ServiceReplica.receiveMessages) toBatch.size() != asyncResponseLinkedList.size()");
@@ -672,9 +683,51 @@ public class ServiceReplica {
 			// Send the replies back to the client
 			for (int index = 0; index < toBatch.size(); index++) {
 				TOMMessage request = toBatch.get(index);
-				request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
-						request.getOperationId(), asyncResponseLinkedList.get(index),
-						serverViewController.getCurrentViewId(), request.getReqType());
+				if (request.getReqType() == TOMMessageType.RECONFIG) {
+					continue;
+				}
+				// if request with backward viewid, reply msg will include view content
+				if (request.getViewID() < serverViewController.getCurrentViewId()) {
+
+					View view = serverViewController.getCurrentView();
+
+					List<NodeNetwork> addressesTemp = new ArrayList<>();
+
+					for (int i = 0; i < view.getProcesses().length; i++) {
+						int cpuId = view.getProcesses()[i];
+						NodeNetwork inetSocketAddress = view.getAddress(cpuId);
+
+						if (inetSocketAddress.getHost().equals("0.0.0.0")) {
+							// proc docker env
+							String host = serverViewController.getStaticConf().getOuterHostConfig().getHost(cpuId);
+
+							NodeNetwork tempSocketAddress = new NodeNetwork(host, inetSocketAddress.getConsensusPort(),
+									-1, inetSocketAddress.isConsensusSecure(), false);
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+									serverViewController.getStaticConf().getProcessId(), host);
+							addressesTemp.add(tempSocketAddress);
+						} else {
+							LOGGER.info("I am proc {}, tempSocketAddress.getAddress().getHostAddress() = {}",
+									serverViewController.getStaticConf().getProcessId(), inetSocketAddress.toString());
+							addressesTemp.add(new NodeNetwork(inetSocketAddress.getHost(),
+									inetSocketAddress.getConsensusPort(), -1, inetSocketAddress.isConsensusSecure(), false));
+						}
+					}
+
+					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
+							addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
+					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}",
+							this.serverViewController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
+
+					request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
+							request.getOperationId(), asyncResponseLinkedList.get(index), TOMUtil.getBytes(replyView),
+							serverViewController.getCurrentViewId(), request.getReqType());
+
+				} else {
+					request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
+							request.getOperationId(), asyncResponseLinkedList.get(index), null,
+							serverViewController.getCurrentViewId(), request.getReqType());
+				}
 
 				if (serverViewController.getStaticConf().getNumRepliers() > 0) {
 					LOGGER.debug(
@@ -702,9 +755,9 @@ public class ServiceReplica {
 	 * @param conf Total order messaging configuration
 	 */
 	private static ReplicaContext initTOMLayer(int currentProcessId, String realName, ServiceReplica replica,
-			ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc,
-			RequestVerifier verifier, MessageHandler messageHandler,
-			ClientCommunicationServerSide clientCommunication) {
+                                               ServerCommunicationSystem cs, Recoverable recoverer, ServerViewController svc,
+                                               RequestVerifier verifier, MessageHandler messageHandler,
+                                               ClientCommunicationServerSide clientCommunication) {
 
 		LOGGER.info("I am proc {}, init Tomlayer.", svc.getStaticConf().getProcessId());
 		if (!svc.isInCurrentView()) {

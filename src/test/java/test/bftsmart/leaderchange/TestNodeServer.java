@@ -1,18 +1,5 @@
 package test.bftsmart.leaderchange;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-
 import bftsmart.communication.MessageHandler;
 import bftsmart.communication.ServerCommunicationSystem;
 import bftsmart.communication.ServerCommunicationSystemImpl;
@@ -30,6 +17,19 @@ import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.server.defaultservices.DefaultRecoverable;
 import bftsmart.tom.util.BytesUtils;
 import org.mockito.Mockito;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 /**
  * @Author: zhangshuang
@@ -115,10 +115,10 @@ public class TestNodeServer extends DefaultRecoverable {
         return replies;
     }
 
-    @Override
-    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus, List<ReplyContextMessage> replyContextMessages) {
-        return appExecuteBatch(commands, msgCtxs, fromConsensus);
-    }
+//    @Override
+//    public byte[][] appExecuteBatch(byte[][] commands, MessageContext[] msgCtxs, boolean fromConsensus) {
+//        return appExecuteBatch(commands, msgCtxs, fromConsensus);
+//    }
 
     @Override
     public byte[] appExecuteUnordered(byte[] command, MessageContext msgCtx) {
@@ -133,6 +133,21 @@ public class TestNodeServer extends DefaultRecoverable {
             System.err.println("Invalid request received!");
             return new byte[0];
         }
+    }
+
+    @Override
+    public int getCommandsNumByCid(int cid) {
+        return 0;
+    }
+
+    @Override
+    public byte[][] getCommandsByCid(int cid, int currCidCommandsNum) {
+        return new byte[0][];
+    }
+
+    @Override
+    public long getTimestampByCid(int cid) {
+        return 0;
     }
 
     private byte[] executeSingle(byte[] command, MessageContext msgCtx) {
@@ -187,7 +202,7 @@ public class TestNodeServer extends DefaultRecoverable {
     }
 
     @Override
-    public byte[] getSnapshot() {
+    public byte[] getCheckPointSnapshot(int cid) {
         try {
             System.out.println("getState called");
             ByteArrayOutputStream bos = new ByteArrayOutputStream();

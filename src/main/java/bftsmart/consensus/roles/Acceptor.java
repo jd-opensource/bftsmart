@@ -15,6 +15,30 @@ limitations under the License.
 */
 package bftsmart.consensus.roles;
 
+import bftsmart.communication.MacKey;
+import bftsmart.communication.ServerCommunicationSystem;
+import bftsmart.consensus.Consensus;
+import bftsmart.consensus.Epoch;
+import bftsmart.consensus.app.BatchAppResult;
+import bftsmart.consensus.app.ComputeCode;
+import bftsmart.consensus.messages.ConsensusMessage;
+import bftsmart.consensus.messages.MessageFactory;
+import bftsmart.reconfiguration.ReconfigureRequest;
+import bftsmart.reconfiguration.ReplicaTopology;
+import bftsmart.reconfiguration.ServerViewController;
+import bftsmart.reconfiguration.views.NodeNetwork;
+import bftsmart.reconfiguration.views.View;
+import bftsmart.tom.core.ExecutionManager;
+import bftsmart.tom.core.ReplyManager;
+import bftsmart.tom.core.TOMLayer;
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.core.messages.TOMMessageType;
+import bftsmart.tom.server.Replier;
+import bftsmart.tom.server.defaultservices.DefaultRecoverable;
+import bftsmart.tom.util.TOMUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -24,28 +48,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import bftsmart.communication.MacKey;
-import bftsmart.communication.ServerCommunicationSystem;
-import bftsmart.consensus.Consensus;
-import bftsmart.consensus.Epoch;
-import bftsmart.consensus.app.BatchAppResult;
-import bftsmart.consensus.app.ComputeCode;
-import bftsmart.consensus.messages.ConsensusMessage;
-import bftsmart.consensus.messages.MessageFactory;
-import bftsmart.reconfiguration.ReplicaTopology;
-import bftsmart.reconfiguration.ServerViewController;
-import bftsmart.tom.core.ExecutionManager;
-import bftsmart.tom.core.ReplyManager;
-import bftsmart.tom.core.TOMLayer;
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.core.messages.TOMMessageType;
-import bftsmart.tom.server.Replier;
-import bftsmart.tom.server.defaultservices.DefaultRecoverable;
-import bftsmart.tom.util.TOMUtil;
 
 /**
  * This class represents the acceptor role in the consensus protocol. This class
@@ -437,23 +439,30 @@ public final class Acceptor {
 					if (topology.getStaticConf().isBFT()) {
 
 						DefaultRecoverable defaultExecutor = getDefaultExecutor();
-//                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
-						List<byte[]> commands = new ArrayList<byte[]>();
+                        byte[][] commands = new byte[epoch.deserializedPropValue.length][];
+//						List<byte[]> commands = new ArrayList<byte[]>();
 
 						for (int i = 0; i < epoch.deserializedPropValue.length; i++) {
 							// 对于视图ID落后于当前节点视图ID的请求或者Reconfig请求不进行预计算处理
-							if (ViewIdBackWard(epoch.deserializedPropValue[i])
-									|| isReconfig(epoch.deserializedPropValue[i])) {
-								continue;
+//							if (ViewIdBackWard(epoch.deserializedPropValue[i])
+//									|| isReconfig(epoch.deserializedPropValue[i])) {
+//								continue;
+//							}
+
+							TOMMessage message = epoch.deserializedPropValue[i];
+							if (isReconfig(message)) {
+								ReconfigureRequest request = (ReconfigureRequest) TOMUtil.getObject(message.getContent());
+								commands[i] = request.getExtendInfo();
+							} else {
+								commands[i] = message.getContent();
 							}
-							// 视图ID正常的请求才会继续进行后面的预计算过程
-							commands.add(epoch.deserializedPropValue[i].getContent());
-							epoch.deserializedPrecomputeValue.add(epoch.deserializedPropValue[i]);
+
+//							epoch.deserializedPrecomputeValue.add(msg);
+
 						}
 
 						LOGGER.info("I am proc {}, start pre compute , cid = {}, epoch = {}", this.topology.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
-						BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid,
-								commands.toArray(new byte[commands.size()][]), epoch.getProposeTimestamp());
+						BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid, commands, epoch.getProposeTimestamp());
 
 						byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
 						epoch.propAndAppValue = result;
@@ -632,24 +641,19 @@ public final class Acceptor {
 		computeAccept(cid, epoch, msg.getValue());
 	}
 
-	private void updateConsensusSetting(Epoch epoch) {
+//	private void updateConsensusSetting(Epoch epoch) {
 
-		TOMMessage[] requests = epoch.deserializedPropValue;
+//		TOMMessage[] requests = epoch.deserializedPropValue;
+//
+//		if (requests != null) {
+//			tomLayer.clientsManager.requestsPending(requests);
+//		}
 
-		if (requests == null) {
-			tomLayer.setLastExec(tomLayer.getInExec());
+//		tomLayer.setLastExec(tomLayer.getInExec());
+//
+//		tomLayer.setInExec(-1);
 
-			tomLayer.setInExec(-1);
-			return;
-		}
-
-		tomLayer.clientsManager.requestsPending(requests);
-
-		tomLayer.setLastExec(tomLayer.getInExec());
-
-		tomLayer.setInExec(-1);
-
-	}
+//	}
 
 //    private void createResponses(Epoch epoch,  List<byte[]> updatedResp) {
 //
@@ -707,10 +711,11 @@ public final class Acceptor {
 						LOGGER.error("I am proc {} , flush storage fail, will rollback!",
 								topology.getStaticConf().getProcessId());
 						getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
-						updateConsensusSetting(epoch);
+//						updateConsensusSetting(epoch);
 						updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(),
-								epoch.commonHash, false);
+								epoch.commonHash, true);
 						epoch.setAsyncResponseLinkedList(updatedResp);
+						epoch.setRollback(true);
 						decide(epoch);
 					}
 				} else if (Arrays.equals(value, epoch.propAndAppValueHash)
@@ -718,7 +723,8 @@ public final class Acceptor {
 					LOGGER.error("I am proc {} , cid {}, precompute fail, will rollback",
 							topology.getStaticConf().getProcessId(), cid);
 					getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
-					updateConsensusSetting(epoch);
+//					updateConsensusSetting(epoch);
+					epoch.setRollback(true);
 					decide(epoch);
 				} else if (!Arrays.equals(value, epoch.propAndAppValueHash)) {
 					// Leader does evil to me only, need to roll back
@@ -735,17 +741,17 @@ public final class Acceptor {
 					// This round of consensus has been rolled back, mark it
 					tomLayer.execManager.updateConsensus(tomLayer.getInExec());
 
-					updateConsensusSetting(epoch);
-
+//					updateConsensusSetting(epoch);
+					epoch.setRollback(true);
 					decide(epoch);
 
 					// Pause processing of new messages, Waiting for trigger state transfer
 //                tomLayer.requestsTimer.Enabled(false);
 //                tomLayer.requestsTimer.stopTimer();
 
-					if (!tomLayer.execManager.stopped()) {
-						tomLayer.execManager.stop();
-					}
+//					if (!tomLayer.execManager.stopped()) {
+//						tomLayer.execManager.stop();
+//					}
 				}
 				return;
 			}
@@ -759,23 +765,18 @@ public final class Acceptor {
 				LOGGER.error(
 						"Quorum is not satisfied, node's pre compute hash is inconsistent, will goto pre compute rollback phase!");
 				getDefaultExecutor().preComputeRollback(cid, epoch.getBatchId());
-				updateConsensusSetting(epoch);
+//				updateConsensusSetting(epoch);
 
 				updatedResp = getDefaultExecutor().updateResponses(epoch.getAsyncResponseLinkedList(), epoch.commonHash,
-						true);
+						false);
 				epoch.setAsyncResponseLinkedList(updatedResp);
+				epoch.setRollback(true);
 				decide(epoch);
 			}
 		} catch (Throwable e) {
 			e.printStackTrace();
 		}
 
-	}
-
-	// 视图ID落后的非Reconfig请求
-	private boolean ViewIdBackWard(TOMMessage tomMessage) {
-		return tomMessage.getViewID() < tomMessage.getLeaderViewId()
-				&& tomMessage.getReqType() != TOMMessageType.RECONFIG;
 	}
 
 	// Reconfig请求

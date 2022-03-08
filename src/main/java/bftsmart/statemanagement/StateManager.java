@@ -15,6 +15,7 @@ limitations under the License.
 */
 package bftsmart.statemanagement;
 
+import bftsmart.statemanagement.strategy.StandardTRMessage;
 import bftsmart.tom.core.DeliveryThread;
 import bftsmart.tom.core.TOMLayer;
 
@@ -45,9 +46,16 @@ public interface StateManager {
     
     public void currentConsensusIdReceived(SMMessage msg);
     
+    public void askTransactionReplay(int startCid, int endCid);
+
+    public void transactionReplayAsked(int sender, int target, int startCid, int endCid);
+
+    public void transactionReplayReplyDeliver(StandardTRMessage msg);
+
     public void setLastCID(int lastCID);
-    
+
     public int getLastCID();
 
     public boolean isRetrievingState();
+
 }

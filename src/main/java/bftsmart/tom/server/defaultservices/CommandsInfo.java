@@ -58,6 +58,10 @@ public class CommandsInfo implements Serializable {
         this.msgCtx = onlyNeeded;
     }
 
+    public CommandsInfo(byte[][] commands) {
+        this.commands = commands;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof CommandsInfo) {

@@ -43,9 +43,7 @@ public class StandardStateManager extends BaseStateManager {
     private int replica;
     private ReentrantLock lockTimer = new ReentrantLock();
     private Timer stateTimer = null;
-    private final static long INIT_TIMEOUT = 40000;
-    private long timeout = INIT_TIMEOUT;
-    
+
     //private LCManager lcManager;
     private ExecutionManager execManager;
 
@@ -151,6 +149,9 @@ public class StandardStateManager extends BaseStateManager {
         isInitializing = true;
         if (stateTimer != null) {
             stateTimer.cancel();
+        }
+        if (replayTimer != null) {
+            replayTimer.cancel();
         }
     }
     
@@ -446,7 +447,7 @@ public class StandardStateManager extends BaseStateManager {
         return match;
     }
 
-	@Override
+    @Override
 	public void currentConsensusIdAsked(int sender, int viewId) {
         LOGGER.info("I am proc {}, I will handle currentConsensusIdAsked sender = {}!", tomLayer.getCurrentProcessId(), sender);
 
@@ -461,7 +462,7 @@ public class StandardStateManager extends BaseStateManager {
             LOGGER.info("################State Transfer Requester View Is Obsolete, If Block Exist Diff, Please Requester Copy Ledger Database And Restart!#####################");
             LOGGER.info("#######################################################################################################################################################");
         }
-		int me = topology.getStaticConf().getProcessId();
+		int me = topology.getCurrentProcessId();
 		int lastConsensusId = tomLayer.getLastExec();
 		LOGGER.info("I am proc {}, will send consensusId = {} !", tomLayer.getCurrentProcessId(), lastConsensusId);
 		SMMessage currentCID = new StandardSMMessage(me, lastConsensusId, TOMUtil.SM_REPLY_INITIAL, 0, null, this.topology.getCurrentView(), 0, 0);

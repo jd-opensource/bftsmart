@@ -26,6 +26,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantLock;
 
+import bftsmart.statemanagement.strategy.StandardTRMessage;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.consensus.messages.ConsensusMessage;
@@ -428,6 +429,21 @@ public class DurableStateManager extends BaseStateManager {
 			}
 		}
 		lockTimer.unlock();
+	}
+
+	@Override
+	public void askTransactionReplay(int startCid, int endCid) {
+
+	}
+
+	@Override
+	public void transactionReplayAsked(int sender, int target, int startCid, int endCid) {
+
+	}
+
+	@Override
+	public void transactionReplayReplyDeliver(StandardTRMessage msg) {
+
 	}
 
 }

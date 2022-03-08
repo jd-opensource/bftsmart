@@ -28,6 +28,6 @@ public interface PreComputeBatchExecutable extends Executable {
     public void preComputeRollback(int cid, String batchId);
 
     // batch exe new interface
-    public byte[][] executeBatch(byte[][] command, MessageContext[] msgCtx, List<ReplyContextMessage> replyContextMessages);
+    public byte[][] executeBatch(byte[][] command, MessageContext[] msgCtx);
 
 }

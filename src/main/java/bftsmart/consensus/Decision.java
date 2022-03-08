@@ -38,6 +38,7 @@ public class Decision {
     //for benchmarking
     public TOMMessage firstMessageProposed = null;
     public int batchSize = 0;
+    private boolean isRollback = false;
 
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Decision.class);
 
@@ -136,5 +137,13 @@ public class Decision {
             } catch (InterruptedException ie) {
             }
         }
+    }
+
+    public void setRollback(boolean rollback) {
+        isRollback = rollback;
+    }
+
+    public boolean getRollback() {
+        return isRollback;
     }
 }

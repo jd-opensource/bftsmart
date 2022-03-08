@@ -200,7 +200,7 @@ public class DefaultApplicationState implements ApplicationState {
      */
     public CommandsInfo getMessageBatch(int cid) {
         try {
-            if (messageBatches != null && cid >= lastCheckpointCID && cid <= lastCID) {
+            if (messageBatches != null && cid > lastCheckpointCID && cid <= lastCID) {
                 return messageBatches[cid - lastCheckpointCID - 1];
             }
             else return null;
@@ -219,6 +219,9 @@ public class DefaultApplicationState implements ApplicationState {
         return lastCheckpointCID;
     }
 
+    public int getPid() {
+        return pid;
+    }
 
     @Override
     public boolean equals(Object obj) {

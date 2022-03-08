@@ -45,7 +45,7 @@ public class StateLog {
      */
     public StateLog(int id, int k, byte[] initialState, byte[] initialHash) {
 
-        this.messageBatches = new CommandsInfo[k - 1];
+        this.messageBatches = new CommandsInfo[k];
         this.lastCheckpointCID = -1;
         this.state = initialState;
         this.stateHash = initialHash;
@@ -61,7 +61,7 @@ public class StateLog {
      */
     public StateLog(int id, int k) {
 
-        this.messageBatches = new CommandsInfo[k - 1];
+        this.messageBatches = new CommandsInfo[k];
         this.lastCheckpointCID = -1;
         this.state = null;
         this.stateHash = null;
@@ -139,12 +139,20 @@ public class StateLog {
         return state;
     }
 
+    public void setState(byte[] state) {
+        this.state = state;
+    }
+
     /**
      * Retrieves the hash of the state associated with the last checkpoint
      * @return Hash of the state associated with the last checkpoint
      */
     public byte[] getStateHash() {
         return stateHash;
+    }
+
+    public void setStateHash(byte[] stateHash) {
+        this.stateHash = stateHash;
     }
 
     /**
@@ -169,7 +177,7 @@ public class StateLog {
      * @return The batch of messages associated with the batch correspondent consensus ID
      */
     public CommandsInfo getMessageBatch(int cid) {
-        if (cid > lastCheckpointCID && cid <= lastCID) {
+        if (cid >lastCheckpointCID && cid <= lastCID) {
             return messageBatches[cid - lastCheckpointCID - 1];
         }
         else return null;
@@ -203,7 +211,7 @@ public class StateLog {
 
         int lastCID = -1;
        
-        if (cid >= lastCheckpointCID && cid <= this.lastCID) {
+        if (cid > lastCheckpointCID && cid <= this.lastCID) {
             
     	LOGGER.debug("--- Constructing ApplicationState up until CID {}", cid);
 

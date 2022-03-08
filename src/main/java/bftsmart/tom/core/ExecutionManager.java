@@ -214,99 +214,109 @@ public final class ExecutionManager {
      * @return true in case the message can be executed, false otherwise
      */
     public final boolean checkLimits(ConsensusMessage msg) {
-        outOfContextLock.lock();
-        
-        int lastConsId = tomLayer.getLastExec();
-        
-        int inExec = tomLayer.getInExec();
 
-        // If rollback occurs, this node no longer processes new messages, wait state transfer
-        boolean rollHappend = tomLayer.execManager.getConsensus(lastConsId).getPrecomputeRolled();
-        
-        LOGGER.debug("(ExecutionManager.checkLimits) Received message {}", msg);
-        LOGGER.debug("(ExecutionManager.checkLimits) I'm at consensus {} and my last consensus is {}",
-                inExec, lastConsId);
-        
-        boolean isRetrievingState = tomLayer.isRetrievingState();
+        try {
+            outOfContextLock.lock();
 
-        boolean isReady = tomLayer.isReady();
+            int lastConsId = tomLayer.getLastExec();
 
-        if (isRetrievingState) {
-            LOGGER.debug("(ExecutionManager.checkLimits) I'm waiting for a state");
-        }
+            int inExec = tomLayer.getInExec();
 
-        boolean canProcessTheMessage = false;
+            // filter out expired messages
+            if (msg.getNumber() <= lastConsId) {
+                return false;
+            }
 
-        /** THIS IS JOAO'S CODE, TO HANDLE THE STATE TRANSFER */
-        // This serves to re-direct the messages to the out of context
-        // while a replica is receiving the state of the others and updating itself
-        if (isRetrievingState || // Is this replica retrieving a state?
-                !isReady ||
-                (!(lastConsId == -1 && msg.getNumber() >= (lastConsId + revivalHighMark)) && //not a recovered replica
-                (msg.getNumber() > lastConsId && (msg.getNumber() < (lastConsId + paxosHighMark))) && // not an ahead of time message
-                !(stopped && msg.getNumber() >= (lastConsId + timeoutHighMark)))) { // not a timed-out replica which needs to fetch the state
+            // If rollback occurs, this node no longer processes new messages, wait state transfer
+            boolean rollHappend = tomLayer.execManager.getConsensus(lastConsId).getPrecomputeRolled();
 
-            if (stopped) {//just an optimization to avoid calling the lock in normal case
-                stoppedMsgsLock.lock();
-                if (stopped) {
-                    LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, is ready : {}, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, isReady, lastConsId, inExec);
+            LOGGER.debug("(ExecutionManager.checkLimits) Received message {}", msg);
+            LOGGER.debug("(ExecutionManager.checkLimits) I'm at consensus {} and my last consensus is {}",
+                    inExec, lastConsId);
+
+            boolean isRetrievingState = tomLayer.isRetrievingState();
+
+            boolean isReady = tomLayer.isReady();
+
+            if (isRetrievingState) {
+                LOGGER.debug("(ExecutionManager.checkLimits) I'm waiting for a state");
+            }
+
+            boolean canProcessTheMessage = false;
+
+            /** THIS IS JOAO'S CODE, TO HANDLE THE STATE TRANSFER */
+            // This serves to re-direct the messages to the out of context
+            // while a replica is receiving the state of the others and updating itself
+            if (isRetrievingState || // Is this replica retrieving a state?
+                    !isReady ||
+                    (!(lastConsId == -1 && msg.getNumber() >= (lastConsId + revivalHighMark)) && //not a recovered replica
+                            (msg.getNumber() > lastConsId && (msg.getNumber() < (lastConsId + paxosHighMark))) && // not an ahead of time message
+                            !(stopped && msg.getNumber() >= (lastConsId + timeoutHighMark)))) { // not a timed-out replica which needs to fetch the state
+
+                if (stopped) {//just an optimization to avoid calling the lock in normal case
+                    stoppedMsgsLock.lock();
+                    if (stopped) {
+                        LOGGER.debug("(ExecutionManager.checkLimits) I am proc {} adding message for consensus {} to stopped, is retrive state : {}, is ready : {}, last cid is {}, in exe cid is {}", topology.getStaticConf().getProcessId(), msg.getNumber(), isRetrievingState, isReady, lastConsId, inExec);
 //                    System.out.println("(ExecutionManager.checkLimits) I am proc " + controller.getStaticConf().getProcessId() + " adding message for consensus " + msg.getNumber() + " to stoopped");
-                    //the execution manager was stopped, the messages should be stored
-                    //for later processing (when the consensus is restarted)
-                    stoppedMsgs.add(msg);
+                        //the execution manager was stopped, the messages should be stored
+                        //for later processing (when the consensus is restarted)
+                        stoppedMsgs.add(msg);
+                    }
+                    stoppedMsgsLock.unlock();
+                } else {
+                    if (isRetrievingState || !isReady ||
+                            msg.getNumber() > (lastConsId + 1) ||
+                            (inExec != -1 && inExec < msg.getNumber()) ||
+                            (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus
+
+                        LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}, isRetrievingState = {}, isReady = {}", topology.getStaticConf().getProcessId(),
+                                msg.getNumber(), lastConsId, inExec, isRetrievingState, isReady);
+
+
+                        //System.out.println("(ExecutionManager.checkLimits) Message for consensus " +
+                        //       msg.getNumber() + " is out of context, adding it to out of context set; isRetrievingState="+isRetrievingState);
+
+
+                        addOutOfContextMessage(msg);
+                    } else if (!rollHappend){ //can process!
+                        LOGGER.info("(ExecutionManager.checkLimits)I am proc {} ,message for consensus {} can be processed", this.topology.getStaticConf().getProcessId(), msg.getNumber());
+
+                        //Logger.debug = false;
+                        canProcessTheMessage = true;
+                    }
                 }
-                stoppedMsgsLock.unlock();
-            } else {
-                if (isRetrievingState || !isReady ||
-                        msg.getNumber() > (lastConsId + 1) || 
-                        (inExec != -1 && inExec < msg.getNumber()) || 
-                        (inExec == -1 && msg.getType() != MessageFactory.PROPOSE)) { //not propose message for the next consensus
+            } else if ((lastConsId == -1 && msg.getNumber() >= (lastConsId + revivalHighMark)) || //recovered...
+                    (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
+                    (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
-                    LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, Message for consensus {} is out of context, adding it to out of context set, last cid is {}, in exe cid is {}, isRetrievingState = {}, isReady = {}", topology.getStaticConf().getProcessId(),
-                            msg.getNumber(), lastConsId, inExec, isRetrievingState, isReady);
+                LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, start running state transfer, local lastCid is {}, recv msg cid is {}, in cid is {}", topology.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
+                LOGGER.info("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", topology.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
+                //Start state transfer
+                /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
+                LOGGER.info("(ExecutionManager.checkLimits) Message for consensus {} is beyond the paxos highmark, adding it to out of context set", msg.getNumber());
+                addOutOfContextMessage(msg);
 
-
-                    //System.out.println("(ExecutionManager.checkLimits) Message for consensus " + 
-                     //       msg.getNumber() + " is out of context, adding it to out of context set; isRetrievingState="+isRetrievingState);
-                    
-                    
-                    addOutOfContextMessage(msg);
-                } else if (!rollHappend){ //can process!
-                    LOGGER.info("(ExecutionManager.checkLimits)I am proc {} ,message for consensus {} can be processed", this.topology.getStaticConf().getProcessId(), msg.getNumber());
-            
-                    //Logger.debug = false;
-                    canProcessTheMessage = true;
+                if (topology.getStaticConf().isStateTransferEnabled()) {
+                    // free old consensus message
+                    freeOutOfContextMessage(lastConsId, msg.getNumber() - 1);
+                    tomLayer.getStateManager().analyzeState(msg.getNumber());
                 }
+                else {
+                    LOGGER.error("##################################################################################");
+                    LOGGER.error("- Ahead-of-time message discarded");
+                    LOGGER.error("- If many messages of the same consensus are discarded, the replica can halt!");
+                    LOGGER.error("- Try to increase the 'system.paxos.highMarc' configuration parameter.");
+                    LOGGER.error("- Last consensus executed: {}", lastConsId);
+                    LOGGER.error("##################################################################################");
+                }
+                /******************************************************************/
             }
-        } else if ((lastConsId == -1 && msg.getNumber() >= (lastConsId + revivalHighMark)) || //recovered...
-                (msg.getNumber() >= (lastConsId + paxosHighMark)) ||  //or too late replica...
-                (stopped && msg.getNumber() >= (lastConsId + timeoutHighMark))) { // or a timed-out replica which needs to fetch the state
 
-            LOGGER.info("(ExecutionManager.checkLimits) I am proc {}, start state transfer, last cid is {}, recv msg cid is {}, in cid is {}", topology.getStaticConf().getProcessId(), lastConsId, msg.getNumber(), inExec);
-            LOGGER.info("I am proc {}, revivalHighMark is {}, paxosHighMark is {}, timeoutHighMark is {}", topology.getStaticConf().getProcessId(), revivalHighMark, paxosHighMark, timeoutHighMark);
-            //Start state transfer
-            /** THIS IS JOAO'S CODE, FOR HANLDING THE STATE TRANSFER */
-            LOGGER.info("(ExecutionManager.checkLimits) Message for consensus {} is beyond the paxos highmark, adding it to out of context set", msg.getNumber());
-            addOutOfContextMessage(msg);
+            return canProcessTheMessage;
 
-            if (topology.getStaticConf().isStateTransferEnabled()) {
-                //Logger.debug = true;
-                tomLayer.getStateManager().analyzeState(msg.getNumber());
-            }
-            else {
-                LOGGER.error("##################################################################################");
-                LOGGER.error("- Ahead-of-time message discarded");
-                LOGGER.error("- If many messages of the same consensus are discarded, the replica can halt!");
-                LOGGER.error("- Try to increase the 'system.paxos.highMarc' configuration parameter.");
-                LOGGER.error("- Last consensus executed: {}", lastConsId);
-                LOGGER.error("##################################################################################");
-            }
-            /******************************************************************/
+        } finally {
+            outOfContextLock.unlock();
         }
-        
-        outOfContextLock.unlock();
-
-        return canProcessTheMessage;
     }
 
     /**
@@ -609,6 +619,19 @@ public final class ExecutionManager {
         } catch (Exception e) {
             LOGGER.error("(ExecutionManager.addOutOfContextMessage) exception, e = {}!", e.getMessage());
             throw e;
+        } finally {
+            outOfContextLock.unlock();
+        }
+    }
+
+    public void freeOutOfContextMessage(int fromCid, int toCid) {
+        try {
+            outOfContextLock.lock();
+
+            for (int cid = fromCid; cid < toCid; cid++) {
+                outOfContext.remove(cid);
+                outOfContextProposes.remove(cid);
+            }
         } finally {
             outOfContextLock.unlock();
         }
