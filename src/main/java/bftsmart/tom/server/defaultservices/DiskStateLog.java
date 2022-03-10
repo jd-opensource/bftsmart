@@ -65,21 +65,11 @@ public class DiskStateLog extends StateLog {
 
 		if (DEFAULT_DIR.length() == 0) {
 			try {
-				URL resource = DiskStateLog.class.getResource("/");
-				if (resource != null) {
-					String libPath = resource.getPath();
-					if (libPath != null && libPath.length() > 0) {
-						DEFAULT_DIR = libPath;
-						this.logDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
-						this.ckpDefaultFile = File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
-					}
-				} else {
-					File libDir = new File(DiskStateLog.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-					LOGGER.info("DiskStateLog's lib path = {} !", libDir.getAbsolutePath());
-					DEFAULT_DIR = libDir.getParentFile().getParentFile().getPath();
-					this.logDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".log";
-					this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + String.valueOf(id) + ".txs" + ".ckp";
-				}
+				File libDir = new File(DiskStateLog.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+				LOGGER.info("DiskStateLog's lib path = {} !", libDir.getAbsolutePath());
+				DEFAULT_DIR = libDir.getParentFile().getParentFile().getPath();
+				this.logDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + id + ".txs" + ".log";
+				this.ckpDefaultFile = File.separator + "runtime" + File.separator + this.realName + "." + id + ".txs" + ".ckp";
 			} catch (Exception e) {
 				LOGGER.error("load runtime path error !", e);
 			}
@@ -97,7 +87,7 @@ public class DiskStateLog extends StateLog {
 			 * log.setLength(TEN_MB); log.seek(0);
 			 */
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.error("create log file error !", e);
 		}
 	}
 
@@ -147,7 +137,7 @@ public class DiskStateLog extends StateLog {
 													// the EOF mark
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOGGER.error("write command to disk error !", e);
 	    }
 	}
 
@@ -182,10 +172,10 @@ public class DiskStateLog extends StateLog {
 			
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOGGER.error("new checkpoint error !", e);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOGGER.error("new checkpoint error !", e);
 		} finally {
 			checkpointLock.unlock();
 		}
@@ -205,7 +195,7 @@ public class DiskStateLog extends StateLog {
 				new File(lastCkpPath).delete();
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.error("delete last ckp error !", e);
 		}
 	}
 
@@ -217,7 +207,7 @@ public class DiskStateLog extends StateLog {
 				new File(logPath).delete();
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.error("delete log file error !", e);
 		}
 	}
 
@@ -322,7 +312,7 @@ public class DiskStateLog extends StateLog {
 				LOGGER.debug(" --- Replica {} took checkpoint. My current log pointer is {}", ckpReplicaIndex, log.getFilePointer());
 				logPointers.put(ckpReplicaIndex, log.getFilePointer());
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOGGER.error("set last CID error !", e);
 			}
 		}
 	}
@@ -361,7 +351,7 @@ public class DiskStateLog extends StateLog {
 				ckp.seek(ckp.length() - INT_BYTE_SIZE);
 				ckpLastConsensusId = ckp.readInt();
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOGGER.error("load durable state error !", e);
 			}
 		}
 
@@ -371,7 +361,7 @@ public class DiskStateLog extends StateLog {
                 log.seek(log.length() - INT_BYTE_SIZE);
                 logLastConsensusId = log.readInt();
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOGGER.error("load durable state error !", e);
 			}
 		}
 
