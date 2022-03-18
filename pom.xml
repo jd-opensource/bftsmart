@@ -5,14 +5,14 @@
 	<parent>
 		<groupId>com.jd.blockchain</groupId>
 		<artifactId>jdchain-parent</artifactId>
-		<version>1.1.7.RELEASE</version>
+		<version>1.1.8.RELEASE</version>
 		<relativePath>../../project/parent</relativePath>
 	</parent>
 	<artifactId>bft-smart</artifactId>
-	<version>0.7.4.RELEASE</version>
+	<version>0.7.5.RELEASE</version>
 
 	<properties>
-		<util.version>2.2.1.RELEASE</util.version>
+		<util.version>2.2.2.RELEASE</util.version>
 	</properties>
 
 	<dependencies>
