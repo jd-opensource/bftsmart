@@ -93,7 +93,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 	        if ((cid > 0) && ((cid % checkpointPeriod) == 0)) {
 	           LOGGER.debug("(DefaultSingleRecoverable.executeOrdered) Performing checkpoint for consensus {}", cid);
 	            stateLock.lock();
-	            byte[] snapshot = getCheckPointSnapshot(cid);
+	            byte[] snapshot = getBlockHashByCid(cid);
 	            stateLock.unlock();
 	            saveState(snapshot, cid);
 	        } else {
@@ -263,7 +263,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
                 log = new DiskStateLog(replicaId, null,null, isToLog, syncLog, syncCkp, this.realName, controller);
                 int logLastConsensusId = ((DiskStateLog) log).loadDurableState();
 
-                byte[] state = getCheckPointSnapshot(log.getLastCheckpointCID());
+                byte[] state = getBlockHashByCid(log.getLastCheckpointCID());
 
                 if (logLastConsensusId > 0) {
 //                    setState(storedState);
@@ -298,7 +298,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
             	boolean syncCkp = config.isToWriteSyncCkp();
             	log = new DiskStateLog(replicaId, null, null, isToLog, syncLog, syncCkp, this.realName, controller);
             	((DiskStateLog) log).loadDurableState();
-                byte[] state = getCheckPointSnapshot(log.getLastCheckpointCID());
+                byte[] state = getBlockHashByCid(log.getLastCheckpointCID());
                 log.setState(state);
                 log.setStateHash(computeHash(state));
             } else
@@ -333,7 +333,7 @@ public abstract class DefaultSingleRecoverable implements Recoverable, SingleExe
 
     public abstract void installSnapshot(byte[] state);
     
-    public abstract byte[] getCheckPointSnapshot(int cid);
+    public abstract byte[] getBlockHashByCid(int cid);
     
     public abstract byte[] appExecuteOrdered(byte[] command, MessageContext msgCtx);
     

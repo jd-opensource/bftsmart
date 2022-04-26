@@ -202,7 +202,7 @@ public class TestNodeServer extends DefaultRecoverable {
     }
 
     @Override
-    public byte[] getCheckPointSnapshot(int cid) {
+    public byte[] getBlockHashByCid(int cid) {
         try {
             System.out.println("getState called");
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
