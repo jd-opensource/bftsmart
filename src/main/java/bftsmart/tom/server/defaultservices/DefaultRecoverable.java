@@ -232,7 +232,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 			// cid 正好为检查点， checkpointPeriod,  2*checkpointPeriod, 3*checkpointPeriod,......
 			if ((cid > 0) && (cid % checkpointPeriod == 0)) {
 				stateLock.lock();
-				byte[] snapshot = getCheckPointSnapshot(cid);
+				byte[] snapshot = getBlockHashByCid(cid);
 				stateLock.unlock();
 				saveState(snapshot, cid);
 			}
@@ -339,6 +339,10 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 			if (ret == null) { // 暂时没有办法考虑证据，由于证据没有上链，在节点重启时只加载了交易集，无法加载交易达成共识的证据
 				ret = new DefaultApplicationState();
 			}
+
+			// 添加与该CID对应的区块hash到ApplicationState，使落后节点进行区块同步时可以验证同步数据的区块完整性。
+			((DefaultApplicationState) ret).setBlockHash(getBlockHashByCid(cid));
+
 			return ret;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -353,6 +357,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 	public int setState(ApplicationState recvState) {
 		int remoteLastCid = -1;
 		DefaultApplicationState state = null;
+		byte[] remoteBlockHash;
 
 		stateLock.lock();
 		try {
@@ -362,6 +367,8 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 				state = (DefaultApplicationState) recvState;
 
 				remoteLastCid = state.getLastCID();
+
+				remoteBlockHash = state.getBlockHash();
 
 				if (state.getSerializedState() != null) {
 					initLog();
@@ -393,6 +400,15 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 						((StandardStateManager) this.getStateManager()).getTomLayer().setLastExec(cid);
 						((StandardStateManager) this.getStateManager()).getTomLayer().setInExec(-1);
 					}
+				}
+
+				byte[] currBlockHash = getBlockHashByCid(remoteLastCid);
+
+
+				if (!Arrays.equals(currBlockHash, remoteBlockHash)) {
+					throw new IllegalStateException("Ledger block data error occurred while recovering the app state, please check database!");
+				} else {
+					LOGGER.info("Ledger integrity check pass while recovering the app state from remote!");
 				}
 			}
 		} catch (Exception e) {
@@ -503,7 +519,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 				logLastConsensusId = ((DiskStateLog) log).loadDurableState();
 
-				byte[] state = getCheckPointSnapshot(log.getLastCheckpointCID());
+				byte[] state = getBlockHashByCid(log.getLastCheckpointCID());
 
 				log.setState(state);
 
@@ -523,7 +539,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 					lastCheckpointCid = (lastCid / checkpointPeriod) * checkpointPeriod -1;
 				}
 
-				byte[] state = getCheckPointSnapshot(lastCheckpointCid);
+				byte[] state = getBlockHashByCid(lastCheckpointCid);
 
 				log = new StateLog(this.config.getProcessId(), checkpointPeriod, state, computeHash(state));
 				log.setLastCheckpointCID(lastCheckpointCid);
@@ -607,7 +623,7 @@ public abstract class DefaultRecoverable implements Recoverable, PreComputeBatch
 
 	public abstract void installSnapshot(byte[] state);
 
-	public abstract byte[] getCheckPointSnapshot(int cid);
+	public abstract byte[] getBlockHashByCid(int cid);
 
 	public abstract BatchAppResultImpl preComputeAppHash(int cid, byte[][] commands, long timestamp);
 
