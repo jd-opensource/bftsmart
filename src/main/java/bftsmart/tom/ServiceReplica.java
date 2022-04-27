@@ -411,10 +411,6 @@ public class ServiceReplica {
 			noop = true;
 			for (TOMMessage request : requestsFromConsensus) {
 
-				LOGGER.debug(
-						"(ServiceReplica.receiveMessages) Processing TOMMessage from client {} with sequence number {} for session {} decided in consensus {}, request = {}",
-						request.getSender(), request.getSequence(), request.getSession(), consId[consensusCount], Base58Utils.encode(request.getContent()));
-
 				LOGGER.info(
 						"(ServiceReplica.receiveMessages) request view id = {}, curr view id = {}, request type = {}",
 						request.getViewID(), serverViewController.getCurrentViewId(), request.getReqType());
