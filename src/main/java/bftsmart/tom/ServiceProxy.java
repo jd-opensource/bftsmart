@@ -164,7 +164,7 @@ public class ServiceProxy extends TOMSender {
 			replyServer = -1;
 			hashResponseController = null;
 
-			LOGGER.info("Before Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
+			LOGGER.info("Before Sending request {} with reqId {}, operationId {}, clientId={}", reqType, reqId, operationId, getProcessId());
 
 			if (requestType == TOMMessageType.UNORDERED_HASHED_REQUEST) {
 
@@ -183,7 +183,7 @@ public class ServiceProxy extends TOMSender {
 				TOMulticast(request, reqId, operationId, reqType);
 			}
 
-			LOGGER.info("After Sending request {} with reqId {}, operationId {}, clientId={}, hash = {}", reqType, reqId, operationId, getProcessId(), this.hashCode());
+			LOGGER.info("After Sending request {} with reqId {}, operationId {}, clientId={}", reqType, reqId, operationId, getProcessId());
 
 			LOGGER.debug("Expected number of matching replies: {}", replyQuorum);
 
@@ -328,7 +328,7 @@ public class ServiceProxy extends TOMSender {
 		canReceiveLock.lock();
 		try {
 			if (reqId == -1) {// no message being expected
-				LOGGER.info("throwing out request: sender {}, reqId {}, hash = {}", reply.getSender(), reply.getSequence(), this.hashCode());
+				LOGGER.info("throwing out request: sender {}, reqId {}", reply.getSender(), reply.getSequence());
 				return;
 			}
 

@@ -534,8 +534,6 @@ public class TOMLayer extends Thread implements RequestReceiver {
 			return;
 		}
 
-		LOGGER.debug("(TOMLayer.run) There are messages to be ordered.");
-
 		LOGGER.info("(TOMLayer.run) I am proc {}, I can try to propose.",
 				this.controller.getStaticConf().getProcessId());
 
@@ -570,10 +568,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 				byte[] value = createPropose(dec);
 
 				Consensus consensus = execManager.getConsensus(dec.getConsensusId());
-				// create epoch;
-				Epoch epoch = consensus.getEpoch(0, controller);
-//                    epoch.propValue = value;
-//                    epoch.propValueHash = computeHash(value);
+
 				LOGGER.debug("Propose new consensus by leader! --[Leader={}][ConsensusId={}]",
 						controller.getCurrentProcessId(), consensus.getId());
 				execManager.getProposer().startConsensus(consensus.getId(), value);

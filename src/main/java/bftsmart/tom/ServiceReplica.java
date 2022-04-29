@@ -712,8 +712,8 @@ public class ServiceReplica {
 
 					View replyView = new View(view.getId(), view.getProcesses(), view.getF(),
 							addressesTemp.toArray(new NodeNetwork[addressesTemp.size()]));
-					LOGGER.info("I am proc {}, view = {}, hashCode = {}, reply View = {}",
-							this.serverViewController.getStaticConf().getProcessId(), view, view.hashCode(), replyView);
+					LOGGER.info("I am proc {}, view = {}, reply View = {}",
+							this.serverViewController.getStaticConf().getProcessId(), view, replyView);
 
 					request.reply = new TOMMessage(id, request.getSession(), request.getSequence(),
 							request.getOperationId(), asyncResponseLinkedList.get(index), TOMUtil.getBytes(replyView),

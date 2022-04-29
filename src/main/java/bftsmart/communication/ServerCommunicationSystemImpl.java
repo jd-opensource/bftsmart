@@ -40,7 +40,7 @@ import utils.net.SSLSecurity;
 public class ServerCommunicationSystemImpl implements ServerCommunicationSystem {
 
 	private boolean doWork = true;
-	public static final long MESSAGE_WAIT_TIME = 100;
+//	public static final long MESSAGE_WAIT_TIME = 100;
 //	private MessageQueue messageInQueue;
 	private MessageHandler messageHandler;// = new MessageHandler();
 	private CommunicationLayer serversCommunication;

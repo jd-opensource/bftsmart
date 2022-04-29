@@ -71,7 +71,7 @@ public final class Acceptor {
 	// private Cipher cipher;
 //	private Mac mac;
 
-	private LinkedBlockingQueue<ConsensusMessage> consensusMessageQueue = new LinkedBlockingQueue<>();
+//	private LinkedBlockingQueue<ConsensusMessage> consensusMessageQueue = new LinkedBlockingQueue<>();
 	private volatile boolean doWork = false;
 //	private volatile Thread thrdWork;
 
@@ -98,14 +98,6 @@ public final class Acceptor {
 
 	public DefaultRecoverable getDefaultExecutor() {
 		return (DefaultRecoverable) tomLayer.getDeliveryThread().getReceiver().getExecutor();
-	}
-
-	public Replier getBatchReplier() {
-		return tomLayer.getDeliveryThread().getReceiver().getReplier();
-	}
-
-	public ReplyManager getReplyManager() {
-		return tomLayer.getDeliveryThread().getReceiver().getRepMan();
 	}
 
 	public MessageFactory getFactory() {
@@ -139,11 +131,9 @@ public final class Acceptor {
 	 */
 	public final void deliver(ConsensusMessage msg) {
 		if (executionManager.checkLimits(msg)) {
-//            LOGGER.debug("processing paxos msg with id " + msg.getNumber());
 			LOGGER.debug("processing paxos msg with id {}", msg.getNumber());
 			processMessage(msg);
 		} else {
-//            LOGGER.debug("out of context msg with id " + msg.getNumber());
 			LOGGER.debug("out of context msg with id {}", msg.getNumber());
 
 			tomLayer.processOutOfContext();
@@ -298,7 +288,7 @@ public final class Acceptor {
 			LOGGER.info("(Acceptor.executePropose) I am proc {}, executing propose for cid : {}, epoch timestamp: {}",
 					topology.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
 
-			long consensusStartTime = System.nanoTime();
+//			long consensusStartTime = System.nanoTime();
 
 			if (epoch.propValue == null) { // only accept one propose per epoch
 				epoch.propValue = value;
@@ -306,9 +296,9 @@ public final class Acceptor {
 
 				/*** LEADER CHANGE CODE ********/
 				epoch.getConsensus().addWritten(value);
-				LOGGER.debug(
-						"(Acceptor.executePropose) I have written value {}, in consensus instance {}, with timestamp {}",
-						Arrays.toString(epoch.propValueHash), cid, epoch.getConsensus().getEts());
+//				LOGGER.debug(
+//						"(Acceptor.executePropose) I have written value {}, in consensus instance {}, with timestamp {}",
+//						Arrays.toString(epoch.propValueHash), cid, epoch.getConsensus().getEts());
 				/*****************************************/
 
 				// start this consensus if it is not already running
@@ -321,20 +311,20 @@ public final class Acceptor {
 				}
 
 				if (epoch.deserializedPropValue != null && !epoch.isWriteSetted(me)) {
-					if (epoch.getConsensus().getDecision().firstMessageProposed == null) {
-						epoch.getConsensus().getDecision().firstMessageProposed = epoch.deserializedPropValue[0];
-					}
-					if (epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime == 0) {
-						epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime = consensusStartTime;
+//					if (epoch.getConsensus().getDecision().firstMessageProposed == null) {
+//						epoch.getConsensus().getDecision().firstMessageProposed = epoch.deserializedPropValue[0];
+//					}
+//					if (epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime == 0) {
+//						epoch.getConsensus().getDecision().firstMessageProposed.consensusStartTime = consensusStartTime;
+//
+//					}
+//					epoch.getConsensus().getDecision().firstMessageProposed.proposeReceivedTime = System.nanoTime();
 
-					}
-					epoch.getConsensus().getDecision().firstMessageProposed.proposeReceivedTime = System.nanoTime();
-
-					if (topology.getStaticConf().isBFT()) {
+//					if (topology.getStaticConf().isBFT()) {
 						LOGGER.debug("(Acceptor.executePropose) sending WRITE for {}", cid);
 
 						epoch.setWrite(me, epoch.propValueHash);
-						epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
+//						epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
 
 //                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send write msg" + ", cid is " + cid);
 						communication.send(this.topology.getCurrentViewOtherAcceptors(),
@@ -346,22 +336,23 @@ public final class Acceptor {
 
 						LOGGER.debug("(Acceptor.executePropose) WRITE computed for {}", cid);
 
-					} else {
-						epoch.setAccept(me, epoch.propValueHash);
-						epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
-						epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
-						/**** LEADER CHANGE CODE! ******/
-						LOGGER.debug(
-								"(Acceptor.executePropose) [CFT Mode] Setting consensus {}, QuorumWrite tiemstamp to {} and value {}",
-								cid, epoch.getConsensus().getEts(), Arrays.toString(epoch.propValueHash));
-						epoch.getConsensus().setQuorumWrites(epoch.propValueHash);
-						/*****************************************/
-
-						communication.send(this.topology.getCurrentViewOtherAcceptors(),
-								factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash));
-
-						computeAccept(cid, epoch, epoch.propValueHash);
-					}
+//					}
+//					else {
+//						epoch.setAccept(me, epoch.propValueHash);
+////						epoch.getConsensus().getDecision().firstMessageProposed.writeSentTime = System.nanoTime();
+////						epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
+//						/**** LEADER CHANGE CODE! ******/
+//						LOGGER.debug(
+//								"(Acceptor.executePropose) [CFT Mode] Setting consensus {}, QuorumWrite tiemstamp to {} and value {}",
+//								cid, epoch.getConsensus().getEts(), Arrays.toString(epoch.propValueHash));
+//						epoch.getConsensus().setQuorumWrites(epoch.propValueHash);
+//						/*****************************************/
+//
+//						communication.send(this.topology.getCurrentViewOtherAcceptors(),
+//								factory.createAccept(cid, epoch.getTimestamp(), epoch.propValueHash));
+//
+//						computeAccept(cid, epoch, epoch.propValueHash);
+//					}
 					executionManager.processOutOfContext(epoch.getConsensus());
 				}
 			}
@@ -416,27 +407,25 @@ public final class Acceptor {
 				LOGGER.info("(Acceptor.computeWrite) I am proc {}, I have {} WRITEs for cid {}, epoch timestamp {}",
 						this.topology.getStaticConf().getProcessId(), writeAccepted, cid, epoch.getTimestamp());
 
-//            System.out.println("(computeWrite) I am proc " + controller.getStaticConf().getProcessId() + ", my propose value hash is " + epoch.propValueHash + ", recv propose hash is "+ value + ", cid is " + cid + ", epoch is " + epoch.getTimestamp());
-
 				if (!epoch.isAcceptSetted(me) && Arrays.equals(value, epoch.propValueHash)) {
 
 					LOGGER.debug("(Acceptor.computeWrite) I am proc {} sending WRITE for {}",
 							this.topology.getStaticConf().getProcessId(), cid);
 
 					/**** LEADER CHANGE CODE! ******/
-					LOGGER.debug(
-							"(Acceptor.computeWrite) Setting consensus {} , QuorumWrite tiemstamp to {} and value {}",
-							cid, epoch.getConsensus().getEts(), Arrays.toString(value));
+//					LOGGER.debug(
+//							"(Acceptor.computeWrite) Setting consensus {} , QuorumWrite tiemstamp to {} and value {}",
+//							cid, epoch.getConsensus().getEts(), Arrays.toString(value));
 					epoch.getConsensus().setQuorumWrites(value);
 					/*****************************************/
 
-					if (epoch.getConsensus().getDecision().firstMessageProposed != null) {
-
-						epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
-					}
+//					if (epoch.getConsensus().getDecision().firstMessageProposed != null) {
+//
+//						epoch.getConsensus().getDecision().firstMessageProposed.acceptSentTime = System.nanoTime();
+//					}
 
 					// add to implement application consistency
-					if (topology.getStaticConf().isBFT()) {
+//					if (topology.getStaticConf().isBFT()) {
 
 						DefaultRecoverable defaultExecutor = getDefaultExecutor();
                         byte[][] commands = new byte[epoch.deserializedPropValue.length][];
@@ -464,7 +453,10 @@ public final class Acceptor {
 						LOGGER.info("I am proc {}, start pre compute , cid = {}, epoch = {}", this.topology.getStaticConf().getProcessId(), cid, epoch.getTimestamp());
 						BatchAppResult appHashResult = defaultExecutor.preComputeHash(cid, commands, epoch.getProposeTimestamp());
 
-						byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+//						byte[] result = MergeByte(epoch.propValue, appHashResult.getAppHashBytes());
+
+						byte[] result = appHashResult.getAppHashBytes();
+
 						epoch.propAndAppValue = result;
 
 						epoch.propAndAppValueHash = tomLayer.computeHash(result);
@@ -494,32 +486,32 @@ public final class Acceptor {
 						insertProof(cm, epoch);
 
 						int[] targets = this.topology.getCurrentViewOtherAcceptors();
-//                    System.out.println("I am proc " + controller.getStaticConf().getProcessId() + ", send accept msg" + ", cid is "+cid);
 						communication.send(targets, cm);
 //                    communication.getServersConn().send(targets, cm, true);
 
 						epoch.addToProof(cm);
 						computeAccept(cid, epoch, epoch.propAndAppValueHash);
-					} else {
-						epoch.setAccept(me, value);
-
-						ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), value);
-
-						// Create a cryptographic proof for this ACCEPT message
-						LOGGER.debug(
-								"(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus {}",
-								cid);
-						insertProof(cm, epoch);
-
-						int[] targets = this.topology.getCurrentViewOtherAcceptors();
-						communication.getServersCommunication().send(targets, cm, true);
-
-						// communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
-						// factory.createStrong(cid, epoch.getNumber(), value));
-						epoch.addToProof(cm);
-						computeAccept(cid, epoch, value);
-
-					}
+//					}
+//					else {
+//						epoch.setAccept(me, value);
+//
+//						ConsensusMessage cm = factory.createAccept(cid, epoch.getTimestamp(), value);
+//
+//						// Create a cryptographic proof for this ACCEPT message
+//						LOGGER.debug(
+//								"(Acceptor.computeWrite) Creating cryptographic proof for my ACCEPT message from consensus {}",
+//								cid);
+//						insertProof(cm, epoch);
+//
+//						int[] targets = this.topology.getCurrentViewOtherAcceptors();
+//						communication.getServersCommunication().send(targets, cm, true);
+//
+//						// communication.send(this.reconfManager.getCurrentViewOtherAcceptors(),
+//						// factory.createStrong(cid, epoch.getNumber(), value));
+//						epoch.addToProof(cm);
+//						computeAccept(cid, epoch, value);
+//
+//					}
 				}
 			}
 		} catch (Throwable e) {
@@ -702,7 +694,6 @@ public final class Acceptor {
 					try {
 						LOGGER.info("(Acceptor.computeAccept) I am proc {}, I will write cid {} 's propse to ledger",
 								topology.getStaticConf().getProcessId(), cid);
-						// 发生过预计算才会进行commit的操作,对于视图ID号小的请求以及视图更新的重配请求没有进行过预计算，不需要提交
 						getDefaultExecutor().preComputeCommit(cid, epoch.getBatchId());
 						tomLayer.getExecManager().getConsensus(cid).setPrecomputeCommited(true);
 						decide(epoch);
@@ -790,8 +781,8 @@ public final class Acceptor {
 	 * @param epoch Epoch at which the decision is made
 	 */
 	private void decide(Epoch epoch) {
-		if (epoch.getConsensus().getDecision().firstMessageProposed != null)
-			epoch.getConsensus().getDecision().firstMessageProposed.decisionTime = System.nanoTime();
+//		if (epoch.getConsensus().getDecision().firstMessageProposed != null)
+//			epoch.getConsensus().getDecision().firstMessageProposed.decisionTime = System.nanoTime();
 
 		epoch.getConsensus().decided(epoch, true);
 	}
