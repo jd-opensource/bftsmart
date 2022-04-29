@@ -15,6 +15,26 @@ limitations under the License.
  */
 package bftsmart.communication.client.netty;
 
+import bftsmart.communication.client.ClientCommunicationServerSide;
+import bftsmart.communication.client.RequestReceiver;
+import bftsmart.reconfiguration.ViewTopology;
+import bftsmart.tom.ReplicaConfiguration;
+import bftsmart.tom.core.messages.TOMMessage;
+import bftsmart.tom.util.TOMUtil;
+import bftsmart.util.SSLContextFactory;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.*;
+import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslHandler;
+import org.slf4j.LoggerFactory;
+import utils.net.SSLMode;
+import utils.net.SSLSecurity;
+
+import javax.crypto.Mac;
+import javax.net.ssl.SSLEngine;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -29,35 +49,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
-
-import javax.crypto.Mac;
-import javax.net.ssl.SSLEngine;
-
-import bftsmart.tom.ReplicaConfiguration;
-import bftsmart.util.SSLContextFactory;
-import io.netty.handler.ssl.SslHandler;
-import org.slf4j.LoggerFactory;
-
-import bftsmart.communication.client.ClientCommunicationServerSide;
-import bftsmart.communication.client.RequestReceiver;
-import bftsmart.reconfiguration.ViewTopology;
-import bftsmart.tom.core.messages.TOMMessage;
-import bftsmart.tom.util.TOMUtil;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler.Sharable;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import utils.GmSSLProvider;
-import utils.net.SSLMode;
-import utils.net.SSLSecurity;
 
 /**
  *
@@ -157,14 +148,6 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 				}
 				if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
 					sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
-				}
-
-				if(GmSSLProvider.isGMSSL(sslSecurity.getProtocol())){
-					sslEngine.setEnabledProtocols(GmSSLProvider.ENABLE_PROTOCOLS);
-					sslEngine.setEnabledCipherSuites(GmSSLProvider.ENABLE_CIPHERS);
-					sslEngine.setNeedClientAuth(false);
-				}else{
-					sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));
 				}
 
 				sslEngine.setNeedClientAuth(sslSecurity.getSslMode(false).equals(SSLMode.TWO_WAY));

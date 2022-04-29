@@ -30,7 +30,7 @@
 
 		<dependency>
 			<groupId>com.jd.utils</groupId>
-			<artifactId>utils-sm-tls</artifactId>
+			<artifactId>utils-crypto-sm</artifactId>
 			<version>${util.version}</version>
 		</dependency>
 

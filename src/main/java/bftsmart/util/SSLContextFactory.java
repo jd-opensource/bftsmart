@@ -1,6 +1,6 @@
 package bftsmart.util;
 
-import utils.GmSSLProvider;
+import utils.crypto.sm.GmSSLProvider;
 import utils.StringUtils;
 import utils.net.SSLSecurity;
 

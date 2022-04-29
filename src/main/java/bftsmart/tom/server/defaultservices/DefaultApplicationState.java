@@ -46,6 +46,7 @@ public class DefaultApplicationState implements ApplicationState {
     private CommandsInfo[] messageBatches; // batches received since the last checkpoint.
     private int lastCheckpointCID; // Consensus ID for the last checkpoint
     private byte[] logHash;
+    private byte[] blockHash;      // Hash of corresponding block height
     
     private int pid;
 
@@ -84,6 +85,7 @@ public class DefaultApplicationState implements ApplicationState {
         this.lastCID = -1;
         this.state = null; // State associated with the last checkpoint
         this.stateHash = null;
+        this.blockHash = null;
         this.hasState = false;
         this.pid = -1;
     }
@@ -165,6 +167,14 @@ public class DefaultApplicationState implements ApplicationState {
     }
 
     /**
+     * Retrieves the blockhash by height
+     * @return blockhash bytes
+     */
+    public byte[] getBlockHash() {
+        return blockHash;
+    }
+
+    /**
      * Retrieves the hash of the state associated with the last checkpoint
      * @return Hash of the state associated with the last checkpoint
      */
@@ -180,7 +190,15 @@ public class DefaultApplicationState implements ApplicationState {
     public void setState(byte[] state) {
         this.state = state;
     }
-    
+
+    /**
+     * Sets block hash
+     * @param void
+     */
+    public void setBlockHash(byte[] blockHash) {
+        this.blockHash = blockHash;
+    }
+
     /**
      * Retrieves all batches of messages
      * @return Batch of messages
@@ -260,7 +278,7 @@ public class DefaultApplicationState implements ApplicationState {
                     }
                 }
             }
-            return (Arrays.equals(this.stateHash, tState.stateHash) &&
+            return (Arrays.equals(this.stateHash, tState.stateHash) && Arrays.equals(this.blockHash, tState.blockHash) &&
                     tState.lastCheckpointCID == this.lastCheckpointCID &&
                     tState.lastCID == this.lastCID && tState.hasState == this.hasState);
         }

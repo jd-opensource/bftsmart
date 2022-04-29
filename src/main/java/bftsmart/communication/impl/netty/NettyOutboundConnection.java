@@ -24,9 +24,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import utils.GmSSLProvider;
 import utils.io.BytesUtils;
-import utils.net.SSLMode;
 import utils.net.SSLSecurity;
 
 import javax.net.ssl.SSLEngine;
@@ -145,12 +143,6 @@ public class NettyOutboundConnection extends AbstractNettyConnection {
                 }
                 if(null != sslSecurity.getCiphers() && sslSecurity.getCiphers().length > 0) {
                     sslEngine.setEnabledCipherSuites(sslSecurity.getCiphers());
-                }
-
-                if(GmSSLProvider.isGMSSL(sslSecurity.getProtocol())){
-                    sslEngine.setEnabledProtocols(GmSSLProvider.ENABLE_PROTOCOLS);
-                    sslEngine.setEnabledCipherSuites(GmSSLProvider.ENABLE_CIPHERS);
-                    sslEngine.setNeedClientAuth(false);
                 }
 
                 channel.pipeline().addFirst(new SslHandler(sslEngine))
