@@ -169,7 +169,7 @@ public class TOMLayer extends Thread implements RequestReceiver {
 //        }
 
 		try {
-			this.engine = Signature.getInstance("SHA1withRSA");
+			this.engine = Signature.getInstance("SHA256withRSA");
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e.getMessage(), e);
 		}

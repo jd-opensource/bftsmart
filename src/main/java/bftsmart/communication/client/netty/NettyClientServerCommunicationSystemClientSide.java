@@ -426,7 +426,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         //long startTime = System.nanoTime();
         try {
             if (signatureEngine == null) {
-                    signatureEngine = Signature.getInstance("SHA1withRSA");
+                    signatureEngine = Signature.getInstance("SHA256withRSA");
             }
             byte[] result = null;
 

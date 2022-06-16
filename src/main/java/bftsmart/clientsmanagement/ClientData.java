@@ -59,7 +59,7 @@ public class ClientData {
         this.clientId = clientId;
         if(publicKey != null) {
             try {
-                signatureVerificator = Signature.getInstance("SHA1withRSA");
+                signatureVerificator = Signature.getInstance("SHA256withRSA");
                 signatureVerificator.initVerify(publicKey);
                 LOGGER.debug("Signature verifier initialized for client {}", clientId);
             } catch (Exception ex) {

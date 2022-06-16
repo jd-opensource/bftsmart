@@ -108,7 +108,7 @@ public class TOMUtil {
 	 */
 	public static byte[] signMessage(PrivateKey key, byte[] message) {
 		try {
-			Signature signatureEngine = Signature.getInstance("SHA1withRSA");
+			Signature signatureEngine = Signature.getInstance("SHA256withRSA");
 			signatureEngine.initSign(key);
 			signatureEngine.update(message);
 			
@@ -132,7 +132,7 @@ public class TOMUtil {
 		boolean result = false;
 
 		try {
-			Signature signatureEngine = Signature.getInstance("SHA1withRSA");
+			Signature signatureEngine = Signature.getInstance("SHA256withRSA");
 
 			signatureEngine.initVerify(key);
 

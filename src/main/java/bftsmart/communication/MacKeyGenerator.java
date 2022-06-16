@@ -136,7 +136,7 @@ public class MacKeyGenerator {
 
 	private static byte[] sign(PrivateKey key, byte[] bytes) {
 		try {
-			Signature signatureEngine = Signature.getInstance("SHA1withRSA");
+			Signature signatureEngine = Signature.getInstance("SHA256withRSA");
 			signatureEngine.initSign(key);
 
 			signatureEngine.update(bytes);
@@ -150,7 +150,7 @@ public class MacKeyGenerator {
 
 	public static boolean verify(PublicKey key, byte[] bytes, byte[] signature) {
 		try {
-			Signature signatureEngine = Signature.getInstance("SHA1withRSA");
+			Signature signatureEngine = Signature.getInstance("SHA256withRSA");
 			signatureEngine.initVerify(key);
 
 			signatureEngine.update(bytes);
