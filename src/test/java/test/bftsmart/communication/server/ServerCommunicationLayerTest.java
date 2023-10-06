@@ -242,7 +242,7 @@ public class ServerCommunicationLayerTest {
 		int[] viewProcessIds = { 0, 1};
 		int[] ports = { 14100, 14110};
 
-		CommunicationLayer[] servers = prepareNettyNodes(realmName, viewProcessIds, ports);
+		CommunicationLayer[] servers = prepareNettyNodes2(realmName, viewProcessIds, ports);
 		MessageCounter[] counters = prepareMessageCounters(servers);
 
 		for (CommunicationLayer server : servers) {
@@ -272,7 +272,7 @@ public class ServerCommunicationLayerTest {
 		int[] viewProcessIds = { 0, 1, 2, 3 };
 		int[] ports = { 15100, 15110, 15120, 15130 };
 
-		CommunicationLayer[] servers = prepareNettyNodes(realmName, viewProcessIds, ports);
+		CommunicationLayer[] servers = prepareNettyNodes2(realmName, viewProcessIds, ports);
 		MessageCounter[] counters = prepareMessageCounters(servers);
 
 		for (CommunicationLayer srv : servers) {
@@ -433,6 +433,16 @@ public class ServerCommunicationLayerTest {
 				assertArrayEquals(expected, actual);
 			}
 		}
+	}
+
+	private CommunicationLayer[] prepareNettyNodes2(String realmName, int[] viewProcessIds, int[] ports) {
+		CommunicationLayer[] comLayers = new CommunicationLayer[viewProcessIds.length];
+		for (int i = 0; i < comLayers.length; i++) {
+			ReplicaTopology topology = CommunicationtTestMocker.mockTopologyWithTCP2(viewProcessIds[i], viewProcessIds, ports);
+			CommunicationLayer comLayer = new NettyServerCommunicationLayer(realmName, topology);
+			comLayers[i] = comLayer;
+		}
+		return comLayers;
 	}
 
 }

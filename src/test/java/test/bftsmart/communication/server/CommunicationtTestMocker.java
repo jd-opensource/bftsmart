@@ -19,26 +19,17 @@ public class CommunicationtTestMocker {
 
 	public static ViewTopology mockTopology(int currentId, int[] processIds) {
 		ReplicaConfiguration conf = mockConfiguration(currentId, processIds);
-		
+
 		return mockTopology(currentId, processIds, conf);
 	}
-	
+
 	public static ViewTopology mockTopology(int currentId, int[] processIds, ReplicaConfiguration conf) {
 		ViewTopology topology = Mockito.mock(ViewTopology.class);
 		when(topology.getCurrentProcessId()).thenReturn(currentId);
 		when(topology.getCurrentViewProcesses()).thenReturn(processIds);
 		when(topology.isInCurrentView()).thenReturn(contains(currentId, processIds));
-		when(topology.isCurrentViewMember(anyInt())).thenAnswer(new Answer<Boolean>() {
+		when(topology.getStaticConf()).thenReturn(conf);
 
-			@Override
-			public Boolean answer(InvocationOnMock invocation) throws Throwable {
-				int id = invocation.getArgument(0);
-				return contains(id, processIds);
-			}
-		});
-		
-        when(topology.getStaticConf()).thenReturn(conf);
-        
 		return topology;
 	}
 
@@ -63,17 +54,10 @@ public class CommunicationtTestMocker {
 
 	public static ReplicaConfiguration mockConfiguration(int currentId, int[] processIds) {
 		ReplicaConfiguration conf = Mockito.mock(ReplicaConfiguration.class);
-		when(conf.getProcessId()).thenReturn(currentId);
-		when(conf.getInitialView()).thenReturn(processIds);
 		when(conf.getInQueueSize()).thenReturn(100000);
-		when(conf.getOutQueueSize()).thenReturn(100000);
-		when(conf.getSendRetryCount()).thenReturn(10);
-
 		try {
 			DefaultRSAKeyLoader defaultRSAKeyLoader = new DefaultRSAKeyLoader();
-			when(conf.getRSAPrivateKey()).thenReturn(defaultRSAKeyLoader.loadPrivateKey(currentId));
-			when(conf.getRSAPublicKey(currentId)).thenReturn(defaultRSAKeyLoader.loadPublicKey(currentId));
-		} catch (Exception e) {
+			} catch (Exception e) {
 			throw new IllegalStateException(e.getMessage(), e);
 		}
 		return conf;
@@ -89,15 +73,15 @@ public class CommunicationtTestMocker {
 			hosts.add(processIds[i], "localhost", port, 0);
 		}
 		TOMConfiguration conf = new TOMConfiguration(currentId, new Properties(), hosts);
-		
+
 		conf = Mockito.spy(conf);
-		
+
 		when(conf.getProcessId()).thenReturn(currentId);
 		when(conf.getInQueueSize()).thenReturn(100000);
 		when(conf.getOutQueueSize()).thenReturn(100000);
-		
+
 		return conf;
-		
+
 //		ReplicaConfiguration conf = mockConfiguration(currentId, processIds);
 //
 //		when(conf.getServerToServerPort(anyInt())).thenAnswer(new Answer<Integer>() {
@@ -123,6 +107,18 @@ public class CommunicationtTestMocker {
 			}
 		}
 		return false;
+	}
+
+	public static ReplicaTopology mockTopologyWithTCP2(int currentId, int[] processIds, int[] ports) {
+		ReplicaTopology topology = Mockito.mock(ReplicaTopology.class);
+		when(topology.getCurrentProcessId()).thenReturn(currentId);
+		when(topology.getCurrentViewProcesses()).thenReturn(processIds);
+		when(topology.isInCurrentView()).thenReturn(contains(currentId, processIds));
+
+		ReplicaConfiguration conf = mockDefaultConfiguration(currentId, processIds, ports);
+		when(topology.getStaticConf()).thenReturn(conf);
+
+		return topology;
 	}
 
 }
